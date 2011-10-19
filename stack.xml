@@ -6,6 +6,7 @@
   <url>http://ros.org/wiki/cob_object_perception</url>
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, sensor_msgs -->
   <depend stack="ros" />
-  <depend stack="ros_comm" /> <!-- std_msgs -->
+  <depend stack="ros_comm" /> <!-- std_msgs, rospy -->
+  <depend stack="simulator_gazebo" /> <!-- gazebo -->
 
 </stack>
