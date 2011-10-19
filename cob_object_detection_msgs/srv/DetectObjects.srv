@@ -1,0 +1,3 @@
+std_msgs/String object_name
+---
+cob_object_detection_msgs/DetectionArray object_list

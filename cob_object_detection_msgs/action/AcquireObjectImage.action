@@ -1,0 +1,9 @@
+# The goal
+string object_name
+bool reset_image_counter
+geometry_msgs/PoseStamped pose
+---
+# The results
+---
+# The feedback
+float32 percent_complete

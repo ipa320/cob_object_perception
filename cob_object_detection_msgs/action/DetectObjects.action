@@ -1,0 +1,8 @@
+# The goal
+std_msgs/String object_name
+---
+# The result
+cob_object_detection_msgs/DetectionArray object_list
+---
+# The feedback
+float32 percent_complete
