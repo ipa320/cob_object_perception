@@ -1,52 +1,49 @@
 #!/usr/bin/python
-import sys
 import roslib
-roslib.load_manifest('cob_object_detection_msgs')
-roslib.load_manifest('gazebo')
+roslib.load_manifest('cob_object_detection_fake')
 
 import rospy
-import os
-import tf
 
 from cob_object_detection_msgs.srv import *
 from cob_object_detection_msgs.msg import *
 
 from gazebo.srv import *
-from std_msgs.msg import String
 
 def handle_detect_object(req):
 	
 	srv_set_model_state = rospy.ServiceProxy('gazebo/get_world_properties', GetWorldProperties)
 	res_set = srv_set_model_state()
-		
+	
 	names=[]
-	for n in res_set.model_names:
-		if n.find(str(req.object_name.data))!=-1:
-			names.insert(0,n)
+	for name in res_set.model_names:
+		if name == req.object_name.data:
+			names.append(name)
 			
 	if len(names)==0:
+		rospy.logwarn("%s not in database, searching for all objects", req.object_name.data)
 		names = res_set.model_names
 
-	r = DetectObjectsResponse()
+	resp = DetectObjectsResponse()
 	
-	for n in names:
+	for name in names:
 		
-		print "simulating detection of "+n
+		rospy.loginfo("fake detection of %s",name)
 		
 		srv_set_model_state = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
-		res_set = srv_set_model_state(n,'')
+		res_set = srv_set_model_state(name,'')
 		
-		d=Detection()
-		d.pose.pose = res_set.pose
+		detection=Detection()
+		detection.pose.pose = res_set.pose
+		detection.label = name
 		
-		r.object_list.detections.insert(0,d)
+		resp.object_list.detections.insert(0,detection)
 	
-	return r
+	return resp
 	
 def detect_object():	
 	rospy.init_node('detect_object')
 	s = rospy.Service('detect_object', DetectObjects, handle_detect_object)
-	print "Ready."
+	rospy.loginfo("Fake object detection ready.")
 	rospy.spin()
 
 
