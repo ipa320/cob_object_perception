@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- start left camera -->
+  <node pkg="cob_object_detection_fake" type="object_detection_fake.py" name="object_detection_fake" output="screen">
+  	<remap from="detect_object" to="/object_detection/detect_object"/>
+  </node>
+
+</launch>
+

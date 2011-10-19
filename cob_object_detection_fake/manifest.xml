@@ -1,0 +1,15 @@
+<package>
+  <description brief="cob_object_detection_fake">
+
+     cob_object_detection_fake
+
+  </description>
+  <author>Joshua Hampp</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/cob_object_detection_fake</url>
+  <depend package="cob_object_detection_msgs"/>
+
+</package>
+
+
