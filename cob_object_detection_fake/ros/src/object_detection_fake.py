@@ -1,22 +1,21 @@
 #!/usr/bin/python
 import sys
 import roslib
-roslib.load_manifest('cob_object_detection')
+roslib.load_manifest('cob_object_detection_msgs')
 roslib.load_manifest('gazebo')
 
 import rospy
 import os
 import tf
 
-from cob_object_detection.srv import *
-from cob_object_detection.msg import *
+from cob_object_detection_msgs.srv import *
+from cob_object_detection_msgs.msg import *
 
 from gazebo.srv import *
 from std_msgs.msg import String
 
 def handle_detect_object(req):
 	
-	# Move training table on top of gripper
 	srv_set_model_state = rospy.ServiceProxy('gazebo/get_world_properties', GetWorldProperties)
 	res_set = srv_set_model_state()
 		
