@@ -36,18 +36,11 @@ def handle_detect_object(req):
 		print res_set
 
 		srv_get_link_state = rospy.ServiceProxy('/gazebo/get_link_state', GetLinkState)
-		res_set = srv_get_link_state("robot::head_axis_link", "milk::box_body")
+		res_set = srv_get_link_state( "milk::box_body","robot::head_axis_link")
 
 		print res_set
 
 		detection=Detection()
-		#object_pose = PoseStamped()
-		#object_pose.header.stamp = rospy.Time.now()
-		#object_pose.header.frame_id = ''
-		# get_model_state cob3
-		# cob3-milk
-		#TODO transform to head_camera_l_link
-		#object_pose.pose = res_set.pose
 		detection.pose.header.frame_id='/head_axis_link'
 		detection.pose.pose = res_set.link_state.pose
 		detection.label = name
