@@ -36,7 +36,7 @@ def handle_detect_object(req):
 		print res_model
 
 		srv_get_link_state = rospy.ServiceProxy('/gazebo/get_link_state', GetLinkState)
-		res_link = srv_get_link_state("milk::box_body","robot::head_axis_link")
+		res_link = srv_get_link_state(name + "::box_body","robot::head_axis_link")
 
 		print res_link
 
