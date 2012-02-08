@@ -5,7 +5,7 @@
 
   </description>
   <author>Joshua Hampp</author>
-  <license>BSD</license>
+  <license>LGPL</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_object_detection_fake</url>
   
