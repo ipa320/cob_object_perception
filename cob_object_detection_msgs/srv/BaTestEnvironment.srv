@@ -1,0 +1,10 @@
+# ROS service for testing sparce Bundle Adjustment
+float32 limit_error_matching
+int32 number_points
+float32 frame_view_number
+float32 cone_points_per_plane 
+float32 reproj_point_noise
+float32 sigma
+---
+float32 mean_error
+std_msgs/String result
