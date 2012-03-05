@@ -14,4 +14,7 @@ float32 world_point_sigma_m
 
 ---
 float32 mean_error
+float32 std_dev
+float32 min_error
+float32 max_error
 std_msgs/String result
