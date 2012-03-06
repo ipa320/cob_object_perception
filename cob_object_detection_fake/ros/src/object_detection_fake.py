@@ -45,8 +45,8 @@ def handle_detect_object(req):
 	frame_o_h[1][3] = trans_o_h[1]
 	frame_o_h[2][3] = trans_o_h[2]
 
-	print "frame_o_h"
-	print frame_o_h
+#	print "frame_o_h"
+#	print frame_o_h
 	
 	tf_listener.waitForTransform('/head_color_camera_l_link', '/head_axis_link', rospy.Time(0), rospy.Duration(1))
 	(trans_h_l, rot_h_l) = tf_listener.lookupTransform('/head_color_camera_l_link', '/head_axis_link', rospy.Time(0))
@@ -56,8 +56,8 @@ def handle_detect_object(req):
 	frame_h_l[1][3] = trans_h_l[1]
 	frame_h_l[2][3] = trans_h_l[2]
 
-	print "frame_h_l"
-	print frame_h_l
+#	print "frame_h_l"
+#	print frame_h_l
 
 	#frame = numpy.linalg.inv(frame)
 	#rot = quaternion_from_matrix(frame)
@@ -66,8 +66,8 @@ def handle_detect_object(req):
 
 	# Transform
 	frame_o_l = numpy.dot(frame_h_l, frame_o_h)
-	print "frame_o_l"
-	print frame_o_l
+#	print "frame_o_l"
+#	print frame_o_l
 
 	rot_o_l = quaternion_from_matrix(frame_o_l)
 	tmp_mat = hsplit(frame_o_l, [3])
@@ -77,16 +77,16 @@ def handle_detect_object(req):
 	box_min = (-0.06, -0.095, 0, 1)
 	box_max = (0.06, 0.095, 0.2, 1)
 
-	print "BOX MIN"
-	print box_min
+#	print "BOX MIN"
+#	print box_min
 	box_min = numpy.dot(frame_o_l, box_min)
-	print box_min
+#	print box_min
 
 
-	print "BOX MAX"		
-	print box_max
-	box_max = numpy.dot(frame_o_l, box_min)
-	print box_max
+#	print "BOX MAX"		
+#	print box_max
+	box_max = numpy.dot(frame_o_l, box_max)
+#	print box_max
 
 	# compose Detection message
 	detection=Detection()
