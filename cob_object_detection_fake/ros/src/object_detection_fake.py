@@ -79,13 +79,13 @@ def handle_detect_object(req):
 
 #	print "BOX MIN"
 #	print box_min
-	box_min = numpy.dot(frame_o_l, box_min)
+#	box_min = numpy.dot(frame_o_l, box_min)
 #	print box_min
 
 
 #	print "BOX MAX"		
 #	print box_max
-	box_max = numpy.dot(frame_o_l, box_max)
+#	box_max = numpy.dot(frame_o_l, box_max)
 #	print box_max
 
 	# compose Detection message
@@ -99,12 +99,12 @@ def handle_detect_object(req):
 	detection.pose.pose.orientation.z = rot_o_l[2]
 	detection.pose.pose.orientation.w = rot_o_l[3]
 	detection.label = name
-	detection.bounding_box_min.x = box_min[0]
-	detection.bounding_box_min.y = box_min[1]
-	detection.bounding_box_min.z = box_min[2]
-	detection.bounding_box_max.x = box_max[0]
-	detection.bounding_box_max.y = box_max[1]
-	detection.bounding_box_max.z = box_max[2]
+	detection.bounding_box_lwh.x = 0.5*(box_max[0] - box_min[0])
+	detection.bounding_box_lwh.y = 0.5*(box_max[1] - box_min[1])
+	# When the coordinate system has been defined correctly,
+	# box_min[2] should be 0 and therefore we can shorten the 
+	# expression below
+	detection.bounding_box_lwh.z = box_max[2]
 
 	# insert object to detection_list
 	resp.object_list.detections.insert(0,detection)
