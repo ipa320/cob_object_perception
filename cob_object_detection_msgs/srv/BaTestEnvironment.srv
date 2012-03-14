@@ -1,10 +1,23 @@
 # ROS service for testing sparce Bundle Adjustment
-float32 limit_error_matching
+# parameter for testdata structure
 int32 number_points
 float32 frame_view_number
 float32 cone_points_per_plane 
-float32 reproj_point_noise
-float32 sigma
+
+# perameter to describe errors
+float32 limit_error_matching
+float32 ba_kernel_param
+float32 angle_sigma_degree
+float32 translate_sigma_m
+float32 obs_point_sigma_m
+float32 world_point_sigma_m
+
 ---
 float32 mean_error
+float32 std_dev
+float32 min_error
+float32 max_error
+float32 runs_count
+float32 runs_sum
+float32 runs_sum2
 std_msgs/String result
