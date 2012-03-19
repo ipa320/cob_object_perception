@@ -127,7 +127,7 @@ void DetectText::preprocess(Mat& image)
 
   //	bilateralFilter(image, image_, 7, 20, 50);// prosilica sensor noise
 
-	maxStrokeWidth_ = 10;
+	maxStrokeWidth_ = 30;
   // A  eigentlich:
   // | 
   //maxStrokeWidth_ = round(20 * (float)(max(image.cols, image.rows)) / 1000);
