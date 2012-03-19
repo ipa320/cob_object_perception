@@ -1,0 +1,25 @@
+<package>
+  <description brief="cob_read_text">
+
+	bases on pr2_read_text from Menglong Zhu: menglong(at)seas.upenn.edu
+
+  </description>
+  <author>Robert Heinze, Richard Bormann</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/cob_read_text</url>
+  <depend package="read_text"/>
+  <depend package="opencv2"/>
+  <depend package="roscpp"/>
+  <depend package="sensor_msgs"/>
+  <!--depend package="geometry_msgs"/-->
+  <!--depend package="pr2_controllers_msgs"/-->
+  <depend package="pr2_mechanism_controllers"/>
+  <depend package="cv_bridge"/>
+  <depend package="std_msgs"/>
+  <depend package="image_transport"/>
+  <depend package="tesseract"/>
+
+</package>
+
+

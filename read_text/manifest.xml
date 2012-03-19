@@ -1,0 +1,19 @@
+<package>
+  <description brief="read_text">
+
+     Detect and recognize text from indoor environment.  
+
+  </description>
+  <author>Menglong Zhu: menglong(at)seas.upenn.edu</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/read_text</url>
+  <depend package="opencv2"/>
+  <depend package="roscpp"/>
+  <depend package="tesseract"/>
+  <export>
+      <cpp cflags="-I${prefix}/include" lflags="-L${prefix}/lib -Wl,-rpath,-L${prefix}/lib -lread_text"/>
+  </export>
+</package>
+
+
