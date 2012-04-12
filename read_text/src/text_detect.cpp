@@ -88,9 +88,7 @@ void DetectText::detect()
   overlapBoundingBoxes(boundingBoxes_);
   ocrRead(boundingBoxes_);
   showBoundingBoxes(boxesBothSides_);
-  std::cout << "1\n";
   overlayText(boxesBothSides_, wordsBothSides_);
-  std::cout << "1\n";
 
   imwrite(outputPrefix_ + "_detection.jpg", detection_);
 
@@ -125,12 +123,13 @@ void DetectText::preprocess(Mat& image)
 
   image_ = image; //Vorhin (lokal) erstelles imGray wurde an preprocess() übergeben und jetzt image_ zugewiesen
 
+  // hack: was turned off
   //	bilateralFilter(image, image_, 7, 20, 50);// prosilica sensor noise
 
-	maxStrokeWidth_ = 10;
+//	maxStrokeWidth_ = 10;
   // A  eigentlich:
   // | 
-  //maxStrokeWidth_ = round(20 * (float)(max(image.cols, image.rows)) / 1000);
+  maxStrokeWidth_ = round(20 * (float)(max(image.cols, image.rows)) / 1000);
 
   initialStrokeWidth_ = maxStrokeWidth_ * 2;
   maxLetterHeight_ = 600;
@@ -305,32 +304,31 @@ void DetectText::strokeWidthTransform(const Mat& image, Mat& swtmap, int searchD
   vector<Point> strokePoints;
 
   updateStrokeWidth(swtmap, edgepoints_, strokePoints, searchDirection, UPDATE);
-      cout << endl << "swt-map:" << endl;
-     cout << "----------------------------------" << endl;
-     for (int y = 0; y < swtmap.rows; y++)
-     {
-     for (int x = 0; x < swtmap.cols; x++)
-     {
-     cout << (unsigned int)swtmap.at<float> (y, x) << " ";
-     }
-     cout << endl;
-     }
-
-
+//      cout << endl << "swt-map:" << endl;
+//     cout << "----------------------------------" << endl;
+//     for (int y = 0; y < swtmap.rows; y++)
+//     {
+//     for (int x = 0; x < swtmap.cols; x++)
+//     {
+//     cout << (unsigned int)swtmap.at<float> (y, x) << " ";
+//     }
+//     cout << endl;
+//     }
 
   updateStrokeWidth(swtmap, strokePoints, strokePoints, searchDirection, REFINE);
   
-    cout << endl << "swt-map:" << endl;
-     cout << "----------------------------------" << endl;
-     for (int y = 0; y < swtmap.rows; y++)
-     {
-     for (int x = 0; x < swtmap.cols; x++)
-     {
-     cout << (unsigned int)swtmap.at<float> (y, x) << " ";
-     }
-     cout << endl;
-     }
-     exit(0);
+//    cout << endl << "swt-map:" << endl;
+//     cout << "----------------------------------" << endl;
+//     for (int y = 0; y < swtmap.rows; y++)
+//     {
+//     for (int x = 0; x < swtmap.cols; x++)
+//     {
+//     cout << (unsigned int)swtmap.at<float> (y, x) << " ";
+//     }
+//     cout << endl;
+//     }
+
+     //exit(0);
 }
 
 //swtmap ist noch leer, startPoints = edgepoints -> enthält alle Kantenpunkte aus canny, strokePoints noch leer(initialStrokeWidth)
