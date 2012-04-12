@@ -1,0 +1,27 @@
+Index: configure
+===================================================================
+--- configure	(revision 451)
++++ configure	(working copy)
+@@ -18379,6 +18379,22 @@
+     fi
+   done
+ done
++
++# Check whether --with-extra-includes was given.
++if test "${with_extra_includes+set}" = set; then :
++  withval=$with_extra_includes;  if test -d "$withval" ; then
++            for lept in . leptonica liblept
++            do
++              if test -r "$withval/$lept/allheaders.h" ; then
++                CPPFLAGS="$CPPFLAGS -I$withval/$lept"
++                have_lept=yes
++              fi
++            done
++          else
++            as_fn_error "Cannot stat directory $withval" "$LINENO" 5
++          fi
++fi
++
+ if test "$have_lept" = yes ; then
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pixCreate in -llept" >&5
+ $as_echo_n "checking for pixCreate in -llept... " >&6; }

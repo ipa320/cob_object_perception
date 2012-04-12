@@ -1,0 +1,22 @@
+all: installed
+
+TARBALL_VERSION = 1.66
+TARBALL         = build/leptonlib-$(TARBALL_VERSION).tar.gz
+TARBALL_URL     = http://www.leptonica.com/source/leptonlib-$(TARBALL_VERSION).tar.gz
+MD5SUM_FILE     = libleptonica.md5sum
+UNPACK_CMD      = tar xzf
+SOURCE_DIR      = build/leptonlib-$(TARBALL_VERSION)
+#TARBALL_PATCH   = 
+
+include $(shell rospack find mk)/download_unpack_build.mk
+
+installed: $(SOURCE_DIR)/unpacked Makefile
+					cd $(SOURCE_DIR) && ./configure --prefix=`rospack find leptonica`
+					cd $(SOURCE_DIR) && make install
+					touch installed
+          
+clean:
+	rm -rf $(SOURCE_DIR)
+	
+wipe: clean
+	rm -rf build

@@ -19,7 +19,10 @@
   <depend package="std_msgs"/>
   <depend package="image_transport"/>
   <depend package="tesseract"/>
-
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/> 
+  <depend package="geometry_msgs"/>
+  <depend package="sensor_msgs"/>
 </package>
 
 

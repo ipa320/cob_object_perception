@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svnroot/bosch-ros-pkg/!svn/ver/1136/trunk/stacks/ocr
+END
+stack.xml
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/bosch-ros-pkg/!svn/ver/1136/trunk/stacks/ocr/stack.xml
+END
+CMakeLists.txt
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svnroot/bosch-ros-pkg/!svn/ver/224/trunk/stacks/ocr/CMakeLists.txt
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/bosch-ros-pkg/!svn/ver/224/trunk/stacks/ocr/Makefile
+END
+rosdep.yaml
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/bosch-ros-pkg/!svn/ver/217/trunk/stacks/ocr/rosdep.yaml
+END

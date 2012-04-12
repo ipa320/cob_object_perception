@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/bosch-ros-pkg/!svn/ver/222/trunk/stacks/ocr/leptonica
+END
+Makefile.libleptonica
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svnroot/bosch-ros-pkg/!svn/ver/219/trunk/stacks/ocr/leptonica/Makefile.libleptonica
+END
+manifest.xml
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svnroot/bosch-ros-pkg/!svn/ver/222/trunk/stacks/ocr/leptonica/manifest.xml
+END
+CMakeLists.txt
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svnroot/bosch-ros-pkg/!svn/ver/222/trunk/stacks/ocr/leptonica/CMakeLists.txt
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svnroot/bosch-ros-pkg/!svn/ver/219/trunk/stacks/ocr/leptonica/Makefile
+END
+libleptonica.md5sum
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svnroot/bosch-ros-pkg/!svn/ver/219/trunk/stacks/ocr/leptonica/libleptonica.md5sum
+END
