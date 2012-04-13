@@ -130,7 +130,7 @@ private:
 
   void chainPairs(Mat& ccmap);
 
-  void findRotationangles();
+  void findRotationangles(int blackWhite);
 
   void filterBoundingBoxes(vector<Rect>& boundingBoxes, Mat& ccmap, int rejectRatio);
 
@@ -197,6 +197,13 @@ private:
   void testEdgePoints(vector<Point> &edgepoints);
 
   /***** variables *******/
+
+  struct bgr
+  {
+  uchar b; /**< Blue channel value. */
+  uchar g; /**< Green channel value. */
+  uchar r; /**< Red channel value. */
+  };
 
   // these variables stays for the same image
   Mat originalImage_;

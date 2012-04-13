@@ -85,7 +85,7 @@ void DetectText::detect()
   firstPass_ = true;
   pipeline(1);
   cout << "Second pass" << endl;
-  firstPass_ = false; // nur für SWT relevant, damit auch schwarzer Text auf weissen Grund erkannt wird
+  firstPass_ = false;
   pipeline(-1);
 
   cout << "size von rotated:" << rotated.size();
@@ -102,7 +102,6 @@ void DetectText::detect()
    float score = ocrRead(rotated.at(i).rotated_img, result);
    if (score > 0)
    {
-   cout << "CARMEN" << endl;
    boxesBothSides_.push_back(rotated.at(i).coords);
    wordsBothSides_.push_back(result);
    boxesScores_.push_back(score);
@@ -273,8 +272,8 @@ void DetectText::preprocess(Mat& image)
   maxStrokeWidth_ = round(20 * (float)(max(image.cols, image.rows)) / 1000);
 
   initialStrokeWidth_ = maxStrokeWidth_ * 2;
-  maxLetterHeight_ = 600;
-  minLetterHeight_ = 10;
+  maxLetterHeight_ = 300;
+  minLetterHeight_ = 5;
 
   IplImage *img2 = new IplImage(originalImage_);
   IplImage *img1 = cvCreateImage(cvSize(image.cols + 600, image.rows), img2->depth, img2->nChannels);
@@ -337,7 +336,7 @@ void DetectText::pipeline(int blackWhite)
   cout << time_in_seconds << "s in chainPairs" << endl;
 
   start_time = clock();
-  findRotationangles();
+  findRotationangles(blackWhite);
   time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
   cout << time_in_seconds << "s in findRotationsangles" << endl;
 
@@ -426,10 +425,10 @@ void DetectText::strokeWidthTransform(const Mat& image, Mat& swtmap, int searchD
     {
       for (int x = 0; x < edgemap_.cols; x++)
       {
-        if (edgemap_.at<unsigned char> (y, x) == 255) // Falls bei (x,y) eine Kante ist
+        if (edgemap_.at<unsigned char> (y, x) == 255) // In case (x,y) is an edge
         {
-          theta_.at<float> (y, x) = atan2(dy.at<float> (y, x), dx.at<float> (y, x)); //Anstieg = arctan gy/gx
-          edgepoints_.push_back(Point(x, y)); //Kante als Punkt in edgepoints speichern
+          theta_.at<float> (y, x) = atan2(dy.at<float> (y, x), dx.at<float> (y, x)); //rise = arctan gy/gx
+          edgepoints_.push_back(Point(x, y)); //Save edge as point in edgepoints
         }
       }
     }
@@ -467,11 +466,11 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
     bool isStroke = false;
     float iTheta = theta_.at<float> (*itr);
 
-    pointStack.push_back(Point(currX, currY)); // Anfangspunkt im pointStack speichern
+    pointStack.push_back(Point(currX, currY));
     SwtValues.push_back(swtmap.at<float> (currY, currX));
     while (step < maxStrokeWidth_)
     {
-      float nextY = round(iy + sin(iTheta) * searchDirection * step); //anfangs:
+      float nextY = round(iy + sin(iTheta) * searchDirection * step);
       float nextX = round(ix + cos(iTheta) * searchDirection * step);
 
       if (nextY < 0 || nextX < 0 || nextY >= edgemap_.rows || nextX >= edgemap_.cols)
@@ -495,7 +494,7 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
           isStroke = true;
           if (purpose == UPDATE)
           {
-            strokePoints.push_back(Point(ix, iy)); //gegenüberliegender Punkt gefunden
+            strokePoints.push_back(Point(ix, iy));
           }
         }
         break;
@@ -507,7 +506,7 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
       float newSwtVal;
       if (purpose == UPDATE)// update swt based on dist between edges
       {
-        newSwtVal = sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix)); //Abstand der Punkte
+        newSwtVal = sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix));
         //cout << "newSwtVal: " << newSwtVal << ", currY: " << currY << ", iy:" << iy << ", currX:" << currX << ", ix:" << ix << endl;
       }
       else if (purpose == REFINE) // refine swt based on median
@@ -517,7 +516,7 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
         //cout << "newSwtVal_median: " << newSwtVal << endl;
       }
 
-      for (size_t i = 0; i < pointStack.size(); i++) //pointStack = wieviele Punkte liegen dazwischen
+      for (size_t i = 0; i < pointStack.size(); i++)
       {
         swtmap.at<float> (pointStack[i]) = min(swtmap.at<float> (pointStack[i]), newSwtVal);
         //cout << "swtmap.at<float> (" << pointStack[i] << ") = min(" << swtmap.at<float> (pointStack[i]) << ", " << newSwtVal << ");" << endl;
@@ -659,6 +658,9 @@ int DetectText::connectComponentAnalysis(const Mat& swtmap, Mat& ccmap)
 void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
 {
 
+  int showCcmap = 1;
+  Mat output = originalImage_.clone();
+
   assert(static_cast<size_t>(nComponent_) == componentsRoi_.size());
   isLetterComponects_ = new bool[nComponent_];
   vector<float> iComponentStrokeWidth;
@@ -678,8 +680,9 @@ void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
     if (itr->height > maxLetterHeight_ || itr->height < minLetterHeight_)
     {
       isLetterComponects_[i] = false;
-      continue;
+      //continue;
     }
+
     float maxY = itr->y + itr->height;
     float minY = itr->y;
     float maxX = itr->x + itr->width;
@@ -730,7 +733,7 @@ void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
 
     for (size_t ii = 0; ii < pixelCount; ii++)
     {
-      variance += pow(iComponentStrokeWidth[ii] - mean, 2); // variance += (SW[i]-mean)²;
+      variance += (iComponentStrokeWidth[ii] - mean, 2) * (iComponentStrokeWidth[ii] - mean, 2); // variance += (SW[i]-mean)²;
     }
     variance = variance / pixelCount;
 
@@ -738,7 +741,7 @@ void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
 
     isLetter = isLetter && (variance / mean < 1.5); //Variance has to be small, so that for example leaves can be recognized as no letters
 
-    isLetter = isLetter && (sqrt((pow(itr->width, 2) + pow(itr->height, 2))) / maxStrokeWidth < 10);
+    isLetter = isLetter && (sqrt(((itr->width) * (itr->width) + (itr->height) * (itr->height))) / maxStrokeWidth < 10);
 
     // additional rules:
     isLetter = isLetter && (pixelCount / maxStrokeWidth > 5);
@@ -751,116 +754,27 @@ void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
     }
     isLetterComponects_[i] = isLetter;
 
-    //!
-    if (isLetter == true)
-    {
-      //!!!
-      Mat output = originalImage_.clone();
-      rectangle(output, Point(minX, minY), Point(maxX, maxY), cvScalar(0, 255, 0), 2);
-      cv::imshow("rectangles", output);
-      //waitKey(0);
-    }
-
     iComponentStrokeWidth.clear();
   }
 
-  /*******************************************
-   double distance, distance_dummy;
-   Rect iRect;
-   Rect jRect;
-   int partner[nComponent_];
-
-   for (int a = 0; a < nComponent_ - 1; a++)
+  /*
+   for (size_t i = 0; i < nComponent_; i++)
    {
-   iRect = componentsRoi_[a];
-   distance = 1000;
-   for (int b = a + 1; b < nComponent_; b++)
+   if (showCcmap == 1)
    {
-   jRect = componentsRoi_[b];
-   distance_dummy = min(distance, sqrt(pow(iRect.x + iRect.width / 2 - jRect.x - jRect.width / 2, 2) + pow(iRect.y
-   + iRect.height / 2 - jRect.y - jRect.height / 2, 2)));
-   if (distance_dummy < distance)
-   partner[a] = b;
-   distance = distance_dummy;
-   }
-   }
-
-   for (int z = 0; z < nComponent_; z++)
-   cout << "[" << z << "]:" << partner[z] << endl;
-
-   int plusminus = 0;
-   int all_alpha = 0;
-
-   float alpha[nComponent_];
-   for (size_t j = 0; j < nComponent_; j++)
+   if (isLetterComponects_[i] == true)
    {
-   if (isLetterComponects_[j] == true)
-   {
-   Rect * rect = &componentsRoi_[j];
-   cout << "rect[" << j << "] x:" << rect->x << ",y:" << rect->y << ",height:" << rect->height << ",width:"
-   << rect->width;
-   // rectangle(image_, Point(rect->x, rect->y), Point(rect->x + rect->width, rect->y + rect->height), 150, 3);
-   alpha[j] = (180 / 3.141592) * atan2((rect->x - componentsRoi_[partner[j]].x), (rect->y
-   - componentsRoi_[partner[j]].y));
-   cout << ",alpha:" << alpha[j] << endl;
-   if (alpha[j] < 0)
-   plusminus--;
-   if (alpha[j] > 0)
-   plusminus++;
+   rectangle(output, Point(componentsRoi_[i].x, componentsRoi_[i].y), Point(componentsRoi_[i].x
+   + componentsRoi_[i].width, componentsRoi_[i].y + componentsRoi_[i].height), cvScalar((250), (210), (150)), 1);
    }
+   if (fontColor_ == 1)
+   cv::imshow("identify bright letters=ccmap[after]", output);
+   else
+   cv::imshow("identify dark letters=ccmap[after]", output);
+   waitKey(0);
+
    }
-   int k = 0;
-
-   for (int j = 0; j < nComponent_; j++)
-   {
-   if (plusminus > 0)
-   {
-   if (alpha[j] > 0)
-   {
-   all_alpha += alpha[j];
-   k++;
-   }
-   }
-   else if (alpha[j] < 0)
-   {
-   all_alpha += alpha[j];
-   k++;
-   }
-   }
-
-   int Baseline = all_alpha / k;
-
-   IplImage t = image_;
-
-   //cv::line(image_,
-   //         Point(componentsRoi_[0].x + componentsRoi_[0].width, componentsRoi_[0].y + componentsRoi_[0].height),
-   //         Point(componentsRoi_[nComponent_ - 1].x + componentsRoi_[nComponent_ - 1].width, componentsRoi_[nComponent_
-   //            - 1].y + componentsRoi_[nComponent_ - 1].height), CV_RGB(0,255,0 ), 5);
-
-   cv::imshow("...", image_);
-   cv::waitKey(0);
-
-   IplImage *rotatedImage = cvCreateImage(cvSize(image_.rows, image_.cols), IPL_DEPTH_8U, t.nChannels);
-
-   cvSet(rotatedImage, cvScalar(255, 255, 255));
-   CvPoint2D32f center;
-   center.x = image_.rows;
-   center.y = 0;
-   CvMat *mapMatrix = cvCreateMat(2, 3, CV_32FC1 );
-
-   cv2DRotationMatrix(center, all_alpha, 1.0, mapMatrix);
-   cvSetImageROI(&t, cvRect(componentsRoi_[0].x - 50, componentsRoi_[0].y, componentsRoi_[nComponent_ - 1].x
-   + componentsRoi_[nComponent_ - 1].width, componentsRoi_[nComponent_ - 1].y
-   + componentsRoi_[nComponent_ - 1].height));
-
-   cvWarpAffine(&t, rotatedImage, mapMatrix, CV_INTER_LINEAR, cvScalarAll(0));
-   cvResetImageROI(&t);
-   cvReleaseMat(&mapMatrix);
-   cvShowImage("mainWin", rotatedImage);
-   cv::waitKey(0);
-
-   /**********************************************/
-
+   */
   delete[] innerComponents;
 }
 
@@ -982,28 +896,33 @@ void DetectText::groupLetters(const Mat& swtmap, const Mat& ccmap)
         //
         //Mat output = originalImage_.clone();
         //rectangle(output, Point(iRect.x, iRect.y), Point(iRect.x + iRect.width, iRect.y + iRect.height), cvScalar(0, 0,255      ),      2);
-      //cv::imshow("rectangles", output);
-      //waitKey(0);
-    }
-  }// end for loop j
-}// end for loop i
+        //cv::imshow("rectangles", output);
+        //waitKey(0);
+      }
+    }// end for loop j
+  }// end for loop i
 }
 
 void DetectText::chainPairs(Mat& ccmap)
 {
-  /*
-   for (int i = 200; i < 300; i++)
-   {
-   cout << "Pair: " << i << endl;
-   cout << componentsRoi_[horizontalLetterGroups_[i].left].x << ","
-   << componentsRoi_[horizontalLetterGroups_[i].left].y << ","
-   << componentsRoi_[horizontalLetterGroups_[i].left].width << ","
-   << componentsRoi_[horizontalLetterGroups_[i].left].height << endl;
-   cout << componentsRoi_[horizontalLetterGroups_[i].right].x << ","
-   << componentsRoi_[horizontalLetterGroups_[i].right].y << ","
-   << componentsRoi_[horizontalLetterGroups_[i].right].width << ","
-   << componentsRoi_[horizontalLetterGroups_[i].right].height << endl;
-   }*/
+  Mat output = originalImage_.clone();
+  for (int i = 0; i < horizontalLetterGroups_.size() - 1; i++)
+  {
+    /*rectangle(output, Point(boundingBoxes_.at(horizontalLetterGroups_[i].left).x,
+     boundingBoxes_.at(horizontalLetterGroups_[i].left).y),
+     Point(boundingBoxes_.at(i).x + boundingBoxes_.at(horizontalLetterGroups_[i].left).width,
+     boundingBoxes_.at(horizontalLetterGroups_[i].left).y
+     + boundingBoxes_.at(horizontalLetterGroups_[i].left).height), cvScalar((10*i), (10*i), (10*i)), 2);
+     rectangle(output, Point(boundingBoxes_.at(horizontalLetterGroups_[i].right).x,
+     boundingBoxes_.at(horizontalLetterGroups_[i].right).y),
+     Point(boundingBoxes_.at(i).x + boundingBoxes_.at(horizontalLetterGroups_[i].right).width,
+     boundingBoxes_.at(horizontalLetterGroups_[i].right).y
+     + boundingBoxes_.at(horizontalLetterGroups_[i].right).height), cvScalar((10*i), (10*i), (10*i)), 2);
+     cv::imshow("pairs", output);
+     waitKey(0);*/
+
+  }
+
   mergePairs(horizontalLetterGroups_, horizontalChains_);
 
   // horizontalChains
@@ -1016,44 +935,60 @@ void DetectText::chainPairs(Mat& ccmap)
 
 }
 
-void DetectText::findRotationangles()
+void DetectText::findRotationangles(int blackWhite)
 {
   int showHistogram = 1;
+  int showRects = 1;
+  int padding = 10;
+
+  bgr whiteClr;
+  whiteClr.r = 255;
+  whiteClr.g = 255;
+  whiteClr.b = 255;
 
   // Gradient Histogram
   //*****************************************************************************************************
 
-  rotated.clear();
-  char* window_title = "gradients";
-  IplImage *canvas = cvCreateImage(cvSize(360, 125), IPL_DEPTH_8U, 3);
-  int angles = 360;
-  int hist[angles];
+  cv::Mat canvas;
+  canvas.create(125, 360, CV_8UC3);
+  int maxValue = 0, maxAngle = 0, angles = 360;
+  int hist[angles], newHistogram[angles];
   double scale;
-  int maxValue = 0, maxAngle = 0;
 
-  Mat output = originalImage_.clone();
-  IplImage * final = new IplImage(output);
-  cvSet(final, cvScalar(0, 0, 0));
-  IplImage * t;
-  Mat end;
-  Mat imGray(originalImage_.size(), CV_8UC1, Scalar(0));
-
-  for (int i = 0; i < boundingBoxes_.size(); i++)
+  for (unsigned int i = 0; i < boundingBoxes_.size(); i++)
   {
-    output = originalImage_.clone();
-    t = new IplImage(output);
+    // Show boundingBoxes if necessary
+    if (showRects)
+    {
+      cv::Mat output = originalImage_.clone();
+      cv::rectangle(output, cv::Point(boundingBoxes_.at(i).x, boundingBoxes_.at(i).y), cv::Point(boundingBoxes_.at(i).x
+          + boundingBoxes_.at(i).width, boundingBoxes_.at(i).y + boundingBoxes_.at(i).height), cvScalar(250, 210, 150),
+                    2);
+      cv::imshow("right rectangles", output);
+      cv::waitKey(0);
+    }
+
+    // Reset Values
     maxValue = 0;
     maxAngle = 0;
-    cvSet(canvas, CV_RGB(255,255,255), NULL);
+
+
+
+    for (int y = 0; y < canvas.rows; y++)
+      for (int x = 0; x < canvas.cols; x++)
+      {
+        canvas.at<bgr> (y, x) = whiteClr;
+      }
+
     for (int j = 0; j < angles - 1; j++)
       hist[j] = 0;
 
     // If there is an edge at (y,x),
     // get the angle[-180,180] at (y,x) and add 180 degrees. (because histogram range is [0,360])
     // Then add one point in the histogram at the found angle.
-    for (int y = boundingBoxes_.at(i).y; y < boundingBoxes_.at(i).y + boundingBoxes_.at(i).height; y++)
+    for (int y = boundingBoxes_[i].y; y < boundingBoxes_[i].y + boundingBoxes_[i].height; y++)
     {
-      for (int x = boundingBoxes_.at(i).x; x < boundingBoxes_.at(i).x + boundingBoxes_.at(i).width; x++)
+      for (int x = boundingBoxes_[i].x; x < boundingBoxes_[i].x + boundingBoxes_[i].width; x++)
       {
         if (edgemap_.at<unsigned char> (y, x) == 255)
         {
@@ -1069,8 +1004,6 @@ void DetectText::findRotationangles()
     mask[1] = 0.5;
     mask[2] = 0.25;
 
-    int newHistogram[angles];
-
     for (int bin = 1; bin < 359; bin++)
     {
       double smoothedValue = 0;
@@ -1080,28 +1013,14 @@ void DetectText::findRotationangles()
       }
       newHistogram[bin] = smoothedValue;
     }
-    IplImage *canvas2 = cvCreateImage(cvSize(360, 125), IPL_DEPTH_8U, 3);
-    cvSet(canvas2, CV_RGB(255,255,255), NULL);
-    for (int j = 0; j < angles - 1; j++)
-    {
-      CvPoint pt1 = cvPoint(j, canvas2->height - (newHistogram[j] * scale));
-      CvPoint pt2 = cvPoint(j, canvas2->height);
-      if (j == maxAngle)
-        cvLine(canvas2, pt1, pt2, CV_RGB(255,0,0), 1.5, 8, 0);
-      else
-        cvLine(canvas2, pt1, pt2, CV_RGB(0,0,0), 1, 8, 0);
-    }
-    CvFont font;
-    cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 0.3, 0.3, 0, 1, CV_AA);
-    cvPutText(canvas2, "0", cvPoint(180, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas2, "-90", cvPoint(90, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas2, "-180", cvPoint(0, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas2, "90", cvPoint(260, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas2, "180", cvPoint(340, 122), &font, cvScalar(140, 160, 200, 0));
-    cvShowImage("gradients smoothed", canvas2);
-    // waitKey(0);
 
-    //***************************
+    newHistogram[0] = hist[0] * (2 / 3) + hist[1] * (1 / 3);
+    newHistogram[359] = hist[358] * (1 / 3) + hist[359] * (2 / 3);
+
+    for (int bin = 1; bin < 360; bin++)
+    {
+      hist[bin] = newHistogram[bin];
+    }
 
     // Get maxValue and max angle
     for (int j = 0; j < angles - 1; j++)
@@ -1112,164 +1031,101 @@ void DetectText::findRotationangles()
         maxAngle = j;
 
     // Fit histogram to the canvas height
-    scale = maxValue > canvas->height ? (double)canvas->height / maxValue : 1.;
+    scale = maxValue > canvas.rows ? (double)canvas.rows / maxValue : 1.;
 
     //Draw histogram
-    for (int j = 0; j < angles - 1; j++)
+    if (showHistogram)
     {
-      CvPoint pt1 = cvPoint(j, canvas->height - (hist[j] * scale));
-      CvPoint pt2 = cvPoint(j, canvas->height);
-      if (j == maxAngle)
-        cvLine(canvas, pt1, pt2, CV_RGB(255,0,0), 1.5, 8, 0);
-      else
-        cvLine(canvas, pt1, pt2, CV_RGB(0,0,0), 1, 8, 0);
+      for (int j = 0; j < angles - 1; j++)
+      {
+        cv::Point pt1(j, canvas.rows - (hist[j] * scale));
+        cv::Point pt2(j, canvas.rows);
+        if (j == maxAngle)
+          cv::line(canvas, pt1, pt2, cv::Scalar(200, 160, 100), 2, 8, 0);
+        else
+          cv::line(canvas, pt1, pt2, cv::Scalar(250, 210, 150), 1, 8, 0);
+      }
+      cv::putText(canvas, "0", cv::Point(180, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
+      cv::putText(canvas, "-90", cv::Point(90, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
+      cv::putText(canvas, "-180", cv::Point(0, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
+      cv::putText(canvas, "90", cv::Point(260, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
+      cv::putText(canvas, "180", cv::Point(335, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
+      cv::imshow("Gradients", canvas);
+      std::cout << "blackWhite:" << blackWhite << endl;
+      std::cout << "maxAngle:" << maxAngle << "(" << maxAngle - 180 << ")" << endl;
+      cv::waitKey(0);
     }
-    // CvFont font;
-    cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 0.3, 0.3, 0, 1, CV_AA);
-    cvPutText(canvas, "0", cvPoint(180, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas, "-90", cvPoint(90, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas, "-180", cvPoint(0, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas, "90", cvPoint(260, 122), &font, cvScalar(140, 160, 200, 0));
-    cvPutText(canvas, "180", cvPoint(340, 122), &font, cvScalar(140, 160, 200, 0));
-    cvShowImage(window_title, canvas);
 
-    rectangle(output, Point(boundingBoxes_.at(i).x, boundingBoxes_.at(i).y), Point(boundingBoxes_.at(i).x
-        + boundingBoxes_.at(i).width, boundingBoxes_.at(i).y + boundingBoxes_.at(i).height), cvScalar(255, 0, 0), 2);
-    //cv::imshow("rectangles", output);
-    //cout << "maxAngle:" << maxAngle << "(" << maxAngle - 180 << ")" << endl;
-    //waitKey(0);
-
-    // Rotation
+    // Rotationangles
     //*****************************************************************************************************
 
-    if (maxAngle < 183 && maxAngle > 177)
-      maxAngle = 0;
-
-    /*  output = originalImage_.clone();
-     t = new IplImage(output);
-     IplImage *imago = cvCreateImage(cvSize(t->width, t->height), t->depth, t->nChannels);
-     cvSet(imago, cvScalar(0, 0, 0));
-
-     //Crop boundingBox from t and put into imago
-     cvSetImageROI(t, cvRect(boundingBoxes_.at(i).x, boundingBoxes_.at(i).y, boundingBoxes_.at(i).width,
-     boundingBoxes_.at(i).height));
-     cvSetImageROI(imago, cvRect(boundingBoxes_.at(i).x, boundingBoxes_.at(i).y, boundingBoxes_.at(i).width,
-     boundingBoxes_.at(i).height));
-     cvCopy(t, imago, NULL);
-     cvResetImageROI(t);
-     cvResetImageROI(imago);
-     */
-
-    //cut small image out
-    Mat small = image_.colRange(max(boundingBoxes_.at(i).x - 10, 0), min(boundingBoxes_.at(i).x
-        + boundingBoxes_.at(i).width + 10, image_.cols));
-    small = small.rowRange(max(boundingBoxes_.at(i).y - 10, 0), min(boundingBoxes_.at(i).y
-        + boundingBoxes_.at(i).height + 10, image_.rows));
-
-    IplImage *Image1 = new IplImage(small);
+    cv::Rect rectWithPadding;
+    rectWithPadding.x = max(boundingBoxes_[i].x - padding, 0);
+    rectWithPadding.y = max(boundingBoxes_[i].y - padding, 0);
+    boundingBoxes_[i].y + boundingBoxes_[i].height > image_.rows ? rectWithPadding.height = image_.rows
+        : rectWithPadding.height = boundingBoxes_[i].height + padding;
+    boundingBoxes_[i].x + boundingBoxes_[i].width > image_.cols ? rectWithPadding.width = image_.cols
+        : rectWithPadding.width = boundingBoxes_[i].width + padding;
+    cv::Mat smallImg = image_(rectWithPadding);
 
     // Average of whole image
-    CvScalar averageColor = cvAvg(Image1);
+    cv::Scalar averageColor = mean(smallImg);
 
-    vector<int> bgColor;
+    // Average of background Pixels
 
-    for (int y = 0; y < small.rows; y++)
+    std::vector<int> bgColor;
+
+    for (int y = 0; y < smallImg.rows; y++)
     {
-      for (int x = 0; x < small.cols; x++)
+      for (int x = 0; x < smallImg.cols; x++)
       {
-        if (fontColor_ == DARK)
+        if (blackWhite == 1) //bright text
         {
-          if ((unsigned int)small.at<unsigned char> (y, x) > (unsigned int)averageColor.val[0])
+          if ((unsigned int)smallImg.at<unsigned char> (y, x) > (unsigned int)averageColor.val[0])
           {
-            bgColor.push_back((unsigned int)small.at<unsigned char> (y, x));
+            bgColor.push_back((unsigned int)smallImg.at<unsigned char> (y, x));
           }
         }
-        else
+        else //dark text
         {
-          if ((unsigned int)small.at<unsigned char> (y, x) < (unsigned int)averageColor.val[0])
+          if ((unsigned int)smallImg.at<unsigned char> (y, x) < (unsigned int)averageColor.val[0])
           {
-            bgColor.push_back((unsigned int)small.at<unsigned char> (y, x));
+            bgColor.push_back((unsigned int)smallImg.at<unsigned char> (y, x));
           }
         }
       }
     }
-
-    // Average of background Pixels
-    int average_dummy = 0;
+    int average_bg = 0;
     for (int i = 0; i < bgColor.size(); i++)
     {
-      average_dummy += bgColor.at(i);
+      average_bg += bgColor[i];
     }
-    average_dummy = average_dummy / bgColor.size();
+    average_bg = average_bg / bgColor.size();
 
-    //Rotation
-    CvPoint2D32f center;
-    center.x = small.cols * 0.5;
-    center.y = small.rows * 0.5;
-    CvMat *mapMatrix = cvCreateMat(2, 3, CV_32FC1 );
-    cv2DRotationMatrix(center, maxAngle - 180, 1.0, mapMatrix);
+    // Rotation
+    //*****************************************************************************************************
 
-    IplImage *rotatedImage = cvCreateImage(cvSize((small.cols), (small.rows)), IPL_DEPTH_8U, 1);
-    cvSet(rotatedImage, Scalar(average_dummy));
-    cvWarpAffine(Image1, rotatedImage, mapMatrix, CV_INTER_LINEAR, Scalar(average_dummy));
+    cv::Point2f center;
+    center.x = smallImg.cols * 0.5;
+    center.y = smallImg.rows * 0.5;
 
+    cv::Mat mapMatrix = cv::getRotationMatrix2D(center, maxAngle - 180, 1.0);
+    cv::Mat rotatedImage;
+    rotatedImage.create(smallImg.rows, smallImg.cols, CV_8UC1);
 
-    //cvShowImage("rotatedImage", rotatedImage);
-    // waitKey(0);
+    for (int y = 0; y < rotatedImage.rows; y++)
+      for (int x = 0; x < rotatedImage.cols; x++)
+      {
+        rotatedImage.at<unsigned char> (y, x) = average_bg;
+      }
 
-    //cvShowImage("outcut", imago);
-    //waitKey(0);
+    cv::warpAffine(smallImg, rotatedImage, mapMatrix, smallImg.size(), INTER_CUBIC, BORDER_CONSTANT,
+                   cv::Scalar(average_bg));
+    cv::imshow("rotated", rotatedImage);
+    cv::waitKey(0);
 
-    // Move picture extract to the middle of the image before rotating
-    /*
-     CvPoint2D32f srcSquare[4], dstSquare[4];
-     srcSquare[0].x = boundingBoxes_.at(i).x;
-     srcSquare[0].y = boundingBoxes_.at(i).y;
-     srcSquare[1].x = boundingBoxes_.at(i).x + boundingBoxes_.at(i).width;
-     srcSquare[1].y = boundingBoxes_.at(i).y;
-     srcSquare[2].x = boundingBoxes_.at(i).x;
-     srcSquare[2].y = boundingBoxes_.at(i).y + boundingBoxes_.at(i).height;
-     srcSquare[3].x = boundingBoxes_.at(i).x + boundingBoxes_.at(i).width;
-     srcSquare[3].y = boundingBoxes_.at(i).y + boundingBoxes_.at(i).height;
-
-     dstSquare[0].x = originalImage_.cols * 0.5 - boundingBoxes_.at(i).width * 0.5;
-     dstSquare[0].y = originalImage_.rows * 0.5 - boundingBoxes_.at(i).height * 0.5;
-     dstSquare[1].x = originalImage_.cols * 0.5 + boundingBoxes_.at(i).width * 0.5;
-     dstSquare[1].y = originalImage_.rows * 0.5 - boundingBoxes_.at(i).height * 0.5;
-     dstSquare[2].x = originalImage_.cols * 0.5 - boundingBoxes_.at(i).width * 0.5;
-     dstSquare[2].y = originalImage_.rows * 0.5 + boundingBoxes_.at(i).height * 0.5;
-     dstSquare[3].x = originalImage_.cols * 0.5 + boundingBoxes_.at(i).width * 0.5;
-     dstSquare[3].y = originalImage_.rows * 0.5 + boundingBoxes_.at(i).height * 0.5;
-
-     CvMat* warp_mat = cvCreateMat(2, 3, CV_32FC1);
-     cvGetAffineTransform(srcSquare, dstSquare, warp_mat);
-     IplImage *middle = cvCreateImage(cvSize(t->width, t->height), t->depth, t->nChannels);
-     cvWarpAffine(imago, middle, warp_mat);
-     //cvShowImage("middle", middle);
-     //waitKey(0);
-
-
-     // Rotate the positioned picture extract
-     CvPoint2D32f center;
-     center.x = originalImage_.cols * 0.5;
-     center.y = originalImage_.rows * 0.5;
-     CvMat *mapMatrix = cvCreateMat(2, 3, CV_32FC1 );
-     cv2DRotationMatrix(center, maxAngle - 180, 1.0, mapMatrix);
-
-     //cvSetImageROI(imago, cvRect(originalImage_.cols * 0.5 - boundingBoxes_.at(i).width * 0.5, originalImage_.rows
-     //    * 0.5 - boundingBoxes_.at(i).height * 0.5, boundingBoxes_.at(i).width, boundingBoxes_.at(i).height));
-     IplImage *rotatedImage = cvCreateImage(cvSize((originalImage_.cols * 1.25), (originalImage_.rows * 1.25)), //*1.25
-     IPL_DEPTH_8U, 3);
-     cvSet(rotatedImage, cvScalar(255, 255, 255));
-     cvWarpAffine(imago, rotatedImage, mapMatrix);
-     cvShowImage("rotatedImage", rotatedImage);
-     //cvResetImageROI(imago);
-     cvReleaseMat(&mapMatrix);
-     waitKey(0);;*/
-
-    Mat dummy(rotatedImage);
-    Rotated * r = new Rotated(dummy, cvRect(boundingBoxes_.at(i).x, boundingBoxes_.at(i).y, boundingBoxes_.at(i).width,
-                                            boundingBoxes_.at(i).height));
+    Rotated * r = new Rotated(rotatedImage, cv::Rect(boundingBoxes_[i].x, boundingBoxes_[i].y,
+                                                      boundingBoxes_[i].width, boundingBoxes_[i].height));
     rotated.push_back(*r);
   }
 }
@@ -1374,7 +1230,6 @@ void DetectText::filterBoundingBoxes(vector<Rect>& boundingBoxes, Mat& ccmap, in
   }
   boundingBoxes = qualifiedBoxes;
 }
-
 
 void DetectText::overlapBoundingBoxes(vector<Rect>& boundingBoxes)
 {
@@ -1490,8 +1345,7 @@ void DetectText::ocrRead(vector<Rect>& boundingBoxes)
   {
     string result;
     //cout << "ROTATION [" << i << "]: ";
-    imshow("actual image", rotated.at(i).rotated_img);
-    waitKey(0);
+
     float score = ocrRead(rotated.at(i).rotated_img, result, i);
     if (score > 0)
     {
@@ -1500,6 +1354,8 @@ void DetectText::ocrRead(vector<Rect>& boundingBoxes)
       boxesScores_.push_back(score);
     }
     cout << "score:" << score << endl;
+    imshow("actual image", rotated.at(i).rotated_img);
+    //waitKey(0);
   }
 
 }
