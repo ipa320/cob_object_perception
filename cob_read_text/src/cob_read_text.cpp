@@ -244,17 +244,17 @@ int main(int argc, char** argv)
     //Multiple View Geometry : x=553, y=290,height=97,width=230
 
 
-    cout << "----------------------------------" << endl;
-    cout << "Texts found: " << detector.getWords().size() << endl;
+    std::cout << "----------------------------------" << endl;
+    std::cout << "Texts found: " << detector.getWords().size() << endl;
     for (int i = 0; i < detector.getWords().size(); i++)
     {
-      cout << detector.getWords()[i] << ": x=" << ((detector.getBoxesBothSides())[0]).x << ", y="
+      std::cout << detector.getWords()[i] << ": x=" << ((detector.getBoxesBothSides())[0]).x << ", y="
           << ((detector.getBoxesBothSides())[0]).y << ",height=" << ((detector.getBoxesBothSides())[0]).height
           << ",width=" << ((detector.getBoxesBothSides())[0]).width << endl;
       //if(!pcl_isnan(reader.cloud->points[idx].)z) cout << ",depth:"
     }
 
-    cout << "----------------------------------" << endl;
+    std::cout << "----------------------------------" << endl;
 
     last_detection = ros::Time::now();
     ros::spinOnce();

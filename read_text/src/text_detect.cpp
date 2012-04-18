@@ -873,7 +873,7 @@ void DetectText::groupLetters(const Mat& swtmap, const Mat& ccmap)
   memset(componentsMeanIntensity_, 0, nComponent_ * sizeof(float));
   memset(componentsMedianStrokeWidth_, 0, nComponent_ * sizeof(float));
   memset(isGrouped_, false, nComponent_ * sizeof(bool));
-  Mat debug = originalImage_.clone();
+  //Mat debug = originalImage_.clone();
 
   for (size_t i = 0; i < nComponent_; i++)
   {
