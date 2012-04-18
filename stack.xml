@@ -1,16 +1,17 @@
 <stack>
   <description brief="cob_object_perception">cob_object_perception</description>
   <author>Maintained by Jan Fischer</author>
-  <license>LGPL</license>  
+  <license>BSD,LGPL</license>  
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_object_perception</url>
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, sensor_msgs -->
-  <depend stack="ros" />
-  <depend stack="ros_comm" /> <!-- std_msgs, rospy -->
-  <depend stack="vision_opencv" /> <!-- opencv2, cv_bridge -->
-  <depend stack="common_msgs" /> <!-- sensor_msgs -->
   <depend stack="image_common" /> <!-- image_transport -->
   <depend stack="ocr" /> <!-- tesseract -->
+  <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
+  <depend stack="pr2_controllers" /> <!-- pr2_mechanism_controllers -->
+  <depend stack="ros" />
+  <depend stack="ros_comm" /> <!-- rospy, std_msgs, roscpp -->
   <depend stack="simulator_gazebo" /> <!-- gazebo -->
+  <depend stack="vision_opencv" /> <!-- opencv2, cv_bridge -->
 
 </stack>
