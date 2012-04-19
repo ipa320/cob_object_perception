@@ -6,7 +6,7 @@
   <url>http://ros.org/wiki/cob_object_perception</url>
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, sensor_msgs -->
   <depend stack="image_common" /> <!-- image_transport -->
-  <depend stack="ocr" /> <!-- tesseract -->
+  <!--depend stack="ocr" /--> <!-- tesseract -->
   <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
   <depend stack="pr2_controllers" /> <!-- pr2_mechanism_controllers -->
   <depend stack="ros" />
