@@ -36,5 +36,4 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #target_link_libraries(read_text ${PORJECT_NAME})
 rosbuild_add_library(read_text	src/text_detect.cpp)
-rosbuild_add_executable(run_detect	src/run_detection.cpp
-									src/text_detect.cpp)
+rosbuild_add_executable(run_detect	src/run_detection.cpp src/text_detect.cpp)
