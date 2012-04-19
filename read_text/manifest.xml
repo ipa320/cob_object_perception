@@ -1,10 +1,10 @@
 <package>
   <description brief="read_text">
 
-     Detect and recognize text from indoor environment.  
+     Detect and recognize text from environment. bases on read_text from Menglong Zhu: menglong(at)seas.upenn.edu
 
   </description>
-  <author>Menglong Zhu: menglong(at)seas.upenn.edu</author>
+  <author>Robert Heinze, Richard Bormann</author>
   <license>LGPL</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/read_text</url>
