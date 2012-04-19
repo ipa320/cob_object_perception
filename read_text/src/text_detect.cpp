@@ -52,6 +52,96 @@ void DetectText::detect(Mat& image)
   detect();
 }
 
+void DetectText::detect()
+{
+  double start_time;
+  double time_in_seconds;
+  start_time = clock();
+
+  Mat imGray(originalImage_.size(), CV_8UC1, Scalar(0));
+  cvtColor(originalImage_, imGray, CV_RGB2GRAY);
+  boundingBoxes_.clear();
+  boxesBothSides_.clear();
+  wordsBothSides_.clear();
+  boxesScores_.clear();
+
+  preprocess(imGray);
+  firstPass_ = true;
+  pipeline(1); //bright font
+  cout << "Second pass" << endl;
+  firstPass_ = false;
+  pipeline(-1); //dark font
+
+  overlapBoundingBoxes(boundingBoxes_);
+  ocrRead(boundingBoxes_);
+  showBoundingBoxes(boxesBothSides_);
+  std::cout << "1\n";
+  overlayText(boxesBothSides_, wordsBothSides_);
+  std::cout << "1\n";
+
+  // eval
+  ofstream myfile;
+  std::string textname = outputPrefix_ + ".txt";
+  myfile.open(textname.c_str());
+  for (int i = 0; i < boxesBothSides_.size(); i++)
+  {
+    myfile << boxesBothSides_[i].x << "\n" << boxesBothSides_[i].y << "\n" << boxesBothSides_[i].width << "\n"
+        << boxesBothSides_[i].height << "\n";
+  }
+  myfile.close();
+  // /eval
+
+  imwrite(outputPrefix_ + "_detection.jpg", detection_);
+
+  time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+  cout << time_in_seconds << "s total in process\n" << endl;
+
+  textDisplayOffset_ = 1;
+}
+
+void DetectText::preprocess(Mat& image)
+{
+  int maxStrokeWidthParameter = 50;
+  maxLetterHeight_ = 300;
+  minLetterHeight_ = 5;
+
+  cout << "preprocessing: " << filename_ << endl;
+  cout << "image size:" << image.cols << "X" << image.rows << endl;
+
+  //outputPrefix_: without extension
+  int slashIndex = -1;
+  int dotIndex = -1;
+  for (size_t i = filename_.length() - 1; i != 0; i--)
+  {
+    if (dotIndex == -1 && filename_[i] == '.')
+      dotIndex = i;
+    if (slashIndex == -1 && filename_[i] == '/')
+      slashIndex = i;
+  }
+  outputPrefix_ = filename_.substr(slashIndex + 1, dotIndex - slashIndex - 1);
+  cout << "outputPrefix: " << outputPrefix_ << endl;
+
+  //setting initialStrokeWidth_ for SWT
+  image_ = image;
+
+  // hack: was turned off
+  //    bilateralFilter(image, image_, 7, 20, 50);// prosilica sensor noise
+  maxStrokeWidth_ = round((float)(max(image.cols, image.rows)) / maxStrokeWidthParameter);
+  initialStrokeWidth_ = maxStrokeWidth_ * 2;
+
+  // 600 pixel side for displaying results
+  IplImage *img2 = new IplImage(originalImage_);
+  IplImage *img1 = cvCreateImage(cvSize(image.cols + 600, image.rows), img2->depth, img2->nChannels);
+  cvSet(img1, cvScalar(0, 0, 0));
+  cvSetImageROI(img1, cvRect(0, 0, image.cols, image.rows));
+  cvCopy(img2, img1, NULL);
+  cvResetImageROI(img1);
+  detection_ = Mat(img1).clone();
+  cvReleaseImage(&img1);
+  delete img1;
+  delete img2;
+}
+
 Mat& DetectText::getDetection()
 {
   return detection_;
@@ -66,234 +156,11 @@ vector<Rect>& DetectText::getBoxesBothSides()
   return boxesBothSides_;
 }
 
-void DetectText::detect()
-{
-  // Head-Method
-  //*****************************************************************************************************
-  double start_time;
-  double time_in_seconds;
-  start_time = clock();
-
-  Mat imGray(originalImage_.size(), CV_8UC1, Scalar(0));
-  cvtColor(originalImage_, imGray, CV_RGB2GRAY);
-  boundingBoxes_.clear();
-  boxesBothSides_.clear();
-  wordsBothSides_.clear();
-  boxesScores_.clear();
-
-  preprocess(imGray);
-  firstPass_ = true;
-  pipeline(1);
-  cout << "Second pass" << endl;
-  firstPass_ = false;
-  pipeline(-1);
-
-  cout << "size von rotated:" << rotated.size();
-  //overlapBoundingBoxes(boundingBoxes_);
-  ocrRead(boundingBoxes_);
-  showBoundingBoxes(boxesBothSides_);
-  overlayText(boxesBothSides_, wordsBothSides_);
-  std::cout << "1\n";
-  /*
-   for (size_t i = 0; i < rotated.size(); i++)
-   {
-   string result;
-   float score = ocrRead(rotated.at(i).rotated_img, result);
-   if (score > 0)
-   {
-   boxesBothSides_.push_back(rotated.at(i).coords);
-   wordsBothSides_.push_back(result);
-   boxesScores_.push_back(score);
-   }
-   }
-
-   /* vector<Rect> boundingBoxesRotated_;
-   for (size_t i = 0; i < rotated.size(); i++)
-   {
-   boundingBoxesRotated_.push_back(rotated.at(i).coords);
-   }
-
-   cout << " boundingBoxesRotated_ vor overlap: " << boundingBoxesRotated_.size() << endl;
-
-   overlapBoundingBoxes(boundingBoxesRotated_);
-
-   cout << " boundingBoxesRotated_ nach overlap: " << boundingBoxesRotated_.size() << endl;
-
-   char* window_title = "gradients2";
-   IplImage *canvas;
-   int angles = 360;
-   int hist[angles];
-   double scale;
-   int max = 0, maxAngle = 0;
-   canvas = cvCreateImage(cvSize(360, 125), IPL_DEPTH_8U, 3);
-   cvSet(canvas, CV_RGB(255,255,255), NULL);
-   IplImage t = image_;
-   cout << "111" << endl;
-   for (int i = 0; i < boundingBoxesRotated_.size(); i++)
-   {
-   cout << "222" << endl;
-   for (int j = 0; j < angles - 1; j++)
-   hist[j] = 0;
-   max = 0;
-   maxAngle = 0;
-
-   for (int y = boundingBoxesRotated_.at(i).y; y < boundingBoxesRotated_.at(i).y + boundingBoxesRotated_.at(i).height; y++)
-   {
-   for (int x = boundingBoxesRotated_.at(i).x; x < boundingBoxesRotated_.at(i).x + boundingBoxesRotated_.at(i).width; x++)
-   {
-   if (edgemap_.at<unsigned char> (y, x) == 255) // Falls bei (x,y) eine Kante ist
-   {
-   int a = (int)((180 / 3.141592) * theta_.at<float> (y, x)) + 180;
-   hist[a]++;
-   }
-   }
-   }
-
-   cout << "333" << endl;
-
-   for (int j = 0; j < angles - 1; j++)
-   max = hist[j] > max ? hist[j] : max;
-
-   for (int j = 0; j < angles - 1; j++)
-   if (max == hist[j])
-   maxAngle = j;
-
-   cout << "444" << endl;
-
-   // Get scale so the histogram fit the canvas height
-   scale = max > canvas->height ? (double)canvas->height / max : 1.;
-
-   //Draw histogram
-   for (int j = 0; j < angles - 1; j++)
-   {
-   CvPoint pt1 = cvPoint(j, canvas->height - (hist[j] * scale));
-   CvPoint pt2 = cvPoint(j, canvas->height);
-   cvLine(canvas, pt1, pt2, CV_RGB(0,0,0), 1, 8, 0);
-   }
-
-   cout << "555" << endl;
-   CvFont font;
-   cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 0.3, 0.3, 0, 1, CV_AA);
-   cvPutText(canvas, "0", cvPoint(180, 122), &font, cvScalar(140, 160, 200, 0));
-   cvPutText(canvas, "-90", cvPoint(90, 122), &font, cvScalar(140, 160, 200, 0));
-   cvPutText(canvas, "-180", cvPoint(0, 122), &font, cvScalar(140, 160, 200, 0));
-   cvPutText(canvas, "90", cvPoint(260, 122), &font, cvScalar(140, 160, 200, 0));
-   cvPutText(canvas, "180", cvPoint(340, 122), &font, cvScalar(140, 160, 200, 0));
-   cout << "666" << endl;
-   // cvShowImage("gradients2", canvas);
-
-   // rectangle(image_, Point(boundingBoxesRotated_.at(i).x, boundingBoxesRotated_.at(i).y), Point(boundingBoxesRotated_.at(i).x
-   //     + boundingBoxesRotated_.at(i).width, boundingBoxesRotated_.at(i).y + boundingBoxesRotated_.at(i).height), 150, 3);
-   // cv::imshow("...", image_);
-
-   cout << "max at:" << maxAngle - 180 << endl;
-   if (maxAngle - 180 > 10 || maxAngle - 180 < -10)
-   { // Start Rotation
-   cout << "rotation:" << endl;
-   IplImage *rotatedImage = cvCreateImage(cvSize(image_.rows, image_.cols), IPL_DEPTH_8U, t.nChannels);
-
-   cvSet(rotatedImage, cvScalar(255, 255, 255));
-   CvPoint2D32f center;
-   center.x = boundingBoxesRotated_.at(i).x;
-   center.y = boundingBoxesRotated_.at(i).y;
-   CvMat *mapMatrix = cvCreateMat(2, 3, CV_32FC1 );
-
-   int angle = maxAngle - 180 - 180;
-   cout << "777" << endl;
-   cv2DRotationMatrix(center, angle, 1.0, mapMatrix);
-   cout << "888" << endl;
-   cvSetImageROI(&t, cvRect(boundingBoxesRotated_.at(i).x, boundingBoxesRotated_.at(i).y, boundingBoxesRotated_.at(i).x
-   + boundingBoxesRotated_.at(i).width, boundingBoxesRotated_.at(i).y + boundingBoxesRotated_.at(i).height));
-   cout << "999" << endl;
-   cvWarpAffine(&t, rotatedImage, mapMatrix, CV_INTER_LINEAR, cvScalarAll(0));
-   cvResetImageROI(&t);
-   cvReleaseMat(&mapMatrix);
-   //cvShowImage("mainWin", rotatedImage);
-
-   Mat mat_img(rotatedImage);
-   rotated.push_back(Rotated(mat_img, cvRect(boundingBoxesRotated_.at(i).x, boundingBoxesRotated_.at(i).y, boundingBoxesRotated_.at(i).x
-   + boundingBoxesRotated_.at(i).width, boundingBoxesRotated_.at(i).y + boundingBoxesRotated_.at(i).height)));
-
-   // End Rotation
-   }
-   //waitKey(0);
-   }
-
-   /*********************************************************************************************
-
-   for (size_t i = 0; i < boundingBoxesRotated_.size(); i++)
-   {
-   string result;
-   float score = ocrRead(rotated.at(i).rotated_img, result);
-   if (score > 0)
-   {
-   boxesBothSides_.push_back(rotated.at(i).coords);
-   wordsBothSides_.push_back(result);
-   boxesScores_.push_back(score);
-   }
-   }
-
-   showBoundingBoxes(boxesBothSides_);
-   overlayText(boxesBothSides_, wordsBothSides_);
-   */
-
-  imwrite(outputPrefix_ + "_detection.jpg", detection_);
-
-  time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-  cout << time_in_seconds << "s total in process\n" << endl;
-
-  textDisplayOffset_ = 1;
-}
-
-void DetectText::preprocess(Mat& image)
-{
-  // rescale, convert into gray scale
-
-  cout << "preprocessing: " << filename_ << endl;
-  cout << "image size:" << image.cols << "X" << image.rows << endl;
-
-  int slashIndex = -1;
-  int dotIndex = -1;
-  for (size_t i = filename_.length() - 1; i != 0; i--)
-  {
-    if (dotIndex == -1 && filename_[i] == '.')
-      dotIndex = i;
-    if (slashIndex == -1 && filename_[i] == '/')
-      slashIndex = i;
-  }
-  outputPrefix_ = filename_.substr(slashIndex + 1, dotIndex - slashIndex - 1);
-  cout << "outputPrefix: " << outputPrefix_ << endl;
-
-  image_ = image;
-
-  // hack: was turned off
-  //	bilateralFilter(image, image_, 7, 20, 50);// prosilica sensor noise
-
-
-  maxStrokeWidth_ = round(20 * (float)(max(image.cols, image.rows)) / 1000);
-
-  initialStrokeWidth_ = maxStrokeWidth_ * 2;
-  maxLetterHeight_ = 300;
-  minLetterHeight_ = 5;
-
-  IplImage *img2 = new IplImage(originalImage_);
-  IplImage *img1 = cvCreateImage(cvSize(image.cols + 600, image.rows), img2->depth, img2->nChannels);
-
-  cvSet(img1, cvScalar(0, 0, 0));
-  cvSetImageROI(img1, cvRect(0, 0, image.cols, image.rows));
-  cvCopy(img2, img1, NULL);
-  cvResetImageROI(img1);
-  detection_ = Mat(img1).clone();
-  cvReleaseImage(&img1);
-  delete img1;
-  delete img2;
-}
-
 void DetectText::pipeline(int blackWhite)
 {
   if (blackWhite == 1)
   {
-    fontColor_ = BRIGHT; //usable for rotation?
+    fontColor_ = BRIGHT;
   }
   else if (blackWhite == -1)
   {
@@ -310,7 +177,7 @@ void DetectText::pipeline(int blackWhite)
   start_time = clock();
   Mat swtmap(image_.size(), CV_32FC1, Scalar(initialStrokeWidth_));
 
-  strokeWidthTransform(image_, swtmap, blackWhite); //SWT!
+  strokeWidthTransform(image_, swtmap, blackWhite);
   time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
   cout << time_in_seconds << "s in strokeWidthTransform" << endl;
 
@@ -322,7 +189,7 @@ void DetectText::pipeline(int blackWhite)
   cout << time_in_seconds << "s in connectComponentAnalysis" << endl;
 
   start_time = clock();
-  identifyLetters(swtmap, ccmap);
+  identifyLetters(swtmap, ccmap); //!
   time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
   cout << time_in_seconds << "s in identifyLetters" << endl;
 
@@ -337,15 +204,15 @@ void DetectText::pipeline(int blackWhite)
   cout << time_in_seconds << "s in chainPairs" << endl;
 
   start_time = clock();
-  findRotationangles(blackWhite);
+  //findRotationangles(blackWhite);
   time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
   cout << time_in_seconds << "s in findRotationsangles" << endl;
 
   /*showEdgeMap();
    showSwtmap(swtmap);
    showCcmap(ccmap);
-   showLetterGroup();*/
-
+   showLetterGroup();
+   */
   disposal();
   cout << "finish clean up" << endl;
 
@@ -370,78 +237,21 @@ void DetectText::strokeWidthTransform(const Mat& image, Mat& swtmap, int searchD
       edgepoints_.clear();
     }
 
-    /* cout << endl << "Orginal Image:" << endl;
-     cout << "----------------------------------" << endl;
-     for (int y = 0; y < image.rows; y++)
-     {
-     for (int x = 0; x < image.cols; x++)
-     {
-     cout << (unsigned int)image.at<unsigned char> (y, x) << " ";
-     }
-     cout << endl;
-     }
-
-     cout << endl << "dx:" << endl;
-     cout << "----------------------------------" << endl;
-     for (int y = 0; y < image.rows; y++)
-     {
-     for (int x = 0; x < image.cols; x++)
-     {
-     cout << abs(round((float)dx.at<float> (y, x))) << " ";
-     }
-     cout << endl;
-     }
-
-     cout << endl << "dy:" << endl;
-     cout << "----------------------------------" << endl;
-     for (int y = 0; y < image.rows; y++)
-     {
-     for (int x = 0; x < image.cols; x++)
-     {
-     cout << round((float)dy.at<float> (y, x)) << " ";
-     }
-     cout << endl;
-     }
-
-     cout << endl << "Canny:" << endl;
-     cout << "----------------------------------" << endl;
-     for (int y = 0; y < edgemap_.rows; y++)
-     {
-     for (int x = 0; x < edgemap_.cols; x++)
-     {
-     cout << (unsigned int)edgemap_.at<unsigned char> (y, x) << " ";
-     }
-     cout << endl;
-     }
-
-     // cv::imshow("canny_img",edgemap_);
-     // cv::waitKey(0);
-
-     cout << endl << "theta_:" << endl;
-     cout << "----------------------------------" << endl;
-
-     */
-
     for (int y = 0; y < edgemap_.rows; y++)
     {
       for (int x = 0; x < edgemap_.cols; x++)
       {
         if (edgemap_.at<unsigned char> (y, x) == 255) // In case (x,y) is an edge
         {
-          theta_.at<float> (y, x) = atan2(dy.at<float> (y, x), dx.at<float> (y, x)); //rise = arctan gy/gx
+          theta_.at<float> (y, x) = atan2(dy.at<float> (y, x), dx.at<float> (y, x)); //rise = arctan dy/dx
           edgepoints_.push_back(Point(x, y)); //Save edge as point in edgepoints
         }
       }
     }
-    //imwrite(outputPrefix_ + "_5_theta_.jpg", theta_);
   }
-
   // Second Pass (SWT is not performed again):
-
   vector<Point> strokePoints;
-
   updateStrokeWidth(swtmap, edgepoints_, strokePoints, searchDirection, UPDATE);
-
   updateStrokeWidth(swtmap, strokePoints, strokePoints, searchDirection, REFINE);
 }
 
@@ -471,6 +281,7 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
     SwtValues.push_back(swtmap.at<float> (currY, currX));
     while (step < maxStrokeWidth_)
     {
+      //going one pixel in the direction of the gradient to check if next pixel is an edge too
       float nextY = round(iy + sin(iTheta) * searchDirection * step);
       float nextX = round(ix + cos(iTheta) * searchDirection * step);
 
@@ -489,7 +300,8 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
       SwtValues.push_back(swtmap.at<float> (currY, currX));
       if (edgemap_.at<unsigned char> (currY, currX) == 255)
       {
-        float jTheta = theta_.at<float> (currY, currX); //currY=nextY
+        float jTheta = theta_.at<float> (currY, currX);
+        //if opposite point of stroke is found with roughly opposite gradient Theta: ...
         if (abs(abs(iTheta - jTheta) - 3.14) < 3.14 / 2)
         {
           isStroke = true;
@@ -502,21 +314,20 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
       }
     }
 
+    // ... then calculate newSwtVal for all Points between the two stroke points
     if (isStroke)
     {
       float newSwtVal;
       if (purpose == UPDATE)// update swt based on dist between edges
       {
         newSwtVal = sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix));
-        //cout << "newSwtVal: " << newSwtVal << ", currY: " << currY << ", iy:" << iy << ", currX:" << currX << ", ix:" << ix << endl;
       }
       else if (purpose == REFINE) // refine swt based on median
       {
         nth_element(SwtValues.begin(), SwtValues.begin() + SwtValues.size() / 2, SwtValues.end());
         newSwtVal = SwtValues[SwtValues.size() / 2];
-        //cout << "newSwtVal_median: " << newSwtVal << endl;
       }
-
+      // set all Points between to the newSwtVal except they are smaller because of another stroke
       for (size_t i = 0; i < pointStack.size(); i++)
       {
         swtmap.at<float> (pointStack[i]) = min(swtmap.at<float> (pointStack[i]), newSwtVal);
@@ -544,18 +355,18 @@ void DetectText::updateStrokeWidth(Mat& swtmap, vector<Point>& startPoints, vect
 int DetectText::connectComponentAnalysis(const Mat& swtmap, Mat& ccmap)
 {
 
-  int ccmapInitialVal = ccmap.at<float> (0, 0); // ccmapInitialVal = -1
+  int ccmapInitialVal = ccmap.at<float> (0, 0);
   int offsetY[] = {-1, -1, -1, 0, 0, 1, 1, 1};
   int offsetX[] = {-1, 0, 1, -1, 1, -1, 0, 1};
   int nNeighbors = 8;
   int label = 0;
 
-  int vectorSize = ccmap.rows * ccmap.cols; // vectorSize = 25
+  int vectorSize = ccmap.rows * ccmap.cols;
 
-  int *pStack = new int[vectorSize * 2]; // int pStack[50]
+  int *pStack = new int[vectorSize * 2];
   int stackPointer;
 
-  int *pVector = new int[vectorSize * 2]; // int pVector[50]
+  int *pVector = new int[vectorSize * 2];
   int vectorPointer;
 
   int currentPointX;
@@ -570,23 +381,23 @@ int DetectText::connectComponentAnalysis(const Mat& swtmap, Mat& ccmap)
       {
         vectorPointer = 0;
         stackPointer = 0;
-        pStack[stackPointer] = x; //pstack[0] = 0; pStack[1] = 0
+        pStack[stackPointer] = x;
         pStack[stackPointer + 1] = y;
 
-        while (stackPointer >= 0) // stackPointer = 0
+        while (stackPointer >= 0)
         {
-          currentPointX = pStack[stackPointer]; // currentPointX = pstack[0] = 0
-          currentPointY = pStack[stackPointer + 1]; // currentPointY = pstack[1] = 0
-          stackPointer -= 2; // stackPointer = -2
+          currentPointX = pStack[stackPointer];
+          currentPointY = pStack[stackPointer + 1];
+          stackPointer -= 2;
 
-          pVector[vectorPointer] = currentPointX; // pVector[0] = 0;
-          pVector[vectorPointer + 1] = currentPointY; // pVector[1] = 0;
-          vectorPointer += 2; // vectorPointer = 2;
+          pVector[vectorPointer] = currentPointX;
+          pVector[vectorPointer + 1] = currentPointY;
+          vectorPointer += 2;
+          //check which one of the neighbors have similiar sw and then label the regions belonging together
           for (int i = 0; i < nNeighbors; i++)
           {
-            int ny = currentPointY + offsetY[i]; // ny = currentPointY + 0 = 0
-            int nx = currentPointX + offsetX[i]; // nx = currentPointX + 1 = 1
-
+            int ny = currentPointY + offsetY[i];
+            int nx = currentPointX + offsetX[i];
 
             if (ny < 0 || nx < 0 || ny >= ccmap.rows || nx >= ccmap.cols)
               continue;
@@ -599,21 +410,20 @@ int DetectText::connectComponentAnalysis(const Mat& swtmap, Mat& ccmap)
 
             if (ccmap.at<float> (ny, nx) == ccmapInitialVal)
             {
-              float sw1 = swtmap.at<float> (ny, nx); // sw1 = 3
-              float sw2 = swtmap.at<float> (y, x); // sw2 = 3
+              float sw1 = swtmap.at<float> (ny, nx);
+              float sw2 = swtmap.at<float> (y, x);
 
-              if (max(sw1, sw2) / min(sw1, sw2) <= 3) // sw1/sw2 = 1 <= 3
+              if (max(sw1, sw2) / min(sw1, sw2) <= 3)
               {
-                ccmap.at<float> (ny, nx) = label; // ccmap[0,1] = 0;
-                stackPointer += 2; // stackPointer = 0;
-                pStack[stackPointer] = nx; // pStack[0] = 1;
-                pStack[stackPointer + 1] = ny; // pStack[1] = 0;
+                ccmap.at<float> (ny, nx) = label;
+                stackPointer += 2;
+                pStack[stackPointer] = nx;
+                pStack[stackPointer + 1] = ny;
                 connected = true;
 
               }
             }
           }// loop through neighbors
-
         }
 
         if (connected)
@@ -633,33 +443,26 @@ int DetectText::connectComponentAnalysis(const Mat& swtmap, Mat& ccmap)
           }
           width = maxX - minX + 1; // width = 1
           height = maxY - minY + 1; // height = 1
-          Rect letterRoi(minX, minY, width, height); // Rect(0,0,1,1);
+          Rect letterRoi(minX, minY, width, height);
           componentsRoi_.push_back(letterRoi);
-          //assert(label == componentsRoi_.size()-1);
-
-          label++; // label = 1
-
+          label++;
         }
         else
         {
           ccmap.at<float> (y, x) = -2;
         }
-
       }
     }// loop through ccmap
-
   }
-
   delete[] pStack;
   delete[] pVector;
-
   return label;
 }
 
 void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
 {
 
-  int showCcmap = 1;
+  int showCcmap = 0;
   Mat output = originalImage_.clone();
 
   assert(static_cast<size_t>(nComponent_) == componentsRoi_.size());
@@ -681,7 +484,7 @@ void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
     if (itr->height > maxLetterHeight_ || itr->height < minLetterHeight_)
     {
       isLetterComponects_[i] = false;
-      //continue;
+      continue;
     }
 
     float maxY = itr->y + itr->height;
@@ -718,14 +521,8 @@ void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
           maxStrokeWidth = max(maxStrokeWidth, currentStrokeWidth);
           sumStrokeWidth += currentStrokeWidth;
         }
-        else
-        {
-          if (component >= 0)
-
-          {
-            innerComponents[component] = true;
-          }
-        }
+        else if (component >= 0)
+          innerComponents[component] = true;
       }
 
     float pixelCount = static_cast<float> (iComponentStrokeWidth.size());
@@ -758,36 +555,36 @@ void DetectText::identifyLetters(const Mat& swtmap, const Mat& ccmap)
     iComponentStrokeWidth.clear();
   }
 
-  /*
-   for (size_t i = 0; i < nComponent_; i++)
-   {
-   if (showCcmap == 1)
-   {
-   if (isLetterComponects_[i] == true)
-   {
-   rectangle(output, Point(componentsRoi_[i].x, componentsRoi_[i].y), Point(componentsRoi_[i].x
-   + componentsRoi_[i].width, componentsRoi_[i].y + componentsRoi_[i].height), cvScalar((250), (210), (150)), 1);
-   }
-   if (fontColor_ == 1)
-   cv::imshow("identify bright letters=ccmap[after]", output);
-   else
-   cv::imshow("identify dark letters=ccmap[after]", output);
-   waitKey(0);
-
-   }
-   */
+  if (showCcmap == 1)
+  {
+    for (size_t i = 0; i < nComponent_; i++)
+    {
+      if (isLetterComponects_[i] == true)
+      {
+        rectangle(output, Point(componentsRoi_[i].x, componentsRoi_[i].y), Point(componentsRoi_[i].x
+            + componentsRoi_[i].width, componentsRoi_[i].y + componentsRoi_[i].height), cvScalar((150), (110), (50)), 1);
+      }
+      if (fontColor_ == 1)
+        cv::imshow("identify bright letters=ccmap[after]", output);
+      else
+        cv::imshow("identify dark letters=ccmap[after]", output);
+    }
+    waitKey(0);
+  }
   delete[] innerComponents;
 }
 
 void DetectText::groupLetters(const Mat& swtmap, const Mat& ccmap)
 {
+  int showGroupedLetters = 0;
   componentsMeanIntensity_ = new float[nComponent_];
   componentsMedianStrokeWidth_ = new float[nComponent_];
   isGrouped_ = new bool[nComponent_];
   memset(componentsMeanIntensity_, 0, nComponent_ * sizeof(float));
   memset(componentsMedianStrokeWidth_, 0, nComponent_ * sizeof(float));
   memset(isGrouped_, false, nComponent_ * sizeof(bool));
-  //Mat debug = originalImage_.clone();
+
+  Mat output = originalImage_.clone();
 
   for (size_t i = 0; i < nComponent_; i++)
   {
@@ -806,26 +603,9 @@ void DetectText::groupLetters(const Mat& swtmap, const Mat& ccmap)
 
       Rect jRect = componentsRoi_[j];
 
-      /* Example
-       * -2 0 0 0-2      iRect.y = 0 iRect.x = 1 iRect.height = 3 iRect.width = 3
-       * -2 0 0 0-2
-       * -2 0 0 0-2
-       * -2-2-2-2-2
-       * -2-2 1 1-2      jRect.y = 4 jRect.x = 2 jRect.height = 2 jRect.width = 2
-       * -2-2 1 1-2
-       */
-
-      // check if horizontal
-      bool horizontal = !(iRect.y > jRect.y + jRect.height || jRect.y > iRect.y + iRect.height);
-      //= bool horizontal = (iRect.y < jRect.y + jRect.height && jRect.y < iRect.y + iRect.height);
-      //bool horizontal = (    0   <    4    +      2       &&    4    <   0     +      3      );
-      //bool horizontal = false
-
-      // check if vertical
-      bool vertical = !(iRect.x > jRect.x + jRect.width || jRect.x > iRect.x + iRect.width);
-      //=bool vertical =  (iRect.x < jRect.x + jRect.width && jRect.x < iRect.x + iRect.width);
-      //bool vertical =  (   1    <    2    +      2      &&     2   <    1    +       3    );
-      //bool vertical = true
+      // check if horizontal or vertical
+      bool horizontal = (iRect.y < jRect.y + jRect.height && jRect.y < iRect.y + iRect.height);
+      bool vertical = (iRect.x < jRect.x + jRect.width && jRect.x < iRect.x + iRect.width);
 
       if ((!horizontal) && (!vertical))
         continue;
@@ -847,9 +627,10 @@ void DetectText::groupLetters(const Mat& swtmap, const Mat& ccmap)
       }
 
       // rule 3: distance between characters
-      float distance = sqrt(pow(iRect.x + iRect.width / 2 - jRect.x - jRect.width / 2, 2) + pow(iRect.y + iRect.height
-          / 2 - jRect.y - jRect.height / 2, 2));
-      int distanceRatio = 4;
+      float distance = sqrt((iRect.x + iRect.width / 2 - jRect.x - jRect.width / 2) * (iRect.x + iRect.width / 2
+          - jRect.x - jRect.width / 2) + (iRect.y + iRect.height / 2 - jRect.y - jRect.height / 2) * (iRect.y
+          + iRect.height / 2 - jRect.y - jRect.height / 2));
+      int distanceRatio = 4; //4
       if (horizontal)
       {
         if (distance / max(iRect.width, jRect.width) > distanceRatio)
@@ -866,13 +647,12 @@ void DetectText::groupLetters(const Mat& swtmap, const Mat& ccmap)
 
       bool isGroup = true;
 
+      //!!! without rule 1 and 3, on the second picture more is recognized
       // rule 1: median of stroke width ratio
       isGroup = isGroup && (max(iMedianStrokeWidth, jMedianStrokeWidth) / min(iMedianStrokeWidth, jMedianStrokeWidth))
           < 2;
-
       // rule 2: height ratio
       isGroup = isGroup && (max(iRect.height, jRect.height) / min(iRect.height, jRect.height)) < 2;
-
       // rule 4: average color of letters
       isGroup = isGroup && abs(iMeanIntensity - jMeanIntensity) < 10;
 
@@ -884,44 +664,61 @@ void DetectText::groupLetters(const Mat& swtmap, const Mat& ccmap)
         if (horizontal)
         {
           horizontalLetterGroups_.push_back(Pair(i, j));
-
         }
 
-        if (vertical)
+        //if (vertical)
+        //{
+        //  verticalLetterGroups_.push_back(Pair(i, j));
+        // verticalLetterGroups are never used again, so the Pairs should be pushed into horizonzalLetterGroups instead
+        //horizontalLetterGroups_.push_back(Pair(i, j));
+        //}
+
+        if (showGroupedLetters == 1)
         {
-          //!!! important change
-          //verticalLetterGroups_.push_back(Pair(i, j));
-          // verticalLetterGroups are never used again, so the Pairs are pushed into horizonzalLetterGroups instead
-          horizontalLetterGroups_.push_back(Pair(i, j));
+          rectangle(output, Point(iRect.x, iRect.y), Point(iRect.x + iRect.width, iRect.y + iRect.height),
+                    cvScalar(0, 0, 255), 2);
+          rectangle(output, Point(jRect.x, jRect.y), Point(jRect.x + jRect.width, jRect.y + jRect.height),
+                    cvScalar(0, 0, 255), 2);
         }
-        //
-        //Mat output = originalImage_.clone();
-        //rectangle(output, Point(iRect.x, iRect.y), Point(iRect.x + iRect.width, iRect.y + iRect.height), cvScalar(0, 0,255      ),      2);
-        //cv::imshow("rectangles", output);
-        //waitKey(0);
+
       }
     }// end for loop j
   }// end for loop i
+
+  if (showGroupedLetters == 1)
+  {
+    if (firstPass_)
+      cv::imshow("bright", output);
+    else
+      cv::imshow("dark", output);
+    waitKey(0);
+  }
 }
 
 void DetectText::chainPairs(Mat& ccmap)
 {
-  Mat output = originalImage_.clone();
-  for (int i = 0; i < horizontalLetterGroups_.size() - 1; i++)
+  int showpairs = 0;
+  int showchains = 0;
+  if (showpairs == 1)
   {
-    /*rectangle(output, Point(boundingBoxes_.at(horizontalLetterGroups_[i].left).x,
-     boundingBoxes_.at(horizontalLetterGroups_[i].left).y),
-     Point(boundingBoxes_.at(i).x + boundingBoxes_.at(horizontalLetterGroups_[i].left).width,
-     boundingBoxes_.at(horizontalLetterGroups_[i].left).y
-     + boundingBoxes_.at(horizontalLetterGroups_[i].left).height), cvScalar((10*i), (10*i), (10*i)), 2);
-     rectangle(output, Point(boundingBoxes_.at(horizontalLetterGroups_[i].right).x,
-     boundingBoxes_.at(horizontalLetterGroups_[i].right).y),
-     Point(boundingBoxes_.at(i).x + boundingBoxes_.at(horizontalLetterGroups_[i].right).width,
-     boundingBoxes_.at(horizontalLetterGroups_[i].right).y
-     + boundingBoxes_.at(horizontalLetterGroups_[i].right).height), cvScalar((10*i), (10*i), (10*i)), 2);
-     cv::imshow("pairs", output);
-     waitKey(0);*/
-
+    Mat output = originalImage_.clone();
+    for (int i = 0; i < horizontalLetterGroups_.size() - 1; i++)
+    {
+      rectangle(output, Point(componentsRoi_.at(horizontalLetterGroups_[i].left).x,
+                              componentsRoi_.at(horizontalLetterGroups_[i].left).y),
+                Point(componentsRoi_.at(horizontalLetterGroups_[i].left).x
+                    + componentsRoi_.at(horizontalLetterGroups_[i].left).width,
+                      componentsRoi_.at(horizontalLetterGroups_[i].left).y
+                          + componentsRoi_.at(horizontalLetterGroups_[i].left).height), cvScalar(255, 255, 255), 2);
+      rectangle(output, Point(componentsRoi_.at(horizontalLetterGroups_[i].right).x,
+                              componentsRoi_.at(horizontalLetterGroups_[i].right).y),
+                Point(componentsRoi_.at(horizontalLetterGroups_[i].right).x
+                    + componentsRoi_.at(horizontalLetterGroups_[i].right).width,
+                      componentsRoi_.at(horizontalLetterGroups_[i].right).y
+                          + componentsRoi_.at(horizontalLetterGroups_[i].right).height), cvScalar(255, 255, 255), 2);
+    }
+    cv::imshow("pairs", output);
+    waitKey(0);
   }
 
   mergePairs(horizontalLetterGroups_, horizontalChains_);
@@ -929,17 +726,42 @@ void DetectText::chainPairs(Mat& ccmap)
   // horizontalChains
   vector<Rect> initialHorizontalBoxes;
   chainToBox(horizontalChains_, initialHorizontalBoxes); //initialHorizontalBoxes contains rects for every chaincomponent with more than to components(letters)
+
+  if (showchains == 1)
+  {
+    Mat output = originalImage_.clone();
+    for (int i = 0; i < initialHorizontalBoxes.size(); i++)
+    {
+      rectangle(output, Point(initialHorizontalBoxes[i].x, initialHorizontalBoxes[i].y),
+                Point(initialHorizontalBoxes[i].x + initialHorizontalBoxes[i].width, initialHorizontalBoxes[i].y
+                    + initialHorizontalBoxes[i].height), cvScalar(155, 55, 255), 2);
+    }
+    cv::imshow("chains", output);
+    waitKey(0);
+  }
+
   filterBoundingBoxes(initialHorizontalBoxes, ccmap, 4);
 
   // boundingBoxes_ are filled with initialHorizontalBoxes:
   boundingBoxes_.insert(boundingBoxes_.end(), initialHorizontalBoxes.begin(), initialHorizontalBoxes.end());
 
+  if (showchains == 1)
+  {
+    Mat output = originalImage_.clone();
+    for (int i = 0; i < boundingBoxes_.size(); i++)
+    {
+      rectangle(output, Point(boundingBoxes_[i].x, boundingBoxes_[i].y), Point(boundingBoxes_[i].x
+          + boundingBoxes_[i].width, boundingBoxes_[i].y + boundingBoxes_[i].height), cvScalar(0, 55, 105), 2);
+    }
+    cv::imshow("chains2", output);
+    waitKey(0);
+  }
 }
 
 void DetectText::findRotationangles(int blackWhite)
 {
   int showHistogram = 1;
-  int showRects = 1;
+  int showRects = 0;
   int padding = 10;
 
   bgr whiteClr;
@@ -972,8 +794,6 @@ void DetectText::findRotationangles(int blackWhite)
     // Reset Values
     maxValue = 0;
     maxAngle = 0;
-
-
 
     for (int y = 0; y < canvas.rows; y++)
       for (int x = 0; x < canvas.cols; x++)
@@ -1046,15 +866,20 @@ void DetectText::findRotationangles(int blackWhite)
         else
           cv::line(canvas, pt1, pt2, cv::Scalar(250, 210, 150), 1, 8, 0);
       }
-      cv::putText(canvas, "0", cv::Point(180, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
-      cv::putText(canvas, "-90", cv::Point(90, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
-      cv::putText(canvas, "-180", cv::Point(0, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
-      cv::putText(canvas, "90", cv::Point(260, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
-      cv::putText(canvas, "180", cv::Point(335, 122), FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8, false);
+      cv::putText(canvas, "0", cv::Point(180, 122), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8,
+                  false);
+      cv::putText(canvas, "-90", cv::Point(90, 122), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8,
+                  false);
+      cv::putText(canvas, "-180", cv::Point(0, 122), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8,
+                  false);
+      cv::putText(canvas, "90", cv::Point(260, 122), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8,
+                  false);
+      cv::putText(canvas, "180", cv::Point(335, 122), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0, 0), 1.5, 8,
+                  false);
       cv::imshow("Gradients", canvas);
       std::cout << "blackWhite:" << blackWhite << endl;
       std::cout << "maxAngle:" << maxAngle << "(" << maxAngle - 180 << ")" << endl;
-      cv::waitKey(0);
+      //cv::waitKey(0);
     }
 
     // Rotationangles
@@ -1075,7 +900,6 @@ void DetectText::findRotationangles(int blackWhite)
     // Average of background Pixels
 
     std::vector<int> bgColor;
-
     for (int y = 0; y < smallImg.rows; y++)
     {
       for (int x = 0; x < smallImg.cols; x++)
@@ -1123,10 +947,10 @@ void DetectText::findRotationangles(int blackWhite)
     cv::warpAffine(smallImg, rotatedImage, mapMatrix, smallImg.size(), INTER_CUBIC, BORDER_CONSTANT,
                    cv::Scalar(average_bg));
     cv::imshow("rotated", rotatedImage);
-    cv::waitKey(0);
+    //cv::waitKey(0);
 
-    Rotated * r = new Rotated(rotatedImage, cv::Rect(boundingBoxes_[i].x, boundingBoxes_[i].y,
-                                                      boundingBoxes_[i].width, boundingBoxes_[i].height));
+    Rotated * r = new Rotated(rotatedImage, cv::Rect(boundingBoxes_[i].x, boundingBoxes_[i].y, boundingBoxes_[i].width,
+                                                     boundingBoxes_[i].height));
     rotated.push_back(*r);
   }
 }
@@ -1137,12 +961,12 @@ void DetectText::chainToBox(vector<vector<int> >& chain, vector<Rect>& boundingB
   {
     if (chain[i].size() < 3) //Only words with more than 2 letters
     {
-      //continue;         //commented for rotation test
+      continue;
     }
 
     int minX = image_.cols, minY = image_.rows, maxX = 0, maxY = 0;
     int letterAreaSum = 0;
-    int padding = 15; //=5, for rotation =15 because often letter parts lie on the boundary
+    int padding = 5;
 
     for (size_t j = 0; j < chain[i].size(); j++)
     {
@@ -1155,26 +979,13 @@ void DetectText::chainToBox(vector<vector<int> >& chain, vector<Rect>& boundingB
     }
 
     // add padding around each box
-
-
     minX = max(0, minX - padding);
     minY = max(0, minY - padding);
     maxX = min(image_.cols, maxX + padding);
     maxY = min(image_.rows, maxY + padding);
-    /*
-     minX = minX - padding;
-     minY = minY - padding;
-     maxX = maxX + padding;
-     maxY = maxY + padding;     */
 
     boundingBox.push_back(Rect(minX, minY, maxX - minX, maxY - minY));
-    // rectangle(image_, Point(minX, minY), Point(maxX, maxY), 150, 3);
   }
-
-  // imshow("...",image_);
-  //waitKey(0);
-  //exit(0);
-
 }
 
 bool DetectText::spaticalOrder(Rect a, Rect b)
@@ -1206,7 +1017,7 @@ void DetectText::filterBoundingBoxes(vector<Rect>& boundingBoxes, Mat& ccmap, in
       {
         int componetIndex = static_cast<int> (ccmap.at<float> (y, x));
 
-        if (componetIndex < 0) //padding-pixel z.B sind <0
+        if (componetIndex < 0) //padding has no label
           continue;
 
         if (isLetterComponects_[componetIndex])
@@ -1284,24 +1095,7 @@ void DetectText::overlayText(vector<Rect>& box, vector<string>& text)
     string output = text[i];
     if (output.compare("") == 0)
       continue;
-    //!!! to be changed back
-    // rotated is at the moment a class and couldnt be used here directly
-    int r = 1;
-    cout << text[i] << endl;
-    cout << "--------------" << endl;
-    if (i > 0)
-    {
-      for (size_t j = i - 1; j > 0; j--)
-      {
-        cout << text[j] << " ";
-        if (output == text[j])
-          r = 0;
-      }
-      cout << endl;
-      cout << "r:" << r << endl;
-    }
-    if (r == 1)
-    {
+
       std::string s;
       std::stringstream out;
       out << count;
@@ -1322,43 +1116,41 @@ void DetectText::overlayText(vector<Rect>& box, vector<string>& text)
               2);
       textDisplayOffset_ += 2;
     }
-    r = 1;
-  }
 }
 
 void DetectText::ocrRead(vector<Rect>& boundingBoxes)
 {
-  /*
-   sort(boundingBoxes.begin(), boundingBoxes.end(), DetectText::spaticalOrder);
-   for (size_t i = 0; i < boundingBoxes.size(); i++)
-   {
-   string result;
-   float score = ocrRead(originalImage_(boundingBoxes[i]), result, -1);
-   if (score > 0)
-   {
-   boxesBothSides_.push_back(boundingBoxes[i]);
-   wordsBothSides_.push_back(result);
-   boxesScores_.push_back(score);
-   }
-   }*/
-  //rotated
-  for (size_t i = 0; i < rotated.size() - 1; i++)
+
+  sort(boundingBoxes.begin(), boundingBoxes.end(), DetectText::spaticalOrder);
+  for (size_t i = 0; i < boundingBoxes.size(); i++)
   {
     string result;
-    //cout << "ROTATION [" << i << "]: ";
-
-    float score = ocrRead(rotated.at(i).rotated_img, result, i);
+    float score = ocrRead(originalImage_(boundingBoxes[i]), result, -1);
     if (score > 0)
     {
-      boxesBothSides_.push_back(rotated.at(i).coords);
+      boxesBothSides_.push_back(boundingBoxes[i]);
       wordsBothSides_.push_back(result);
       boxesScores_.push_back(score);
     }
-    cout << "score:" << score << endl;
-    imshow("actual image", rotated.at(i).rotated_img);
-    //waitKey(0);
   }
+  /*rotated
+   for (size_t i = 0; i < rotated.size() - 1; i++)
+   {
+   string result;
+   //cout << "ROTATION [" << i << "]: ";
 
+   float score = ocrRead(rotated.at(i).rotated_img, result, i);
+   if (score > 0)
+   {
+   boxesBothSides_.push_back(rotated.at(i).coords);
+   wordsBothSides_.push_back(result);
+   boxesScores_.push_back(score);
+   }
+   cout << "score:" << score << endl;
+   imshow("actual image", rotated.at(i).rotated_img);
+   //waitKey(0);
+   }
+   */
 }
 
 float DetectText::ocrRead(const Mat& imagePatch, string& output, int actual)
@@ -1892,7 +1684,6 @@ float DetectText::getMeanIntensity(const Mat& ccmap, const Rect& rect, int eleme
       }
     componentsMeanIntensity_[element] = sum / count;
   }
-
   return componentsMeanIntensity_[element];
 }
 
@@ -1925,7 +1716,7 @@ float DetectText::getMedianStrokeWidth(const Mat& ccmap, const Mat& swtmap, cons
 
 void DetectText::mergePairs(const vector<Pair>& groups, vector<vector<int> >& chains)
 {
-  /* groups:
+  /* groups looks like this:
    *  4 5
    *  12 14
    *  44 45
@@ -1941,7 +1732,7 @@ void DetectText::mergePairs(const vector<Pair>& groups, vector<vector<int> >& ch
     initialChains[i] = temp;
   }
 
-  /* initialChains:
+  /* initialChains looks like this:
    * [0]  [1]  [2]
    *  4    12   44   ...
    *  5    14   45
@@ -1962,26 +1753,22 @@ bool DetectText::mergePairs(const vector<vector<int> >& initialChains, vector<ve
   bool merged = false;
   int *mergedToChainBitMap = new int[initialChains.size()];
   memset(mergedToChainBitMap, -1, initialChains.size() * sizeof(int));
-  /* initialChains:
-   * [0]  [1]  [2]  [3]
-   *  4    12   44  45
-   *  5    14   45  46
-   */
-  for (size_t i = 0; i < initialChains.size(); i++) // chain i          i<4
+
+  for (size_t i = 0; i < initialChains.size(); i++)
   {
     if (mergedToChainBitMap[i] != -1)
       continue;
 
-    for (size_t j = i + 1; j < initialChains.size(); j++) // chain j    j=1, j<4
+    for (size_t j = i + 1; j < initialChains.size(); j++)
     {
       // match elements in chain i,j
-      for (size_t ki = 0; ki < initialChains[i].size(); ki++) // ki<initialChains[0].size()=2
+      for (size_t ki = 0; ki < initialChains[i].size(); ki++)
       {
         for (size_t kj = 0; kj < initialChains[j].size(); kj++)
         {
           // found match
           if (initialChains[i][ki] == initialChains[j][kj]) // Does any other initialChains[x] contain a identical componect?
-          { //i=2 j=3 ki=1 kj=0
+          {
             merged = true;
             // j already merged with others
             if (mergedToChainBitMap[j] != -1)
@@ -1993,11 +1780,11 @@ bool DetectText::mergePairs(const vector<vector<int> >& initialChains, vector<ve
             else // start a new chain
             {
               vector<int> newChain;
-              merge(initialChains[i], newChain); // newChain = {44,45}
-              merge(initialChains[j], newChain); // newChain = {44,45,46}
-              chains.push_back(newChain); // chains= {44,45,46},{},{}...
-              mergedToChainBitMap[i] = chains.size() - 1; //mergedToChainBitMap[2]=2;
-              mergedToChainBitMap[j] = chains.size() - 1; //mergedToChainBitMap[3]=2;
+              merge(initialChains[i], newChain);
+              merge(initialChains[j], newChain);
+              chains.push_back(newChain);
+              mergedToChainBitMap[i] = chains.size() - 1;
+              mergedToChainBitMap[j] = chains.size() - 1;
             }
             break;
           }
@@ -2022,11 +1809,6 @@ bool DetectText::mergePairs(const vector<vector<int> >& initialChains, vector<ve
   }
   // dispose resourse
   delete[] mergedToChainBitMap;
-  /*chains:
-   chains[0][0]: 47 chains[0][1]: 59
-   chains[1][0]: 137 chains[1][1]: 149
-   chains[2][0]: 228 chains[2][1]: 239
-   */
   return merged;
 }
 
