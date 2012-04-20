@@ -1,14 +1,14 @@
 <package>
   <description brief="cob_read_text">
 
-	bases on pr2_read_text from Menglong Zhu: menglong(at)seas.upenn.edu
+	bases on literate_pr2 package from Menglong Zhu: menglong(at)seas.upenn.edu
 
   </description>
   <author>Robert Heinze, Richard Bormann</author>
   <license>LGPL</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_read_text</url>
-  <depend package="read_text"/>
+
   <depend package="opencv2"/>
   <depend package="roscpp"/>
   <depend package="sensor_msgs"/>
@@ -23,6 +23,10 @@
   <depend package="pcl_ros"/> 
   <depend package="geometry_msgs"/>
   <depend package="sensor_msgs"/>
+  
+  <export>
+      <cpp cflags="-I${prefix}/ros/include -I${prefix}/common/include" lflags="-L${prefix}/lib -Wl,-rpath,-L${prefix}/lib -lread_text"/>
+  </export>
 </package>
 
 
