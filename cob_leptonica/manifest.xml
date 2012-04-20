@@ -1,7 +1,7 @@
 <package>
   <description brief="cob_leptonica">
 
-     ROS wrapper for leptonica. Follows the procedure applied in package leptonica.
+     ROS wrapper for leptonica (http://www.leptonica.org/). Follows the procedure applied in package leptonica.
 
   </description>
   <author>Richard Bormann</author>

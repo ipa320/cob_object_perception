@@ -17,7 +17,7 @@ installed: $(SOURCE_DIR)/unpacked Makefile
 					touch installed
           
 clean:
-	rm -rf $(SOURCE_DIR)
+	rm -rf $(SOURCE_DIR) installed
 	
 wipe: clean
 	rm -rf build
