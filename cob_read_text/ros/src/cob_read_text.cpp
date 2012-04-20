@@ -20,7 +20,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/visualization/cloud_viewer.h>
 
-#include <read_text/text_detect.h>
+#include <cob_read_text/text_detect.h>
 
 namespace enc = sensor_msgs::image_encodings;
 

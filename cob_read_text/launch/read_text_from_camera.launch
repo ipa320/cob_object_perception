@@ -1,4 +1,6 @@
 <launch>
+	<env name="TESSDATA_PREFIX" value="~/git/care-o-bot/cob_object_perception_data/cob_tesseract_data" />
+
 	<!--node name="image_proc" pkg="image_proc" type="image_proc"
 		ns="prosilica" /-->
 
@@ -10,11 +12,11 @@
 		<remap from="image" to="/read_text/text_detect"/>
 	</node>
 
-	<node name="cob_read_text" pkg="cob_read_text" type="cob_read_text" output="screen"
 		<!-- args="$(find read_text)/fonts/correlation.txt 
 		$(find read_text)/dictionary/full-dictionary"> -->
-		args="~/git/care-o-bot/cob_object_perception_data/cob_read_text_data/fonts/correlation.txt 
-		~/git/care-o-bot/cob_object_perception_data/cob_read_text_data/dictionary/full-dictionary">
+	<node name="cob_read_text" pkg="cob_read_text" type="cob_read_text" output="screen"
+		args="/home/rmb-rh/git/care-o-bot/cob_object_perception_data/cob_read_text_data/fonts/correlation.txt 
+		/home/rmb-rh/git/care-o-bot/cob_object_perception_data/cob_read_text_data/dictionary/full-dictionary">
 		<remap from="text_detect" to="/read_text/text_detect"/>
 		<remap from="image_color" to="/camera/rgb/image_color"/>
 	</node>

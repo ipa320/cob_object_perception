@@ -1214,7 +1214,7 @@ float DetectText::ocrRead(const Mat& imagePatch, string& output, int actual)
 
   system("$(cp patch.tiff ~)");
   int result;
-  result = system("$(rospack find tesseract)/bin/tesseract patch.tiff patch"); //OCR in patch
+  result = system("$(rospack find cob_tesseract)/bin/tesseract patch.tiff patch"); //OCR in patch
   cout << "result" << result << endl;
   assert(!result);
   ifstream fin("patch.txt");
@@ -1440,6 +1440,8 @@ void DetectText::disposal()
 /*----------------------------------------- readLetterCorrelation - Correlation in correlation_ einlesen ----------------------------------*/
 void DetectText::readLetterCorrelation(const char* file)
 {
+  std::cout << std::endl;
+  std::cout << "Correlation:" << file << std::endl;
   ifstream fin(file);
   correlation_ = Mat(62, 62, CV_32F, Scalar(0));
   float number;
