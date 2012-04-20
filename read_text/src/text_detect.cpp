@@ -24,7 +24,7 @@ using namespace std;
 
 DetectText::DetectText() :
   maxStrokeWidth_(0), initialStrokeWidth_(0), firstPass_(true), result_(COARSE), nComponent_(0), maxLetterHeight_(0),
-      minLetterHeight_(0), textDisplayOffset_(1)
+      minLetterHeight_(0), textDisplayOffset_(1), eval(true)
 {
 }
 DetectText::~DetectText()
@@ -79,17 +79,26 @@ void DetectText::detect()
   overlayText(boxesBothSides_, wordsBothSides_);
   std::cout << "1\n";
 
-  // eval
-  ofstream myfile;
-  std::string textname = outputPrefix_ + ".txt";
-  myfile.open(textname.c_str());
-  for (int i = 0; i < boxesBothSides_.size(); i++)
+  if (eval == true)
   {
-    myfile << boxesBothSides_[i].x << "\n" << boxesBothSides_[i].y << "\n" << boxesBothSides_[i].width << "\n"
-        << boxesBothSides_[i].height << "\n";
+    ofstream myfile, myfile2;
+    std::string textname = outputPrefix_ + ".txt";
+    std::string textname2 = outputPrefix_ + "t.txt";
+    myfile.open(textname.c_str());
+    for (int i = 0; i < boxesBothSides_.size(); i++)
+    {
+      myfile << boxesBothSides_[i].x << "\n" << boxesBothSides_[i].y << "\n" << boxesBothSides_[i].width << "\n"
+          << boxesBothSides_[i].height << "\n";
+    }
+    myfile.close();
+    myfile2.open(textname2.c_str());
+    for (int i = 0; i < wordsBothSides_.size(); i++)
+    {
+      myfile2 << wordsBothSides_[i] << "\n";
+    }
+    myfile2.close();
+
   }
-  myfile.close();
-  // /eval
 
   imwrite(outputPrefix_ + "_detection.jpg", detection_);
 
@@ -1096,26 +1105,25 @@ void DetectText::overlayText(vector<Rect>& box, vector<string>& text)
     if (output.compare("") == 0)
       continue;
 
-      std::string s;
-      std::stringstream out;
-      out << count;
-      count++;
-      string prefix = "[";
-      prefix = prefix + out.str() + "]";
-      putText(detection_, prefix, Point(box[i].x + box[i].width, box[i].y + box[i].height), FONT_HERSHEY_DUPLEX, 1,
-              color, 2);
-      putText(detection_, prefix, Point(image_.cols, textDisplayOffset_ * 35), FONT_HERSHEY_DUPLEX, 1, color, 2);
-      while (output.length() > lineWidth)
-      {
-        putText(detection_, output.substr(0, lineWidth), Point(image_.cols + indent, textDisplayOffset_ * 35),
-                FONT_HERSHEY_DUPLEX, 1, color, 2);
-        output = output.substr(lineWidth);
-        textDisplayOffset_++;
-      }
-      putText(detection_, output, Point(image_.cols + indent, textDisplayOffset_ * 35), FONT_HERSHEY_DUPLEX, 1, color,
-              2);
-      textDisplayOffset_ += 2;
+    std::string s;
+    std::stringstream out;
+    out << count;
+    count++;
+    string prefix = "[";
+    prefix = prefix + out.str() + "]";
+    putText(detection_, prefix, Point(box[i].x + box[i].width, box[i].y + box[i].height), FONT_HERSHEY_DUPLEX, 1,
+            color, 2);
+    putText(detection_, prefix, Point(image_.cols, textDisplayOffset_ * 35), FONT_HERSHEY_DUPLEX, 1, color, 2);
+    while (output.length() > lineWidth)
+    {
+      putText(detection_, output.substr(0, lineWidth), Point(image_.cols + indent, textDisplayOffset_ * 35),
+              FONT_HERSHEY_DUPLEX, 1, color, 2);
+      output = output.substr(lineWidth);
+      textDisplayOffset_++;
     }
+    putText(detection_, output, Point(image_.cols + indent, textDisplayOffset_ * 35), FONT_HERSHEY_DUPLEX, 1, color, 2);
+    textDisplayOffset_ += 2;
+  }
 }
 
 void DetectText::ocrRead(vector<Rect>& boundingBoxes)

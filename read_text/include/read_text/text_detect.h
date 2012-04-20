@@ -204,6 +204,7 @@ private:
   uchar g; /**< Green channel value. */
   uchar r; /**< Red channel value. */
   };
+  bool eval; //true=evaluation false=standard
 
   // these variables stays for the same image
   Mat originalImage_;
