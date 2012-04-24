@@ -12,13 +12,16 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 rosbuild_init()
 
 #set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+#set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-# add include search paths
-INCLUDE_DIRECTORIES(	${PROJECT_SOURCE_DIR}/ros/include
-			${PROJECT_SOURCE_DIR}/common/include)
+# Building leptonica
+execute_process(COMMAND cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.libleptonica 
+		RESULT_VARIABLE _get_failed)
+if(_get_failed)
+  message(FATAL_ERROR "Fetching of leptonica failed")
+endif(_get_failed)
 
 #uncomment if you have defined messages
 #rosbuild_genmsg()
@@ -30,8 +33,5 @@ INCLUDE_DIRECTORIES(	${PROJECT_SOURCE_DIR}/ros/include
 #target_link_libraries(${PROJECT_NAME} another_library)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
-rosbuild_add_library(read_text	common/src/text_detect.cpp)
-rosbuild_add_executable(run_detect	common/src/run_detection.cpp common/src/text_detect.cpp)
-rosbuild_add_executable(cob_read_text ros/src/cob_read_text.cpp)
-target_link_libraries(cob_read_text read_text)
-rosbuild_add_executable(read_evaluation common/src/read_evaluation.cpp)
+#rosbuild_add_executable(example examples/example.cpp)
+#target_link_libraries(example ${PROJECT_NAME})

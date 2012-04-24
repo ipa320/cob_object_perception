@@ -1,0 +1,20 @@
+<package>
+  <description brief="cob_tesseract">
+
+     A ROS wrapper for tesseract (http://code.google.com/p/tesseract-ocr/) following the procedure from package tesseract in the ocr stack.
+
+  </description>
+  <author>Richard Bormann</author>
+  <license>LGPL</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/cob_tesseract</url>
+
+  <depend package="cob_leptonica"/>
+
+  <export>
+    <cpp cflags="-I${prefix}/include" lflags="-L${prefix}/lib" />
+  </export>
+
+</package>
+
+

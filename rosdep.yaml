@@ -1,2 +1,4 @@
 cvs:
   ubuntu: cvs
+leptonica:
+  ubuntu: libleptonica-dev
