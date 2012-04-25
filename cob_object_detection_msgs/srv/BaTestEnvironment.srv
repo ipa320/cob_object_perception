@@ -6,7 +6,13 @@ float32 cone_points_per_plane
 
 # perameter to describe errors
 float32 limit_error_matching
+
 float32 ba_kernel_param
+int32 ba_num_iter
+float32 ba_initial_mu
+float32 ba_final_mu_factor
+float32 ba_tau
+
 float32 angle_sigma_degree
 float32 translate_sigma_m
 float32 obs_point_sigma_m
@@ -20,4 +26,9 @@ float32 max_error
 float32 runs_count
 float32 runs_sum
 float32 runs_sum2
+
+float32 time_duration
+int32 observations
+int32 false_matchings
+
 std_msgs/String result
