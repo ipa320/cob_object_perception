@@ -3,11 +3,13 @@
 
      libdmtx
 
+	originally from James Bowman
+
   </description>
-  <author>James Bowman</author>
+  <author>Joshua Hampp</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/libdmtx</url>
+  <url></url>
 
   <rosdep name="libdmtx-dev" />
 

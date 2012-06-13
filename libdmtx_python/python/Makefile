@@ -2,7 +2,7 @@ all:
 	python setup.py build
 
 install:
-	python setup.py install
+	python setup.py install --prefix=../src
 
 clean:
 	rm -Rf build
