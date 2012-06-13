@@ -1,0 +1,17 @@
+<package>
+  <description brief="libdmtx">
+
+     libdmtx
+
+  </description>
+  <author>James Bowman</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/libdmtx</url>
+
+  <rosdep name="libdmtx-dev" />
+
+  <export>
+    <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -ldmtx"/>
+  </export>
+</package>

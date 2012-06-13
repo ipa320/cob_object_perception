@@ -1,0 +1,24 @@
+<package>
+  <description brief="datamatrix">
+
+     datamatrix
+
+  </description>
+  <author>Joshua Hampp</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/datamatrix</url>
+  <depend package="opencv2"/>
+  <depend package="libdmtx_python"/>
+  <depend package="image_geometry"/>
+  <depend package="cv_bridge"/>
+  <depend package="message_filters"/>
+  <depend package="tf"/>
+  <depend package="tf_conversions"/>
+  <depend package="kdl"/>
+  <depend package="cob_srvs"/>
+  <depend package="cob_object_detection_msgs"/>
+
+</package>
+
+
