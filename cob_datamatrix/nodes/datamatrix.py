@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-PKG = 'datamatrix' # this package name
+PKG = 'cob_datamatrix' # this package name
 import roslib; roslib.load_manifest(PKG)
 
 import ctypes
@@ -24,7 +24,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import image_geometry
 import geometry_msgs.msg
 from geometry_msgs.msg import *
-from datamatrix.srv import *
+from cob_datamatrix.srv import *
 from cob_object_detection_msgs.msg import *
 import tf
 import tf_conversions.posemath as pm
