@@ -1,5 +1,5 @@
 all: 
-	cd python && make && make install
+	cd python && make install
 
 clean:
 	cd python && make clean
