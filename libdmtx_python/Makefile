@@ -3,3 +3,5 @@ all:
 
 clean:
 	cd python && make clean
+
+include $(shell rospack find mk)/cmake.mk
