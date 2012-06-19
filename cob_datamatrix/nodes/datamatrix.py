@@ -27,6 +27,7 @@ from geometry_msgs.msg import *
 
 from cob_object_detection_msgs.msg import *
 from cob_object_detection_msgs.srv import *
+from cob_datamatrix.srv import *
 
 import tf
 import tf_conversions.posemath as pm
@@ -143,6 +144,7 @@ class DataMatrix:
 
         self.listener = tf.TransformListener()
 	self.srv = rospy.Service('/object_detection/detect_object', DetectObjects, self.handle_find)
+	self.srv_dm = rospy.Service('/cobject_detection/trigger_datamatrix', DetectObjects, self.handle_find)
 	self.find = False
 	self.triggermode = rospy.get_param('~triggermode', False)
 
@@ -216,12 +218,21 @@ class DataMatrix:
 	#print "got cookies"
 	self.pointcloud = a
 
-    def handle_find(self, a):
+    def handle_find(self, para):
+	timeout = -1
+	names = []
+	if isinstance(para,DetectDatamatrixRequest):
+		timeout = para.timeout
+		names = para.names
+	else:
+		names = [para.object_name.data]
+
 	print "called"
+	start_tm = time.clock()
 	self.subscribe()
-	for i in range(10):
+	while True:
 	    self.find = True
-	    while(self.find == True):
+	    while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
 		time.sleep(0.1)
 	    #transfrom object position to an pose
             pose_obj = PoseStamped()
@@ -230,7 +241,7 @@ class DataMatrix:
         
 	    pose_obj.pose = copy.deepcopy(self.current_pose)
 
-	    if not math.isnan(self.last_detection_msg.pose.pose.position.x):
+	    if (self.last_detection_msg.label in names or len(names)==0) and not math.isnan(self.last_detection_msg.pose.pose.position.x):
 		print "FOUND FOUND"
 		self.tracking = {}
 		resp = DetectionArray()
