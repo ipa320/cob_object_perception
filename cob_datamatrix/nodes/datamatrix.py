@@ -24,8 +24,11 @@ from cv_bridge import CvBridge, CvBridgeError
 import image_geometry
 import geometry_msgs.msg
 from geometry_msgs.msg import *
-from cob_datamatrix.srv import *
+
 from cob_object_detection_msgs.msg import *
+from cob_object_detection_msgs.srv import *
+from cob_datamatrix.srv import *
+
 import tf
 import tf_conversions.posemath as pm
 import PyKDL
@@ -137,15 +140,25 @@ class ConsumerThread(threading.Thread):
 class DataMatrix:
     def __init__(self):
         self.i = 0
-        def topic(lr, sub):
-            return rospy.resolve_name("stereo") + "/%s/%s" % ({'l' : 'left', 'r' : 'right'}[lr], sub)
         self.tracking = {}
-        if 0:
-            self.cams = {}
-            for lr in "lr":
-                rospy.Subscriber(topic(lr, "camera_info"), sensor_msgs.msg.CameraInfo, partial(self.got_info, lr))
-            rospy.Subscriber(topic("l", "image_rect_color"), sensor_msgs.msg.Image, self.gotimage)
-        else:
+
+        self.listener = tf.TransformListener()
+	self.srv = rospy.Service('/object_detection/detect_object', DetectObjects, self.handle_find)
+	self.srv_dm = rospy.Service('/cobject_detection/trigger_datamatrix', DetectObjects, self.handle_find)
+	self.find = False
+	self.triggermode = rospy.get_param('~triggermode', False)
+
+	self.pointcloud = None
+	self.dm = pydmtx.DataMatrix()
+
+	if self.triggermode==False: self.subscribe()
+
+        self.pub_detection = rospy.Publisher("/obj_detection", cob_object_detection_msgs.msg.Detection)
+
+    def subscribe(self):
+            def topic(lr, sub):
+                return rospy.resolve_name("stereo") + "/%s/%s" % ({'l' : 'left', 'r' : 'right'}[lr], sub)
+
             tosync_stereo = [
                 (topic('l', "image_rect_color"), sensor_msgs.msg.Image),
                 (topic('l', "camera_info"), sensor_msgs.msg.CameraInfo),
@@ -162,24 +175,21 @@ class DataMatrix:
                 #("/camera/depth/points", sensor_msgs.msg.PointCloud2)
             ]
 
-            self.listener = tf.TransformListener()
-	    self.srv = rospy.Service('/find_pattern', FindPattern, self.handle_find)
-	    self.find = False
-
-	    self.pointcloud = None
-
 	    self.pcl_sub = rospy.Subscriber("pointcloud_depth", sensor_msgs.msg.PointCloud2, self.pc_cb)
 
-            self.q_stereo = Queue.Queue()
-            tss = message_filters.TimeSynchronizer([message_filters.Subscriber(topic, type) for (topic, type) in tosync_stereo], 10)
-            tss.registerCallback(self.queue_stereo)
+            #self.q_stereo = Queue.Queue()
+            #tss = message_filters.TimeSynchronizer([message_filters.Subscriber(topic, type) for (topic, type) in tosync_stereo], 10)
+            #tss.registerCallback(self.queue_stereo)
 
-            sth = ConsumerThread(self.q_stereo, self.handle_stereo)
-            sth.setDaemon(True)
-            sth.start()
+            #sth = ConsumerThread(self.q_stereo, self.handle_stereo)
+            #sth.setDaemon(True)
+            #sth.start()
+
+            self.subscribers_mono = [message_filters.Subscriber(topic, type) for (topic, type) in tosync_mono]
+            self.subscribers_rgbd = [message_filters.Subscriber(topic, type) for (topic, type) in tosync_rgbd]
 
             self.q_mono = Queue.Queue()
-            tss = message_filters.TimeSynchronizer([message_filters.Subscriber(topic, type) for (topic, type) in tosync_mono], 10)
+            tss = message_filters.TimeSynchronizer(self.subscribers_mono, 10)
             tss.registerCallback(self.queue_mono)
 
 
@@ -188,15 +198,19 @@ class DataMatrix:
             mth.start()
 
 	    self.q_rgbd = Queue.Queue()
-            tss = message_filters.TimeSynchronizer([message_filters.Subscriber(topic, type) for (topic, type) in tosync_rgbd], 1)
+            tss = message_filters.TimeSynchronizer(self.subscribers_rgbd, 1)
             tss.registerCallback(self.queue_rgbd)
 
             rth = ConsumerThread(self.q_rgbd, self.handle_rgbd)
             rth.setDaemon(True)
             rth.start()
-	    
 
-        self.pub_detection = rospy.Publisher("/obj_detection", cob_object_detection_msgs.msg.Detection)
+
+    def unsubscribe(self):
+	    self.pcl_sub.unregister()
+            #[s.unregister() for s in self.subscribers_rgbd]
+            #[s.unregister() for s in self.subscribers_mono]
+
 
         # message_filters.Subscriber("/wide_stereo/left/image_raw", sensor_msgs.msg.Image).registerCallback(self.getraw)
 
@@ -204,39 +218,46 @@ class DataMatrix:
 	#print "got cookies"
 	self.pointcloud = a
 
-    def handle_find(self, a):
+    def handle_find(self, para):
+	timeout = -1
+	names = []
+	if isinstance(para,DetectDatamatrixRequest):
+		timeout = para.timeout
+		names = para.names
+	else:
+		names = [para.object_name.data]
+
 	print "called"
-	for i in range(10):
+	start_tm = time.clock()
+	self.subscribe()
+	while True:
 	    self.find = True
-	    while(self.find == True):
+	    while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
 		time.sleep(0.1)
 	    #transfrom object position to an pose
             pose_obj = PoseStamped()
             pose_obj_bl = PoseStamped()
             pose_obj.header.frame_id = "/head_color_camera_r_link"
-	    #print type(self.current_pose)
         
 	    pose_obj.pose = copy.deepcopy(self.current_pose)
-            try:
-        	pose_obj.header.stamp = self.listener.getLatestCommonTime("/base_link", pose_obj.header.frame_id)
-                pose_obj_bl = self.listener.transformPose("/base_link", pose_obj)
-            except rospy.ROSException, e:
-        	print "Transformation not possible: %s"%e
 
-	    #if(pose_obj_bl.pose.position.z >= 0.96 and pose_obj_bl.pose.position.z <= 1.10):
-	    if True:
+	    if (self.last_detection_msg.label in names or len(names)==0) and not math.isnan(self.last_detection_msg.pose.pose.position.x):
+		print "FOUND FOUND"
 		self.tracking = {}
-		resp = FindPatternResponse()
-        	resp.marker = pose_obj_bl.pose.position
-            	print "PoseCL: ", self.current_pose
-	    	print "PoseBL: ", pose_obj_bl
-		return resp
+		resp = DetectionArray()
+		resp.detections.append(self.last_detection_msg)
+        	#resp.marker = pose_obj_bl.pose.position
+            	#print "PoseCL: ", self.current_pose
+	    	#print "PoseBL: ", pose_obj_bl
+		self.unsubscribe()
+		a = DetectObjectsResponse()
+		a.object_list = resp
+		return a
 	print "nothing found"
+	self.unsubscribe()
 	self.tracking = []
-        resp_emp = FindPatternResponse()
-	empty = Point()
-        resp_emp.marker = empty
-        return resp_emp
+
+        return DetectObjectsResponse()
 
     def getraw(self, rawimg):
         print "raw", rawimg.encoding
@@ -251,17 +272,16 @@ class DataMatrix:
 
     def track(self, img):
 	print "track"
-        dm = pydmtx.DataMatrix()
         if len(self.tracking) == 0:
 	    print "start decode"
-            dm.decode(img.width,
+            self.dm.decode(img.width,
                       img.height,
                       buffer(img.tostring()),
                       max_count = 1,
                       )
 	    print "decode done"
-            if dm.count() != 0:
-                (code, corners) =  dm.stats(1)
+            if self.dm.count() != 0:
+                (code, corners) =  self.dm.stats(1)
                 self.tracking[code] = corners
 		print "found: ", code
         else:
@@ -279,13 +299,13 @@ class DataMatrix:
                 if 0:
                     cv.ShowImage("DataMatrix", img)
                     cv.WaitKey(6)
-                dm.decode(sub.width,
+                self.dm.decode(sub.width,
                           sub.height,
                           buffer(sub.tostring()),
                           max_count = 1,
                           )
-                if dm.count() == 1:
-                    (code, newcorners) = dm.stats(1)
+                if self.dm.count() == 1:
+                    (code, newcorners) = self.dm.stats(1)
                     self.tracking[code] = [(x0 + x, y0 + y) for (x, y) in newcorners]
                     print "self.tracking[code] ", self.tracking[code]
                 else:
@@ -294,7 +314,7 @@ class DataMatrix:
                     # rospy.signal_shutdown(0)
 	print "tracking done"
 
-    def broadcast(self, header, code, posemsg):
+    def toDetectionMsg(self, header, code, posemsg):
         ts = cob_object_detection_msgs.msg.Detection()
         ts.header.frame_id = header.frame_id
         ts.header.stamp = header.stamp
@@ -312,7 +332,17 @@ class DataMatrix:
 
         #tfm = tf.msg.tfMessage([ts])
         print ts.pose.pose
-        self.pub_detection.publish(ts)
+        return ts
+
+    def broadcast(self, header, code, posemsg):
+        self.last_detection_msg=self.toDetectionMsg(header, code, posemsg)
+        self.pub_detection.publish(self.last_detection_msg)
+        #inform trigger
+        self.current_pose = Pose()
+        self.current_pose.position.x = posemsg.position[0]
+        self.current_pose.position.y = posemsg.position[0]
+        self.current_pose.position.z = posemsg.position[0]
+        self.find = False
 
     def gotimage(self, imgmsg):
         if imgmsg.encoding == "bayer_bggr8":
@@ -482,6 +512,8 @@ class DataMatrix:
 	        return pm.fromMatrix(m)
 
     def handle_rgbd(self, qq):
+        if self.triggermode==True and self.find==False:
+            return
         (imgmsg, caminfo, pointcloud) = qq
         if not pointcloud or pointcloud._type != 'sensor_msgs/PointCloud2':
             return
@@ -537,9 +569,10 @@ class DataMatrix:
 
 		#tfm = tf.msg.tfMessage([ts])
 		#self.pub_tf.publish(tfm)
+        #self.not_found += 1
 
 def main():
-    rospy.init_node('datamatrix')
+    rospy.init_node('cob_datamatrix')
     node = DataMatrix()
     rospy.spin()
 
