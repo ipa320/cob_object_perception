@@ -233,7 +233,10 @@ class DataMatrix:
         while True:
             self.find = True
             while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
+                print "sleeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeep"
                 time.sleep(0.1)
+            if self.find==True:
+                break
             #transfrom object position to an pose
             pose_obj = PoseStamped()
             pose_obj_bl = PoseStamped()
@@ -253,9 +256,10 @@ class DataMatrix:
                 a = DetectObjectsResponse()
                 a.object_list = resp
                 return a
+            else: break
         print "nothing found"
         self.unsubscribe()
-        self.tracking = []
+        self.tracking = {}
 
         return DetectObjectsResponse()
 
@@ -280,10 +284,10 @@ class DataMatrix:
                       max_count = 1,
                       )
             print "decode done"
-            if self.dm.count() != 0:
-                (code, corners) =  self.dm.stats(1)
-                self.tracking[code] = corners
-                print "found: ", code
+            if self.dm.count() > 0:
+                    (code, corners) =  self.dm.stats(1)
+                    self.tracking[code] = corners
+                    print "found: ", code
         else:
             for (code, corners) in self.tracking.items():
                 print "tracking: ", code
