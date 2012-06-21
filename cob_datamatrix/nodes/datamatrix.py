@@ -219,7 +219,7 @@ class DataMatrix:
 	self.pointcloud = a
 
     def handle_find(self, para):
-	timeout = -1
+	timeout = rospy.get_param('~timeout', 60)
 	names = []
 	if isinstance(para,DetectDatamatrixRequest):
 		timeout = para.timeout
