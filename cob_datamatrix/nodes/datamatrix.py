@@ -132,9 +132,9 @@ class ConsumerThread(threading.Thread):
             while True:
                 m = self.queue.get()
                 if self.queue.empty():
-		    #print "Queue empty"
+                    #print "Queue empty"
                     break
-	    #print "run"
+            #print "run"
             self.function(m)
 
 class DataMatrix:
@@ -143,15 +143,15 @@ class DataMatrix:
         self.tracking = {}
 
         self.listener = tf.TransformListener()
-	self.srv = rospy.Service('/object_detection/detect_object', DetectObjects, self.handle_find)
-	self.srv_dm = rospy.Service('/cobject_detection/trigger_datamatrix', DetectObjects, self.handle_find)
-	self.find = False
-	self.triggermode = rospy.get_param('~triggermode', False)
+        self.srv = rospy.Service('/object_detection/detect_object', DetectObjects, self.handle_find)
+        self.srv_dm = rospy.Service('/cobject_detection/trigger_datamatrix', DetectObjects, self.handle_find)
+        self.find = False
+        self.triggermode = rospy.get_param('~triggermode', False)
 
-	self.pointcloud = None
-	self.dm = pydmtx.DataMatrix()
+        self.pointcloud = None
+        self.dm = pydmtx.DataMatrix()
 
-	if self.triggermode==False: self.subscribe()
+        if self.triggermode==False: self.subscribe()
 
         self.pub_detection = rospy.Publisher("/obj_detection", cob_object_detection_msgs.msg.Detection)
 
@@ -169,13 +169,13 @@ class DataMatrix:
                 ("image_stream", sensor_msgs.msg.Image),
                 ("camera_info", sensor_msgs.msg.CameraInfo),
             ]
-	    tosync_rgbd = [
+            tosync_rgbd = [
                 ("/image_rgb", sensor_msgs.msg.Image),
                 ("/camera_info", sensor_msgs.msg.CameraInfo),
                 #("/camera/depth/points", sensor_msgs.msg.PointCloud2)
             ]
 
-	    self.pcl_sub = rospy.Subscriber("pointcloud_depth", sensor_msgs.msg.PointCloud2, self.pc_cb)
+            self.pcl_sub = rospy.Subscriber("pointcloud_depth", sensor_msgs.msg.PointCloud2, self.pc_cb)
 
             #self.q_stereo = Queue.Queue()
             #tss = message_filters.TimeSynchronizer([message_filters.Subscriber(topic, type) for (topic, type) in tosync_stereo], 10)
@@ -197,7 +197,7 @@ class DataMatrix:
             mth.setDaemon(True)
             mth.start()
 
-	    self.q_rgbd = Queue.Queue()
+            self.q_rgbd = Queue.Queue()
             tss = message_filters.TimeSynchronizer(self.subscribers_rgbd, 1)
             tss.registerCallback(self.queue_rgbd)
 
@@ -207,7 +207,7 @@ class DataMatrix:
 
 
     def unsubscribe(self):
-	    self.pcl_sub.unregister()
+            self.pcl_sub.unregister()
             #[s.unregister() for s in self.subscribers_rgbd]
             #[s.unregister() for s in self.subscribers_mono]
 
@@ -215,47 +215,47 @@ class DataMatrix:
         # message_filters.Subscriber("/wide_stereo/left/image_raw", sensor_msgs.msg.Image).registerCallback(self.getraw)
 
     def pc_cb(self, a):
-	#print "got cookies"
-	self.pointcloud = a
+        #print "got cookies"
+        self.pointcloud = a
 
     def handle_find(self, para):
-	timeout = rospy.get_param('~timeout', 60)
-	names = []
-	if isinstance(para,DetectDatamatrixRequest):
-		timeout = para.timeout
-		names = para.names
-	else:
-		names = [para.object_name.data]
+        timeout = rospy.get_param('~timeout', 60)
+        names = []
+        if isinstance(para,DetectDatamatrixRequest):
+                timeout = para.timeout
+                names = para.names
+        else:
+                names = [para.object_name.data]
 
-	print "called"
-	start_tm = time.clock()
-	self.subscribe()
-	while True:
-	    self.find = True
-	    while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
-		time.sleep(0.1)
-	    #transfrom object position to an pose
+        print "called"
+        start_tm = time.clock()
+        self.subscribe()
+        while True:
+            self.find = True
+            while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
+                time.sleep(0.1)
+            #transfrom object position to an pose
             pose_obj = PoseStamped()
             pose_obj_bl = PoseStamped()
             pose_obj.header.frame_id = "/head_color_camera_r_link"
         
-	    pose_obj.pose = copy.deepcopy(self.current_pose)
+            pose_obj.pose = copy.deepcopy(self.current_pose)
 
-	    if (self.last_detection_msg.label in names or len(names)==0) and not math.isnan(self.last_detection_msg.pose.pose.position.x):
-		print "FOUND FOUND"
-		self.tracking = {}
-		resp = DetectionArray()
-		resp.detections.append(self.last_detection_msg)
-        	#resp.marker = pose_obj_bl.pose.position
-            	#print "PoseCL: ", self.current_pose
-	    	#print "PoseBL: ", pose_obj_bl
-		self.unsubscribe()
-		a = DetectObjectsResponse()
-		a.object_list = resp
-		return a
-	print "nothing found"
-	self.unsubscribe()
-	self.tracking = []
+            if (self.last_detection_msg.label in names or len(names)==0) and not math.isnan(self.last_detection_msg.pose.pose.position.x):
+                print "FOUND FOUND"
+                self.tracking = {}
+                resp = DetectionArray()
+                resp.detections.append(self.last_detection_msg)
+                #resp.marker = pose_obj_bl.pose.position
+                    #print "PoseCL: ", self.current_pose
+                    #print "PoseBL: ", pose_obj_bl
+                self.unsubscribe()
+                a = DetectObjectsResponse()
+                a.object_list = resp
+                return a
+        print "nothing found"
+        self.unsubscribe()
+        self.tracking = []
 
         return DetectObjectsResponse()
 
@@ -271,22 +271,22 @@ class DataMatrix:
         self.cams[lr] = cam
 
     def track(self, img):
-	print "track"
+        print "track"
         if len(self.tracking) == 0:
-	    print "start decode"
+            print "start decode"
             self.dm.decode(img.width,
                       img.height,
                       buffer(img.tostring()),
                       max_count = 1,
                       )
-	    print "decode done"
+            print "decode done"
             if self.dm.count() != 0:
                 (code, corners) =  self.dm.stats(1)
                 self.tracking[code] = corners
-		print "found: ", code
+                print "found: ", code
         else:
             for (code, corners) in self.tracking.items():
-		print "tracking: ", code
+                print "tracking: ", code
                 xs = [x for (x,y) in corners]
                 ys = [y for (x,y) in corners]
                 border = 32
@@ -312,7 +312,7 @@ class DataMatrix:
                     print "lost", code
                     del self.tracking[code]
                     # rospy.signal_shutdown(0)
-	print "tracking done"
+        print "tracking done"
 
     def toDetectionMsg(self, header, code, posemsg):
         ts = cob_object_detection_msgs.msg.Detection()
@@ -350,11 +350,11 @@ class DataMatrix:
         img = CvBridge().imgmsg_to_cv(imgmsg)
         # cv.ShowImage("DataMatrix", img)
         # cv.WaitKey(6)
-	print "gotimage"
-	if(self.find == False):
-		return
+        print "gotimage"
+        if(self.find == False):
+                return
         self.track(img)
-	self.find = False
+        self.find = False
 
         # monocular case
         if 0 and 'l' in self.cams:
@@ -383,7 +383,7 @@ class DataMatrix:
                 #self.pub_tf.publish(tfm)
 
     def queue_mono(self, img, caminfo):
-	#print "queue_mono"
+        #print "queue_mono"
         qq = (img, caminfo)
         self.q_mono.put(qq)
 
@@ -392,7 +392,7 @@ class DataMatrix:
         self.q_stereo.put(qq)
 
     def queue_rgbd(self, img, caminfo):
-	#print "blub"
+        #print "blub"
         qq = (img, caminfo, self.pointcloud)
         self.q_rgbd.put(qq)
 
@@ -412,7 +412,7 @@ class DataMatrix:
             cy = 0.0
             count = 0.0
             for (x,y) in corners:
-            	cx += x
+                cx += x
                 cy += y
                 count += 1.0
             cx /= count
@@ -504,12 +504,12 @@ class DataMatrix:
             self.broadcast(lmsg.header, code, msg)
 
     def fromCameraParams(self, cv, rvec, tvec):
-	        m = numpy.array([ [ 0, 0, 0, tvec[0,0] ],
-	                          [ 0, 0, 0, tvec[1,0] ], 
-	                          [ 0, 0, 0, tvec[2,0] ], 
-	                          [ 0, 0, 0, 1.0       ] ], dtype = numpy.float32)
-	        cv.Rodrigues2(rvec, cv.fromarray(m[:3,:3]))
-	        return pm.fromMatrix(m)
+                m = numpy.array([ [ 0, 0, 0, tvec[0,0] ],
+                                  [ 0, 0, 0, tvec[1,0] ], 
+                                  [ 0, 0, 0, tvec[2,0] ], 
+                                  [ 0, 0, 0, 1.0       ] ], dtype = numpy.float32)
+                cv.Rodrigues2(rvec, cv.fromarray(m[:3,:3]))
+                return pm.fromMatrix(m)
 
     def handle_rgbd(self, qq):
         if self.triggermode==True and self.find==False:
@@ -525,15 +525,15 @@ class DataMatrix:
         self.track(CvBridge().imgmsg_to_cv(imgmsg, "rgb8"))
 
         for (code, corners) in self.tracking.items():
-		cx = 0.0
-		cy = 0.0
-		count = 0.0
-		for (x,y) in corners:
-			cx += x
-			cy += y
-			count += 1.0
-		cx /= count
-		cy /= count      
+                cx = 0.0
+                cy = 0.0
+                count = 0.0
+                for (x,y) in corners:
+                        cx += x
+                        cy += y
+                        count += 1.0
+                cx /= count
+                cy /= count      
 
 
                 model = cv.fromarray(numpy.array([[0,0,0], [.1, 0, 0], [.1, .1, 0], [0, .1, 0]], numpy.float32))
@@ -547,28 +547,28 @@ class DataMatrix:
                                               rot,
                                               trans)  
 
-		#ts = geometry_msgs.msg.TransformStamped()
-		#ts.header.frame_id = imgmsg.header.frame_id
-		#ts.header.stamp = imgmsg.header.stamp
-		#ts.child_frame_id = code
-		#rot = cv.fromarray(rot)
-		#trans = cv.fromarray(trans)
-		posemsg = pm.toMsg(self.fromCameraParams(cv, rot, trans))
-		points = read_points(pointcloud, None, False, [(int(cx), int(cy))])
-		#pointcloud.data(cy*pointcloud.row_step+cx*pointcloud.point_step)
+                #ts = geometry_msgs.msg.TransformStamped()
+                #ts.header.frame_id = imgmsg.header.frame_id
+                #ts.header.stamp = imgmsg.header.stamp
+                #ts.child_frame_id = code
+                #rot = cv.fromarray(rot)
+                #trans = cv.fromarray(trans)
+                posemsg = pm.toMsg(self.fromCameraParams(cv, rot, trans))
+                points = read_points(pointcloud, None, False, [(int(cx), int(cy))])
+                #pointcloud.data(cy*pointcloud.row_step+cx*pointcloud.point_step)
                 print type(points)
-		for point in points:
+                for point in points:
                     print type(point)
-		    print point
-		    posemsg.position = point
-		#ts.transform.rotation = posemsg.orientation
-		#print pcm.fullProjectionMatrix()
-		#posemsg.position = points[0]
-		print "Pose: ", posemsg.position
-		self.broadcast(imgmsg.header, code, posemsg)
+                    print point
+                    posemsg.position = point
+                #ts.transform.rotation = posemsg.orientation
+                #print pcm.fullProjectionMatrix()
+                #posemsg.position = points[0]
+                print "Pose: ", posemsg.position
+                self.broadcast(imgmsg.header, code, posemsg)
 
-		#tfm = tf.msg.tfMessage([ts])
-		#self.pub_tf.publish(tfm)
+                #tfm = tf.msg.tfMessage([ts])
+                #self.pub_tf.publish(tfm)
         #self.not_found += 1
 
 def main():
