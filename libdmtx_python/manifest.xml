@@ -1,0 +1,19 @@
+<package>
+  <description brief="libdmtx">
+
+     libdmtx
+
+	originally from James Bowman
+
+  </description>
+  <author>Joshua Hampp</author>
+  <license>LGPL</license>
+  <review status="unreviewed" notes=""/>
+  <url></url>
+
+  <rosdep name="libdmtx-dev" />
+
+  <export>
+    <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -ldmtx"/>
+  </export>
+</package>

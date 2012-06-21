@@ -2,3 +2,5 @@ cvs:
   ubuntu: cvs
 leptonica:
   ubuntu: libleptonica-dev
+libdmtx-dev:
+  ubuntu: libdmtx-dev

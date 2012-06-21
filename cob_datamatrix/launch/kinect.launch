@@ -1,0 +1,13 @@
+<launch>
+  <include file="$(find openni_camera)/launch/openni_node.launch"/>
+
+  <node pkg="cob_datamatrix" type="datamatrix.py" name="datamatrix" output="screen">
+	<remap from="image_rgb" to="/camera/rgb/image_color"/>
+	<remap from="camera_info" to="/camera/rgb/camera_info"/>
+	<remap from="pointcloud_depth" to="/camera/depth/points"/>
+
+	<param name="triggermode" value="true" />
+	<param name="timeout" value="30" /> <!-- timeout in seconds, negative number means endless-->
+  </node>
+
+</launch>
