@@ -175,6 +175,7 @@ class DataMatrix:
                 #("/camera/depth/points", sensor_msgs.msg.PointCloud2)
             ]
 
+            self.find_max_num = 3
             self.pcl_sub = rospy.Subscriber("pointcloud_depth", sensor_msgs.msg.PointCloud2, self.pc_cb)
 
             #self.q_stereo = Queue.Queue()
@@ -233,7 +234,6 @@ class DataMatrix:
         while True:
             self.find = True
             while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
-                print "sleeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeep"
                 time.sleep(0.1)
             if self.find==True:
                 break
@@ -281,11 +281,12 @@ class DataMatrix:
             self.dm.decode(img.width,
                       img.height,
                       buffer(img.tostring()),
-                      max_count = 1,
+                      max_count = self.find_max_num,
                       )
             print "decode done"
-            if self.dm.count() > 0:
-                    (code, corners) =  self.dm.stats(1)
+            if self.dm.count() != 0:
+                for i in range(self.dm.count()):
+                    (code, corners) =  self.dm.stats(1+i)
                     self.tracking[code] = corners
                     print "found: ", code
         else:
