@@ -7,7 +7,7 @@
 	<remap from="pointcloud_depth" to="/cam3d/depth/points"/>
 	
 	<param name="triggermode" value="true" />
-	<param name="timeout" value="5" /> <!-- timeout in seconds, negative number means endless-->
+	<param name="timeout" value="1" /> <!-- timeout in seconds, negative number means endless-->
   </node>
 
 </launch>
