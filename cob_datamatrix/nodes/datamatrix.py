@@ -231,6 +231,8 @@ class DataMatrix:
         print "called"
         start_tm = time.clock()
         self.subscribe()
+        self.last_detection_msg=[]
+        self.current_pose=[]
         while True:
             self.find = True
             while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
@@ -239,24 +241,30 @@ class DataMatrix:
             pose_obj = PoseStamped()
             pose_obj_bl = PoseStamped()
             pose_obj.header.frame_id = "/head_color_camera_r_link"
-        
-            pose_obj.pose = copy.deepcopy(self.current_pose)
+            i=0
 
-            if (self.last_detection_msg.label in names or len(names)==0) and not math.isnan(self.last_detection_msg.pose.pose.position.x):
-                print "FOUND FOUND"
-                self.tracking = {}
-                resp = DetectionArray()
-                resp.detections.append(self.last_detection_msg)
-                #resp.marker = pose_obj_bl.pose.position
-                    #print "PoseCL: ", self.current_pose
-                    #print "PoseBL: ", pose_obj_bl
-                self.unsubscribe()
-                a = DetectObjectsResponse()
-                a.object_list = resp
-                return a
+            for msg in self.last_detection_msg:
+		    pose_obj.pose = copy.deepcopy(self.current_pose[i])
+		    i+=1
+		    if (msg.label in names or len(names)==0) and not math.isnan(msg.pose.pose.position.x):
+		        print "FOUND FOUND"
+		        self.tracking = {}
+		        resp = DetectionArray()
+		        resp.detections.append(msg)
+		        #resp.marker = pose_obj_bl.pose.position
+		            #print "PoseCL: ", self.current_pose
+		            #print "PoseBL: ", pose_obj_bl
+		        self.unsubscribe()
+		        self.tracking = {}
+		        a = DetectObjectsResponse()
+		        a.object_list = resp
+		        return a
+            self.last_detection_msg=[]
+            self.current_pose=[]
+            if (timeout!=0 and time.clock()-start_tm>=timeout): break
         print "nothing found"
         self.unsubscribe()
-        self.tracking = []
+        self.tracking = {}
 
         return DetectObjectsResponse()
 
@@ -337,13 +345,13 @@ class DataMatrix:
         return ts
 
     def broadcast(self, header, code, posemsg):
-        self.last_detection_msg=self.toDetectionMsg(header, code, posemsg)
-        self.pub_detection.publish(self.last_detection_msg)
+        self.last_detection_msg.append(self.toDetectionMsg(header, code, posemsg))
+        self.pub_detection.publish(self.last_detection_msg[len(self.last_detection_msg)-1])
         #inform trigger
-        self.current_pose = Pose()
-        self.current_pose.position.x = posemsg.position[0]
-        self.current_pose.position.y = posemsg.position[0]
-        self.current_pose.position.z = posemsg.position[0]
+        self.current_pose.append(Pose())
+        self.current_pose[len(self.current_pose)-1].position.x = posemsg.position[0]
+        self.current_pose[len(self.current_pose)-1].position.y = posemsg.position[0]
+        self.current_pose[len(self.current_pose)-1].position.z = posemsg.position[0]
         self.find = False
 
     def gotimage(self, imgmsg):
