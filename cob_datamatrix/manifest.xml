@@ -16,6 +16,7 @@
   <depend package="tf"/>
   <depend package="tf_conversions"/>
   <depend package="cob_object_detection_msgs"/>
+  <depend package="std_srvs"/>
 
 </package>
 

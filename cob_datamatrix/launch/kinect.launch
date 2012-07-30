@@ -7,8 +7,8 @@
 	<remap from="camera_info" to="/camera/rgb/camera_info"/>
 	<remap from="pointcloud_depth" to="/camera/depth/points"/>
 
-	<param name="triggermode" value="true" />
-	<param name="timeout" value="30" /> <!-- timeout in seconds, negative number means endless-->
+	<param name="triggermode" value="false" />
+	<param name="timeout" value="10" /> <!-- timeout in seconds, negative number means endless-->
   </node>
 
 </launch>
