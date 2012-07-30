@@ -1,6 +1,6 @@
 <launch>
     <param name="/use_sim_time" value="true"/>
-    <include file="$(find cob_datamatrix)/launch/kinect.launch"/> 
+    <include file="$(find cob_datamatrix)/launch/datamatrix_test.launch"/> 
     <rosparam file="$(find cob_datamatrix)/test/yaml/test_cases.yaml" command="load" />
     <test test-name="Diagnostics" pkg="cob_object_detection_msgs" 
         type="detection_component_testing.py" time-limit="100.0"/>
