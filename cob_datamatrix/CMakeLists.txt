@@ -35,7 +35,7 @@ rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_dat
 rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/bagfiles/withoutMilk.bag test/bagfiles/withoutMilk.bag e5e913fcf724c98bebbd8c090f9070c0)
 
 rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/yaml/withMilk.yaml test/yaml/withMilk.yaml 9b544261209abfe2c9cb5a9349644c74)
-rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/yaml/withoutMilk.yaml test/yaml/withoutMilk.yaml be0514796fa029aaa58776a2f2ee48e5)
+rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/yaml/withoutMilk.yaml test/yaml/withoutMilk.yaml 40721e8843e05ea7cd0a661caf9faf3f)
 
 # Tests
 rosbuild_add_rostest(test/component_test.xml)
