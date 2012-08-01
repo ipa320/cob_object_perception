@@ -62,7 +62,7 @@ import time
 import math
 from math import fmod, pi
 import signal
-
+import types
 import unittest
 
 import roslib
@@ -132,8 +132,11 @@ class TestObjectDetection(unittest.TestCase):
     def getNumberofObjects(self,inBag):
 
 		self.objects = inBag['objects']
-	 	objectsQTY = len(self.objects)
-	
+		if isinstance(self.objects, types.NoneType):
+			objectsQTY = 0
+		else:
+	 		objectsQTY = len(self.objects)
+
 		return objectsQTY
 
     def getLabel(self, index):
@@ -213,8 +216,9 @@ class TestObjectDetection(unittest.TestCase):
 							self.assertTrue(abs(positionX - posX) <= self.tolerance, "Failed on the x axis comparison%s"%addInfo)
 							self.assertTrue(abs(positionY - posY) <= self.tolerance, "Failed on the y axis comparison%s"%addInfo)
 							self.assertTrue(abs(positionZ - posZ) <= self.tolerance, "Failed on the z axis comparison%s"%addInfo)
-			    		else:
-			        		raise rospy.exceptions.ROSException("COB3 - has found no object!!%s"%addInfo)
+
+			  		self.assertTrue(objQTY == len(res.object_list.detections), "Number of objects in the Bagfiles are not equal to number of objects found%s"%addInfo)
+
 				
 	        	except rospy.ServiceException, e:
 	            		raise rospy.exceptions.ROSException("Service not available!!%s"%e)
