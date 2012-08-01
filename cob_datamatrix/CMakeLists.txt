@@ -29,7 +29,7 @@ rosbuild_gensrv()
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/yaml/test_cases.yaml test/yaml/test_cases.yaml f9e29f1cde3082a8774d5869e95692c1)
+rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/yaml/test_cases.yaml test/yaml/test_cases.yaml e44f3d6d2afd9e978cd7a16d87c1c335)
 
 rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/bagfiles/withMilk.bag test/bagfiles/withMilk.bag 1c40f6a63f95046183487df77ba36b17)
 rosbuild_download_test_data(http://cob-test-data-server/cob_test_dataset/cob_datamatrix/bagfiles/withoutMilk.bag test/bagfiles/withoutMilk.bag e5e913fcf724c98bebbd8c090f9070c0)
