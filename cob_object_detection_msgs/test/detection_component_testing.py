@@ -66,9 +66,9 @@ import signal
 import unittest
 
 import roslib
-roslib.load_manifest("cob_object_detection")
+roslib.load_manifest("cob_object_detection_msgs")
+
 import rospy
-PKG = rospy.get_param("PKG")
 
 import rostest
 import rosparam
@@ -97,6 +97,9 @@ class TestObjectDetection(unittest.TestCase):
 	# positions and tolerance for comparing with the acquired data from the simulation or from the rosbag
 
 		self.bagfiles = rospy.get_param("test_bag")
+		self.PKG = rospy.get_param("PKG")
+		self.mode = rospy.get_param("mode")
+
 		self.bags = self.get_bags(self.bagfiles)
 		self.tolerance = 0.5
 		self.objID = None
@@ -149,15 +152,15 @@ class TestObjectDetection(unittest.TestCase):
 
 	for i in range(len(self.bags)):
 			
-			bagPath = roslib.packages.get_pkg_dir(PKG) + self.bags[i]['bag_path']
-			yamlPath = roslib.packages.get_pkg_dir(PKG) + self.bags[i]['yaml_path']
+			bagPath = roslib.packages.get_pkg_dir(self.PKG) + self.bags[i]['bag_path']
+			yamlPath = roslib.packages.get_pkg_dir(self.PKG) + self.bags[i]['yaml_path']
 #			if(i==1):
 #				raise rospy.exceptions.ROSException("COB3 - has found no object!!%s"%bagPath, yamlPath)
 			inBag = yaml.load(open(yamlPath).read())
 			
 			
 	 # Wait the initialization of the Object Detection Service    
-			if(PKG == "cob_object_detection"):
+			if(self.mode == "delay"):
 				rosbag_process = subprocess.Popen("rosbag play -d 2 -k --clock %s" % bagPath, shell=True)
 			else:
 				rosbag_process = subprocess.Popen("rosbag play --clock %s" % bagPath, shell=True)
