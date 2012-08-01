@@ -4,5 +4,7 @@
     <rosparam file="$(find cob_datamatrix)/test/yaml/test_cases.yaml" command="load" />
     <test test-name="Diagnostics" pkg="cob_object_detection_msgs" 
         type="detection_component_testing.py" time-limit="100.0"/>
+    <test test-name="Diagnostics 2" pkg="cob_object_detection_msgs" 
+        type="detection_component_testing.py" time-limit="100.0"/>
 </launch>
 
