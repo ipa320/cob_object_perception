@@ -244,5 +244,5 @@ class TestObjectDetection(unittest.TestCase):
 if __name__ == '__main__':
 
 	rospy.init_node('test', anonymous=True)
-	rostest.rosrun('cob3_diagnostics', 'Diagnostics',
+	rostest.rosrun('cob_object_detection_msgs', 'Diagnostics',
               TestObjectDetection, sys.argv)
