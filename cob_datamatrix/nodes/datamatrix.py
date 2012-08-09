@@ -28,6 +28,7 @@ from geometry_msgs.msg import *
 from cob_object_detection_msgs.msg import *
 from cob_object_detection_msgs.srv import *
 from cob_datamatrix.srv import *
+from visualization_msgs.msg import *
 
 import tf
 import tf_conversions.posemath as pm
@@ -153,6 +154,8 @@ class DataMatrix:
 
         if self.triggermode==False: self.subscribe()
 
+        self.pub_marker = rospy.Publisher('visualization_marker_array', visualization_msgs.msg.MarkerArray)
+
         self.pub_detection = rospy.Publisher("/obj_detection", cob_object_detection_msgs.msg.Detection)
 
     def subscribe(self):
@@ -231,33 +234,39 @@ class DataMatrix:
         print "called"
         start_tm = time.clock()
         self.subscribe()
+        self.last_detection_msg=[]
+        self.current_pose=[]
         while True:
             self.find = True
             while self.find == True and (timeout<0 or time.clock()-start_tm<timeout):
                 time.sleep(0.1)
-            if self.find==True:
-                break
             #transfrom object position to an pose
             pose_obj = PoseStamped()
             pose_obj_bl = PoseStamped()
             pose_obj.header.frame_id = "/head_color_camera_r_link"
-        
-            pose_obj.pose = copy.deepcopy(self.current_pose)
+            i=0
 
-            if (self.last_detection_msg.label in names or len(names)==0) and not math.isnan(self.last_detection_msg.pose.pose.position.x):
-                print "FOUND FOUND"
-                self.tracking = {}
-                resp = DetectionArray()
-                resp.detections.append(self.last_detection_msg)
-                #resp.marker = pose_obj_bl.pose.position
-                    #print "PoseCL: ", self.current_pose
-                    #print "PoseBL: ", pose_obj_bl
-                self.unsubscribe()
-                a = DetectObjectsResponse()
-                a.object_list = resp
-                return a
-            else: break
+            for msg in self.last_detection_msg:
+		    pose_obj.pose = copy.deepcopy(self.current_pose[i])
+		    i+=1
+		    if (msg.label in names or len(names)==0) and not math.isnan(msg.pose.pose.position.x):
+		        print "FOUND FOUND"
+		        self.tracking = {}
+		        resp = DetectionArray()
+		        resp.detections.append(msg)
+		        #resp.marker = pose_obj_bl.pose.position
+		            #print "PoseCL: ", self.current_pose
+		            #print "PoseBL: ", pose_obj_bl
+		        self.unsubscribe()
+		        self.tracking = {}
+		        a = DetectObjectsResponse()
+		        a.object_list = resp
+		        return a
+            self.last_detection_msg=[]
+            self.current_pose=[]
+            if (timeout!=0 and time.clock()-start_tm>=timeout): break
         print "nothing found"
+        self.find = False
         self.unsubscribe()
         self.tracking = {}
 
@@ -276,7 +285,7 @@ class DataMatrix:
 
     def track(self, img):
         print "track"
-        if len(self.tracking) == 0:
+        if True or len(self.tracking) == 0:
             print "start decode"
             self.dm.decode(img.width,
                       img.height,
@@ -285,10 +294,10 @@ class DataMatrix:
                       )
             print "decode done"
             if self.dm.count() != 0:
-                for i in range(self.dm.count()):
-                    (code, corners) =  self.dm.stats(1+i)
-                    self.tracking[code] = corners
-                    print "found: ", code
+            	for i in range(self.dm.count()):
+                	(code, corners) =  self.dm.stats(1+i)
+                	self.tracking[code] = corners
+                	print "found: ", code
         else:
             for (code, corners) in self.tracking.items():
                 print "tracking: ", code
@@ -315,7 +324,7 @@ class DataMatrix:
                     print "self.tracking[code] ", self.tracking[code]
                 else:
                     print "lost", code
-                    del self.tracking[code]
+                    #del self.tracking[code]
                     # rospy.signal_shutdown(0)
         print "tracking done"
 
@@ -326,28 +335,87 @@ class DataMatrix:
         ts.label = code
         ts.detector = "datamatrix"
 
-        ts.pose.pose.position.x = posemsg.position[0]
-        ts.pose.pose.position.y = posemsg.position[1]
-        ts.pose.pose.position.z = posemsg.position[2]
+        ts.pose.pose.position = posemsg.position
         ts.pose.pose.orientation = posemsg.orientation
 
-        rot=PyKDL.Rotation()
-        rot.DoRotX(-math.pi/2)
-        ts.pose.pose = pm.toMsg( PyKDL.Frame(rot,PyKDL.Vector(0,0,0))*pm.fromMsg(ts.pose.pose) ) #switch z and y according to Jan Fischer's description
+        #rot=PyKDL.Rotation()
+        #rot.DoRotX(-math.pi/2)
+        #ts.pose.pose = pm.toMsg( PyKDL.Frame(rot,PyKDL.Vector(0,0,0))*pm.fromMsg(ts.pose.pose) ) #switch z and y according to Jan Fischer's description
+
+        #ts.pose.pose.position.x = posemsg.position[0]
+        #ts.pose.pose.position.y = posemsg.position[1]
+        #ts.pose.pose.position.z = posemsg.position[2]
 
         #tfm = tf.msg.tfMessage([ts])
         print ts.pose.pose
         return ts
 
     def broadcast(self, header, code, posemsg):
-        self.last_detection_msg=self.toDetectionMsg(header, code, posemsg)
-        self.pub_detection.publish(self.last_detection_msg)
+        self.last_detection_msg.append(self.toDetectionMsg(header, code, posemsg))
+        self.pub_detection.publish(self.last_detection_msg[len(self.last_detection_msg)-1])
         #inform trigger
-        self.current_pose = Pose()
-        self.current_pose.position.x = posemsg.position[0]
-        self.current_pose.position.y = posemsg.position[0]
-        self.current_pose.position.z = posemsg.position[0]
+        self.current_pose.append(Pose())
+        self.current_pose[len(self.current_pose)-1] = self.last_detection_msg[len(self.last_detection_msg)-1].pose.pose
         self.find = False
+
+        if self.pub_marker.get_num_connections()>0:
+		markerArray = visualization_msgs.msg.MarkerArray()
+		o = geometry_msgs.msg.Point()
+		o.x = 0
+		o.y = 0
+		o.z = 0
+		x = geometry_msgs.msg.Point()
+		x.x = 1
+		x.y = 0
+		x.z = 0
+		y = geometry_msgs.msg.Point()
+		y.x = 0
+		y.y = 1
+		y.z = 0
+		z = geometry_msgs.msg.Point()
+		z.x = 0
+		z.y = 0
+		z.z = 1
+
+		for p in self.current_pose:
+		   marker = visualization_msgs.msg.Marker()
+		   marker.header.frame_id = "/openni_rgb_frame"
+		   marker.type = marker.ARROW
+		   marker.action = marker.ADD
+		   marker.scale.x = 0.1
+		   marker.scale.y = 0.2
+		   marker.scale.z = 0.1
+		   marker.color.a = 1.0
+		   marker.pose.orientation = p.orientation
+		   marker.pose.position = p.position
+		   marker.id = len(markerArray.markers)
+
+		   marker.color.r = 1.0
+		   marker.color.g = 0
+		   marker.color.b = 0
+		   marker.points.append( o )
+		   marker.points.append( x )
+
+		   markerArray.markers.append(marker)
+
+		   marker = copy.deepcopy(marker)
+		   marker.id = len(markerArray.markers)
+		   marker.color.r = 0
+		   marker.color.g = 1
+		   marker.color.b = 0
+		   marker.points[1] = y
+		   markerArray.markers.append(marker)
+
+		   marker = copy.deepcopy(marker)
+		   marker.id = len(markerArray.markers)
+		   marker.color.r = 0
+		   marker.color.g = 0
+		   marker.color.b = 1
+		   marker.points[1] = z
+		   markerArray.markers.append(marker)
+
+		# Publish the MarkerArray
+		self.pub_marker.publish(markerArray)
 
     def gotimage(self, imgmsg):
         if imgmsg.encoding == "bayer_bggr8":
@@ -558,14 +626,21 @@ class DataMatrix:
                 #ts.child_frame_id = code
                 #rot = cv.fromarray(rot)
                 #trans = cv.fromarray(trans)
-                posemsg = pm.toMsg(self.fromCameraParams(cv, rot, trans))
-                points = read_points(pointcloud, None, False, [(int(cx), int(cy))])
+                print rot
+                points = read_points(pointcloud, None, False, [(int(corners[0][0]), int(corners[0][1])),(int(corners[1][0]), int(corners[1][1])),(int(corners[3][0]), int(corners[3][1])),(int(cx), int(cy))])
                 #pointcloud.data(cy*pointcloud.row_step+cx*pointcloud.point_step)
-                print type(points)
+                #print type(points)
+                (a, b, c, d) = [numpy.array(pt) for pt in points]
                 for point in points:
-                    print type(point)
+                    #print type(point)
                     print point
-                    posemsg.position = point
+                def normal(s, t):
+                    return (t - s) / numpy.linalg.norm(t - s)
+                x = PyKDL.Vector(*normal(a, b))
+                y = PyKDL.Vector(*normal(a, c))
+                f = PyKDL.Frame(PyKDL.Rotation(x, -x * y, -y), PyKDL.Vector(*d))
+                posemsg = pm.toMsg(f)
+                print f
                 #ts.transform.rotation = posemsg.orientation
                 #print pcm.fullProjectionMatrix()
                 #posemsg.position = points[0]
