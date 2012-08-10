@@ -246,11 +246,11 @@ int main(int argc, char** argv)
 
     std::cout << "----------------------------------" << endl;
     std::cout << "Texts found: " << detector.getWords().size() << endl;
-    for (int i = 0; i < detector.getWords().size(); i++)
+    for (unsigned int i = 0; i < detector.getWords().size(); i++)
     {
-      std::cout << detector.getWords()[i] << ": x=" << ((detector.getBoxesBothSides())[0]).x << ", y="
-          << ((detector.getBoxesBothSides())[0]).y << ",height=" << ((detector.getBoxesBothSides())[0]).height
-          << ",width=" << ((detector.getBoxesBothSides())[0]).width << endl;
+      std::cout << detector.getWords()[i] << ": x=" << ((detector.getBoxes())[0]).x << ", y="
+          << ((detector.getBoxes())[0]).y << ",height=" << ((detector.getBoxes())[0]).height
+          << ",width=" << ((detector.getBoxes())[0]).width << endl;
       //if(!pcl_isnan(reader.cloud->points[idx].)z) cout << ",depth:"
     }
 

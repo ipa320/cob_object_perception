@@ -1,5 +1,5 @@
 <launch>
-	<env name="TESSDATA_PREFIX" value="~/git/care-o-bot/cob_object_perception_data/cob_tesseract_data" />
+	<env name="TESSDATA_PREFIX" value="/home/rmb-rh/git/care-o-bot/cob_object_perception_data/cob_tesseract_data/" />
 
 	<!--node name="image_proc" pkg="image_proc" type="image_proc"
 		ns="prosilica" /-->
