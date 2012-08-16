@@ -3,6 +3,7 @@
 
 // ROS includes
 #include <ros/ros.h>
+#include <ros/package.h>
 
 // OpenCV includes
 #include "opencv2/core/core.hpp"
@@ -13,6 +14,7 @@
 #include <set>
 #include <iostream>
 #include <fstream>
+
 
 class DetectText
 {
@@ -151,13 +153,13 @@ private:
 
   void rotate();
 
-  void houghLineTransform(cv::Mat & src);
-
   cv::Mat colorBackgroundBinary(cv::Mat & m, FontColor f, cv::Mat cc);
 
-  cv::Mat sharpenImage(cv::Mat & input);
+  cv::Mat sharpenImage(cv::Mat input);
 
   void addBorder(cv::Mat & image, cv::Rect r, FontColor f);
+
+  cv::Mat binarizeViaContrast(cv::Mat input);
 
   bgr findBorderColor(cv::Rect r, FontColor f);
 
@@ -290,6 +292,7 @@ private:
   // OCR Preprocess
   unsigned int fontColorIndex_;
   std::vector<cv::Mat> transformedBoundingBoxes_; // all boundingBoxes, rotated and transformed based on found bezier curve
+  std::vector<cv::Mat> transformedFlippedBoundingBoxes_;
   std::vector<cv::Mat> notTransformedBoundingBoxes_;
   std::vector<cv::Rect> finalBoundingBoxes_;
   double sigma_sharp, threshold_sharp, amount_sharp;

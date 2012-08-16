@@ -7,6 +7,7 @@
 #include "highgui.h"
 
 #include <ros/ros.h>
+#include <ros/package.h>
 
 #include <iostream>
 #include <fstream>
@@ -69,8 +70,6 @@ public:
   static int count;
 };
 
-
-
 int img::count = 0;
 
 int cutout(std::string label, std::string output)
@@ -101,10 +100,10 @@ int readInEstimates(std::vector<img> &images, std::string path)
     // run read_text
     std::string imgpath = path.substr(0, path.find_last_of("/") + 1);
     imgpath.append(images[imageIndex].img_name);
-    std::string
-                cmd_ =
-                    "$(rospack find cob_read_text)/bin/run_detect " + imgpath
-                        + " $(rosstack find cob_object_perception)/../cob_object_perception_data/cob_read_text_data/fonts/correlation.txt $(rosstack find cob_object_perception)/../cob_object_perception_data/cob_read_text_data/dictionary/full-dictionary_ger";
+    std::string cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " "
+        + ros::package::getPath("cob_read_text_data") + "/fonts/correlation.txt "
+        + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary_ger";
+
     if (system(cmd_.c_str()) != 0)
       std::cout << "Error occured while running text_detect" << std::endl;
     ;
