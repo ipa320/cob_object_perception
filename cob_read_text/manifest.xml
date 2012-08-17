@@ -1,7 +1,9 @@
 <package>
   <description brief="cob_read_text">
 
-Detects and recognizes text.  
+Detects and recognizes text in natural images. 
+The system was trained for indoors household environment with Care-O-bot's stereo vision colour cameras.
+Text localisation and OCR occur separately and can be evaluated using precision, recall.
 
   </description>
   <author>Robert Heinze, Richard Bormann</author>
