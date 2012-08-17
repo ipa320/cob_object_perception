@@ -1,9 +1,20 @@
-#evaluation
-eval: true #true, if text_detect is called via read_evaluation (calculates recall and precision for image sets based on ground truth .xml)
+# evaluation
+# ----------
+
+# true, if text_detect is called via read_evaluation (calculates recall and precision for image sets based on ground truth .xml)
+# bool
+eval: true 
 
 #preprocess
-smoothImage: false #default: false, smoothing sometimes leads to merging of letters within small texts
-maxStrokeWidthParameter: 50 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
+#----------
+
+# default: false, smoothing sometimes leads to merging of letters within small texts
+# bool
+smoothImage: false 
+
+#default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
+# int
+maxStrokeWidthParameter: 50 
 
 #strokeWidthTransform
 useColorEdge: false #true = use rgb channels to compute edgeMap, false = only gray image is used

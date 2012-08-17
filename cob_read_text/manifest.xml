@@ -23,8 +23,10 @@
   <depend package="pcl_ros"/> 
   <depend package="geometry_msgs"/>
   <depend package="sensor_msgs"/>
+  <depend package="cob_read_text_data"/>
+  <depend package="cob_tesseract_data"/>
   
-  <export>
+<export>
       <cpp cflags="-I${prefix}/ros/include -I${prefix}/common/include" lflags="-L${prefix}/lib -Wl,-rpath,-L${prefix}/lib -lread_text"/>
   </export>
 </package>
