@@ -7,16 +7,13 @@ Text localisation and OCR occur separately and can be evaluated using precision,
 
   </description>
   <author>Robert Heinze, Richard Bormann</author>
-  <license>LGPL</license>
+  <license>LGPL, Fraunhofer IPA</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_read_text</url>
 
   <depend package="opencv2"/>
   <depend package="roscpp"/>
   <depend package="sensor_msgs"/>
-  <!--depend package="geometry_msgs"/-->
-  <!--depend package="pr2_controllers_msgs"/-->
-  <depend package="pr2_mechanism_controllers"/>
   <depend package="cv_bridge"/>
   <depend package="std_msgs"/>
   <depend package="image_transport"/>
