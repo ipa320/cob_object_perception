@@ -1,7 +1,7 @@
 <package>
   <description brief="cob_read_text">
 
-	bases on literate_pr2 package from Menglong Zhu: menglong(at)seas.upenn.edu
+Detects and recognizes text.  
 
   </description>
   <author>Robert Heinze, Richard Bormann</author>

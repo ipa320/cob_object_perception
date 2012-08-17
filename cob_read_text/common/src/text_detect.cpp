@@ -3396,9 +3396,9 @@ void DetectText::writeTxtsForEval()
   file1.open(textname.c_str());
   file2.open(textname2.c_str());
 
-  for (unsigned int i = 0; i < boundingBoxes_.size(); i++)
-    file1 << boundingBoxes_[i].x << "\n" << boundingBoxes_[i].y << "\n" << boundingBoxes_[i].width << "\n"
-        << boundingBoxes_[i].height << "\n";
+  for (unsigned int i = 0; i < finalBoundingBoxes_.size(); i++)
+    file1 << finalBoundingBoxes_[i].x << "\n" << finalBoundingBoxes_[i].y << "\n" << finalBoundingBoxes_[i].width << "\n"
+        << finalBoundingBoxes_[i].height << "\n";
 
   file1.close();
 
@@ -4648,7 +4648,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
   nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
   nh.getParam("showResult", this->debug["showResult"]);
 
-  /*
+
    std::cout << "eval:" << eval << std::endl;
    std::cout << "smoothImage:" << smoothImage << std::endl;
    std::cout << "maxStrokeWidthParameter:" << maxStrokeWidthParameter << std::endl;
@@ -4676,7 +4676,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
    std::cout << "minE:" << minE << std::endl;
    std::cout << "bendParameter:" << bendParameter << std::endl;
    std::cout << "distanceParameter:" << distanceParameter << std::endl;
-   */
+
 }
 
 // Methods not used at the moment:
