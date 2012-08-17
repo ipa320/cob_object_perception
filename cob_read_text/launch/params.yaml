@@ -1,0 +1,67 @@
+#evaluation
+eval: true #true, if text_detect is called via read_evaluation (calculates recall and precision for image sets based on ground truth .xml)
+
+#preprocess
+smoothImage: false #default: false, smoothing sometimes leads to merging of letters within small texts
+maxStrokeWidthParameter: 50 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
+
+#strokeWidthTransform
+useColorEdge: false #true = use rgb channels to compute edgeMap, false = only gray image is used
+
+#computeEdgeMap
+cannyThreshold1: 120 #default: 120
+cannyThreshold2: 50 #default: 50 , cannyThreshold1 > cannyThreshold2
+
+#updateStrokeWidth
+compareGradientParameter: 1.57 # default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
+
+#connectComponentAnalysis
+swCompareParameter: 2.5 # default: 3.0 
+colorCompareParameter: 100 # default: 100, set to 255 to deactivate
+
+#identifyLetter
+maxLetterHeight_: 100 # default: 600
+varianceParameter: 1.5 # default: 1.5 , also good: 3.5
+diagonalParameter: 10 # default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
+pixelCountParameter: 5 # default: 5
+innerLetterCandidatesParameter: 5 # default: 5 , paper: 2
+heightParameter: 2.5 # default: 2.5
+clrComponentParameter: 20 # default: 20
+
+#groupLetters
+distanceRatioParameter: 2.0 # default: 2.0
+medianSwParameter: 2.5 # default: 2.5
+diagonalRatioParamter: 2.0 # default 2.0
+grayClrParameter: 10.0 #default: 10.0
+clrSingleParameter: 20.0 # atm: 20 better 15 default: 35
+areaParameter: 1.5 # atm: 1.5 ; default: 5
+pixelParameter: 0.3 # default 0.3
+
+#ransac
+p: 0.99 # probability p, default: 0.99
+maxE: 0.7 
+minE: 0.4 
+bendParameter: 30 # default: 30
+distanceParameter: 0.8 # default: 0.8 
+
+#ocr preprocess
+sigma_sharp: 1.0  
+threshold_sharp: 3.0 
+amount_sharp: 1.0 
+
+#ocr
+result_: 2
+
+#debug
+showEdge: false #show gray colored edgemap image
+showSWT: false #show swt map
+showLetterCandidates: false #show connected components
+showLetters: false #show connected components recognized as letters
+showPairs: false #show pairs (2 letters belonging together)
+showChains: true #show all words/text segments after pairs were fused together
+showBreakLines: false #breaks text block into several lines
+showBezier: false #show all bezier models that are created within ransac
+showRansac: true #show Ransac result -> best model only
+showNeighborMerging: false #show how neighbor texts are merged if they fit together and were accidently separated before
+showResult: true #show results with ocr
+showAllBoxes: false #when showing results show all image regions that probably contain text, even if ocr didn't find text
