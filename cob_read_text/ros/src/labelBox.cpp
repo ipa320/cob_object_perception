@@ -48,12 +48,17 @@
 #define BACKSPACE2 1113864
 #define SPACE 32
 #define SPACE2 1048608
+#define A 97
+#define A2 666665
+#define D 100
+#define D2 666666
+
 class labelImage
 {
 public:
   labelImage(std::string winName, cv::Mat imageWithRects, cv::Mat originalImage, cv::Scalar clr) :
-    name(winName), img(imageWithRects), originalImage(originalImage), actualClr(clr), actualRect(cv::Rect(1, 1, 1, 1)),
-        textMode(false)
+    name(winName), img(imageWithRects), originalImage(originalImage), actualClr(clr),
+        actualRect(cv::Rect_<float>(1.0, 1.0, 1.0, 1.0)), middlePoint(0.0, 0.0), textMode(false), rotationMode(false)
   {
 
   }
@@ -68,64 +73,19 @@ public:
   cv::Mat originalImage;
   cv::Mat temporaryImage;
 
-  std::vector<cv::Rect> allRects;
+  std::vector<cv::RotatedRect> allRects;
   std::vector<std::string> allTexts;
   std::vector<cv::Scalar> allClrs;
 
   cv::Scalar actualClr;
-  cv::Rect actualRect;
+  cv::Rect_<float> actualRect;
+  cv::RotatedRect actualRotatedRect;
+
+  cv::Point2f middlePoint;
 
   bool textMode;
 
-  // moves box 1 pixel in given direction and draws resulting box on parameter Mat img
-  void move_box(cv::Mat img, int direction)
-  {
-    switch (direction)
-    {
-      case 1:
-        if (actualRect.x > 0)
-          actualRect = cv::Rect(actualRect.x - 1, actualRect.y, actualRect.width, actualRect.height);
-        break;
-      case 2:
-        if (actualRect.y > 0)
-          actualRect = cv::Rect(actualRect.x, actualRect.y - 1, actualRect.width, actualRect.height);
-        break;
-      case 3:
-        if (actualRect.x + actualRect.width < img.cols)
-          actualRect = cv::Rect(actualRect.x + 1, actualRect.y, actualRect.width, actualRect.height);
-        break;
-      case 4:
-        if (actualRect.y + actualRect.height < img.rows)
-          actualRect = cv::Rect(actualRect.x, actualRect.y + 1, actualRect.width, actualRect.height);
-        break;
-    }
-    cv::rectangle(img, actualRect, actualClr, 1);
-  }
-
-  void resize_box(cv::Mat img, int direction)
-  {
-    switch (direction)
-    {
-      case 1:
-        if (actualRect.width > 1)
-          actualRect = cvRect(actualRect.x, actualRect.y, actualRect.width - 1, actualRect.height);
-        break;
-      case 2:
-        if (actualRect.height > 1)
-          actualRect = cvRect(actualRect.x, actualRect.y, actualRect.width, actualRect.height - 1);
-        break;
-      case 3:
-        if (actualRect.x + actualRect.width < img.cols)
-          actualRect = cvRect(actualRect.x, actualRect.y, actualRect.width + 1, actualRect.height);
-        break;
-      case 4:
-        if (actualRect.y + actualRect.height < img.rows)
-          actualRect = cvRect(actualRect.x, actualRect.y, actualRect.width, actualRect.height + 1);
-        break;
-    }
-    cv::rectangle(img, actualRect, actualClr, 1);
-  }
-
+  bool rotationMode;
 };
 
 int input_text(cv::Mat img, std::string winName, std::string * text, cv::Rect rect)
@@ -148,8 +108,8 @@ int input_text(cv::Mat img, std::string winName, std::string * text, cv::Rect re
       {
         std::string sub = completeText.substr(completeText.length() - 1, 1);
         cv::Size textSize = cv::getTextSize(sub, cv::FONT_HERSHEY_SIMPLEX, 0.75, 1, 0);
-        cv::rectangle(img, cv::Rect(rect.x + completeTextWidth - textSize.width + 1, rect.y - 60 + 1, 200
-            + textSize.width - completeTextWidth - 2, /*r.height-2*/30 - 2), cv::Scalar(255, 255, 255), -1);
+        cv::rectangle(img, cv::Rect(rect.x + completeTextWidth - textSize.width + 1, rect.y + 1, 200 + textSize.width
+            - completeTextWidth - 2, 30 - 2), cv::Scalar(255, 255, 255), -1);
         completeText = completeText.substr(0, completeText.length() - 1);
         cv::imshow(winName, img);
         space -= textSize.width;
@@ -167,8 +127,9 @@ int input_text(cv::Mat img, std::string winName, std::string * text, cv::Rect re
         ss << (char)c;
         ss >> s;
       }
-      cv::putText(img, s, cv::Point(rect.x + 1 + space, rect.y - 40 + 1), cv::FONT_HERSHEY_SIMPLEX, 0.75,
-                  cv::Scalar(0, 0, 0), 1, 8, false);
+      cv::putText(img, s, cv::Point(rect.x + 1 + space, rect.y + 25), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 0,
+                                                                                                                 0), 1,
+                  8, false);
       cv::imshow(winName, img);
       cv::Size textSize = cv::getTextSize(s, cv::FONT_HERSHEY_SIMPLEX, 0.75, 1, 0);
       space += textSize.width;
@@ -181,20 +142,64 @@ int input_text(cv::Mat img, std::string winName, std::string * text, cv::Rect re
   return 1;
 }
 
-void draw_box(cv::Mat img, cv::Rect rect, cv::Scalar clr)
+void drawRect(cv::Mat & img, cv::RotatedRect rrect, cv::Scalar clr)
 {
-  cv::rectangle(img, rect, clr, 1);
+  cv::Point2f vertices[4];
+  rrect.points(vertices);
+  for (int i = 0; i < 4; i++)
+    cv::line(img, vertices[i], vertices[(i + 1) % 4], clr);
+  cv::rectangle(img, rrect.center, rrect.center, cv::Scalar(255, 255, 255), 2, 1, 0);
 }
 
-void showInfo(std::string winName, cv::Mat img, cv::Rect r, std::string text, cv::Scalar clr)
+void showInfo(std::string winName, cv::Mat img, cv::RotatedRect r, std::string text, cv::Scalar clr)
 {
   cv::Mat infoBox = img.clone();
-  cv::rectangle(infoBox, cv::Rect(r.x, r.y - 60, 200, 30), cv::Scalar(255, 255, 255), -1);
-  cv::rectangle(infoBox, cv::Rect(r.x, r.y - 60, 200, 30), clr);
-  cv::putText(infoBox, text, cv::Point(r.x + 1, r.y - 40 + 1), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 0, 0), 1,
-              8, false);
+
+  float offsetX = r.size.width < 50 ? 50 : r.size.width;
+  float offsetY = r.size.height < 50 ? 50 : r.size.height;
+
+  if (r.center.x - offsetX < 0)
+    offsetX *= -1;
+
+  if (r.center.y - offsetY < 0)
+    offsetY *= -1;
+
+  cv::Rect textRect(r.center.x - offsetX, r.center.y - offsetY, 200, 30);
+
+  cv::rectangle(infoBox, textRect, cv::Scalar(255, 255, 255), -1);
+  cv::rectangle(infoBox, textRect, clr);
+
+  drawRect(infoBox, r, clr);
+
+  cv::putText(infoBox, text, cv::Point(textRect.x + 1, textRect.y + 25), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0,
+                                                                                                                    0,
+                                                                                                                    0),
+              1, 8, false);
   cv::imshow(winName, infoBox);
   cv::waitKey(0);
+}
+
+bool checkPointInRect(cv::RotatedRect rect, cv::Point2f p)
+{
+  float rotRad = (rect.angle / 180) * 3.1415926535;
+  float dx = p.x - rect.center.x;
+  float dy = p.y - rect.center.y;
+
+  // distance point and centre
+  float h1 = std::sqrt(dx * dx + dy * dy);
+  float currA = std::atan2(dy, dx);
+
+  // angle of point rotated by the rectangle amount around the centre of rectangle.<br>
+  float newA = currA - rotRad;
+
+  //    // x2 and y2 are the new positions of the point when rotated to offset the rectangles orientation.<br>
+  float x2 = std::cos(newA) * h1;
+  float y2 = std::sin(newA) * h1;
+  // the above points are relative to the centre of the rectangle, so the check is simple.
+  if (x2 > -0.5 * rect.size.width && x2 < 0.5 * rect.size.width && y2 > -0.5 * rect.size.height && y2 < 0.5
+      * rect.size.height)
+    return true;
+  return false;
 }
 
 void onMouse(int event, int x, int y, int flags, void* param)
@@ -205,7 +210,7 @@ void onMouse(int event, int x, int y, int flags, void* param)
 
   cv::Mat image = ((labelImage *)param)->img.clone();
   std::string winName = ((labelImage *)param)->name;
-  std::vector<cv::Rect> * allRects = &((labelImage *)param)->allRects;
+  std::vector<cv::RotatedRect> * allRects = &((labelImage *)param)->allRects;
 
   // if no text is written at the moment
   if (((labelImage *)param)->textMode == false)
@@ -213,20 +218,22 @@ void onMouse(int event, int x, int y, int flags, void* param)
     // Left mouse button clicked
     if (event == cv::EVENT_LBUTTONDOWN)
     {
+      ((labelImage *)param)->actualRotatedRect.angle = 0;
+      ((labelImage *)param)->rotationMode = false;
       onRect = false;
       int whichRect = -1;
 
       // check if other rect was clicked
       for (unsigned int i = 0; i < allRects->size(); i++)
       {
-        if (x >= (((labelImage *)param)->allRects)[i].x && x <= (((labelImage *)param)->allRects)[i].x
-            + (*allRects)[i].width && y >= (((labelImage *)param)->allRects)[i].y && y
-            <= (((labelImage *)param)->allRects)[i].y + (((labelImage *)param)->allRects)[i].height)
+        cv::Point2f actualP(x, y);
+        if (checkPointInRect(allRects->at(i), actualP))
         {
           onRect = true;
           whichRect = i;
         }
       }
+
       // no other rect was clicked -> start new box, remember x,y
       if (!onRect)
       {
@@ -241,62 +248,54 @@ void onMouse(int event, int x, int y, int flags, void* param)
                  (((labelImage *)param)->allTexts)[whichRect], ((labelImage*)param)->allClrs[whichRect]);
       }
     }
-    if (event == cv::EVENT_LBUTTONUP)
+    if (event == cv::EVENT_LBUTTONUP || event == cv::EVENT_MOUSEMOVE)
     {
-      if (!onRect)
-      {
-        action = 0;
-        ((labelImage *)param)->actualRect = cv::Rect(firstX > x ? x : firstX, firstY > y ? y : firstY, firstX > x
-            ? (firstX - x) : (x - firstX), firstY > y ? (firstY - y) : (y - firstY));
-        draw_box(image, ((labelImage*)param)->actualRect, ((labelImage*)param)->actualClr);
-        cv::imshow(winName, image);
-      }
+      float smallerX = firstX > x ? x : firstX;
+      float biggerX = firstX < x ? x : firstX;
+      float smallerY = firstY > y ? y : firstY;
+      float biggerY = firstY < y ? y : firstY;
+      cv::Point2f mpoint(smallerX + 0.5 * (biggerX - smallerX), smallerY + 0.5 * (biggerY - smallerY));
+      cv::RotatedRect rotatedRect(mpoint, cv::Size2f(biggerX - smallerX, biggerY - smallerY), 0);
 
-    }
-    if (event == cv::EVENT_MOUSEMOVE)
-    {
-      if (action == 1)
+      if (event == cv::EVENT_LBUTTONUP)
       {
-        ((labelImage*)param)->actualRect = cv::Rect(firstX > x ? x : firstX, firstY > y ? y : firstY, firstX > x
-            ? (firstX - x) : (x - firstX), firstY > y ? (firstY - y) : (y - firstY));
-        draw_box(image, ((labelImage*)param)->actualRect, ((labelImage*)param)->actualClr);
-        cv::imshow(winName,/* *((cv::Mat*)param)*/image);
+        if (!onRect)
+        {
+          action = 0;
+          drawRect(image, rotatedRect, ((labelImage*)param)->actualClr);
+          ((labelImage *)param)->actualRotatedRect = rotatedRect;
+          cv::imshow(winName, image);
+        }
       }
       else
       {
-        for (unsigned int i = 0; i < allRects->size(); i++)
+        if (action == 1)
         {
-          if (x >= (((labelImage *)param)->allRects)[i].x && x <= (((labelImage *)param)->allRects)[i].x
-              + (((labelImage *)param)->allRects)[i].width && y >= (((labelImage *)param)->allRects)[i].y && y
-              <= (((labelImage *)param)->allRects)[i].y + (((labelImage *)param)->allRects)[i].height)
-          {
-            //std::cout << "show info" << std::endl;
-          }
+          drawRect(image, rotatedRect, ((labelImage*)param)->actualClr);
+          ((labelImage *)param)->actualRotatedRect = rotatedRect;
+          cv::imshow(winName, image);
         }
       }
+
     }
     if (event == cv::EVENT_RBUTTONDOWN) //DELETE BOX
     {
+      cv::Point2f actualP(x, y);
       for (unsigned int i = 0; i < allRects->size(); i++)
       {
-        if (x >= (((labelImage *)param)->allRects)[i].x && x <= (((labelImage *)param)->allRects)[i].x
-            + (((labelImage *)param)->allRects)[i].width && y >= (((labelImage *)param)->allRects)[i].y && y
-            <= (((labelImage *)param)->allRects)[i].y + (((labelImage *)param)->allRects)[i].height)
+        if (checkPointInRect(allRects->at(i), actualP))
         {
-          cv::Mat roi = cv::Mat(((labelImage *)param)->img, (((labelImage *)param)->allRects)[i]);
-          (((labelImage *)param)->originalImage((((labelImage *)param)->allRects)[i])).copyTo(roi);
-          std::cout << "deleted text: " << (((labelImage *)param)->allTexts)[i] << std::endl;
+          ((labelImage *)param)->img = ((labelImage *)param)->originalImage.clone();
           ((labelImage *)param)->allRects.erase(((labelImage *)param)->allRects.begin() + i);
           ((labelImage *)param)->allTexts.erase(((labelImage *)param)->allTexts.begin() + i);
           ((labelImage *)param)->allClrs.erase(((labelImage *)param)->allClrs.begin() + i);
           for (unsigned int j = 0; j < ((labelImage *)param)->allRects.size(); j++)
           {
-            cv::rectangle(((labelImage*)param)->img, (((labelImage *)param)->allRects)[j],
-                          ((labelImage*)param)->allClrs[j], 1);
+            drawRect(((labelImage*)param)->img, ((labelImage *)param)->allRects[j], ((labelImage*)param)->allClrs[j]);
           }
-          cv::imshow(winName, ((labelImage *)param)->img);
-          break;
         }
+        cv::imshow(winName, ((labelImage *)param)->img);
+        //break;
       }
     }
   }
@@ -311,8 +310,8 @@ void writeTxt(std::vector<labelImage> all, std::string path, std::string actTime
   std::cout << "path: " << path << std::endl;
 
   std::string newFileName = path + "/";
- // newFileName.append(actTime);
-  newFileName.append("train.xml");
+  newFileName.append(actTime);
+  newFileName.append("_train.xml");
 
   std::ofstream newFile;
   newFile.open(newFileName.c_str());
@@ -323,16 +322,16 @@ void writeTxt(std::vector<labelImage> all, std::string path, std::string actTime
   for (unsigned int j = 0; j < all.size(); j++)
   {
     std::vector<std::string> words = all[j].allTexts;
-    std::vector<cv::Rect> rects = all[j].allRects;
+    std::vector<cv::RotatedRect> rects = all[j].allRects;
     std::string imgName = all[j].name;
     imgName = imgName.substr(imgName.find_last_of(' ') + 1, imgName.size() - imgName.find_last_of(' '));
     imgName = imgName.substr(imgName.find_last_of('/') + 1, imgName.size() - imgName.find_last_of('/'));
     newFile << "<image>" << std::endl << " <imageName>" << imgName << "</imageName>" << std::endl
         << "<taggedRectangles>" << std::endl;
-    for (unsigned int i = 0; i < rects.size(); i++)
+        for (unsigned int i = 0; i < rects.size(); i++)
     {
-      newFile << "<taggedRectangle x=\"" << rects[i].x << "\" y=\"" << rects[i].y << "\" width=\"" << rects[i].width
-          << "\" height=\"" << rects[i].height << "\" modelType=\"1\" text=\"" << words[i] << "\" />" << std::endl;
+      newFile << "<taggedRectangle center_x=\"" << rects[i].center.x << "\" center_y=\"" << rects[i].center.y << "\" width=\"" << rects[i].size.width
+          << "\" height=\"" << rects[i].size.height << "\" angle=\"" << rects[i].angle << "\" text=\"" << words[i] << "\" />" << std::endl;
     }
     newFile << "</taggedRectangles>" << std::endl << "</image>" << std::endl;
   }
@@ -351,16 +350,12 @@ int main(int argc, char* argv[])
 
   std::string arg(argv[1]);
   std::string imgpath = arg.substr(0, arg.find_last_of("/") + 1);
+
   if (imgpath.empty())
   {
     boost::filesystem::path full_path(boost::filesystem::current_path());
     imgpath = full_path.directory_string();
   }
-
-
-  cv::Mat test(1000, 1000, CV_8UC3);
-  cv::putText(test, arg, cv::Point(20, 20), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(100, 100, 100), 2, 8, false);
-  cv::imwrite("/home/rmb-rh/test.png", test);
 
   // read all image names in the folder
   boost::filesystem::path input_path(argv[1]);
@@ -411,6 +406,7 @@ int main(int argc, char* argv[])
       static bool shift = true;
 
       int c = cv::waitKey(0);
+      //   std::cout << "Key pressed: " << c << std::endl;
 
       temporaryImg = labelImg.img.clone();
       labelImg.temporaryImage = labelImg.img.clone();
@@ -424,14 +420,18 @@ int main(int argc, char* argv[])
         {
           if (shift)
           {
-            labelImg.move_box(temporaryImg, 1);
-            cv::imshow(winName, temporaryImg);
+            labelImg.actualRotatedRect.center.x--;
           }
           else
           {
-            labelImg.resize_box(temporaryImg, 1);
-            cv::imshow(winName, temporaryImg);
+            float dx = std::cos((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+            float dy = std::sin((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+
+            labelImg.actualRotatedRect.size.width--;
+            labelImg.actualRotatedRect.center.x -= 0.5 * dx;
+            labelImg.actualRotatedRect.center.y -= 0.5 * dy;
           }
+
           break;
         }
 
@@ -440,72 +440,97 @@ int main(int argc, char* argv[])
         {
           if (shift)
           {
-            labelImg.move_box(temporaryImg, 2);
-            cv::imshow(winName, temporaryImg);
+            labelImg.actualRotatedRect.center.y--;
           }
           else
           {
-            labelImg.resize_box(temporaryImg, 2);
-            cv::imshow(winName, temporaryImg);
+            float dx = std::sin((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+            float dy = std::cos((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+
+            labelImg.actualRotatedRect.size.height--;
+            labelImg.actualRotatedRect.center.x += 0.5 * dx;
+            labelImg.actualRotatedRect.center.y -= 0.5 * dy;
           }
+
           break;
         }
+
         case RIGHT:
         case RIGHT2:
+        {
           if (shift)
           {
-            labelImg.move_box(temporaryImg, 3);
-            cv::imshow(winName, temporaryImg);
+            labelImg.actualRotatedRect.center.x++;
           }
           else
           {
-            labelImg.resize_box(temporaryImg, 3);
-            cv::imshow(winName, temporaryImg);
+            float dx = std::cos((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+            float dy = std::sin((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+
+            labelImg.actualRotatedRect.size.width++;
+            labelImg.actualRotatedRect.center.x += 0.5 * dx;
+            labelImg.actualRotatedRect.center.y += 0.5 * dy;
           }
+
           break;
+        }
 
         case DOWN:
         case DOWN2:
+        {
           if (shift)
           {
-            labelImg.move_box(temporaryImg, 4);
-            cv::imshow(winName, temporaryImg);
+            labelImg.actualRotatedRect.center.y++;
           }
           else
           {
-            labelImg.resize_box(temporaryImg, 4);
-            cv::imshow(winName, temporaryImg);
+            float dx = std::sin((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+            float dy = std::cos((labelImg.actualRotatedRect.angle / 180.0) * 3.14159265359);
+
+            labelImg.actualRotatedRect.size.height++;
+            labelImg.actualRotatedRect.center.x -= 0.5 * dx;
+            labelImg.actualRotatedRect.center.y += 0.5 * dy;
           }
+
           break;
+        }
 
           // Enter Text Mode
         case RETURN:
         case RETURN2:
         {
           cv::Mat textBox = labelImg.img.clone();
-          cv::rectangle(textBox, cv::Rect(labelImg.actualRect.x, labelImg.actualRect.y - 60, 200, 30), cv::Scalar(255,
-                                                                                                                  255,
-                                                                                                                  255),
-                        -1);
-          cv::rectangle(textBox, cv::Rect(labelImg.actualRect.x, labelImg.actualRect.y - 60, 200, 30),
-                        labelImg.actualClr);
-          cv::rectangle(textBox, cv::Rect(labelImg.actualRect.x, labelImg.actualRect.y, labelImg.actualRect.width,
-                                          labelImg.actualRect.height), labelImg.actualClr);
+
+          float offsetX = labelImg.actualRotatedRect.size.width < 50 ? 50 : labelImg.actualRotatedRect.size.width;
+          float offsetY = labelImg.actualRotatedRect.size.height < 50 ? 50 : labelImg.actualRotatedRect.size.height;
+
+          if (labelImg.actualRotatedRect.center.x - offsetX < 0)
+            offsetX *= -1;
+
+          if (labelImg.actualRotatedRect.center.y - offsetY < 0)
+            offsetY *= -1;
+
+          cv::Rect textRect(labelImg.actualRotatedRect.center.x - offsetX, labelImg.actualRotatedRect.center.y
+              - offsetY, 200, 30);
+
+          cv::rectangle(textBox, textRect, cv::Scalar(255, 255, 255), -1);
+          cv::rectangle(textBox, textRect, labelImg.actualClr);
+
+          drawRect(textBox, labelImg.actualRotatedRect, labelImg.actualClr);
           cv::imshow(winName, textBox);
 
           labelImg.textMode = true;
           std::string text;
-          if (input_text(textBox, winName, &text, labelImg.actualRect))
+
+          if (input_text(textBox, winName, &text, textRect)) // text was written
           {
-            cv::rectangle(labelImg.img, cv::Rect(labelImg.actualRect.x, labelImg.actualRect.y,
-                                                 labelImg.actualRect.width, labelImg.actualRect.height),
-                          labelImg.actualClr);
-            labelImg.allRects.push_back(labelImg.actualRect);
+            drawRect(labelImg.img, labelImg.actualRotatedRect, labelImg.actualClr);
+            labelImg.allRects.push_back(labelImg.actualRotatedRect);
             labelImg.allTexts.push_back(text);
             labelImg.allClrs.push_back(labelImg.actualClr);
             shift = true;
           }
-          else
+          else // user canceled -> just draw rect that was there already
           {
             cv::rectangle(temporaryImg, cv::Rect(labelImg.actualRect.x, labelImg.actualRect.y,
                                                  labelImg.actualRect.width, labelImg.actualRect.height),
@@ -528,36 +553,27 @@ int main(int argc, char* argv[])
           c2 = (c1 * c1) % 255;
           c3 = (c1 * c2) % 255;
           labelImg.actualClr = cv::Scalar(c1, c2, c3);
-          draw_box(temporaryImg, labelImg.actualRect, labelImg.actualClr);
-          cv::imshow(winName, temporaryImg);
           break;
         }
 
           //[S]hift between Moving Box Mode and Resizing Box Mode
         case S:
         case S2:
-          if (shift)
-            shift = false;
-          else
-            shift = true;
+        {
+          shift = !shift;
           break;
-
-          /* [Z]oom
-           case Z:
-           cv::Mat zoomedImg = input2(r);
-           cv::pyrUp(zoomedImg, zoomedImg, cv::Size(zoomedImg.cols * 2, zoomedImg.rows * 2));
-           cv::imshow(winName, zoomedImg);
-           break;
-           */
+        }
 
           // [R]eset complete image
         case R:
         case R2:
+        {
           labelImg.img = labelImg.originalImage.clone();
           cv::imshow(winName, labelImg.img);
           labelImg.allRects.clear();
           labelImg.allTexts.clear();
-
+          break;
+        }
           // [H]elp
         case H:
         case H2:
@@ -567,27 +583,65 @@ int main(int argc, char* argv[])
           std::cout << std::endl;
           std::cout << "* Draw box with mouse." << std::endl;
           std::cout << "* Press direction keys to move/resize drawn box before entering text." << std::endl;
-          std::cout << "* Press Return for entering text in drawn and resized box." << std::endl;
-          std::cout << "* Press right mouse button to delete a box (after text was written inside)." << std::endl;
-          std::cout << "* Press left mouse button on box to show text." << std::endl;
+          std::cout << "* Press [d] for rotating clockwise." << std::endl;
+          std::cout << "* Press [a] for rotating anticlockwise." << std::endl;
           std::cout << "* Press [s] for switching between moving and resizing with direction keys." << std::endl;
           std::cout << "* Press [c] for color change." << std::endl;
+          std::cout << "* Press Return for entering text in drawn and resized box." << std::endl;
+          std::cout << "* Press left mouse button on box to show text." << std::endl;
+          std::cout << "* Press right mouse button to delete a box (after text was written inside)." << std::endl;
+          std::cout << "* Press [z] to show data of all drawn rects." << std::endl;
           std::cout << "* Press [r] to reset complete image." << std::endl;
-          std::cout << "* Press [ESC] to quit/move to next image." << std::endl;
+          std::cout << "* Press [ESC] to quit/move on to next image." << std::endl;
           std::cout << std::endl;
           break;
         }
+
           // [Esc]ape to next image
         case ESC:
         case ESC2:
+        {
           active = false;
           break;
+        }
+
+          // [z] Info
         case Z:
         case Z2:
         {
-          std::cout << "Rects: " << labelImg.allRects.size() << std::endl;
+          for (unsigned int i = 0; i < labelImg.allRects.size(); i++)
+            std::cout << "Rect #" << i << ": " << labelImg.allRects[i].center.x << "|" << labelImg.allRects[i].center.y
+                << ", " << labelImg.allRects[i].size.width << "|" << labelImg.allRects[i].size.height << ", "
+                << labelImg.allRects[i].angle << ", " << labelImg.allTexts[i] << std::endl;
+
+          break;
         }
+
+          // Rotate clockwise
+        case D:
+        case D2:
+        {
+          labelImg.rotationMode = true;
+          labelImg.actualRotatedRect.angle++;
+          if (labelImg.actualRotatedRect.angle == 180)
+            labelImg.actualRotatedRect.angle = 0;
+          break;
+        }
+
+          // Rotate anti-clockwise
+        case A:
+        case A2:
+        {
+          labelImg.rotationMode = true;
+          labelImg.actualRotatedRect.angle--;
+          if (labelImg.actualRotatedRect.angle == -180)
+            labelImg.actualRotatedRect.angle = 0;
+          break;
+        }
+
       }
+      drawRect(temporaryImg, labelImg.actualRotatedRect, labelImg.actualClr);
+      cv::imshow(winName, temporaryImg);
 
     }
     allImages.push_back(labelImg);
