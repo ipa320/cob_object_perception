@@ -653,6 +653,8 @@ int main(int argc, char **argv)
 
   float alpha = 0.5;
 
+  std::cout << "test123" << std::endl;
+
   std::vector<img> images;
 
   //read everything from img_list.xml in images

@@ -1,0 +1,11 @@
+<launch>
+	<env name="TESSDATA_PREFIX" value="$(find cob_tesseract_data)/" />
+
+	<rosparam command="load" file="$(find cob_read_text)/launch/params.yaml" />
+
+	<node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="/home/rmb-rh/eval/haushaltsgegenstaende/stereo_left/rotated/g.xml">
+		</node>
+</launch>
+
+
+
