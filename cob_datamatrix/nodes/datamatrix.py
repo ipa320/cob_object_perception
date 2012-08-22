@@ -627,20 +627,29 @@ class DataMatrix:
                 #rot = cv.fromarray(rot)
                 #trans = cv.fromarray(trans)
                 print rot
-                points = read_points(pointcloud, None, False, [(int(corners[0][0]), int(corners[0][1])),(int(corners[1][0]), int(corners[1][1])),(int(corners[3][0]), int(corners[3][1])),(int(cx), int(cy))])
-                #pointcloud.data(cy*pointcloud.row_step+cx*pointcloud.point_step)
-                #print type(points)
-                (a, b, c, d) = [numpy.array(pt) for pt in points]
-                for point in points:
-                    #print type(point)
-                    print point
+                points = read_points(self.pointcloud, None, False, [(int(corners[0][0]), 
+                    int(corners[0][1])),(int(corners[1][0]), int(corners[1][1])),(int(corners[2][0]),
+                    int(corners[2][1])),(int(corners[3][0]), int(corners[3][1])),(int(cx),int(cy))])
+
+                #(a, b, c, d ,e) = [numpy.array(pt) for pt in points]
+                pc_points = []
+                for pt in points:
+                    pc_points.append(numpy.array(pt))
+                if len(pc_points) < 5:
+                    print "Not enough points for Code: %s. %d Points found.", code, len(pc_points)
+                    continue
+
+                (a, b, c, d, e) = pc_points
                 def normal(s, t):
                     return (t - s) / numpy.linalg.norm(t - s)
-                x = PyKDL.Vector(*normal(a, b))
-                y = PyKDL.Vector(*normal(a, c))
-                f = PyKDL.Frame(PyKDL.Rotation(x, -x * y, -y), PyKDL.Vector(*d))
+
+                x = PyKDL.Vector(*normal(d, c))
+                y = PyKDL.Vector(*normal(d, a))
+                z = x * y
+                f = PyKDL.Frame(PyKDL.Rotation(x, y, z), PyKDL.Vector(*e))
                 posemsg = pm.toMsg(f)
                 print f
+
                 #ts.transform.rotation = posemsg.orientation
                 #print pcm.fullProjectionMatrix()
                 #posemsg.position = points[0]
