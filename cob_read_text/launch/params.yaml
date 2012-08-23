@@ -175,7 +175,7 @@ result_: 2
 
 # show gray colored edgemap image
 # bool
-showEdge: false 
+showEdge: false
 
 # show swt map
 # bool
@@ -183,31 +183,33 @@ showSWT: false
 
 # show connected components
 # bool
-showLetterCandidates: false 
+showLetterCandidates: false
 
 # show connected components recognized as letters
 # bool
-showLetters: false 
+showLetters: false
 
 # show pairs (2 letters belonging together)
 # bool
-showPairs: false 
+showPairs: false
 
 # show all words/text segments after pairs were fused together
 # bool
-showChains: true 
+showChains: false
+#true
 
 # breaks text block into several lines
 # bool
-showBreakLines: false 
+showBreakLines: false
 
 # show all bezier models that are created within ransac
 # bool
-showBezier: false 
+showBezier: false
 
 # show Ransac result -> best model only
 # bool
-showRansac: true 
+showRansac: false
+#true 
 
 # show how neighbor texts are merged if they fit together and were accidently separated before
 # bool

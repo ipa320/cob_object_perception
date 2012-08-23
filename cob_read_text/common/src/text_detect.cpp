@@ -3305,7 +3305,7 @@ int DetectText::getCorrelationIndex(char letter)
   {
     return letter - '0' + 52;
   }
-  std::cout << "illigal letter: " << letter << std::endl;
+  std::cout << "illegal letter: " << letter << std::endl;
   // assert(false);
   return -1;
 }
@@ -3416,7 +3416,7 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 
   for (unsigned int boxIndex = 0; boxIndex < boundingBoxes.size(); boxIndex++)
   {
-    cv::Mat output = originalImage_.clone();
+//    cv::Mat output = originalImage_.clone();
 
     cv::Rect r = boundingBoxes[boxIndex];
 
@@ -3426,7 +3426,7 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
     // calculate height and width of transformed image
     for (unsigned int i = 0; i < ransacSet.size(); i++)
     {
-      cv::Mat model = createBezierCurve(ransacSet[i].second, true);
+      cv::Mat model = createBezierCurve(ransacSet[i].second, debug["showBezier"]);	// todo: parameter showBezier
 
       float biggestDistance = 0; // -> height of transformed image
       float minDistance = 1e5;
@@ -3582,7 +3582,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 
   std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSubset; // to be returned
 
-  cv::Mat output = originalImage_.clone();
+  cv::Mat output;
 
   // if box contains lines of text, a sub-dataset is build at the end of every iteration with the remaining points that were not used.
   // when sub-dataset doesn't contain more than 2 components anymore, the algorithm ends
@@ -3615,6 +3615,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       std::cout << "-----------------------" << std::endl << std::endl;
       for (unsigned int i = 0; i < dataset.size(); i++)
       {
+    	output = originalImage_.clone();
         cv::rectangle(output, cv::Rect(dataset[i].middlePoint.x, dataset[i].middlePoint.y, 1, 1), cv::Scalar(255, 255,
                                                                                                              255), 2,
                       1, 0);
@@ -3636,7 +3637,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
     for (unsigned int i = 0; i < n; i++) // Main Loop, n = number of models that will be created
     {
       std::vector<float> rectsArea;
-      cv::Mat output2 = output.clone();
+      cv::Mat output2;
 
       std::vector<int> actualRandomSet; // which 3 points are chosen (index)
       std::vector<cv::Point> actualRandomPointSet; // which 3 points are chosen (point)
@@ -3681,19 +3682,25 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       }
 
       // Bending of curve -> angle difference
-      float angleA = std::atan2(actualRandomPointSet[1].y - actualRandomPointSet[0].y, actualRandomPointSet[1].x
-          - actualRandomPointSet[0].x) * (180.0 / 3.14159265);
-
-      float angleB = std::atan2(actualRandomPointSet[2].y - actualRandomPointSet[1].y, actualRandomPointSet[2].x
-          - actualRandomPointSet[1].x) * (180.0 / 3.14159265);
-
-      float angleDifference = std::abs(angleA - angleB);
-      if (angleDifference > 180)
-        angleDifference = 360 - angleDifference;
+//      float angleA = std::atan2(actualRandomPointSet[1].y - actualRandomPointSet[0].y, actualRandomPointSet[1].x
+//          - actualRandomPointSet[0].x) * (180.0 / 3.14159265);
+//
+//      float angleB = std::atan2(actualRandomPointSet[2].y - actualRandomPointSet[1].y, actualRandomPointSet[2].x
+//          - actualRandomPointSet[1].x) * (180.0 / 3.14159265);
+//
+//      float angleDifference = std::abs(angleA - angleB);
+//      if (angleDifference > 180)
+//        angleDifference = 360 - angleDifference;
+      double dx1 = actualRandomPointSet[1].x-actualRandomPointSet[0].x;
+      double dy1 = actualRandomPointSet[1].y-actualRandomPointSet[0].y;
+      double dx2 = actualRandomPointSet[2].x-actualRandomPointSet[1].x;
+      double dy2 = actualRandomPointSet[2].y-actualRandomPointSet[1].y;
+      float angleDifference = (180.0 / 3.14159265) * std::abs(acos((dx1*dx2 + dy1*dy2) / (sqrt( (dx1*dx1+dy1*dy1) * (dx2*dx2+dy2*dy2) ))));
 
       // draw chosen points
       if (debug["showBezier"])
       {
+    	output2 = output.clone();
         std::cout << std::endl << "Model #" << i << std::endl;
         std::cout << "Curve: " << std::endl;
         std::cout << "[ " << curve.at<float> (0, 0) << " " << curve.at<float> (0, 1) << " " << curve.at<float> (0, 2)
@@ -3704,7 +3711,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
         std::cout << actualRandomPointSet[0].x << "|" << actualRandomPointSet[0].y << ", " << actualRandomPointSet[1].x
             << "|" << actualRandomPointSet[1].y << ", " << actualRandomPointSet[2].x << "|"
             << actualRandomPointSet[2].y << std::endl;
-        std::cout << "angleA: " << angleA << ", angleB: " << angleB << std::endl;
+//        std::cout << "angleA: " << angleA << ", angleB: " << angleB << std::endl;
         std::cout << "|angleA-angleB| = " << angleDifference << std::endl;
         for (unsigned int j = 0; j < actualRandomSet.size(); j++)
           cv::rectangle(output2, cv::Rect(dataset[actualRandomSet[j]].middlePoint.x,
@@ -3750,9 +3757,11 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       for (unsigned int datasetIndex = 0; datasetIndex < dataset.size(); datasetIndex++)
       {
         std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[datasetIndex].middlePoint);
-        distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
+        // todo: why count distance of all points, not just inliers?
+//        distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
         if (distanceTs.first < maxDistance) // is the point near enough?
         {
+          distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
           goodPoints.push_back(dataset[datasetIndex].middlePoint);
           ts.push_back(distanceTs.second);
           if (debug["showBezier"])
@@ -3785,15 +3794,17 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       float score = 0;
 
       // 1) How many points support the model
-      score += 100.0 * (goodPoints.size() / dataset.size());
+      score += 100.f * (goodPoints.size() / dataset.size());
 
       // 2) How far is the distance of all these points to the model curve
-      score += 100 / (distance + 1);
+      // 2) How far is the distance of all good points to the model curve
+      score += 100.f / (distance + 1);
 
       // 3) How strong is the bending of the curve
-      score += 300 / (angleDifference + 1);
+//      score += 300 / (angleDifference + 1);		// todo: wrong
+      score += 100.f * ((180.f-angleDifference) / 180.f);
 
-      if (score > highestScore && angleDifference < bendParameter)
+      if (score > highestScore && angleDifference < bendParameter && goodPoints.size() >= 3)
       {
         finalGoodPoints = goodPoints;
         finalModel = actualRandomPointSet;
@@ -3927,7 +3938,7 @@ cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool show
 
   cv::Mat output = originalImage_.clone();
 
-  cv::Mat R = (cv::Mat_<float>(2, 3) << points[0].x, points[1].x, points[2].x, points[0].y, points[1].y, points[2].y);
+  cv::Mat R = (cv::Mat_<float>(2, 3) << points[0].x, points[1].x, points[2].x, points[0].y, points[1].y, points[2].y);	// todo: create R not before correct order is known
 
   // 1.) compute distances of all 3 points and position them into right order,
   // i.e. the points with largest distance go to position 1 and 3
@@ -3969,6 +3980,7 @@ cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool show
     points[0] = temp;
   }
 
+  // todo: why? to avoid head-over as first guess?
   if (points[0].x > points[2].x)
   {
     float tempX, tempY;

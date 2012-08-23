@@ -48,6 +48,7 @@ public:
   std::string img_name;
   std::vector<cv::Rect> correctRects, estimatedRects;
   std::vector<std::string> correctTexts, estimatedTexts;
+  // correct = ground truth data, each entry contains exactly one word, estimated = may contain several words that become broken into single words
 
   std::vector<bool> wordWasFound;
   //label which words of the solution are in the estimated set
@@ -102,10 +103,10 @@ int readInEstimates(std::vector<img> &images, std::string path)
     imgpath.append(images[imageIndex].img_name);
     std::string cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " "
         + ros::package::getPath("cob_read_text_data") + "/fonts/correlation.txt "
-        + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary_ger";
+        + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
 
     if (system(cmd_.c_str()) != 0)
-      std::cout << "Error occured while running text_detect" << std::endl;
+      std::cout << "Error occurred while running text_detect" << std::endl;
     ;
 
     // get read_text results
@@ -150,7 +151,7 @@ int readInEstimates(std::vector<img> &images, std::string path)
     // delete text file
     cmd_ = "rm " + textname;
     if (system(cmd_.c_str()) != 0)
-      std::cout << "Error occured while deleting textfile with results!" << std::endl;
+      std::cout << "Error occurred while deleting textfile with results!" << std::endl;
 
     // open file with texts
 
@@ -420,7 +421,7 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
     unsigned int numberCorrectRects = images[imageIndex].correctRects.size();
     float allMatches = 0;
 
-    int inside[images[imageIndex].correctRects.size()];
+    //int inside[images[imageIndex].correctRects.size()];
     //which correct rects are completely inside an estimated rect
 
     for (unsigned int rectIndex = 0; rectIndex < images[imageIndex].estimatedRects.size(); rectIndex++)
@@ -442,8 +443,8 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
           bestK = k;
         }
 
-        if (intersection / images[imageIndex].correctRects[k].area() == 1.0)
-          inside[k] = 1;
+//        if (intersection / images[imageIndex].correctRects[k].area() == 1.0)
+//          inside[k] = 1;
       }
 
       // bestMatch for ocrImages[imageIndex].rects[rectIndex] and images[imageIndex].rects[bestK]
@@ -454,7 +455,7 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
     if (numberEstimatedRects > 0)
       precision = allMatches / numberEstimatedRects;
     else
-      precision = 0;
+      precision = 1.f;		// todo: makes sense?
     images[imageIndex].precision = precision;
 
     allMatches = 0;
@@ -484,7 +485,7 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
     if (numberCorrectRects > 0)
       recall = allMatches / numberCorrectRects;
     else
-      recall = 0;
+      recall = 1.f;		// do not punish the algorithm on text-free images
 
     images[imageIndex].recall = recall;
 
@@ -494,12 +495,13 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
   }
 }
 
+
 void calculateWordResults(std::vector<img> &images)
 {
   for (unsigned int imageIndex = 0; imageIndex < images.size(); imageIndex++)
   {
     unsigned int foundWords = 0;
-    std::vector<std::string> brokenWords;
+    std::vector<std::string> brokenWords;		// single words
 
     //Breaking into words
     for (unsigned int j = 0; j < images[imageIndex].estimatedTexts.size(); j++)
