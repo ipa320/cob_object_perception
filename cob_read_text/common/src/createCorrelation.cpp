@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
     std::vector<float> xScores;
     for (unsigned int x = 0; x < letterImages.size(); x++)
     {
-      correlationFile << "[" << y << "|" << x << "]: ";
+    //  correlationFile << "[" << y << "|" << x << "]: ";
       cv::Mat grayLetter2 = cv::Mat(letterImages[y].size(), CV_8UC1, cv::Scalar(0));
       cv::cvtColor(letterImages[y], grayLetter2, CV_RGB2GRAY);
 
