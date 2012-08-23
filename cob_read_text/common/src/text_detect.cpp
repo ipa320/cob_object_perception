@@ -3264,16 +3264,18 @@ float DetectText::editDistanceFont(const std::string& word, const std::string& d
 
   for (int i = 1; i < wordLength + 1; i++)
   {
-    char sc = word[i - 1];
+    //char sc = word[i - 1];
+	std::string sc = word.substr(i-1, 1);
     for (int j = 1; j < dictionaryWordLength + 1; j++)
     {
       float v = d[i - 1][j - 1];
-      if ((dictionaryWord[j - 1] != sc))
+      //if ((dictionaryWord[j - 1] != sc))
+      if ((dictionaryWord.substr(j-1, 1).compare(sc) != 0))
       {
         float correlate;
-        if (sc != '-')
+        if (sc.compare("-") != 0)
         {
-          int a = getCorrelationIndex(dictionaryWord[j - 1]);
+          int a = getCorrelationIndex(dictionaryWord.substr(j-1, 1));//dictionaryWord[j - 1]);
           int b = getCorrelationIndex(sc);
           correlate = correlation_.at<float> (a, b);
         }
@@ -3290,21 +3292,38 @@ float DetectText::editDistanceFont(const std::string& word, const std::string& d
   return result;
 }
 
-int DetectText::getCorrelationIndex(char letter)
+int DetectText::getCorrelationIndex(std::string letter)
 {
   // get index in correlation matrix for given char
-  if (std::islower(letter))
-  {
-    return letter - 'a';
-  }
-  else if (std::isupper(letter))
-  {
-    return letter - 'A' + 26;
-  }
-  else if (std::isdigit(letter))
-  {
-    return letter - '0' + 52;
-  }
+  if (letter[0]>0)
+	return (int)letter[0];
+  else if (letter.compare("ö") == 0)
+	  return 246;
+  else if (letter.compare("Ö") == 0)
+	  return 214;
+  else if (letter.compare("ü") == 0)
+	  return 252;
+  else if (letter.compare("Ü") == 0)
+	  return 220;
+  else if (letter.compare("ä") == 0)
+	  return 228;
+  else if (letter.compare("Ä") == 0)
+	  return 196;
+  else if (letter.compare("ß") == 0)
+	  return 223;
+
+//  if (std::islower(letter))
+//  {
+//    return letter - 'a';
+//  }
+//  else if (std::isupper(letter))
+//  {
+//    return letter - 'A' + 26;
+//  }
+//  else if (std::isdigit(letter))
+//  {
+//    return letter - '0' + 52;
+//  }
   std::cout << "illegal letter: " << letter << std::endl;
   // assert(false);
   return -1;
@@ -5992,11 +6011,11 @@ void DetectText::showLetterGroup()
 }
 void DetectText::testGetCorrelationIndex()
 {
-  assert(getCorrelationIndex('a') == 0);
-  assert(getCorrelationIndex('c') == 2);
-  assert(getCorrelationIndex('A') == 26);
-  assert(getCorrelationIndex('0') == 52);
-  assert(getCorrelationIndex('9') == 61);
+  assert(getCorrelationIndex("a") == 97);
+  assert(getCorrelationIndex("c") == 99);
+  assert(getCorrelationIndex("A") == 65);
+  assert(getCorrelationIndex("0") == 48);
+  assert(getCorrelationIndex("9") == 57);
   std::cout << "pass getCorrelationIndex test" << std::endl;
 }
 void DetectText::testEditDistance()

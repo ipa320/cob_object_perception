@@ -177,7 +177,7 @@ private:
 
   float editDistanceFont(const std::string& s, const std::string& t);
 
-  int getCorrelationIndex(char letter);
+  int getCorrelationIndex(std::string letter);
 
   float insertToList(std::vector<Word>& words, Word& word);
 
