@@ -195,7 +195,7 @@ showPairs: false
 
 # show all words/text segments after pairs were fused together
 # bool
-showChains: true 
+showChains: false
 
 # breaks text block into several lines
 # bool
@@ -207,7 +207,7 @@ showBezier: false
 
 # show Ransac result -> best model only
 # bool
-showRansac: true 
+showRansac: false
 
 # show how neighbor texts are merged if they fit together and were accidently separated before
 # bool
@@ -215,8 +215,8 @@ showNeighborMerging: false
 
 # show results with ocr
 # bool
-showResult: true 
+showResult: true
 
 # when showing results show all image regions that probably contain text, even if ocr didn't find text
 # bool
-showAllBoxes: false 
+showAllBoxes: true

@@ -181,22 +181,21 @@ void showInfo(std::string winName, cv::Mat img, cv::RotatedRect r, std::string t
 
 bool checkPointInRect(cv::RotatedRect rect, cv::Point2f p)
 {
-  float rotRad = (rect.angle / 180) * 3.1415926535;
-  float dx = p.x - rect.center.x;
-  float dy = p.y - rect.center.y;
+  float angle = (rect.angle / 180) * 3.1415926535;
+  cv::Point2f dp(p.x - rect.center.x, p.y - rect.center.y);
 
-  // distance point and centre
-  float h1 = std::sqrt(dx * dx + dy * dy);
-  float currA = std::atan2(dy, dx);
+  // distance point-centre
+  float h = std::sqrt(dp.x * dp.x + dp.y * dp.y);
+  float currentA = std::atan2(dp.y, dp.x);
 
-  // angle of point rotated by the rectangle amount around the centre of rectangle.<br>
-  float newA = currA - rotRad;
+  // rotate point
+  float newA = currentA - angle;
 
-  //    // x2 and y2 are the new positions of the point when rotated to offset the rectangles orientation.<br>
-  float x2 = std::cos(newA) * h1;
-  float y2 = std::sin(newA) * h1;
-  // the above points are relative to the centre of the rectangle, so the check is simple.
-  if (x2 > -0.5 * rect.size.width && x2 < 0.5 * rect.size.width && y2 > -0.5 * rect.size.height && y2 < 0.5
+  // new Point position
+  cv::Point2f p2(std::cos(newA) * h, std::sin(newA) * h);
+
+  // actual check
+  if (p2.x > -0.5 * rect.size.width && p2.x < 0.5 * rect.size.width && p2.y > -0.5 * rect.size.height && p2.y < 0.5
       * rect.size.height)
     return true;
   return false;
@@ -324,14 +323,15 @@ void writeTxt(std::vector<labelImage> all, std::string path, std::string actTime
     std::vector<std::string> words = all[j].allTexts;
     std::vector<cv::RotatedRect> rects = all[j].allRects;
     std::string imgName = all[j].name;
-    imgName = imgName.substr(imgName.find_last_of(' ') + 1, imgName.size() - imgName.find_last_of(' '));
+    //    imgName = imgName.substr(imgName.find_last_of(' ') + 1, imgName.size() - imgName.find_last_of(' '));
     imgName = imgName.substr(imgName.find_last_of('/') + 1, imgName.size() - imgName.find_last_of('/'));
     newFile << "<image>" << std::endl << " <imageName>" << imgName << "</imageName>" << std::endl
         << "<taggedRectangles>" << std::endl;
-        for (unsigned int i = 0; i < rects.size(); i++)
+    for (unsigned int i = 0; i < rects.size(); i++)
     {
-      newFile << "<taggedRectangle center_x=\"" << rects[i].center.x << "\" center_y=\"" << rects[i].center.y << "\" width=\"" << rects[i].size.width
-          << "\" height=\"" << rects[i].size.height << "\" angle=\"" << rects[i].angle << "\" text=\"" << words[i] << "\" />" << std::endl;
+      newFile << "<taggedRectangle center_x=\"" << rects[i].center.x << "\" center_y=\"" << rects[i].center.y
+          << "\" width=\"" << rects[i].size.width << "\" height=\"" << rects[i].size.height << "\" angle=\""
+          << rects[i].angle << "\" text=\"" << words[i] << "\" />" << std::endl;
     }
     newFile << "</taggedRectangles>" << std::endl << "</image>" << std::endl;
   }
@@ -365,12 +365,25 @@ int main(int argc, char* argv[])
     struct dirent *entry;
     if ((pDIR = opendir(argv[1])))
       while ((entry = readdir(pDIR)))
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+        if (std::strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
         {
-          std::string s = argv[1];
-          s.append("/");
-          s.append(entry->d_name);
-          allImageNames.push_back(s);
+          std::string completeName = entry->d_name;
+          std::string imgend = completeName.substr(completeName.find_last_of(".") + 1, completeName.length()
+              - completeName.find_last_of("."));
+          if (std::strcmp(imgend.c_str(), "png") == 0 || std::strcmp(imgend.c_str(), "PNG") == 0
+              || std::strcmp(imgend.c_str(), "JPG") == 0 || std::strcmp(imgend.c_str(), "jpg") == 0
+              || std::strcmp(imgend.c_str(), "jpeg") == 0 || std::strcmp(imgend.c_str(), "Jpeg") == 0
+              || std::strcmp(imgend.c_str(), "bmp") == 0 || std::strcmp(imgend.c_str(), "BMP") == 0
+              || std::strcmp(imgend.c_str(), "TIFF") == 0 || std::strcmp(imgend.c_str(), "tiff") == 0
+              || std::strcmp(imgend.c_str(), "tif") == 0 || std::strcmp(imgend.c_str(), "TIF") == 0)
+          {
+            std::string s = argv[1];
+            if (s.at(s.length() - 1) != '/')
+              s.append("/");
+            s.append(entry->d_name);
+            allImageNames.push_back(s);
+            std::cout << "imagename: " << s << std::endl;
+          }
         }
   }
   else

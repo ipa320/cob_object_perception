@@ -2924,9 +2924,9 @@ void DetectText::ocrRead(std::vector<cv::Mat> textImages)
         if (score[j] < score[smallestElement])
           smallestElement = j;
 
-        if (score[smallestElement] < 100) // if anything was found in the ocr software
+      if (score[smallestElement] < 100) // if anything was found in the ocr software
       {
-          finalTexts_.push_back(result[smallestElement]);
+        finalTexts_.push_back(result[smallestElement]);
         finalBoxes_.push_back(finalBoundingBoxes_[(std::floor(smallestElement / (float)3))]);
         finalScores_.push_back(score[smallestElement]);
       }
@@ -2960,10 +2960,10 @@ float DetectText::ocrRead(const cv::Mat& image, std::string& output)
   int loopCount = 0;
   while (fin >> str)
   {
-   // std::cout << str << " ";
+    // std::cout << str << " ";
     std::string tempOutput;
     score += spellCheck(str, tempOutput, 2);
-   // std::cout << " -->  \"" << tempOutput.substr(0, tempOutput.length() - 1) << "\" , score: " << score << std::endl;
+    // std::cout << " -->  \"" << tempOutput.substr(0, tempOutput.length() - 1) << "\" , score: " << score << std::endl;
     output += tempOutput;
     loopCount++;
   }
@@ -3068,7 +3068,7 @@ float DetectText::spellCheck(std::string& str, std::string& output, int method)
     std::string nearestWord;
     getTopkWords(withoutStrangeMarks, 3, topk); // find k dictionary words that fit best to string
     output = topk[0].word + " ";
-       //    if (result_ == 1)
+    //    if (result_ == 1)
     //    {
     //      std::string topWord = topk[0].word;
     //      output = topk[0].word + " ";
@@ -3293,21 +3293,23 @@ float DetectText::editDistanceFont(const std::string& word, const std::string& d
 int DetectText::getCorrelationIndex(char letter)
 {
   // get index in correlation matrix for given char
-  if (std::islower(letter))
-  {
-    return letter - 'a';
-  }
-  else if (std::isupper(letter))
-  {
-    return letter - 'A' + 26;
-  }
-  else if (std::isdigit(letter))
-  {
-    return letter - '0' + 52;
-  }
-  std::cout << "illigal letter: " << letter << std::endl;
+  return (int)letter;
+
+  //  if (std::islower(letter))
+  //  {
+  //    return letter - 'a';
+  //  }
+  //  else if (std::isupper(letter))
+  //  {
+  //    return letter - 'A' + 26;
+  //  }
+  //  else if (std::isdigit(letter))
+  //  {
+  //    return letter - '0' + 52;
+  //  }
+  //  std::cout << "illigal letter: " << letter << std::endl;
   // assert(false);
-  return -1;
+  //return -1;
 }
 
 float DetectText::insertToList(std::vector<Word>& words, Word& word) // for example word = ("able",3.7)
@@ -3388,17 +3390,20 @@ void DetectText::overlayText(std::vector<cv::Rect>& box, std::vector<std::string
 
 void DetectText::writeTxtsForEval()
 {
-  std::ofstream file1, file2;
+  std::ofstream file1, file2, file3; // file3 = bezier
   std::string textname = filename_.substr(0, filename_.find_last_of("."));
+  std::string textname2 = textname;
+  std::string textname3 = textname;
   textname.append(".txt");
-  std::string textname2 = filename_.substr(0, filename_.find_last_of("."));
   textname2.append("t.txt");
+  textname3.append("r.txt");
   file1.open(textname.c_str());
   file2.open(textname2.c_str());
+  file3.open(textname3.c_str());
 
   for (unsigned int i = 0; i < finalBoundingBoxes_.size(); i++)
-    file1 << finalBoundingBoxes_[i].x << "\n" << finalBoundingBoxes_[i].y << "\n" << finalBoundingBoxes_[i].width << "\n"
-        << finalBoundingBoxes_[i].height << "\n";
+    file1 << finalBoundingBoxes_[i].x << "\n" << finalBoundingBoxes_[i].y << "\n" << finalBoundingBoxes_[i].width
+        << "\n" << finalBoundingBoxes_[i].height << "\n";
 
   file1.close();
 
@@ -3406,6 +3411,13 @@ void DetectText::writeTxtsForEval()
     file2 << finalTexts_[i] << "\n";
 
   file2.close();
+
+  for (unsigned int i = 0; i < finalRotatedBoundingBoxes_.size(); i++)
+    file3 << finalRotatedBoundingBoxes_[i].center.x << "\n" << finalRotatedBoundingBoxes_[i].center.y << "\n"
+        << finalRotatedBoundingBoxes_[i].size.width << "\n" << finalRotatedBoundingBoxes_[i].size.height << "\n"
+        << finalRotatedBoundingBoxes_[i].angle << "\n";
+
+  file3.close();
 }
 
 void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
@@ -3559,12 +3571,61 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 
       cv::Rect newR(minX, minY, maxX - minX, maxY - minY);
 
+      // form rotatedRect
+      std::cout << "point #1: " << model.at<float> (0, 2) << "|" << model.at<float> (1, 2) << std::endl;
+      std::cout << "point #2: " << model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2) << "|"
+          << model.at<float> (1, 0) + model.at<float> (1, 1) + model.at<float> (1, 2) << std::endl;
+      std::cout << "point #3: " << 0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1)
+          + model.at<float> (0, 2) << "|" << 0.25 * model.at<float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<
+          float> (1, 2) << std::endl;
+      std::vector<cv::Point> pointvector;
+      pointvector.push_back(cv::Point(model.at<float> (0, 2), model.at<float> (1, 2)));
+      pointvector.push_back(cv::Point(model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2),
+                                      model.at<float> (1, 0) + model.at<float> (1, 1) + model.at<float> (1, 2)));
+      pointvector.push_back(cv::Point(0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1)
+          + model.at<float> (0, 2), 0.25 * model.at<float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<float> (1,
+                                                                                                                    2)));
+      cv::RotatedRect rr = cv::minAreaRect(pointvector);
+
+      cv::Mat img = originalImage_.clone();
+
+      cv::Point2f vertices[4];
+      rr.points(vertices);
+      for (int i = 0; i < 4; i++)
+        cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
+      cv::imshow("img", img);
+
+      h = biggestDistance;
+      // change height and width of rotatedRect.
+      // as the angle can be ambiguous, the size is changed based on what's bigger.
+      if (rr.size.height > rr.size.width)
+      {
+        rr.size.height = 2 * h > l ? 2 * h : l;
+        rr.size.width = 2 * h > l ? l : 2 * h;
+      }
+      else
+      {
+        rr.size.height = 2 * h > l ? l : 2 * h;
+        rr.size.width = 2 * h > l ? 2 * h : l;
+      }
+
+      rr.points(vertices);
+      for (int i = 0; i < 4; i++)
+        cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
+      cv::imshow("img2", img);
+
+      std::cout << "rr.angle:" << rr.angle << std::endl;
+
+      cv::waitKey(0);
+
       transformBezier(newR, model, rotatedBezier, minT, maxT);
 
       transformedBoundingBoxes_.push_back(rotatedBezier);
       notTransformedBoundingBoxes_.push_back(originalImage_(newR));
 
       finalBoundingBoxes_.push_back(newR);
+      finalRotatedBoundingBoxes_.push_back(rr);
+
     }
   }
 }
@@ -4648,34 +4709,33 @@ void DetectText::setParams(ros::NodeHandle & nh)
   nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
   nh.getParam("showResult", this->debug["showResult"]);
 
-
-   std::cout << "eval:" << eval << std::endl;
-   std::cout << "smoothImage:" << smoothImage << std::endl;
-   std::cout << "maxStrokeWidthParameter:" << maxStrokeWidthParameter << std::endl;
-   std::cout << "useColorEdge:" << useColorEdge << std::endl;
-   std::cout << "cannyThreshold1:" << cannyThreshold1 << std::endl;
-   std::cout << "cannyThreshold2:" << cannyThreshold2 << std::endl;
-   std::cout << "compareGradientParameter:" << compareGradientParameter << std::endl;
-   std::cout << "swCompareParameter:" << swCompareParameter << std::endl;
-   std::cout << "colorCompareParameter:" << colorCompareParameter << std::endl;
-   std::cout << "maxLetterHeight_:" << maxLetterHeight_ << std::endl;
-   std::cout << "varianceParameter:" << varianceParameter << std::endl;
-   std::cout << "diagonalParameter:" << diagonalParameter << std::endl;
-   std::cout << "pixelCountParameter:" << pixelCountParameter << std::endl;
-   std::cout << "innerLetterCandidatesParameter:" << innerLetterCandidatesParameter << std::endl;
-   std::cout << "clrComponentParameter:" << clrComponentParameter << std::endl;
-   std::cout << "distanceRatioParameter:" << distanceRatioParameter << std::endl;
-   std::cout << "medianSwParameter:" << medianSwParameter << std::endl;
-   std::cout << "diagonalRatioParamter:" << diagonalRatioParamter << std::endl;
-   std::cout << "grayClrParameter:" << grayClrParameter << std::endl;
-   std::cout << "clrSingleParameter:" << clrSingleParameter << std::endl;
-   std::cout << "areaParameter:" << areaParameter << std::endl;
-   std::cout << "pixelParameter:" << pixelParameter << std::endl;
-   std::cout << "p:" << p << std::endl;
-   std::cout << "maxE:" << maxE << std::endl;
-   std::cout << "minE:" << minE << std::endl;
-   std::cout << "bendParameter:" << bendParameter << std::endl;
-   std::cout << "distanceParameter:" << distanceParameter << std::endl;
+  std::cout << "eval:" << eval << std::endl;
+  std::cout << "smoothImage:" << smoothImage << std::endl;
+  std::cout << "maxStrokeWidthParameter:" << maxStrokeWidthParameter << std::endl;
+  std::cout << "useColorEdge:" << useColorEdge << std::endl;
+  std::cout << "cannyThreshold1:" << cannyThreshold1 << std::endl;
+  std::cout << "cannyThreshold2:" << cannyThreshold2 << std::endl;
+  std::cout << "compareGradientParameter:" << compareGradientParameter << std::endl;
+  std::cout << "swCompareParameter:" << swCompareParameter << std::endl;
+  std::cout << "colorCompareParameter:" << colorCompareParameter << std::endl;
+  std::cout << "maxLetterHeight_:" << maxLetterHeight_ << std::endl;
+  std::cout << "varianceParameter:" << varianceParameter << std::endl;
+  std::cout << "diagonalParameter:" << diagonalParameter << std::endl;
+  std::cout << "pixelCountParameter:" << pixelCountParameter << std::endl;
+  std::cout << "innerLetterCandidatesParameter:" << innerLetterCandidatesParameter << std::endl;
+  std::cout << "clrComponentParameter:" << clrComponentParameter << std::endl;
+  std::cout << "distanceRatioParameter:" << distanceRatioParameter << std::endl;
+  std::cout << "medianSwParameter:" << medianSwParameter << std::endl;
+  std::cout << "diagonalRatioParamter:" << diagonalRatioParamter << std::endl;
+  std::cout << "grayClrParameter:" << grayClrParameter << std::endl;
+  std::cout << "clrSingleParameter:" << clrSingleParameter << std::endl;
+  std::cout << "areaParameter:" << areaParameter << std::endl;
+  std::cout << "pixelParameter:" << pixelParameter << std::endl;
+  std::cout << "p:" << p << std::endl;
+  std::cout << "maxE:" << maxE << std::endl;
+  std::cout << "minE:" << minE << std::endl;
+  std::cout << "bendParameter:" << bendParameter << std::endl;
+  std::cout << "distanceParameter:" << distanceParameter << std::endl;
 
 }
 

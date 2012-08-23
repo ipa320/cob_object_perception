@@ -28,7 +28,7 @@ public:
   ~img()
   {
   }
-  void setRect(cv::Rect r)
+  void setRect(cv::RotatedRect r)
   {
     correctRects.push_back(r);
   }
@@ -36,7 +36,7 @@ public:
   {
     correctTexts.push_back(t);
   }
-  void setEstimatedRect(cv::Rect r)
+  void setEstimatedRect(cv::RotatedRect r)
   {
     estimatedRects.push_back(r);
   }
@@ -46,7 +46,7 @@ public:
   }
 
   std::string img_name;
-  std::vector<cv::Rect> correctRects, estimatedRects;
+  std::vector<cv::RotatedRect> correctRects, estimatedRects;
   std::vector<std::string> correctTexts, estimatedTexts;
 
   std::vector<bool> wordWasFound;
@@ -130,6 +130,8 @@ int readInEstimates(std::vector<img> &images, std::string path)
         ocrfile >> input;
         static int x, y, width, height;
 
+        std::cout << "input: " << input << std::endl;
+
         // every fifth line the structure repeats
         if (line % 4 == 0)
           x = atoi(input.c_str());
@@ -140,8 +142,11 @@ int readInEstimates(std::vector<img> &images, std::string path)
         if (line % 4 == 3)
         {
           height = atoi(input.c_str());
-          cv::Rect * r = new cv::Rect(x, y, width, height);
-          images[imageIndex].setEstimatedRect(*r);
+          cv::RotatedRect * r = new cv::RotatedRect(cv::Point2f(x + 0.5 * width, y + 0.5 * height), cv::Size(width,
+                                                                                                             height),
+                                                    0.0);
+          // images[imageIndex].setEstimatedRect(*r);
+          std::cout << std::endl;
         }
       }
       ocrfile.close();
@@ -173,6 +178,7 @@ int readInEstimates(std::vector<img> &images, std::string path)
         if (s.size() > 0)
           s.resize(s.size() - 1);
         images[imageIndex].setEstimatedText(s);
+        std::cout << "input text: " << s << std::endl;
       }
       ocrfile.close();
     }
@@ -181,6 +187,61 @@ int readInEstimates(std::vector<img> &images, std::string path)
     cmd_ = "rm " + textname;
     if (system(cmd_.c_str()) != 0)
       std::cout << "Error occured while deleting textfile with results!" << std::endl;
+
+    // open file with rotated rect
+
+    textname = path.substr(0, path.find_last_of("/") + 1)
+        + images[imageIndex].img_name.substr(0, images[imageIndex].img_name.find_last_of(".")) + "r.txt";
+    ocrfile.open(textname.c_str());
+    if (!ocrfile)
+    {
+      std::cout << "#2 While opening read_text results file an error is encountered" << std::endl;
+      std::cout << "The image has to be in same folder as the .xml-file!" << std::endl;
+      return -1;
+    }
+
+    if (ocrfile.is_open())
+    {
+      for (int line = 0; !ocrfile.eof(); line++)
+      {
+        ocrfile >> input;
+        static int x, y, width, height, angle;
+
+        std::cout << "input: " << input << std::endl;
+
+        // every sixth line the structure repeats
+        if (line % 5 == 0)
+          x = atoi(input.c_str());
+        if (line % 5 == 1)
+          y = atoi(input.c_str());
+        if (line % 5 == 2)
+          width = atoi(input.c_str());
+        if (line % 5 == 3)
+        {
+          height = atoi(input.c_str());
+        }
+        if (line % 5 == 4)
+        {
+          angle = atoi(input.c_str());
+          cv::RotatedRect * r = new cv::RotatedRect(cv::Point2f(x, y), cv::Size(width, height), angle);
+          images[imageIndex].setEstimatedRect(*r);
+          std::cout << std::endl;
+        }
+      }
+      ocrfile.close();
+    }
+
+    // delete text file
+    cmd_ = "rm " + textname;
+    if (system(cmd_.c_str()) != 0)
+      std::cout << "Error occured while deleting textfile with results!" << std::endl;
+
+    std::vector<cv::Point> abc;
+    abc.push_back(cv::Point(0, 0));
+    abc.push_back(cv::Point(10, 0));
+    abc.push_back(cv::Point(0, 10));
+    std::cout << "contour: " << cv::contourArea(abc) << std::endl;
+
   }
   return 0;
 }
@@ -188,12 +249,12 @@ int readInEstimates(std::vector<img> &images, std::string path)
 void readInSolution(std::vector<img> &images, std::string filename)
 {
   //xml-labels
-  std::string label[] = {"<imageName>", "x=", "y=", "width=", "height=", "text="};
+  std::string label[] = {"<imageName>", "center_x=", "center_y=", "width=", "height=", "text=", "angle="};
   std::ifstream imgxml;
   imgxml.open(filename.c_str());
   if (imgxml.is_open())
   {
-    int x = 0, y = 0, width = 0, height = 0;
+    int x = 0, y = 0, width = 0, height = 0, angle = 0;
     std::string filename, text, output;
     while (!imgxml.eof())
     {
@@ -217,6 +278,8 @@ void readInSolution(std::vector<img> &images, std::string filename)
         width = cutout(label[3], output);
       if (cutout(label[4], output) != -1)
         height = cutout(label[4], output);
+      if (cutout(label[6], output) != -1)
+        angle = cutout(label[6], output);
 
       // label[5]: text= in xmlfile
       if (output.find(label[5]) != std::string::npos)
@@ -238,7 +301,8 @@ void readInSolution(std::vector<img> &images, std::string filename)
         else
           text.append(output.substr(output.find(label[5]) + label[5].length() + 1, output.length() - label[5].length()
               - 2));
-        cv::Rect * r = new cv::Rect(x, y, width, height);
+
+        cv::RotatedRect * r = new cv::RotatedRect(cv::Point2f(x, y), cv::Size(width, height), angle);
         images[img::count - 1].setRect(*r);
         images[img::count - 1].setText(text);
         text = "";
@@ -285,19 +349,22 @@ void showRects(std::vector<img> &images, std::string path)
       out << i;
       output = out.str();
 
-      cv::rectangle(Image_, cv::Point(images[imageIndex].correctRects[i].x, images[imageIndex].correctRects[i].y),
-                    cv::Point(images[imageIndex].correctRects[i].x + images[imageIndex].correctRects[i].width,
-                              images[imageIndex].correctRects[i].y + images[imageIndex].correctRects[i].height), green,
-                    1);
-      cv::putText(Image_, output, cv::Point(images[imageIndex].correctRects[i].x
-          + images[imageIndex].correctRects[i].width + 10, images[imageIndex].correctRects[i].y - 10),
-                  cv::FONT_HERSHEY_SIMPLEX, 0.75, green, 2, 8, false);
-      out << ": [ " << images[imageIndex].correctRects[i].x << " | " << images[imageIndex].correctRects[i].y << " | "
-          << images[imageIndex].correctRects[i].width << " | " << images[imageIndex].correctRects[i].height << " ]";
+      cv::Point2f vertices[4];
+      images[imageIndex].correctRects[i].points(vertices);
+      for (int j = 0; j < 4; j++)
+        cv::line(Image_, vertices[j], vertices[(j + 1) % 4], green);
+
+      cv::putText(Image_, output, cv::Point(images[imageIndex].correctRects[i].center.x + 0.5
+          * images[imageIndex].correctRects[i].size.width, images[imageIndex].correctRects[i].center.y - 0.5
+          * images[imageIndex].correctRects[i].size.height), cv::FONT_HERSHEY_SIMPLEX, 0.75, green, 2, 8, false);
+      out << ": [ " << images[imageIndex].correctRects[i].center.x << " | "
+          << images[imageIndex].correctRects[i].center.y << " | " << images[imageIndex].correctRects[i].size.width
+          << " | " << images[imageIndex].correctRects[i].size.height << " | "
+          << images[imageIndex].correctRects[i].angle << "]";
       output = out.str();
       cv::putText(Image_, output, cv::Point(OriginalImage_.cols + 5, 25 + 25 * (i + 1)), cv::FONT_HERSHEY_SIMPLEX, 0.5,
                   green, 1.5, 8, false);
-      cv::putText(Image_, images[imageIndex].correctTexts[i], cv::Point(OriginalImage_.cols + 250, 25 + 25 * (i + 1)),
+      cv::putText(Image_, images[imageIndex].correctTexts[i], cv::Point(OriginalImage_.cols + 300, 25 + 25 * (i + 1)),
                   cv::FONT_HERSHEY_SIMPLEX, 0.5, green, 1.5, 8, false);
 
       if (showWords)
@@ -318,23 +385,26 @@ void showRects(std::vector<img> &images, std::string path)
       out << i;
       output = out.str();
 
-      cv::rectangle(Image_, cv::Point(images[imageIndex].estimatedRects[i].x, images[imageIndex].estimatedRects[i].y),
-                    cv::Point(images[imageIndex].estimatedRects[i].x + images[imageIndex].estimatedRects[i].width,
-                              images[imageIndex].estimatedRects[i].y + images[imageIndex].estimatedRects[i].height),
-                    blue, 1);
-      cv::putText(Image_, output, cv::Point(images[imageIndex].estimatedRects[i].x
-          + images[imageIndex].estimatedRects[i].width, images[imageIndex].estimatedRects[i].y),
-                  cv::FONT_HERSHEY_SIMPLEX, 0.75, blue, 2, 8, false);
+      cv::Point2f vertices[4];
+      images[imageIndex].estimatedRects[i].points(vertices);
+      for (int j = 0; j < 4; j++)
+        cv::line(Image_, vertices[j], vertices[(j + 1) % 4], blue);
 
-      out << ": [ " << images[imageIndex].estimatedRects[i].x << " | " << images[imageIndex].estimatedRects[i].y
-          << " | " << images[imageIndex].estimatedRects[i].width << " | "
-          << images[imageIndex].estimatedRects[i].height << " ]";
+      cv::putText(Image_, output, cv::Point(images[imageIndex].estimatedRects[i].center.x + 0.5
+          * images[imageIndex].estimatedRects[i].size.width, images[imageIndex].estimatedRects[i].center.y - 0.5
+          * images[imageIndex].estimatedRects[i].size.height), cv::FONT_HERSHEY_SIMPLEX, 0.75, blue, 2, 8, false);
+      out << ": [ " << (int)images[imageIndex].estimatedRects[i].center.x << " | "
+          << (int)images[imageIndex].estimatedRects[i].center.y << " | "
+          << (int)images[imageIndex].estimatedRects[i].size.width << " | "
+          << (int)images[imageIndex].estimatedRects[i].size.height << " | "
+          << (int)images[imageIndex].estimatedRects[i].angle << "]";
+
       output = out.str();
       cv::putText(Image_, output, cv::Point(OriginalImage_.cols + 5, offset + 25 * (i + 1)), cv::FONT_HERSHEY_SIMPLEX,
                   0.5, blue, 1.5, 8, false);
       if (showWords)
         if (images[imageIndex].estimatedTexts.size() > i)
-          cv::putText(Image_, images[imageIndex].estimatedTexts[i], cv::Point(OriginalImage_.cols + 250, offset + 25
+          cv::putText(Image_, images[imageIndex].estimatedTexts[i], cv::Point(OriginalImage_.cols + 300, offset + 25
               * (i + 1)), cv::FONT_HERSHEY_SIMPLEX, 0.5, blue, 1.5, 8, false);
 
     }
@@ -433,17 +503,17 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
       for (unsigned int k = 0; k < images[imageIndex].correctRects.size(); k++)
       {
         // Calculate bestMatch: which one of the estimated rects has highest ratio: (intersection)/(min.possible box containing both rects)
-        float intersection = (images[imageIndex].estimatedRects[rectIndex] & images[imageIndex].correctRects[k]).area();
-        float minBox = (images[imageIndex].estimatedRects[rectIndex] | images[imageIndex].correctRects[k]).area();
-        float match = intersection / minBox;
-        if (match > bestMatch)
-        {
-          bestMatch = match;
-          bestK = k;
-        }
-
-        if (intersection / images[imageIndex].correctRects[k].area() == 1.0)
-          inside[k] = 1;
+        //                float intersection = (images[imageIndex].estimatedRects[rectIndex] & images[imageIndex].correctRects[k]).area();
+        //        float minBox = (images[imageIndex].estimatedRects[rectIndex] | images[imageIndex].correctRects[k]).area();
+        //        float match = intersection / minBox;
+        //        if (match > bestMatch)
+        //        {
+        //          bestMatch = match;
+        //          bestK = k;
+        //        }
+        //
+        //        if (intersection / images[imageIndex].correctRects[k].area() == 1.0)
+        //          inside[k] = 1;
       }
 
       // bestMatch for ocrImages[imageIndex].rects[rectIndex] and images[imageIndex].rects[bestK]
@@ -468,14 +538,14 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
 
       for (unsigned int k = 0; k < images[imageIndex].estimatedRects.size(); k++)
       {
-        float intersection = (images[imageIndex].estimatedRects[k] & images[imageIndex].correctRects[j]).area();
-        float minBox = (images[imageIndex].estimatedRects[k] | images[imageIndex].correctRects[j]).area();
-        float match = intersection / minBox;
-        if (match > bestMatch)
-        {
-          bestMatch = match;
-          bestK = k;
-        }
+        //        float intersection = (images[imageIndex].estimatedRects[k] & images[imageIndex].correctRects[j]).area();
+        //        float minBox = (images[imageIndex].estimatedRects[k] | images[imageIndex].correctRects[j]).area();
+        //        float match = intersection / minBox;
+        //        if (match > bestMatch)
+        //        {
+        //          bestMatch = match;
+        //          bestK = k;
+        //        }
       }
       // bestMatch for ocrImages[imageIndex].rects[bestK]
       allMatches += bestMatch;
@@ -652,8 +722,6 @@ int main(int argc, char **argv)
   }
 
   float alpha = 0.5;
-
-  std::cout << "test123" << std::endl;
 
   std::vector<img> images;
 
