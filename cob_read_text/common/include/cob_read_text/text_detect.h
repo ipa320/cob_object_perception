@@ -15,7 +15,6 @@
 #include <iostream>
 #include <fstream>
 
-
 class DetectText
 {
 public:
@@ -189,7 +188,8 @@ private:
 
   void ransacPipeline(std::vector<cv::Rect> & boundingBoxes);
 
-  std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransac(std::vector<connectedComponent> dataset);
+  std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > >
+  ransac(std::vector<connectedComponent> dataset);
 
   cv::Mat createBezierCurve(std::vector<cv::Point> & points, bool p);
 
@@ -295,6 +295,7 @@ private:
   std::vector<cv::Mat> transformedFlippedBoundingBoxes_;
   std::vector<cv::Mat> notTransformedBoundingBoxes_;
   std::vector<cv::Rect> finalBoundingBoxes_;
+  std::vector<cv::RotatedRect> finalRotatedBoundingBoxes_;
   double sigma_sharp, threshold_sharp, amount_sharp;
 
   // OCR
