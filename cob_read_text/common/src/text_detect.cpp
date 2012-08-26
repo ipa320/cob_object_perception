@@ -3249,8 +3249,7 @@ float DetectText::editDistanceFont(const std::string& word, const std::string& d
   if (dictionaryWordLength == 0)
     return wordLength;
 
-  std::vector<std::vector<float> > d;
-  d = std::vector<std::vector<float> >(wordLength + 1, std::vector<float>(dictionaryWordLength + 1));
+  std::vector<std::vector<float> > d(wordLength + 1, std::vector<float>(dictionaryWordLength + 1));
 
   for (int i = 0; i < wordLength + 1; i++)
     for (int j = 0; j < dictionaryWordLength + 1; j++)
@@ -3277,7 +3276,10 @@ float DetectText::editDistanceFont(const std::string& word, const std::string& d
         {
           int a = getCorrelationIndex(dictionaryWord.substr(j-1, 1));//dictionaryWord[j - 1]);
           int b = getCorrelationIndex(sc);
-          correlate = correlation_.at<float> (a, b);
+          if (a==-1 || b==-1)
+            correlate = 0;
+          else
+            correlate = correlation_.at<float> (a, b);
         }
         else
         {
@@ -3324,7 +3326,8 @@ int DetectText::getCorrelationIndex(std::string letter)
 //  {
 //    return letter - '0' + 52;
 //  }
-  std::cout << "illegal letter: " << letter << std::endl;
+
+//  std::cout << "illegal letter: " << letter << std::endl;
   // assert(false);
   return -1;
 }
@@ -3589,12 +3592,15 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
       cv::Rect newR(minX, minY, maxX - minX, maxY - minY);
 
       // form rotatedRect
-      std::cout << "point #1: " << model.at<float> (0, 2) << "|" << model.at<float> (1, 2) << std::endl;
-      std::cout << "point #2: " << model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2) << "|"
+      if (debug["showRansac"] == true)
+      {
+        std::cout << "point #1: " << model.at<float> (0, 2) << "|" << model.at<float> (1, 2) << std::endl;
+        std::cout << "point #2: " << model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2) << "|"
           << model.at<float> (1, 0) + model.at<float> (1, 1) + model.at<float> (1, 2) << std::endl;
-      std::cout << "point #3: " << 0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1)
+        std::cout << "point #3: " << 0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1)
           + model.at<float> (0, 2) << "|" << 0.25 * model.at<float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<
           float> (1, 2) << std::endl;
+      }
       std::vector<cv::Point> pointvector;
       pointvector.push_back(cv::Point(model.at<float> (0, 2), model.at<float> (1, 2)));
       pointvector.push_back(cv::Point(model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2),
@@ -3604,13 +3610,17 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
                                                                                                                     2)));
       cv::RotatedRect rr = cv::minAreaRect(pointvector);
 
-      cv::Mat img = originalImage_.clone();
 
+      cv::Mat img;
       cv::Point2f vertices[4];
-      rr.points(vertices);
-      for (int i = 0; i < 4; i++)
-        cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
-      cv::imshow("img", img);
+      if (debug["showRansac"] == true)
+      {
+        img = originalImage_.clone();
+        rr.points(vertices);
+        for (int i = 0; i < 4; i++)
+          cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
+        cv::imshow("img", img);
+      }
 
       h = biggestDistance;
       // change height and width of rotatedRect.
@@ -3626,14 +3636,15 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
         rr.size.width = 2 * h > l ? 2 * h : l;
       }
 
-      rr.points(vertices);
-      for (int i = 0; i < 4; i++)
-        cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
-      cv::imshow("img2", img);
-
-      std::cout << "rr.angle:" << rr.angle << std::endl;
-
-      cv::waitKey(0);
+      if (debug["showRansac"]==true)
+      {
+        rr.points(vertices);
+        for (int i = 0; i < 4; i++)
+          cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
+        cv::imshow("img2", img);
+        std::cout << "rr.angle:" << rr.angle << std::endl;
+        cv::waitKey(0);
+      }
 
       transformBezier(newR, model, rotatedBezier, minT, maxT);
 
