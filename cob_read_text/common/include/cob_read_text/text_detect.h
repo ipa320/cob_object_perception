@@ -19,6 +19,7 @@ class DetectText
 {
 public:
   DetectText();
+  DetectText(bool eval);
   ~DetectText();
 
   // API
@@ -33,7 +34,7 @@ public:
   // getters
   cv::Mat& getDetection();
   std::vector<std::string>& getWords();
-  std::vector<cv::Rect>& getBoxes();
+  std::vector<cv::RotatedRect>& getBoxes();
 
 private:
   // internal structures
@@ -180,9 +181,9 @@ private:
 
   float insertToList(std::vector<Word>& words, Word& word);
 
-  void showBoundingBoxes(std::vector<cv::Rect>& boxes, std::vector<std::string>& text);
+  void showBoundingBoxes(std::vector<cv::RotatedRect>& boxes, std::vector<std::string>& text);
 
-  void overlayText(std::vector<cv::Rect>& box, std::vector<std::string>& text);
+  void overlayText(std::vector<cv::RotatedRect>& box, std::vector<std::string>& text);
 
   void writeTxtsForEval();
 
@@ -291,28 +292,33 @@ private:
 
   // OCR Preprocess
   unsigned int fontColorIndex_;
-  std::vector<cv::Mat> transformedBoundingBoxes_; // all boundingBoxes, rotated and transformed based on found bezier curve
-  std::vector<cv::Mat> transformedFlippedBoundingBoxes_;
-  std::vector<cv::Mat> notTransformedBoundingBoxes_;
+  std::vector<cv::Mat> transformedImage_; // all boundingBoxes, rotated and transformed based on found bezier curve
+  std::vector<cv::Mat> transformedFlippedImage_;
+  std::vector<cv::Mat> notTransformedImage_;
+
   std::vector<cv::Rect> finalBoundingBoxes_;
   std::vector<cv::RotatedRect> finalRotatedBoundingBoxes_;
+
   double sigma_sharp, threshold_sharp, amount_sharp;
 
   // OCR
   int result_;
   std::vector<cv::Mat> textImages_;
-  std::vector<cv::Rect> finalBoxes_;
+  std::vector<cv::RotatedRect> finalBoxes_;
   std::vector<std::string> finalTexts_;
   std::vector<float> finalScores_;
 
   // Debug etc.
   std::map<std::string, bool> debug;
-  bool eval; //true=evaluation (read_evaluation) false=standard
+  bool eval_; //true=evaluation (read_evaluation) false=standard
 
   // Not used but useful variables:
   Mode mode_; // streaming from topic or reading image file
 
   // Parameters given by yaml
+  // --- transform ---
+  bool transformImages;
+
   // --- preprocess ---
   bool smoothImage; // default: false, smoothing leads to merging of letters within small texts (that is bad)
   int maxStrokeWidthParameter; // default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50

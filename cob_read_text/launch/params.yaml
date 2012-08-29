@@ -1,9 +1,9 @@
-# evaluation
+#transform
 # ----------
 
-# true, if text_detect is called via read_evaluation (calculates recall and precision for image sets based on ground truth .xml)
+# default: true, use bezier-transformed images or normal rectangles around bezier lines
 # bool
-eval: true 
+transformImages:  true
 
 
 #preprocess
@@ -159,7 +159,7 @@ threshold_sharp: 3.0
 
 # magnitude, how much contrast is added at the edges when sharpening, default: 1.0
 # double
-amount_sharp: 1.0 
+amount_sharp: 1.5
 
 
 # ocr
@@ -215,7 +215,7 @@ showNeighborMerging: false
 
 # show results with ocr
 # bool
-showResult: true
+showResult: false
 
 # when showing results show all image regions that probably contain text, even if ocr didn't find text
 # bool
