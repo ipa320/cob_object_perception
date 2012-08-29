@@ -70,7 +70,11 @@
 
 DetectText::DetectText()
 {
+}
 
+DetectText::DetectText(bool eval)
+{
+  eval_ = eval;
 }
 
 DetectText::~DetectText()
@@ -106,10 +110,10 @@ void DetectText::readLetterCorrelation(const char* file)
   std::cout << std::endl;
   std::cout << "Correlation:" << file << std::endl;
   std::ifstream fin(file);
-  correlation_ = cv::Mat(62, 62, CV_32F, cv::Scalar(0));
+  correlation_ = cv::Mat(256, 256, CV_32F, cv::Scalar(0));
   float number;
-  for (int i = 0; i < 62; i++)
-    for (int j = 0; j < 62; j++)
+  for (int i = 0; i < 256; i++)
+    for (int j = 0; j < 256; j++)
     {
       assert(fin >> number);
       correlation_.at<float> (i, j) = number;
@@ -137,7 +141,7 @@ std::vector<std::string>& DetectText::getWords()
   return finalTexts_;
 }
 
-std::vector<cv::Rect>& DetectText::getBoxes()
+std::vector<cv::RotatedRect>& DetectText::getBoxes()
 {
   return finalBoxes_;
 }
@@ -168,8 +172,7 @@ void DetectText::detect()
   firstPass_ = false;
   pipeline(-1);
 
-  std::cout << std::endl << "Found " << transformedBoundingBoxes_.size() << " boundingBoxes for OCR." << std::endl
-      << std::endl;
+  std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
   // OCR
   //  ocrPreprocess(transformedBoundingBoxes_);
@@ -178,18 +181,23 @@ void DetectText::detect()
   // delete boxes that are complete inside other boxes
   //deleteDoubleBrokenWords(boundingBoxes_);
 
-  for (size_t i = 0; i < transformedBoundingBoxes_.size(); i++)
+
+  // fill textImages_ with either rectangles or rotated rectangles
+  for (size_t i = 0; i < transformedImage_.size(); i++)
   {
-    cv::Mat rotatedFlippedBox;
-    cv::flip(transformedBoundingBoxes_[i], rotatedFlippedBox, -1);
+    if (transformImages)
+    {
+      cv::Mat rotatedFlippedBox;
+      cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
+      textImages_.push_back(sharpenImage(transformedImage_[i]));
+      textImages_.push_back(sharpenImage(rotatedFlippedBox));
+    }
+    else
+    {
+      textImages_.push_back(sharpenImage(notTransformedImage_[i]));
+    }
 
-    // testing tesseract..
-    // give tesseract 1) the original image, 2) the bezier-transformed image, 3) the flipped bezier-transformed image (180° upside down)
-    textImages_.push_back(sharpenImage(notTransformedBoundingBoxes_[i]));
-    textImages_.push_back(sharpenImage(transformedBoundingBoxes_[i]));
-    textImages_.push_back(sharpenImage(rotatedFlippedBox));
-
-    // sometimes tesseract likes gray images, sometimes not
+    // sometimes tesseract likes gray images
     //    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
     //    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
     // textImages_.push_back(sharpenImage(grayImage));
@@ -198,15 +206,16 @@ void DetectText::detect()
     // textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
 
     // binary image #2
-    //textImage_.push_back(colorBackgroundBinary(cv::Mat, BRIGHT, ccapBright_(cv::Rect)));
   }
 
   ocrRead(textImages_);
   // Draw output on resultImage_
   showBoundingBoxes(finalBoxes_, finalTexts_);
 
+  std::cout << "eval_: " << eval_ << std::endl;
+
   // Write results
-  if (eval)
+  if (eval_)
     writeTxtsForEval();
   else
     cv::imwrite(outputPrefix_ + "_detection.jpg", resultImage_);
@@ -318,19 +327,21 @@ void DetectText::pipeline(int blackWhite)
   //  std::cout << "[" << time_in_seconds << " s] in breakLines: " << boundingBoxes.size()
   //      << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
 
+
   start_time = clock();
   ransacPipeline(boundingBoxes);
   time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 
   if (firstPass_)
   {
-    std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedBoundingBoxes_.size()
+    std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size()
         << " boundingBoxes remain" << std::endl;
-    fontColorIndex_ = transformedBoundingBoxes_.size();
+    fontColorIndex_ = transformedImage_.size();
   }
   else
-    std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedBoundingBoxes_.size()
-        - fontColorIndex_ << " boundingBoxes remain" << std::endl;
+    std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() - fontColorIndex_
+        << " boundingBoxes remain" << std::endl;
+
 }
 
 void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int searchDirection)
@@ -2615,7 +2626,7 @@ void DetectText::rotate()
 
 cv::Mat DetectText::colorBackgroundBinary(cv::Mat & m, FontColor f, cv::Mat cc)
 {
-  bool erodeDilate = true;
+  bool erodeDilate = false;
   cv::Mat clonedMat = m.clone();
 
   bgr white(255, 255, 255), black(0, 0, 0);
@@ -2685,6 +2696,7 @@ cv::Mat DetectText::sharpenImage(cv::Mat input)
 {
   cv::Mat blurred;
   cv::GaussianBlur(input, blurred, cv::Size(), sigma_sharp, sigma_sharp);
+
   cv::Mat lowContrastMask = cv::abs(input - blurred) < threshold_sharp;
   cv::Mat sharpened = input * (1 + amount_sharp) + blurred * (-amount_sharp);
   input.copyTo(sharpened, lowContrastMask);
@@ -2906,39 +2918,51 @@ DetectText::bgr DetectText::findBorderColor(cv::Rect r, FontColor f)
 
 void DetectText::ocrRead(std::vector<cv::Mat> textImages)
 {
-  int imageVersions = 3;
+  int imageVersions; // in case transformed images are used, there is a 180 degrees flipped version
+  if (transformImages)
+    imageVersions = 2;
+  else
+    imageVersions = 1;
+
   std::vector<float> score;
   std::vector<std::string> result;
   for (size_t i = 0; i < textImages.size(); i++)
   {
+    cv::imshow("roar", textImages[i]);
+    cv::waitKey(0);
+
     std::string res;
     score.push_back(ocrRead(textImages[i], res));
     result.push_back(res);
 
-    if ((i + 1) % imageVersions == 0) // use normal, transformed and flipped-transformed image
+    if ((i + 1) % imageVersions != 0) // collect all different version results before comparing
+      continue;
+
+    int smallestElement = i;
+    if (transformImages)
+      if (score[i - 1] < score[i])
+        smallestElement = i - 1;
+
+    if (score[smallestElement] < 100) // if anything was found in the ocr software
     {
-      score[score.size() - 1] *= 1.5;
+      finalTexts_.push_back(result[smallestElement]);
+      finalScores_.push_back(score[smallestElement]);
 
-      int smallestElement = i - 2;
-      for (unsigned int j = i - 1; j < i + 1; j++)
-        if (score[j] < score[smallestElement])
-          smallestElement = j;
+      if (transformImages)
+        finalBoxes_.push_back(finalRotatedBoundingBoxes_[(std::floor(smallestElement / (float)2))]);
+      else
+        finalBoxes_.push_back(finalRotatedBoundingBoxes_[smallestElement]);
 
-      if (score[smallestElement] < 100) // if anything was found in the ocr software
-      {
-        finalTexts_.push_back(result[smallestElement]);
-        finalBoxes_.push_back(finalBoundingBoxes_[(std::floor(smallestElement / (float)3))]);
-        finalScores_.push_back(score[smallestElement]);
-      }
-      else if (debug["showAllBoxes"])
-      {
-        finalTexts_.push_back("---");
-        finalBoxes_.push_back(finalBoundingBoxes_[(std::floor(smallestElement / (float)3))]);
-        finalScores_.push_back(score[smallestElement]);
-      }
-
-      std::cout << "size of finalTexts_:" << finalTexts_.size() << std::endl << "-------------------" << std::endl;
     }
+    //      else if(debug["showAllBoxes"])
+    //      {
+    //        finalTexts_.push_back("---");
+    //        finalBoxes_.push_back(finalBoundingBoxes_[(std::floor(smallestElement / (float)3))]);
+    //        finalScores_.push_back(score[smallestElement]);
+    //      }
+
+    std::cout << "size of finalTexts_:" << finalTexts_.size() << std::endl << "-------------------" << std::endl;
+    std::cout << "size of finalBoxes_:" << finalBoxes_.size() << std::endl << "-------------------" << std::endl;
   }
 }
 
@@ -2946,7 +2970,6 @@ float DetectText::ocrRead(const cv::Mat& image, std::string& output)
 {
   float score = 0;
   cv::imwrite("patch.tiff", image);
-  cv::imshow("patch.tiff", image);
 
   int result;
 
@@ -2960,10 +2983,10 @@ float DetectText::ocrRead(const cv::Mat& image, std::string& output)
   int loopCount = 0;
   while (fin >> str)
   {
-    // std::cout << str << " ";
+    std::cout << str << " ";
     std::string tempOutput;
     score += spellCheck(str, tempOutput, 2);
-    // std::cout << " -->  \"" << tempOutput.substr(0, tempOutput.length() - 1) << "\" , score: " << score << std::endl;
+    std::cout << " -->  \"" << tempOutput.substr(0, tempOutput.length() - 1) << "\" , score: " << score << std::endl;
     output += tempOutput;
     loopCount++;
   }
@@ -3154,6 +3177,8 @@ void DetectText::getTopkWords(const std::string& str, const int k, std::vector<W
       score = editDistanceFont(str, wordList_[i]); //compare every word in dictionary, score=0 -> perfect
     else
       score = editDistance(str, wordList_[i]); //compare every word in dictionary, score=0 -> perfect
+
+
     if (score < lowestScore)
     {
       Word w = Word(wordList_[i], score);
@@ -3265,17 +3290,17 @@ float DetectText::editDistanceFont(const std::string& word, const std::string& d
   for (int i = 1; i < wordLength + 1; i++)
   {
     //char sc = word[i - 1];
-	std::string sc = word.substr(i-1, 1);
+    std::string sc = word.substr(i - 1, 1);
     for (int j = 1; j < dictionaryWordLength + 1; j++)
     {
       float v = d[i - 1][j - 1];
       //if ((dictionaryWord[j - 1] != sc))
-      if ((dictionaryWord.substr(j-1, 1).compare(sc) != 0))
+      if ((dictionaryWord.substr(j - 1, 1).compare(sc) != 0))
       {
         float correlate;
         if (sc.compare("-") != 0)
         {
-          int a = getCorrelationIndex(dictionaryWord.substr(j-1, 1));//dictionaryWord[j - 1]);
+          int a = getCorrelationIndex(dictionaryWord.substr(j - 1, 1));//dictionaryWord[j - 1]);
           int b = getCorrelationIndex(sc);
           correlate = correlation_.at<float> (a, b);
         }
@@ -3289,41 +3314,42 @@ float DetectText::editDistanceFont(const std::string& word, const std::string& d
     }
   }
   float result = d[wordLength][dictionaryWordLength];
+
   return result;
 }
 
 int DetectText::getCorrelationIndex(std::string letter)
 {
   // get index in correlation matrix for given char
-  if (letter[0]>0)
-	return (int)letter[0];
+  if (letter[0] > 0)
+    return (int)letter[0];
   else if (letter.compare("ö") == 0)
-	  return 246;
+    return 246;
   else if (letter.compare("Ö") == 0)
-	  return 214;
+    return 214;
   else if (letter.compare("ü") == 0)
-	  return 252;
+    return 252;
   else if (letter.compare("Ü") == 0)
-	  return 220;
+    return 220;
   else if (letter.compare("ä") == 0)
-	  return 228;
+    return 228;
   else if (letter.compare("Ä") == 0)
-	  return 196;
+    return 196;
   else if (letter.compare("ß") == 0)
-	  return 223;
+    return 223;
 
-//  if (std::islower(letter))
-//  {
-//    return letter - 'a';
-//  }
-//  else if (std::isupper(letter))
-//  {
-//    return letter - 'A' + 26;
-//  }
-//  else if (std::isdigit(letter))
-//  {
-//    return letter - '0' + 52;
-//  }
+  //  if (std::islower(letter))
+  //  {
+  //    return letter - 'a';
+  //  }
+  //  else if (std::isupper(letter))
+  //  {
+  //    return letter - 'A' + 26;
+  //  }
+  //  else if (std::isdigit(letter))
+  //  {
+  //    return letter - '0' + 52;
+  //  }
   std::cout << "illegal letter: " << letter << std::endl;
   // assert(false);
   return -1;
@@ -3354,22 +3380,27 @@ float DetectText::insertToList(std::vector<Word>& words, Word& word) // for exam
   return words[words.size() - 1].score; // return last score
 }
 
-void DetectText::showBoundingBoxes(std::vector<cv::Rect>& boundingBoxes, std::vector<std::string>& text)
+void DetectText::showBoundingBoxes(std::vector<cv::RotatedRect>& boundingBoxes, std::vector<std::string>& text)
 {
   for (size_t i = 0; i < boundingBoxes.size(); i++)
   {
     cv::Scalar scalar((25 * i + 100) % 255, (35 * (i + 1) + 100) % 255, (45 * (i + 2) + 100) % 255);
-    cv::Rect *rect = &boundingBoxes[i];
-    cv::rectangle(resultImage_, cv::Point(rect->x, rect->y), cv::Point(rect->x + rect->width, rect->y + rect->height),
-                  scalar, 1);
+    cv::RotatedRect *rect = &boundingBoxes[i];
+    cv::Point2f vertices[4];
+    rect->points(vertices);
+    for (int i = 0; i < 4; i++)
+      cv::line(resultImage_, vertices[i], vertices[(i + 1) % 4], scalar);
+    //    cv::rectangle(resultImage_, cv::Point(rect->x, rect->y), cv::Point(rect->x + rect->width, rect->y + rect->height),
+    //                  scalar, 1);
+
   }
   overlayText(boundingBoxes, text);
 }
 
-void DetectText::overlayText(std::vector<cv::Rect>& box, std::vector<std::string>& text)
+void DetectText::overlayText(std::vector<cv::RotatedRect>& box, std::vector<std::string>& text)
 {
   int textDisplayOffset = 1;
-  assert(box.size() == text.size());
+  // assert(box.size() == text.size());
   size_t lineWidth = 25;
   int indent = 50;
   int count = 0;
@@ -3388,8 +3419,8 @@ void DetectText::overlayText(std::vector<cv::Rect>& box, std::vector<std::string
     count++;
     std::string prefix = "[";
     prefix = prefix + out.str() + "]";
-    cv::putText(resultImage_, prefix, cv::Point(box[i].x + box[i].width, box[i].y + box[i].height),
-                cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
+    cv::putText(resultImage_, prefix, cv::Point(box[i].center.x + 0.5 * box[i].size.width, box[i].center.y - 0.5
+        * box[i].size.height), cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
     cv::putText(resultImage_, prefix, cv::Point(grayImage_.cols, textDisplayOffset * 35), cv::FONT_HERSHEY_DUPLEX, 1,
                 color, 1);
     while (output.length() > lineWidth)
@@ -3445,7 +3476,7 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 
   for (unsigned int boxIndex = 0; boxIndex < boundingBoxes.size(); boxIndex++)
   {
-//    cv::Mat output = originalImage_.clone();
+    //    cv::Mat output = originalImage_.clone();
 
     cv::Rect r = boundingBoxes[boxIndex];
 
@@ -3455,7 +3486,7 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
     // calculate height and width of transformed image
     for (unsigned int i = 0; i < ransacSet.size(); i++)
     {
-      cv::Mat model = createBezierCurve(ransacSet[i].second, debug["showBezier"]);	// todo: parameter showBezier
+      cv::Mat model = createBezierCurve(ransacSet[i].second, debug["showBezier"]); // todo: parameter showBezier
 
       float biggestDistance = 0; // -> height of transformed image
       float minDistance = 1e5;
@@ -3561,7 +3592,7 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
       }
 
       float h = biggestDistance + 2; // 2*2 pixel padding
-      float l = getBezierLength(model, minT, maxT);
+      float l = getBezierLength(model, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
 
       cv::Mat rotatedBezier(h * 2, l, CV_8UC3, cv::Scalar(255, 255, 255));
 
@@ -3589,12 +3620,6 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
       cv::Rect newR(minX, minY, maxX - minX, maxY - minY);
 
       // form rotatedRect
-      std::cout << "point #1: " << model.at<float> (0, 2) << "|" << model.at<float> (1, 2) << std::endl;
-      std::cout << "point #2: " << model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2) << "|"
-          << model.at<float> (1, 0) + model.at<float> (1, 1) + model.at<float> (1, 2) << std::endl;
-      std::cout << "point #3: " << 0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1)
-          + model.at<float> (0, 2) << "|" << 0.25 * model.at<float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<
-          float> (1, 2) << std::endl;
       std::vector<cv::Point> pointvector;
       pointvector.push_back(cv::Point(model.at<float> (0, 2), model.at<float> (1, 2)));
       pointvector.push_back(cv::Point(model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2),
@@ -3610,7 +3635,7 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
       rr.points(vertices);
       for (int i = 0; i < 4; i++)
         cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
-      cv::imshow("img", img);
+     // cv::imshow("img", img);
 
       h = biggestDistance;
       // change height and width of rotatedRect.
@@ -3631,14 +3656,14 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
         cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
       cv::imshow("img2", img);
 
-      std::cout << "rr.angle:" << rr.angle << std::endl;
+      //std::cout << "rr.angle:" << rr.angle << std::endl;
 
       cv::waitKey(0);
 
-      transformBezier(newR, model, rotatedBezier, minT, maxT);
+      transformBezier(newR, model, rotatedBezier, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
 
-      transformedBoundingBoxes_.push_back(rotatedBezier);
-      notTransformedBoundingBoxes_.push_back(originalImage_(newR));
+      transformedImage_.push_back(rotatedBezier);
+      notTransformedImage_.push_back(originalImage_(newR));
 
       finalBoundingBoxes_.push_back(newR);
       finalRotatedBoundingBoxes_.push_back(rr);
@@ -3693,7 +3718,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       std::cout << "-----------------------" << std::endl << std::endl;
       for (unsigned int i = 0; i < dataset.size(); i++)
       {
-    	output = originalImage_.clone();
+        output = originalImage_.clone();
         cv::rectangle(output, cv::Rect(dataset[i].middlePoint.x, dataset[i].middlePoint.y, 1, 1), cv::Scalar(255, 255,
                                                                                                              255), 2,
                       1, 0);
@@ -3760,25 +3785,26 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       }
 
       // Bending of curve -> angle difference
-//      float angleA = std::atan2(actualRandomPointSet[1].y - actualRandomPointSet[0].y, actualRandomPointSet[1].x
-//          - actualRandomPointSet[0].x) * (180.0 / 3.14159265);
-//
-//      float angleB = std::atan2(actualRandomPointSet[2].y - actualRandomPointSet[1].y, actualRandomPointSet[2].x
-//          - actualRandomPointSet[1].x) * (180.0 / 3.14159265);
-//
-//      float angleDifference = std::abs(angleA - angleB);
-//      if (angleDifference > 180)
-//        angleDifference = 360 - angleDifference;
-      double dx1 = actualRandomPointSet[1].x-actualRandomPointSet[0].x;
-      double dy1 = actualRandomPointSet[1].y-actualRandomPointSet[0].y;
-      double dx2 = actualRandomPointSet[2].x-actualRandomPointSet[1].x;
-      double dy2 = actualRandomPointSet[2].y-actualRandomPointSet[1].y;
-      float angleDifference = (180.0 / 3.14159265) * std::abs(acos((dx1*dx2 + dy1*dy2) / (sqrt( (dx1*dx1+dy1*dy1) * (dx2*dx2+dy2*dy2) ))));
+      //      float angleA = std::atan2(actualRandomPointSet[1].y - actualRandomPointSet[0].y, actualRandomPointSet[1].x
+      //          - actualRandomPointSet[0].x) * (180.0 / 3.14159265);
+      //
+      //      float angleB = std::atan2(actualRandomPointSet[2].y - actualRandomPointSet[1].y, actualRandomPointSet[2].x
+      //          - actualRandomPointSet[1].x) * (180.0 / 3.14159265);
+      //
+      //      float angleDifference = std::abs(angleA - angleB);
+      //      if (angleDifference > 180)
+      //        angleDifference = 360 - angleDifference;
+      double dx1 = actualRandomPointSet[1].x - actualRandomPointSet[0].x;
+      double dy1 = actualRandomPointSet[1].y - actualRandomPointSet[0].y;
+      double dx2 = actualRandomPointSet[2].x - actualRandomPointSet[1].x;
+      double dy2 = actualRandomPointSet[2].y - actualRandomPointSet[1].y;
+      float angleDifference = (180.0 / 3.14159265) * std::abs(acos((dx1 * dx2 + dy1 * dy2) / (sqrt((dx1 * dx1 + dy1
+          * dy1) * (dx2 * dx2 + dy2 * dy2)))));
 
       // draw chosen points
       if (debug["showBezier"])
       {
-    	output2 = output.clone();
+        output2 = output.clone();
         std::cout << std::endl << "Model #" << i << std::endl;
         std::cout << "Curve: " << std::endl;
         std::cout << "[ " << curve.at<float> (0, 0) << " " << curve.at<float> (0, 1) << " " << curve.at<float> (0, 2)
@@ -3789,7 +3815,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
         std::cout << actualRandomPointSet[0].x << "|" << actualRandomPointSet[0].y << ", " << actualRandomPointSet[1].x
             << "|" << actualRandomPointSet[1].y << ", " << actualRandomPointSet[2].x << "|"
             << actualRandomPointSet[2].y << std::endl;
-//        std::cout << "angleA: " << angleA << ", angleB: " << angleB << std::endl;
+        //        std::cout << "angleA: " << angleA << ", angleB: " << angleB << std::endl;
         std::cout << "|angleA-angleB| = " << angleDifference << std::endl;
         for (unsigned int j = 0; j < actualRandomSet.size(); j++)
           cv::rectangle(output2, cv::Rect(dataset[actualRandomSet[j]].middlePoint.x,
@@ -3836,7 +3862,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       {
         std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[datasetIndex].middlePoint);
         // todo: why count distance of all points, not just inliers?
-//        distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
+        //        distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
         if (distanceTs.first < maxDistance) // is the point near enough?
         {
           distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
@@ -3879,8 +3905,8 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       score += 100.f / (distance + 1);
 
       // 3) How strong is the bending of the curve
-//      score += 300 / (angleDifference + 1);		// todo: wrong
-      score += 100.f * ((180.f-angleDifference) / 180.f);
+      //      score += 300 / (angleDifference + 1);		// todo: wrong
+      score += 100.f * ((180.f - angleDifference) / 180.f);
 
       if (score > highestScore && angleDifference < bendParameter && goodPoints.size() >= 3)
       {
@@ -4016,7 +4042,7 @@ cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool show
 
   cv::Mat output = originalImage_.clone();
 
-  cv::Mat R = (cv::Mat_<float>(2, 3) << points[0].x, points[1].x, points[2].x, points[0].y, points[1].y, points[2].y);	// todo: create R not before correct order is known
+  cv::Mat R = (cv::Mat_<float>(2, 3) << points[0].x, points[1].x, points[2].x, points[0].y, points[1].y, points[2].y); // todo: create R not before correct order is known
 
   // 1.) compute distances of all 3 points and position them into right order,
   // i.e. the points with largest distance go to position 1 and 3
@@ -4695,7 +4721,7 @@ unsigned int DetectText::calculateRealLetterHeight(cv::Point2f p, cv::Rect r, cv
 
 void DetectText::setParams(ros::NodeHandle & nh)
 {
-  nh.getParam("eval", this->eval);
+  nh.getParam("transformImages", this->transformImages);
   nh.getParam("smoothImage", this->smoothImage);
   nh.getParam("maxStrokeWidthParameter", this->maxStrokeWidthParameter);
   nh.getParam("useColorEdge", this->useColorEdge);
@@ -4724,7 +4750,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
   nh.getParam("distanceParameter", this->distanceParameter);
   nh.getParam("sigma_sharp", this->sigma_sharp);
   nh.getParam("threshold_sharp", this->threshold_sharp);
-  nh.getParam("amount_Sharp", this->amount_sharp);
+  nh.getParam("amount_sharp", this->amount_sharp);
   nh.getParam("result_", this->result_);
   nh.getParam("showEdge", this->debug["showEdge"]);
   nh.getParam("showSWT", this->debug["showSWT"]);
@@ -4738,7 +4764,6 @@ void DetectText::setParams(ros::NodeHandle & nh)
   nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
   nh.getParam("showResult", this->debug["showResult"]);
 
-  std::cout << "eval:" << eval << std::endl;
   std::cout << "smoothImage:" << smoothImage << std::endl;
   std::cout << "maxStrokeWidthParameter:" << maxStrokeWidthParameter << std::endl;
   std::cout << "useColorEdge:" << useColorEdge << std::endl;

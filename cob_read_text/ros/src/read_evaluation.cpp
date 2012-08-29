@@ -17,7 +17,6 @@
 
 #include <cob_read_text/text_detect.h>
 
-
 // computes the area of the minimum bounding box (possibly rotated) of two rotated rectangles
 double rotatedRectangleMinBox(const cv::RotatedRect& rect1, const cv::RotatedRect& rect2);
 
@@ -25,17 +24,22 @@ double rotatedRectangleMinBox(const cv::RotatedRect& rect1, const cv::RotatedRec
 double rotatedRectangleIntersection(const cv::RotatedRect& rect1, const cv::RotatedRect& rect2);
 
 // process one rectangle for rotated rectangle intersection (search for inner points of rect1 in rect2 and intersections, i.e. clip rect1 with rect2)
-void rotatedRectangleIntersectionOneWay(const std::vector<cv::Point2f>& vertices1, const std::vector<cv::Point2f>& vertices2, const std::vector<cv::Point2f>& lines1, const std::vector<cv::Point2f>& lines2, std::vector<cv::Point2f>& intersectionContour);
+void rotatedRectangleIntersectionOneWay(const std::vector<cv::Point2f>& vertices1,
+                                        const std::vector<cv::Point2f>& vertices2,
+                                        const std::vector<cv::Point2f>& lines1, const std::vector<cv::Point2f>& lines2,
+                                        std::vector<cv::Point2f>& intersectionContour);
 
 // adds a point to the list of points if it is not already contained in the list
 void addContourPoint(const cv::Point2f& point, std::vector<cv::Point2f>& contour);
 
 // determines whether point is an inner point of the given rectangle (= one corner as origin and two vectors representing the sides pointing away from the origin)
-bool isInnerPoint(const cv::Point2f& rectangleOrigin, const cv::Point2f& rectangleVectorX, const cv::Point2f& rectangleVectorY, const cv::Point2f& point);
+bool isInnerPoint(const cv::Point2f& rectangleOrigin, const cv::Point2f& rectangleVectorX,
+                  const cv::Point2f& rectangleVectorY, const cv::Point2f& point);
 
 // determines whether two line segments intersect and provides the intersection point if available
-bool lineSegmentIntersection(const cv::Point2f& basePoint1, const cv::Point2f& lineSegmentVector1, const cv::Point2f& basePoint2, const cv::Point2f& lineSegmentVector2, cv::Point2f& intersectionPoint);
-
+bool lineSegmentIntersection(const cv::Point2f& basePoint1, const cv::Point2f& lineSegmentVector1,
+                             const cv::Point2f& basePoint2, const cv::Point2f& lineSegmentVector2,
+                             cv::Point2f& intersectionPoint);
 
 class img
 {
@@ -122,12 +126,15 @@ int readInEstimates(std::vector<img> &images, std::string path)
     std::string imgpath = path.substr(0, path.find_last_of("/") + 1);
     imgpath.append(images[imageIndex].img_name);
     std::string cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " "
-        + ros::package::getPath("cob_read_text_data") + "/fonts/correlation.txt "
+        + ros::package::getPath("cob_read_text_data") + "/fonts/new_correlation.txt "
         + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
+
+    cmd_.append(" eval");
+
+    std::cout << "cmd_: " << cmd_ << std::endl;
 
     if (system(cmd_.c_str()) != 0)
       std::cout << "Error occurred while running text_detect" << std::endl;
-    ;
 
     // get read_text results
     std::ifstream ocrfile;
@@ -525,20 +532,22 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
       {
         // Calculate bestMatch: which one of the estimated rects has highest ratio: (intersection)/(min.possible box containing both rects)
 
-    	// for upright rectangle
-    	//        float intersection = (images[imageIndex].estimatedRects[rectIndex] & images[imageIndex].correctRects[k]).area();
+        // for upright rectangle
+        //        float intersection = (images[imageIndex].estimatedRects[rectIndex] & images[imageIndex].correctRects[k]).area();
         //        float minBox = (images[imageIndex].estimatedRects[rectIndex] | images[imageIndex].correctRects[k]).area();
 
-    	// for rotated rectangle
-    	float intersection = rotatedRectangleIntersection(images[imageIndex].estimatedRects[rectIndex], images[imageIndex].correctRects[k]);
-    	float minBox = rotatedRectangleMinBox(images[imageIndex].estimatedRects[rectIndex], images[imageIndex].correctRects[k]);
+        // for rotated rectangle
+        float intersection = rotatedRectangleIntersection(images[imageIndex].estimatedRects[rectIndex],
+                                                          images[imageIndex].correctRects[k]);
+        float minBox = rotatedRectangleMinBox(images[imageIndex].estimatedRects[rectIndex],
+                                              images[imageIndex].correctRects[k]);
 
         float match = intersection / minBox;
-		if (match > bestMatch)
-		{
-		  bestMatch = match;
-		  bestK = k;
-		}
+        if (match > bestMatch)
+        {
+          bestMatch = match;
+          bestK = k;
+        }
         //
         //        if (intersection / images[imageIndex].correctRects[k].area() == 1.0)
         //          inside[k] = 1;
@@ -552,7 +561,7 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
     if (numberEstimatedRects > 0)
       precision = allMatches / numberEstimatedRects;
     else
-      precision = 1.f;		// todo: makes sense?
+      precision = 1.f; // todo: makes sense?
     images[imageIndex].precision = precision;
 
     allMatches = 0;
@@ -566,20 +575,21 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
 
       for (unsigned int k = 0; k < images[imageIndex].estimatedRects.size(); k++)
       {
-    	// for upright rectangle
-    	//        float intersection = (images[imageIndex].estimatedRects[k] & images[imageIndex].correctRects[j]).area();
+        // for upright rectangle
+        //        float intersection = (images[imageIndex].estimatedRects[k] & images[imageIndex].correctRects[j]).area();
         //        float minBox = (images[imageIndex].estimatedRects[k] | images[imageIndex].correctRects[j]).area();
 
-    	// for rotated rectangle
-      	float intersection = rotatedRectangleIntersection(images[imageIndex].estimatedRects[k], images[imageIndex].correctRects[j]);
-      	float minBox = rotatedRectangleMinBox(images[imageIndex].estimatedRects[k], images[imageIndex].correctRects[j]);
+        // for rotated rectangle
+        float intersection = rotatedRectangleIntersection(images[imageIndex].estimatedRects[k],
+                                                          images[imageIndex].correctRects[j]);
+        float minBox = rotatedRectangleMinBox(images[imageIndex].estimatedRects[k], images[imageIndex].correctRects[j]);
 
-		float match = intersection / minBox;
-		if (match > bestMatch)
-		{
-		  bestMatch = match;
-		  bestK = k;
-		}
+        float match = intersection / minBox;
+        if (match > bestMatch)
+        {
+          bestMatch = match;
+          bestK = k;
+        }
       }
       // bestMatch for ocrImages[imageIndex].rects[bestK]
       allMatches += bestMatch;
@@ -588,7 +598,7 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
     if (numberCorrectRects > 0)
       recall = allMatches / numberCorrectRects;
     else
-      recall = 1.f;		// do not punish the algorithm on text-free images
+      recall = 1.f; // do not punish the algorithm on text-free images
 
     images[imageIndex].recall = recall;
 
@@ -600,212 +610,217 @@ void calculateBoxResults(std::vector<img> &images, std::string path, float alpha
 
 double rotatedRectangleMinBox(const cv::RotatedRect& rect1, const cv::RotatedRect& rect2)
 {
-	// compute corners of rotated rectangles
-	std::vector<cv::Point2f> vertices(8);
-	cv::Point2f v1[4], v2[4];
-	rect1.points(v1);
-	rect2.points(v2);
-	for (int i=0; i<4; i++)
-	{
-		vertices[i] = v1[i];
-		vertices[4+i] = v2[i];
-	}
+  // compute corners of rotated rectangles
+  std::vector<cv::Point2f> vertices(8);
+  cv::Point2f v1[4], v2[4];
+  rect1.points(v1);
+  rect2.points(v2);
+  for (int i = 0; i < 4; i++)
+  {
+    vertices[i] = v1[i];
+    vertices[4 + i] = v2[i];
+  }
 
-	// determine minimum bounding box
-	cv::RotatedRect minBox = cv::minAreaRect(vertices);
+  // determine minimum bounding box
+  cv::RotatedRect minBox = cv::minAreaRect(vertices);
 
-	// debug output
-	if (false)
-	{
-		cv::Mat image(300,500,CV_8UC3);
-		image.setTo(cv::Scalar(0,0,0));
-		cv::Point2f mb[4];
-		minBox.points(mb);
-		for (int i = 0; i < 4; i++)
-		{
-			line(image, v1[i], v1[(i+1)%4], cv::Scalar(255,0,0));
-			line(image, v2[i], v2[(i+1)%4], cv::Scalar(0,0,255));
-		}
-		for (int i = 0; i < 4; i++)
-			line(image, mb[i], mb[(i+1)%4], cv::Scalar(0,255,0));
-		cv::imshow("minBox", image);
-		std::cout << "minBox.area: " << minBox.size.height*minBox.size.width << std::endl;
-	}
+  // debug output
+  if (false)
+  {
+    cv::Mat image(300, 500, CV_8UC3);
+    image.setTo(cv::Scalar(0, 0, 0));
+    cv::Point2f mb[4];
+    minBox.points(mb);
+    for (int i = 0; i < 4; i++)
+    {
+      line(image, v1[i], v1[(i + 1) % 4], cv::Scalar(255, 0, 0));
+      line(image, v2[i], v2[(i + 1) % 4], cv::Scalar(0, 0, 255));
+    }
+    for (int i = 0; i < 4; i++)
+      line(image, mb[i], mb[(i + 1) % 4], cv::Scalar(0, 255, 0));
+    cv::imshow("minBox", image);
+    std::cout << "minBox.area: " << minBox.size.height * minBox.size.width << std::endl;
+  }
 
-	return minBox.size.height*minBox.size.width;
+  return minBox.size.height * minBox.size.width;
 }
 
 double rotatedRectangleIntersection(const cv::RotatedRect& rect1, const cv::RotatedRect& rect2)
 {
-	std::vector<cv::Point2f> intersectionContour; // will contain all contour points of the intersection
+  std::vector<cv::Point2f> intersectionContour; // will contain all contour points of the intersection
 
-	// compute corners of rotated rectangles
-	std::vector<cv::Point2f> vertices1(4), vertices2(4);
-	cv::Point2f v1[4], v2[4];
-	rect1.points(v1);
-	rect2.points(v2);
-	for (int i=0; i<4; i++)
-	{
-		vertices1[i] = v1[i];
-		vertices2[i] = v2[i];
-	}
+  // compute corners of rotated rectangles
+  std::vector<cv::Point2f> vertices1(4), vertices2(4);
+  cv::Point2f v1[4], v2[4];
+  rect1.points(v1);
+  rect2.points(v2);
+  for (int i = 0; i < 4; i++)
+  {
+    vertices1[i] = v1[i];
+    vertices2[i] = v2[i];
+  }
 
-	// compute line vectors (direction from vertices[i] to vertices[(i+1)%4])
-	std::vector<cv::Point2f> lines1(4), lines2(4);
-	for (int i=0; i<4; i++)
-	{
-		lines1[i] = vertices1[(i+1)%4] - vertices1[i];
-		lines2[i] = vertices2[(i+1)%4] - vertices2[i];
-	}
+  // compute line vectors (direction from vertices[i] to vertices[(i+1)%4])
+  std::vector<cv::Point2f> lines1(4), lines2(4);
+  for (int i = 0; i < 4; i++)
+  {
+    lines1[i] = vertices1[(i + 1) % 4] - vertices1[i];
+    lines2[i] = vertices2[(i + 1) % 4] - vertices2[i];
+  }
 
-	// process first rectangle (search for inner points of rect1 in rect2 and intersections, i.e. clip rect1 with rect2)
-	rotatedRectangleIntersectionOneWay(vertices1, vertices2, lines1, lines2, intersectionContour);
+  // process first rectangle (search for inner points of rect1 in rect2 and intersections, i.e. clip rect1 with rect2)
+  rotatedRectangleIntersectionOneWay(vertices1, vertices2, lines1, lines2, intersectionContour);
 
-	// process second rectangle (search for inner points of rect2 in rect1 and intersections, i.e. clip rect2 with rect1)
-	rotatedRectangleIntersectionOneWay(vertices2, vertices1, lines2, lines1, intersectionContour);
+  // process second rectangle (search for inner points of rect2 in rect1 and intersections, i.e. clip rect2 with rect1)
+  rotatedRectangleIntersectionOneWay(vertices2, vertices1, lines2, lines1, intersectionContour);
 
-	// make intersectionContour an ordered list
-	std::vector<cv::Point2f> intersectionContourOrdered;
-	cv::convexHull(intersectionContour, intersectionContourOrdered);
+  // make intersectionContour an ordered list
+  std::vector<cv::Point2f> intersectionContourOrdered;
+  cv::convexHull(intersectionContour, intersectionContourOrdered);
 
-	// compute area
-	double intersectionArea = cv::contourArea(intersectionContourOrdered);
+  // compute area
+  double intersectionArea = cv::contourArea(intersectionContourOrdered);
 
-	// debug output
-	if (false)
-	{
-		cv::Mat image(300,500,CV_8UC3);
-		image.setTo(cv::Scalar(0,0,0));
-		for (int i = 0; i < 4; i++)
-		{
-			cv::line(image, v1[i], v1[(i+1)%4], cv::Scalar(255,0,0));
-			cv::line(image, v2[i], v2[(i+1)%4], cv::Scalar(0,0,255));
-		}
-		for (int i=0; i<(int)intersectionContourOrdered.size(); i++)
-		{
-			cv::line(image, intersectionContourOrdered[i], intersectionContourOrdered[(i+1)%(int)intersectionContourOrdered.size()], cv::Scalar(0,255,0));
-		}
-		cv::imshow("intersection", image);
-		std::cout << "intersection.area: " << intersectionArea << std::endl;
-	}
+  // debug output
+  if (false)
+  {
+    cv::Mat image(300, 500, CV_8UC3);
+    image.setTo(cv::Scalar(0, 0, 0));
+    for (int i = 0; i < 4; i++)
+    {
+      cv::line(image, v1[i], v1[(i + 1) % 4], cv::Scalar(255, 0, 0));
+      cv::line(image, v2[i], v2[(i + 1) % 4], cv::Scalar(0, 0, 255));
+    }
+    for (int i = 0; i < (int)intersectionContourOrdered.size(); i++)
+    {
+      cv::line(image, intersectionContourOrdered[i], intersectionContourOrdered[(i + 1)
+          % (int)intersectionContourOrdered.size()], cv::Scalar(0, 255, 0));
+    }
+    cv::imshow("intersection", image);
+    std::cout << "intersection.area: " << intersectionArea << std::endl;
+  }
 
-	return intersectionArea;
+  return intersectionArea;
 }
 
 // process one rectangle (search for inner points of rect1 in rect2 and intersections, i.e. clip rect1 with rect2)
-void rotatedRectangleIntersectionOneWay(const std::vector<cv::Point2f>& vertices1, const std::vector<cv::Point2f>& vertices2, const std::vector<cv::Point2f>& lines1, const std::vector<cv::Point2f>& lines2, std::vector<cv::Point2f>& intersectionContour)
+void rotatedRectangleIntersectionOneWay(const std::vector<cv::Point2f>& vertices1,
+                                        const std::vector<cv::Point2f>& vertices2,
+                                        const std::vector<cv::Point2f>& lines1, const std::vector<cv::Point2f>& lines2,
+                                        std::vector<cv::Point2f>& intersectionContour)
 {
-	bool innerPoints1[4];	// stores whether the corners of rect1 are inner points in rect2
-	// define a local coordinate system for rectangle 2
-	cv::Point2f rectangleOrigin = vertices2[0];
-	cv::Point2f rectangleVectorX = lines2[0];
-	cv::Point2f rectangleVectorY = lines2[1];
-	// check whether vertices1[i] is an inner point of rect2
-	for (int i=0; i<4; i++)
-		innerPoints1[i] = isInnerPoint(rectangleOrigin, rectangleVectorX, rectangleVectorY, vertices1[i]);
-	// check for intersection points
-	for (int i=0; i<4; i++)
-	{
-		if (innerPoints1[i] == true)
-		{
-			addContourPoint(vertices1[i], intersectionContour);
-			if (innerPoints1[(i+1)%4] == false)
-			{
-				// there is exactly one intersection
-				cv::Point2f intersectionPoint;
-				for (int j=0; j<4; j++)
-					if (true == lineSegmentIntersection(vertices1[i], lines1[i], vertices2[j], lines2[j], intersectionPoint))
-						addContourPoint(intersectionPoint, intersectionContour);
-			}
-		}
-		else
-		{
-			if (innerPoints1[(i+1)%4] == true)
-			{
-				// there is exactly one intersection
-				cv::Point2f intersectionPoint;
-				for (int j=0; j<4; j++)
-					if (true == lineSegmentIntersection(vertices1[i], lines1[i], vertices2[j], lines2[j], intersectionPoint))
-						addContourPoint(intersectionPoint, intersectionContour);
-			}
-			else
-			{
-				// there are either no or two intersections
-				cv::Point2f intersectionPoint;
-				for (int j=0; j<4; j++)
-					if (true == lineSegmentIntersection(vertices1[i], lines1[i], vertices2[j], lines2[j], intersectionPoint))
-						addContourPoint(intersectionPoint, intersectionContour);
-			}
-		}
-	}
+  bool innerPoints1[4]; // stores whether the corners of rect1 are inner points in rect2
+  // define a local coordinate system for rectangle 2
+  cv::Point2f rectangleOrigin = vertices2[0];
+  cv::Point2f rectangleVectorX = lines2[0];
+  cv::Point2f rectangleVectorY = lines2[1];
+  // check whether vertices1[i] is an inner point of rect2
+  for (int i = 0; i < 4; i++)
+    innerPoints1[i] = isInnerPoint(rectangleOrigin, rectangleVectorX, rectangleVectorY, vertices1[i]);
+  // check for intersection points
+  for (int i = 0; i < 4; i++)
+  {
+    if (innerPoints1[i] == true)
+    {
+      addContourPoint(vertices1[i], intersectionContour);
+      if (innerPoints1[(i + 1) % 4] == false)
+      {
+        // there is exactly one intersection
+        cv::Point2f intersectionPoint;
+        for (int j = 0; j < 4; j++)
+          if (true == lineSegmentIntersection(vertices1[i], lines1[i], vertices2[j], lines2[j], intersectionPoint))
+            addContourPoint(intersectionPoint, intersectionContour);
+      }
+    }
+    else
+    {
+      if (innerPoints1[(i + 1) % 4] == true)
+      {
+        // there is exactly one intersection
+        cv::Point2f intersectionPoint;
+        for (int j = 0; j < 4; j++)
+          if (true == lineSegmentIntersection(vertices1[i], lines1[i], vertices2[j], lines2[j], intersectionPoint))
+            addContourPoint(intersectionPoint, intersectionContour);
+      }
+      else
+      {
+        // there are either no or two intersections
+        cv::Point2f intersectionPoint;
+        for (int j = 0; j < 4; j++)
+          if (true == lineSegmentIntersection(vertices1[i], lines1[i], vertices2[j], lines2[j], intersectionPoint))
+            addContourPoint(intersectionPoint, intersectionContour);
+      }
+    }
+  }
 }
 
 void addContourPoint(const cv::Point2f& point, std::vector<cv::Point2f>& contour)
 {
-	bool pointInList = false;
-	for (int i=0; i<(int)contour.size(); i++)
-	{
-		if (contour[i] == point)
-		{
-			pointInList = true;
-			break;
-		}
-	}
+  bool pointInList = false;
+  for (int i = 0; i < (int)contour.size(); i++)
+  {
+    if (contour[i] == point)
+    {
+      pointInList = true;
+      break;
+    }
+  }
 
-	if (pointInList == false)
-		contour.push_back(point);
+  if (pointInList == false)
+    contour.push_back(point);
 }
 
-bool isInnerPoint(const cv::Point2f& rectangleOrigin, const cv::Point2f& rectangleVectorX, const cv::Point2f& rectangleVectorY, const cv::Point2f& point)
+bool isInnerPoint(const cv::Point2f& rectangleOrigin, const cv::Point2f& rectangleVectorX,
+                  const cv::Point2f& rectangleVectorY, const cv::Point2f& point)
 {
-	cv::Point2f PA0 = point-rectangleOrigin;
-	cv::Mat A(2,2,CV_32F), B(2,1,CV_32F), X(2,1,CV_32F);
-	A.at<float>(0,0) = rectangleVectorX.x;
-	A.at<float>(1,0) = rectangleVectorX.y;
-	A.at<float>(0,1) = rectangleVectorY.x;
-	A.at<float>(1,1) = rectangleVectorY.y;
-	B.at<float>(0,0) = PA0.x;
-	B.at<float>(1,0) = PA0.y;
-	cv::solve(A,B,X);
-	if (X.at<float>(0,0)>=0.f && X.at<float>(0,0)<=1.f && X.at<float>(1,0)>=0.f && X.at<float>(1,0)<=1.f)
-		return true;		// point is inner point in rectangle
+  cv::Point2f PA0 = point - rectangleOrigin;
+  cv::Mat A(2, 2, CV_32F), B(2, 1, CV_32F), X(2, 1, CV_32F);
+  A.at<float> (0, 0) = rectangleVectorX.x;
+  A.at<float> (1, 0) = rectangleVectorX.y;
+  A.at<float> (0, 1) = rectangleVectorY.x;
+  A.at<float> (1, 1) = rectangleVectorY.y;
+  B.at<float> (0, 0) = PA0.x;
+  B.at<float> (1, 0) = PA0.y;
+  cv::solve(A, B, X);
+  if (X.at<float> (0, 0) >= 0.f && X.at<float> (0, 0) <= 1.f && X.at<float> (1, 0) >= 0.f && X.at<float> (1, 0) <= 1.f)
+    return true; // point is inner point in rectangle
 
-	return false;
+  return false;
 }
 
-bool lineSegmentIntersection(const cv::Point2f& basePoint1, const cv::Point2f& lineSegmentVector1, const cv::Point2f& basePoint2, const cv::Point2f& lineSegmentVector2, cv::Point2f& intersectionPoint)
+bool lineSegmentIntersection(const cv::Point2f& basePoint1, const cv::Point2f& lineSegmentVector1,
+                             const cv::Point2f& basePoint2, const cv::Point2f& lineSegmentVector2,
+                             cv::Point2f& intersectionPoint)
 {
-	// parallel line segments do not have one unique intersection
-	if (abs(lineSegmentVector1.y - lineSegmentVector1.x/lineSegmentVector2.x*lineSegmentVector2.y) < 1e-8)
-		return false;
+  // parallel line segments do not have one unique intersection
+  if (abs(lineSegmentVector1.y - lineSegmentVector1.x / lineSegmentVector2.x * lineSegmentVector2.y) < 1e-8)
+    return false;
 
-	cv::Point2f P1P2 = basePoint1 - basePoint2;
-	cv::Mat A(2,2,CV_32F), B(2,1,CV_32F), X(2,1,CV_32F);
-	A.at<float>(0,0) = -lineSegmentVector1.x;
-	A.at<float>(1,0) = -lineSegmentVector1.y;
-	A.at<float>(0,1) = lineSegmentVector2.x;
-	A.at<float>(1,1) = lineSegmentVector2.y;
-	B.at<float>(0,0) = P1P2.x;
-	B.at<float>(1,0) = P1P2.y;
-	cv::solve(A,B,X);
-	if (X.at<float>(0,0)>=0.f && X.at<float>(0,0)<=1.f && X.at<float>(1,0)>=0.f && X.at<float>(1,0)<=1.f)
-	{
-		// both line segments intersect
-		intersectionPoint = basePoint1 + X.at<float>(0,0) * lineSegmentVector1;
-		return true;
-	}
+  cv::Point2f P1P2 = basePoint1 - basePoint2;
+  cv::Mat A(2, 2, CV_32F), B(2, 1, CV_32F), X(2, 1, CV_32F);
+  A.at<float> (0, 0) = -lineSegmentVector1.x;
+  A.at<float> (1, 0) = -lineSegmentVector1.y;
+  A.at<float> (0, 1) = lineSegmentVector2.x;
+  A.at<float> (1, 1) = lineSegmentVector2.y;
+  B.at<float> (0, 0) = P1P2.x;
+  B.at<float> (1, 0) = P1P2.y;
+  cv::solve(A, B, X);
+  if (X.at<float> (0, 0) >= 0.f && X.at<float> (0, 0) <= 1.f && X.at<float> (1, 0) >= 0.f && X.at<float> (1, 0) <= 1.f)
+  {
+    // both line segments intersect
+    intersectionPoint = basePoint1 + X.at<float> (0, 0) * lineSegmentVector1;
+    return true;
+  }
 
-	return false;
+  return false;
 }
-
-
 
 void calculateWordResults(std::vector<img> &images)
 {
   for (unsigned int imageIndex = 0; imageIndex < images.size(); imageIndex++)
   {
     unsigned int foundWords = 0;
-    std::vector<std::string> brokenWords;		// single words
+    std::vector<std::string> brokenWords; // single words
 
     //Breaking into words
     for (unsigned int j = 0; j < images[imageIndex].estimatedTexts.size(); j++)
@@ -955,14 +970,14 @@ int main(int argc, char **argv)
   if (false)
   {
     char key = 0;
-    while (key!='q')
+    while (key != 'q')
     {
-      for (int angle=0; angle<361; angle+=30)
+      for (int angle = 0; angle < 361; angle += 30)
       {
-        for (int width=20; width<150; width+=40)
+        for (int width = 20; width < 150; width += 40)
         {
-          cv::RotatedRect rect1 = cv::RotatedRect(cv::Point2f(100,100), cv::Size2f(100,50), 0);
-          cv::RotatedRect rect2 = cv::RotatedRect(cv::Point2f(100,100), cv::Size2f(width,50), angle);
+          cv::RotatedRect rect1 = cv::RotatedRect(cv::Point2f(100, 100), cv::Size2f(100, 50), 0);
+          cv::RotatedRect rect2 = cv::RotatedRect(cv::Point2f(100, 100), cv::Size2f(width, 50), angle);
 
           rotatedRectangleIntersection(rect1, rect2);
           rotatedRectangleMinBox(rect1, rect2);
@@ -990,6 +1005,18 @@ int main(int argc, char **argv)
   readInEstimates(images, argv[1]);
 
   std::cout << "Number of images that were processed: " << images.size() << std::endl;
+
+  std::cout << images[0].correctRects.size() << " ground truth rects: " << std::endl;
+  for (unsigned int i = 0; i < images[0].correctRects.size(); i++)
+    std::cout << images[0].correctRects[i].center.x << " " << images[0].correctRects[i].center.y << " "
+        << images[0].correctRects[i].size.width << " " << images[0].correctRects[i].size.height << " "
+        << images[0].correctRects[i].angle << " " << images[0].correctTexts[i] << std::endl;
+
+  std::cout << "Cob_read_text found " << images[0].estimatedRects.size() << " rects: " << std::endl;
+  for (unsigned int i = 0; i < images[0].estimatedRects.size(); i++)
+    std::cout << images[0].estimatedRects[i].center.x << " " << images[0].estimatedRects[i].center.y << " "
+        << images[0].estimatedRects[i].size.width << " " << images[0].estimatedRects[i].size.height << " "
+        << images[0].estimatedRects[i].angle << " " << images[0].estimatedTexts[i] << std::endl;
 
   //calculate precision, recall, f
   calculateBoxResults(images, argv[1], alpha);

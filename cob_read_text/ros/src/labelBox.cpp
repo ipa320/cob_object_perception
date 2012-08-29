@@ -179,7 +179,7 @@ void showInfo(std::string winName, cv::Mat img, cv::RotatedRect r, std::string t
   cv::waitKey(0);
 }
 
-bool checkPointInRect(cv::RotatedRect rect, cv::Point2f p)
+bool checkPointInsideRect(cv::RotatedRect rect, cv::Point2f p)
 {
   float angle = (rect.angle / 180) * 3.1415926535;
   cv::Point2f dp(p.x - rect.center.x, p.y - rect.center.y);
@@ -226,7 +226,7 @@ void onMouse(int event, int x, int y, int flags, void* param)
       for (unsigned int i = 0; i < allRects->size(); i++)
       {
         cv::Point2f actualP(x, y);
-        if (checkPointInRect(allRects->at(i), actualP))
+        if (checkPointInsideRect(allRects->at(i), actualP))
         {
           onRect = true;
           whichRect = i;
@@ -282,7 +282,7 @@ void onMouse(int event, int x, int y, int flags, void* param)
       cv::Point2f actualP(x, y);
       for (unsigned int i = 0; i < allRects->size(); i++)
       {
-        if (checkPointInRect(allRects->at(i), actualP))
+        if (checkPointInsideRect(allRects->at(i), actualP))
         {
           ((labelImage *)param)->img = ((labelImage *)param)->originalImage.clone();
           ((labelImage *)param)->allRects.erase(((labelImage *)param)->allRects.begin() + i);

@@ -61,7 +61,7 @@ public:
     image_sub_ = it_.subscribe("image_color", 1, &TextReader::imageCb, this);
     robot_state_sub_ = nh_.subscribe("/base_odometry/state", 1, &TextReader::robotStateCb, this);
 
-   //    depth_sub_ = nh_.subscribe("/camera/depth_registered/points", 1, &TextReader::depthCb, this);
+    //    depth_sub_ = nh_.subscribe("/camera/depth_registered/points", 1, &TextReader::depthCb, this);
 
     detector = DetectText();
     detector.readLetterCorrelation(correlation);
@@ -119,23 +119,23 @@ public:
   }
 
   /* call back function for depth picture
-  void depthCb(sensor_msgs::PointCloud2::ConstPtr recent_image)
-  {
-    pcl::fromROSMsg(*recent_image, *cloud);
-    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> color_hdl(cloud);
-    if (!(viewer->updatePointCloud<pcl::PointXYZRGB> (cloud, color_hdl)))
-    {
-      viewer->addPointCloud(cloud, color_hdl, "cloud", 0);
-      viewer->addCoordinateSystem(1.0, 0);
-    }
-    viewer->updatePointCloud<pcl::PointXYZRGB> (cloud, color_hdl);
-    viewer->spinOnce(100);
-    boost::this_thread::sleep(boost::posix_time::microseconds(100000));
-  }
+   void depthCb(sensor_msgs::PointCloud2::ConstPtr recent_image)
+   {
+   pcl::fromROSMsg(*recent_image, *cloud);
+   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> color_hdl(cloud);
+   if (!(viewer->updatePointCloud<pcl::PointXYZRGB> (cloud, color_hdl)))
+   {
+   viewer->addPointCloud(cloud, color_hdl, "cloud", 0);
+   viewer->addCoordinateSystem(1.0, 0);
+   }
+   viewer->updatePointCloud<pcl::PointXYZRGB> (cloud, color_hdl);
+   viewer->spinOnce(100);
+   boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+   }
 
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
-  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
-*/
+   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
+   */
 };
 
 int main(int argc, char** argv)
@@ -149,17 +149,14 @@ int main(int argc, char** argv)
   TextReader reader(argv[1], argv[2]);
 
   DetectText &detector = reader.detector;
+  ros::NodeHandle nh;
+  detector.setParams(nh);
+
   ros::Rate r(1);
   ros::Time last_detection = ros::Time::now();
   //int32_t sys_ret;
   while (ros::ok())
   {
-    /*
-     * Detection starts when
-     * - no exception was thrown while getting the new image in imageCb call back function,
-     * - the last detection was done more than 2 seconds ago
-     * - the camera is steady (last_movement was more than 2 seconds ago)
-     */
     if (reader.okToDetect_)
     {
       ROS_INFO("start detection........");
@@ -240,16 +237,13 @@ int main(int argc, char** argv)
 
     }
 
-    //Multiple View Geometry : x=553, y=290,height=97,width=230
-
-
     std::cout << "----------------------------------" << endl;
     std::cout << "Texts found: " << detector.getWords().size() << endl;
     for (unsigned int i = 0; i < detector.getWords().size(); i++)
     {
-      std::cout << detector.getWords()[i] << ": x=" << ((detector.getBoxes())[0]).x << ", y="
-          << ((detector.getBoxes())[0]).y << ",height=" << ((detector.getBoxes())[0]).height
-          << ",width=" << ((detector.getBoxes())[0]).width << endl;
+      std::cout << detector.getWords()[i] << ": x=" << ((detector.getBoxes())[0]).center.x << ", y="
+          << ((detector.getBoxes())[0]).center.y << ",height=" << ((detector.getBoxes())[0]).size.height << ",width="
+          << ((detector.getBoxes())[0]).size.width << ", angle=" << ((detector.getBoxes())[0]).angle << endl;
       //if(!pcl_isnan(reader.cloud->points[idx].)z) cout << ",depth:"
     }
 

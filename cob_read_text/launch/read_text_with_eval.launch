@@ -1,10 +1,13 @@
 <launch>
+
+	<arg name="xmlfile" default="$(find cob_read_text_data)/sample_train.xml"/>
+
 	<env name="TESSDATA_PREFIX" value="$(find cob_tesseract_data)/" />
 
 	<rosparam command="load" file="$(find cob_read_text)/launch/params.yaml" />
 
 	<!--node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="/home/rmb-rh/eval/haushaltsgegenstaende/stereo_left/rotated/g.xml"-->
-	<node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="$(find cob_read_text)/common/files/competitions/train2/train.xml">
+	<node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="$(arg xmlfile)">
 	</node>
 </launch>
 
