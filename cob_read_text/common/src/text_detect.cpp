@@ -160,7 +160,7 @@ void DetectText::detect()
   preprocess();
 
   // bright font
-  firstPass_ = true;
+  firstPass_ = true;	// todo: double occurrence, as param and here
   pipeline(1);
   disposal();
 
@@ -168,8 +168,7 @@ void DetectText::detect()
   firstPass_ = false;
   pipeline(-1);
 
-  std::cout << std::endl << "Found " << transformedBoundingBoxes_.size() << " boundingBoxes for OCR." << std::endl
-      << std::endl;
+  std::cout << std::endl << "Found " << transformedBoundingBoxes_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
   // OCR
   //  ocrPreprocess(transformedBoundingBoxes_);
@@ -251,7 +250,7 @@ void DetectText::preprocess()
   cv::Mat img1(originalImage_.rows, originalImage_.cols + 600, originalImage_.type(), cv::Scalar(0, 0, 0));
   cv::Mat tmp = img1(cv::Rect(0, 0, originalImage_.cols, originalImage_.rows));
   originalImage_.copyTo(tmp);
-  resultImage_ = img1.clone();
+  resultImage_ = img1; //.clone();
 }
 
 void DetectText::pipeline(int blackWhite)
@@ -704,10 +703,12 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 
 void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 {
+	//todo: min(10, 3+r/480)
   minLetterHeight_ = 3 + (originalImage_.rows) / 480; //default: 10
 
   assert(static_cast<size_t>(nComponent_) == labeledRegions.size());
   std::vector<float> iComponentStrokeWidth;
+  // todo: clear before?
   isLetterRegion_.resize(nComponent_);
 
   meanRGB_ = std::vector<std::vector<float> >(nComponent_, std::vector<float>(4)); // Foreground (letter component pixels) mean color: r g b gray
@@ -767,22 +768,22 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
     varianceStrokeWidth = varianceStrokeWidth / pixelCount;
 
-    // rule #2: variance of strokewidth of pixels in region that are part of component
+    // rule #2: variance of stroke width of pixels in region that are part of component
     isLetter = isLetter && (varianceStrokeWidth / meanStrokeWidth < varianceParameter);
 
     // rule #3: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
     // std::sort(iComponentStrokeWidth.begin(), iComponentStrokeWidth.end());
     // unsigned int medianStrokeWidth = iComponentStrokeWidth[iComponentStrokeWidth.size() / 2];
-    isLetter = isLetter && (sqrt(((itr.width) * (itr.width) + (itr.height) * (itr.height))) / maxStrokeWidth
-        < diagonalParameter);
+    isLetter = isLetter && (sqrt(((itr.width) * (itr.width) + (itr.height) * (itr.height))) < maxStrokeWidth * diagonalParameter);
 
     // rule #4: pixelCount has to be bigger than maxStrokeWidth * x:
-    isLetter = isLetter && (pixelCount / maxStrokeWidth > pixelCountParameter);
+    isLetter = isLetter && (pixelCount > maxStrokeWidth * pixelCountParameter);
 
     // rule #5: width has to be smaller than x * height (x>1)
     //  isLetter = isLetter && (itr.width < heightParameter * itr.height);
 
     // rule #6: number of inner components must be small
+    // todo: does this make sense before all letter regions are determined?
     if (countInnerLetterCandidates(innerComponents) - 1 > innerLetterCandidatesParameter)
       isLetter = false;
 
@@ -3471,10 +3472,12 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
         {
           if ((ransacSet[i].first[j]).inside(connectedComponents_[boxIndex][k].r))
           {
+            // todo: wouldn't it be sufficient to check the 4 corner points of the bounding box?
+
             // get max distance from curve
             // calculate distance of all border pixels of components to the curve
             for (int y = connectedComponents_[boxIndex][k].r.y, x = connectedComponents_[boxIndex][k].r.x; y
-                < connectedComponents_[boxIndex][k].r.y + connectedComponents_[boxIndex][k].r.height; y++)
+                < connectedComponents_[boxIndex][k].r.y + connectedComponents_[boxIndex][k].r.height; y++)		// todo: y += height
             {
               std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
               if (biggestDistance < distanceT.first)
@@ -3694,9 +3697,10 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
     e = (maxE - minE) * eigenValQuotient + minE;
 
     // calculate number of iterations
+    // todo: where does the 5 come from?
     n = 5 * std::ceil(std::log10(1 - p) / (float)(std::log10(1 - (std::pow((1 - e), bezierDegree)))));
 
-    if (dataset.size() == 3) // if there are only components, don't calculate 200 identical models...
+    if (dataset.size() == 3) // if there are only 3 components, don't calculate 200 identical models...
       n = 1;
 
     if (debug["showBezier"])
@@ -3705,9 +3709,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       for (unsigned int i = 0; i < dataset.size(); i++)
       {
     	output = originalImage_.clone();
-        cv::rectangle(output, cv::Rect(dataset[i].middlePoint.x, dataset[i].middlePoint.y, 1, 1), cv::Scalar(255, 255,
-                                                                                                             255), 2,
-                      1, 0);
+        cv::rectangle(output, cv::Rect(dataset[i].middlePoint.x, dataset[i].middlePoint.y, 1, 1), cv::Scalar(255, 255, 255), 2, 1, 0);
         //std::cout << "p" << i << ": " << dataset[i].middlePoint.x << "|" << dataset[i].middlePoint.y << std::endl;
       }
       std::cout << std::endl << n << " iterations.." << std::endl;
@@ -3734,7 +3736,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       std::vector<float> ts; // all ts, t as in C(t)
 
       // fill actualRandomSet with random points for model
-      for (unsigned int j = 0; j < bezierDegree; j++) //
+      for (unsigned int j = 0; j < bezierDegree; j++) // todo: this for loop has no effect
         while (actualRandomSet.size() < 3)
         {
           int nn = (int)((std::rand() / (float)RAND_MAX) * dataset.size());
@@ -3755,7 +3757,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       maxDistance = distanceParameter * (maxDistance / actualRandomSet.size());
 
       // Reject Criterion #1: Reject model if letter sizes are too different
-      if (std::max(rectsArea[0], rectsArea[1]) / (std::min(rectsArea[0], rectsArea[1])) > 3)
+      if (std::max(rectsArea[0], rectsArea[1]) / (std::min(rectsArea[0], rectsArea[1])) > 3)	// todo: (i) make this a parameter, (ii) avoid division
         continue;
       if (std::max(rectsArea[0], rectsArea[2]) / (std::min(rectsArea[0], rectsArea[2])) > 3)
         continue;
@@ -3841,7 +3843,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
         continue;
 
       // calculate distance between curve and each data point
-      float distance = 0;
+      double distance = 0;
 
       for (unsigned int datasetIndex = 0; datasetIndex < dataset.size(); datasetIndex++)
       {
@@ -3886,11 +3888,11 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
       score += 100.f * (goodPoints.size() / dataset.size());
 
       // 2) How far is the distance of all these points to the model curve
-      // 2) How far is the distance of all good points to the model curve
-      score += 100.f / (distance + 1);
+      // 2) How far is the mean distance of all good points to the model curve
+      score += 100.f / (distance/(double)goodPoints.size() + 1);
 
       // 3) How strong is the bending of the curve
-//      score += 300 / (angleDifference + 1);		// todo: wrong
+//      score += 300 / (angleDifference + 1);		// todo: avoid division
       score += 100.f * ((180.f-angleDifference) / 180.f);
 
       if (score > highestScore && angleDifference < bendParameter && goodPoints.size() >= 3)
@@ -4236,7 +4238,7 @@ void DetectText::Cramer()
 
 std::pair<float, float> DetectText::getBezierDistance(cv::Mat curve, cv::Point Q)
 {
-  int debugDistance = 0;
+  int debugDistance = 0;		// todo: purpose unclear
 
   // compute distance from Q to curve and t when C(t) is nearest Point to Q on curve
   float a = 2 * (curve.at<float> (0, 0) * curve.at<float> (0, 0) + curve.at<float> (1, 0) * curve.at<float> (1, 0)); //coefficients
