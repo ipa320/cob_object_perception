@@ -1,0 +1,28 @@
+<package>
+  <description brief="cob_marker">
+
+     cob_marker allows to find 6DOF markers of different types, like datamatrix, Qr, natural landmarks, ... 
+
+  </description>
+  <author>josh</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/cob_marker</url>
+  <depend package="roscpp"/>
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/>
+  <depend package="nodelet"/>
+  <depend package="cv_bridge"/>
+  <depend package="opencv2"/>
+  <depend package="message_filters"/>
+  <depend package="tf"/>
+  <depend package="tf_conversions"/>
+  <depend package="cob_object_detection_msgs"/>
+  <depend package="visualization_msgs"/>
+  <depend package="actionlib"/>
+  
+  <rosdep name="libmagick++-dev" />
+  <rosdep name="zxing" />
+</package>
+
+
