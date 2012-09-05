@@ -2930,8 +2930,8 @@ void DetectText::ocrRead(std::vector<cv::Mat> textImages)
   std::vector<std::string> result;
   for (size_t i = 0; i < textImages.size(); i++)
   {
-    cv::imshow("roar", textImages[i]);
-    cv::waitKey(0);
+//    cv::imshow("roar", textImages[i]);
+//    cv::waitKey(0);
 
     std::string res;
     score.push_back(ocrRead(textImages[i], res));

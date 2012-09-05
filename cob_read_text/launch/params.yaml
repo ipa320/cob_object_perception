@@ -1,4 +1,4 @@
-#transform
+#tshowransform
 # ----------
 
 # default: true, use bezier-transformed images or normal rectangles around bezier lines
@@ -215,7 +215,7 @@ showNeighborMerging: false
 
 # show results with ocr
 # bool
-showResult: false
+showResult: true
 
 # when showing results show all image regions that probably contain text, even if ocr didn't find text
 # bool

@@ -128,7 +128,7 @@ int readInEstimates(std::vector<img> &images, std::string path)
     imgpath.append(images[imageIndex].img_name);
     std::string cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " "
         + ros::package::getPath("cob_read_text_data") + "/fonts/new_correlation.txt "
-        + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
+        + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary_ger";//_ger";	//todo: make dictionary path a parameter
 
     cmd_.append(" eval");
 
