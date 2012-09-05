@@ -156,22 +156,22 @@ public:
   void executeCB(const cob_object_detection_msgs::DetectObjectsGoalConstPtr &goal)
   {
     ros::Rate r(10);
-    bool success = true;
+    bool success = false;
 
     if(!gm_)
       return;
 
     subscribe();
 
-    double time_start = ros::Time().toSec();
-
-    const double timeout = 10;
-    while(ros::Time().toSec()-time_start<timeout) {
-
+    double time_start = ros::Time::now().toSec();
+    const double timeout = 20;
+    while(ros::Time::now().toSec()-time_start<timeout)
+    {
       mutex_.lock();
       for(size_t i=0; i<result_.object_list.detections.size(); i++)
       {
-        if( result_.object_list.detections[i].label==goal->object_name.data) {
+        if( result_.object_list.detections[i].label==goal->object_name.data)
+        {
           success = true;
           break;
         }
@@ -183,7 +183,10 @@ public:
       mutex_.unlock();
 
       if (as_->isPreemptRequested() || !ros::ok())
+      {
+        as_->setPreempted();
         break;
+      }
 
       r.sleep();
     }
@@ -194,6 +197,10 @@ public:
     {
       as_->setSucceeded(result_);
       mutex_.unlock();
+    }
+    else
+    {
+      as_->setAborted(result_);
     }
   }
 
