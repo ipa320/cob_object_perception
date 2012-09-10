@@ -4,6 +4,7 @@
   <license>BSD,LGPL</license>  
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_object_perception</url>
+  <depend stack="cob_perception_data" /> <!-- cob_read_text_data, cob_tesseract_data -->
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, sensor_msgs -->
   <depend stack="image_common" /> <!-- image_transport -->
   <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
