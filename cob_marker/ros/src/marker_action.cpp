@@ -15,6 +15,8 @@
 #include <actionlib/server/simple_action_server.h>
 #include <pcl/ros/conversions.h>
 #include <pcl/common/pca.h>
+#include <tf/transform_broadcaster.h>
+
 
 #include <cob_object_detection_msgs/DetectObjectsAction.h>
 #include <cob_object_detection_msgs/DetectObjectsActionGoal.h>
@@ -74,6 +76,8 @@ class Qr_Node : public Parent
 
   ros::Publisher  detection_pub_;
   ros::Publisher test_pub_;
+  
+  tf::TransformBroadcaster br_;
 
   GeneralMarker *gm_;
 
@@ -155,13 +159,6 @@ public:
     if(!gm_)
       ROS_ERROR("no algorithm was selected\npossible candidates are:\n\t- zxing\n\t- dmtx\n");
 
-#ifdef TEST
-    if(gm_)
-      delete gm_;
-    gm_ = new Marker_DMTX();
-    dynamic_cast<Marker_DMTX*>(gm_)->setTimeout(dmtx_timeout_);
-    ROS_ERROR("remove me");
-#endif
   }
 
   void executeCB(const cob_object_detection_msgs::DetectObjectsGoalConstPtr &goal)
@@ -217,14 +214,12 @@ public:
 
   void callback_synchronizer(const sensor_msgs::ImageConstPtr& msg_image, const sensor_msgs::PointCloud2ConstPtr& msg_depth)
   {
-    //ROS_INFO("callback");
-    std_msgs::String str;
-    str.data = "callback";
-    test_pub_.publish(str);
     if(!gm_) return;
+    double time_before_find = ros::Time::now().toSec();
 
     std::vector<GeneralMarker::SMarker> res;
     gm_->findPattern(*msg_image, res);
+    ROS_DEBUG("findPattern finished: runtime %f s ; %d pattern found\n", (ros::Time::now().toSec() - time_before_find), res.size());
 
     PointCloud pc;
     if(res.size()>0)
@@ -249,13 +244,16 @@ public:
       Eigen::Vector2f d1 = (res[i].pts_[1]-res[i].pts_[0]).cast<float>();
       Eigen::Vector2f d2 = (res[i].pts_[2]-res[i].pts_[0]).cast<float>();
 
-      std::cout<<"p1\n"<<res[i].pts_[0]<<"\n";
-      std::cout<<"p2\n"<<res[i].pts_[1]<<"\n";
-      std::cout<<"p3\n"<<res[i].pts_[2]<<"\n";
-      std::cout<<"p4\n"<<res[i].pts_[3]<<"\n";
 
-      std::cout<<"d1\n"<<d1<<"\n";
-      std::cout<<"d2\n"<<d2<<"\n";
+      //TODO: please change to ROS_DEBUG
+      //ROS_DEBUG("p1: %d\n", res[i].pts_[0]); 
+      //ROS_DEBUG("p2: %d\n", res[i].pts_[1]); 
+      //ROS_DEBUG("p3: %d\n", res[i].pts_[2]); 
+      //ROS_DEBUG("p4: %d\n", res[i].pts_[3]); 
+      
+      //ROS_DEBUG("d1: %f\n", d1); 
+
+      //std::cout<<"d2\n"<<d2<<"\n";
 
       int w1=std::max(std::abs(d1(0)),std::abs(d1(1)));
       int w2=std::max(std::abs(d2(0)),std::abs(d2(1)));
@@ -284,13 +282,14 @@ public:
 
       Eigen::Quaternionf q(M);
 
-      std::cout<<"E\n"<<pca1.getEigenVectors()<<"\n";
-      std::cout<<"E\n"<<pca2.getEigenVectors()<<"\n";
-      std::cout<<"E\n"<<pca1.getEigenValues()<<"\n";
-      std::cout<<"E\n"<<pca2.getEigenValues()<<"\n";
+      //TODO: please change to ROS_DEBUG
+      //std::cout<<"E\n"<<pca1.getEigenVectors()<<"\n";
+      //std::cout<<"E\n"<<pca2.getEigenVectors()<<"\n";
+      //std::cout<<"E\n"<<pca1.getEigenValues()<<"\n";
+      //std::cout<<"E\n"<<pca2.getEigenValues()<<"\n";
 
-      std::cout<<"M\n"<<M<<"\n";
-      std::cout<<"m\n"<<m<<"\n";
+      //std::cout<<"M\n"<<M<<"\n";
+      //std::cout<<"m\n"<<m<<"\n";
 
       cob_object_detection_msgs::Detection det;
       det.header = msg_depth->header;
@@ -304,6 +303,13 @@ public:
       det.pose.pose.orientation.y = q.y();
       det.pose.pose.orientation.z = q.z();
       result_.object_list.detections.push_back(det);
+
+
+      //tf broadcaster for debuggin
+      tf::Transform transform;
+      transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
+      transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
+      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "head_cam3d_link", "detected_marker"));
     }
     mutex_.unlock();
   }
