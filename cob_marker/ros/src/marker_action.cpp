@@ -73,6 +73,7 @@ class Qr_Node : public Parent
   boost::mutex mutex_;
 
   ros::Publisher  detection_pub_;
+  ros::Publisher test_pub_;
 
   GeneralMarker *gm_;
 
@@ -119,7 +120,7 @@ public:
 
     visual_sub_.subscribe(*n,"/camera/rgb/image_color",2);
     point_cloud_sub_.subscribe(*n,"/camera/depth/points",2);
-    sync_ = new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(2), visual_sub_, point_cloud_sub_);
+    sync_ = new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(4), visual_sub_, point_cloud_sub_);
     sync_->registerCallback(boost::bind(&Qr_Node::callback_synchronizer, this, _1, _2));
 
 #ifndef TEST
@@ -129,6 +130,10 @@ public:
     as_ = new ActionServer(*n, "object_detection", boost::bind(&Qr_Node::executeCB, this, _1), false);
     as_->start();
     //    detection_pub_ = n->advertise<cob_object_detection_msgs::Detection>("detec", 1);
+    test_pub_ = n->advertise<std_msgs::String>("marker_callback",1);
+
+    int dmtx_timeout_;
+    n->getParam<int>("timeout",dmtx_timeout_,500);
 
     std::string algo_;
     if(n->getParam("algorithm",algo_))
@@ -141,6 +146,7 @@ public:
       }
       else if(algo_=="dmtx") {
         gm_ = new Marker_DMTX();
+        (Marker_DMTX*)gm->setTimeout(dmtx_timeout_);
       }
     }
 
@@ -149,6 +155,7 @@ public:
 
 #ifdef TEST
     gm_ = new Marker_DMTX();
+    (Marker_DMTX*)gm->setTimeout(dmtx_timeout_);
     ROS_ERROR("remove me");
 #endif
   }
@@ -206,7 +213,10 @@ public:
 
   void callback_synchronizer(const sensor_msgs::ImageConstPtr& msg_image, const sensor_msgs::PointCloud2ConstPtr& msg_depth)
   {
-    ROS_INFO("callback");
+    //ROS_INFO("callback");
+    std_msgs::String str;
+    str.data = "callback";
+    test_pub_.publish(str);
     if(!gm_) return;
 
     std::vector<GeneralMarker::SMarker> res;
@@ -218,9 +228,11 @@ public:
 
     mutex_.lock();
     result_.object_list.detections.clear();
-    for(size_t i=0; i<res.size(); i++) {
+    for(size_t i=0; i<res.size(); i++)
+    {
       //get 6DOF pose
-      if(res[i].pts_.size()<3) {
+      if(res[i].pts_.size()<3)
+      {
         ROS_WARN("need 3 points");
         continue;
       }
@@ -290,7 +302,6 @@ public:
       result_.object_list.detections.push_back(det);
     }
     mutex_.unlock();
-
   }
 
 
