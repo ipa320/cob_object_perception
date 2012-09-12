@@ -11,6 +11,7 @@
 
 bool Marker_DMTX::findPattern(const sensor_msgs::Image &img, std::vector<SMarker> &res)
 {
+  int count=0;
   DmtxImage *dimg = dmtxImageCreate((unsigned char*)&img.data[0], img.width, img.height, DmtxPack24bppRGB);
   ROS_ASSERT(dimg);
 
@@ -20,10 +21,14 @@ bool Marker_DMTX::findPattern(const sensor_msgs::Image &img, std::vector<SMarker
   dmtxDecodeSetProp(dec, DmtxPropEdgeThresh, 1);
 
   DmtxRegion *reg;
-
-  do {
+  for(count=1; ;count++) {
+  
     DmtxTime timeout = dmtxTimeAdd(dmtxTimeNow(), timeout_);
     reg = dmtxRegionFindNext(dec, &timeout);
+    /* Finished file or ran out of time before finding another region */
+    if(reg == NULL)
+    	break;
+
     if (reg != NULL)
     {
       DmtxMessage *msg = dmtxDecodeMatrixRegion(dec, reg, DmtxUndefined);
@@ -58,14 +63,13 @@ bool Marker_DMTX::findPattern(const sensor_msgs::Image &img, std::vector<SMarker
         v(1)=img.height - 1 - (int)((p10.Y) + 0.5);
         m.pts_.push_back(v);
 
-        std::cout<<m.code_<<"\n";
         res.push_back(m);
 
         dmtxMessageDestroy(&msg);
       }
       dmtxRegionDestroy(&reg);
     }
-  } while(reg);
+  }
 
   dmtxDecodeDestroy(&dec);
   dmtxImageDestroy(&dimg);

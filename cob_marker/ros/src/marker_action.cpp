@@ -169,8 +169,10 @@ public:
     if(!gm_)
       return;
 
+#ifndef TEST
     subscribe();
-
+#endif
+    ROS_INFO("Action called");
     double time_start = ros::Time::now().toSec();
     const double timeout = 20;
     while(ros::Time::now().toSec()-time_start<timeout)
@@ -180,6 +182,7 @@ public:
       {
         if( result_.object_list.detections[i].label==goal->object_name.data)
         {
+	  ROS_INFO("Marker %s found", result_.object_list.detections[i].label.c_str());
           success = true;
           break;
         }
@@ -199,7 +202,9 @@ public:
       r.sleep();
     }
 
+#ifndef TEST
     unsubscribe();
+#endif
 
     if(success)
     {
@@ -219,7 +224,7 @@ public:
 
     std::vector<GeneralMarker::SMarker> res;
     gm_->findPattern(*msg_image, res);
-    ROS_DEBUG("findPattern finished: runtime %f s ; %d pattern found\n", (ros::Time::now().toSec() - time_before_find), res.size());
+    ROS_DEBUG("\nfindPattern finished: runtime %f s ; %d pattern found", (ros::Time::now().toSec() - time_before_find), (int)res.size());
 
     PointCloud pc;
     if(res.size()>0)
@@ -244,16 +249,15 @@ public:
       Eigen::Vector2f d1 = (res[i].pts_[1]-res[i].pts_[0]).cast<float>();
       Eigen::Vector2f d2 = (res[i].pts_[2]-res[i].pts_[0]).cast<float>();
 
+      ROS_DEBUG("Code: %s", res[i].code_.c_str());
 
-      //TODO: please change to ROS_DEBUG
-      //ROS_DEBUG("p1: %d\n", res[i].pts_[0]); 
-      //ROS_DEBUG("p2: %d\n", res[i].pts_[1]); 
-      //ROS_DEBUG("p3: %d\n", res[i].pts_[2]); 
-      //ROS_DEBUG("p4: %d\n", res[i].pts_[3]); 
+      ROS_DEBUG("p1: %d %d", res[i].pts_[0](0), res[i].pts_[0](1)); 
+      ROS_DEBUG("p2: %d %d", res[i].pts_[1](0), res[i].pts_[1](1)); 
+      ROS_DEBUG("p3: %d %d", res[i].pts_[2](0), res[i].pts_[2](1)); 
+      ROS_DEBUG("p4: %d %d", res[i].pts_[3](0), res[i].pts_[3](1)); 
       
-      //ROS_DEBUG("d1: %f\n", d1); 
-
-      //std::cout<<"d2\n"<<d2<<"\n";
+      ROS_DEBUG("d1: %f %f", d1(0), d1(1)); 
+      ROS_DEBUG("d2: %f %f", d2(0), d2(1)); 
 
       int w1=std::max(std::abs(d1(0)),std::abs(d1(1)));
       int w2=std::max(std::abs(d2(0)),std::abs(d2(1)));
@@ -293,6 +297,7 @@ public:
 
       cob_object_detection_msgs::Detection det;
       det.header = msg_depth->header;
+      det.label = res[i].code_.substr(0,3);
       det.detector = gm_->getName();
       det.pose.header = msg_depth->header;
       det.pose.pose.position.x = m(0);
@@ -309,7 +314,7 @@ public:
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
-      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "head_cam3d_link", "detected_marker"));
+      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "head_cam3d_link", res[i].code_.substr(0,3)));
     }
     mutex_.unlock();
   }
