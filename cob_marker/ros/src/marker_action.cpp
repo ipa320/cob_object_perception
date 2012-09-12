@@ -133,20 +133,22 @@ public:
     test_pub_ = n->advertise<std_msgs::String>("marker_callback",1);
 
     int dmtx_timeout_;
-    n->getParam<int>("timeout",dmtx_timeout_,500);
+    n->param<int>("dmtx_timeout",dmtx_timeout_,500);
 
     std::string algo_;
     if(n->getParam("algorithm",algo_))
     {
-      if(algo_=="zxing") {
+      if(algo_.compare("zxing")==0)
+      {
         gm_ = new Marker_Zxing();
         bool tryHarder;
         if(n->getParam("tryHarder",tryHarder))
-          ((Marker_Zxing*)gm_)->setTryHarder(tryHarder);
+          dynamic_cast<Marker_Zxing*>(gm_)->setTryHarder(tryHarder);
       }
-      else if(algo_=="dmtx") {
+      else if(algo_.compare("dmtx")==0)
+      {
         gm_ = new Marker_DMTX();
-        (Marker_DMTX*)gm->setTimeout(dmtx_timeout_);
+        dynamic_cast<Marker_DMTX*>(gm_)->setTimeout(dmtx_timeout_);
       }
     }
 
@@ -154,8 +156,10 @@ public:
       ROS_ERROR("no algorithm was selected\npossible candidates are:\n\t- zxing\n\t- dmtx\n");
 
 #ifdef TEST
+    if(gm_)
+      delete gm_;
     gm_ = new Marker_DMTX();
-    (Marker_DMTX*)gm->setTimeout(dmtx_timeout_);
+    dynamic_cast<Marker_DMTX*>(gm_)->setTimeout(dmtx_timeout_);
     ROS_ERROR("remove me");
 #endif
   }
