@@ -182,7 +182,7 @@ public:
       {
         if( result_.object_list.detections[i].label==goal->object_name.data)
         {
-	  ROS_INFO("Marker %s found", result_.object_list.detections[i].label.c_str());
+          ROS_INFO("Marker %s found", result_.object_list.detections[i].label.c_str());
           success = true;
           break;
         }
