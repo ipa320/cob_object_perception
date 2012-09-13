@@ -136,22 +136,22 @@ public:
     //    detection_pub_ = n->advertise<cob_object_detection_msgs::Detection>("detec", 1);
     test_pub_ = n->advertise<std_msgs::String>("marker_callback",1);
 
-    int dmtx_timeout_;
-    n->param<int>("dmtx_timeout",dmtx_timeout_,500);
-
     std::string algo_;
     if(n->getParam("algorithm",algo_))
     {
-      if(algo_.compare("zxing")==0)
+      if(algo_=="zxing")
       {
         gm_ = new Marker_Zxing();
         bool tryHarder;
         if(n->getParam("tryHarder",tryHarder))
           dynamic_cast<Marker_Zxing*>(gm_)->setTryHarder(tryHarder);
       }
-      else if(algo_.compare("dmtx")==0)
+      else if(algo_=="dmtx")
       {
         gm_ = new Marker_DMTX();
+
+        int dmtx_timeout_;
+        n->param<int>("dmtx_timeout",dmtx_timeout_,500);
         dynamic_cast<Marker_DMTX*>(gm_)->setTimeout(dmtx_timeout_);
       }
     }
