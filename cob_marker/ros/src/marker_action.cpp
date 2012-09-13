@@ -261,8 +261,8 @@ public:
 
       int w1=std::max(std::abs(d1(0)),std::abs(d1(1)));
       int w2=std::max(std::abs(d2(0)),std::abs(d2(1)));
-      d1/=std::max(std::abs(d1(0)),std::abs(d1(1)));
-      d2/=std::max(std::abs(d2(0)),std::abs(d2(1)));
+      d1/=w1;
+      d2/=w2;
 
       pcl::PCA<PointCloud::PointType> pca1, pca2;
       if(!compPCA(pca1, pc, w1, res[i].pts_[0],d1))
@@ -274,8 +274,13 @@ public:
       if(pca1.getEigenValues()[1]>pca1.getEigenValues()[i1]) i1=1;
       if(pca1.getEigenValues()[2]>pca1.getEigenValues()[i1]) i1=2;
       int i2=0;
-      if(pca2.getEigenValues()[1]>pca2.getEigenValues()[i1]) i2=1;
-      if(pca2.getEigenValues()[2]>pca2.getEigenValues()[i1]) i2=2;
+      if(pca2.getEigenValues()[1]>pca2.getEigenValues()[i2]) i2=1;
+      if(pca2.getEigenValues()[2]>pca2.getEigenValues()[i2]) i2=2;
+
+      if(pca1.getEigenVectors().col(i1).sum()<0)
+        pca1.getEigenVectors().col(i1)*=-1;
+      if(pca2.getEigenVectors().col(i2).sum()<0)
+        pca2.getEigenVectors().col(i2)*=-1;
 
       Eigen::Vector3f m = (pca1.getMean()+pca2.getMean()).head<3>()/2;
       Eigen::Matrix3f M;
