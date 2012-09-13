@@ -47,6 +47,7 @@ rosbuild_add_executable(labelBox ros/src/labelBox.cpp)
 rosbuild_link_boost(labelBox filesystem system)
 
 rosbuild_add_executable(create_correlation common/src/createCorrelation.cpp)
+rosbuild_link_boost(create_correlation filesystem system)
 
 rosbuild_add_executable(record_kinect_prosilica ros/src/recordKinPro.cpp)
 rosbuild_link_boost(record_kinect_prosilica filesystem system thread)
