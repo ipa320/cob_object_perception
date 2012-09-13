@@ -29,7 +29,7 @@ class As_Node
 protected:
   ros::NodeHandle n_;
 public:
-  As_Node() {
+  As_Node(): n_("~") {
   }
 
   virtual ~As_Node() {}
