@@ -5,6 +5,7 @@
 	<remap from="/camera/rgb/camera_info" to="/cam3d/rgb/camera_info"/>
 	<remap from="/camera/depth/points" to="/cam3d/depth/points"/>
 	<param name="algorithm" value="dmtx" />
+	<param name="dmtx_timeout" value="5000" />
   </node>
 
 </launch>
