@@ -285,9 +285,9 @@ public:
       Eigen::Vector3f m = (pca1.getMean()+pca2.getMean()).head<3>()/2;
       Eigen::Matrix3f M;
       M.col(0) = pca2.getEigenVectors().col(i2);
-      M.col(1) = -M.col(0).cross((Eigen::Vector3f)pca1.getEigenVectors().col(i1));
+      M.col(1) = M.col(0).cross((Eigen::Vector3f)pca1.getEigenVectors().col(i1));
       M.col(1).normalize();
-      M.col(2) = -M.col(0).cross(M.col(1));
+      M.col(2) = M.col(0).cross(M.col(1));
 
       Eigen::Quaternionf q(M);
 
