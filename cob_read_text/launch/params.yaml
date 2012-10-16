@@ -3,7 +3,7 @@
 
 # default: true, use bezier-transformed images or normal rectangles around bezier lines
 # bool
-transformImages:  true
+transformImages:  false
 
 
 #preprocess

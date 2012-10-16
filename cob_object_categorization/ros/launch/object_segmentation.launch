@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <node ns="object_segmentation" name="object_segmentation" pkg="cob_object_categorization" type="object_segmentation" output="screen">
+    <!--param name="ip_address" type="str" value="192.168.21.102"/-->
+    <remap from="input_pointcloud" to="/camera/depth_registered/points"/>
+    <remap from="output_pointcloud_segments" to="segmented_object"/>
+  </node>
+
+</launch>
