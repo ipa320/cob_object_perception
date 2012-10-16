@@ -7,7 +7,6 @@
   <depend stack="cob_perception_data" /> <!-- cob_read_text_data, cob_tesseract_data -->
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, sensor_msgs -->
   <depend stack="image_common" /> <!-- image_transport -->
-  <depend stack="ocr2" /> <!-- tesseract -->
   <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
   <depend stack="pr2_controllers" /> <!-- pr2_mechanism_controllers -->
   <depend stack="ros" />

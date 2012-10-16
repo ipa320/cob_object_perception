@@ -30,13 +30,29 @@ INCLUDE_DIRECTORIES(	${PROJECT_SOURCE_DIR}/ros/include
 #target_link_libraries(${PROJECT_NAME} another_library)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
+
+rosbuild_add_boost_directories()
+
 rosbuild_add_library(read_text	common/src/text_detect.cpp)
+
 rosbuild_add_executable(run_detect	common/src/run_detection.cpp common/src/text_detect.cpp)
+
 rosbuild_add_executable(cob_read_text ros/src/cob_read_text.cpp)
 target_link_libraries(cob_read_text read_text)
+rosbuild_link_boost(cob_read_text thread)
+
 rosbuild_add_executable(read_evaluation ros/src/read_evaluation.cpp)
+
 rosbuild_add_executable(labelBox ros/src/labelBox.cpp)
+rosbuild_link_boost(labelBox filesystem system)
+
 rosbuild_add_executable(create_correlation common/src/createCorrelation.cpp)
+rosbuild_link_boost(create_correlation filesystem system)
+
 rosbuild_add_executable(record_kinect_prosilica ros/src/recordKinPro.cpp)
+rosbuild_link_boost(record_kinect_prosilica filesystem system thread)
+
 rosbuild_add_executable(script_for_imglist common/src/convertXML.cpp)
+
 rosbuild_add_executable(showPCD common/src/showPCD.cpp)
+rosbuild_link_boost(showPCD thread)
