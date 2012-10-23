@@ -430,11 +430,8 @@ void showRects(std::vector<img> &images, std::string path)
 			for (int j = 0; j < 4; j++)
 				cv::line(Image_, vertices[j], vertices[(j + 1) % 4], green);
 
-			cv::putText(
-					Image_,
-					output,
-					cv::Point(images[imageIndex].correctRects[i].center.x + 0.5 * images[imageIndex].correctRects[i].size.width,
-							images[imageIndex].correctRects[i].center.y - 0.5 * images[imageIndex].correctRects[i].size.height), cv::FONT_HERSHEY_SIMPLEX, 0.75, green, 2, 8, false);
+			cv::putText(Image_,	output, cv::Point(images[imageIndex].correctRects[i].center.x + 0.5 * images[imageIndex].correctRects[i].size.width,
+					images[imageIndex].correctRects[i].center.y - 0.5 * images[imageIndex].correctRects[i].size.height), cv::FONT_HERSHEY_SIMPLEX, 0.75, green, 2, 8, false);
 			out << ": [ " << images[imageIndex].correctRects[i].center.x << " | " << images[imageIndex].correctRects[i].center.y << " | "
 					<< images[imageIndex].correctRects[i].size.width << " | " << images[imageIndex].correctRects[i].size.height << " | "
 					<< images[imageIndex].correctRects[i].angle << "]";
@@ -463,12 +460,8 @@ void showRects(std::vector<img> &images, std::string path)
 			for (int j = 0; j < 4; j++)
 				cv::line(Image_, vertices[j], vertices[(j + 1) % 4], blue);
 
-			cv::putText(
-					Image_,
-					output,
-					cv::Point(images[imageIndex].estimatedRects[i].center.x + 0.5 * images[imageIndex].estimatedRects[i].size.width,
-							images[imageIndex].estimatedRects[i].center.y - 0.5 * images[imageIndex].estimatedRects[i].size.height), cv::FONT_HERSHEY_SIMPLEX, 0.75, blue, 2, 8,
-					false);
+			cv::putText(Image_,	output,	cv::Point(images[imageIndex].estimatedRects[i].center.x + 0.5 * images[imageIndex].estimatedRects[i].size.width,
+					images[imageIndex].estimatedRects[i].center.y - 0.5 * images[imageIndex].estimatedRects[i].size.height), cv::FONT_HERSHEY_SIMPLEX, 0.75, blue, 2, 8, false);
 			out << ": [ " << (int) images[imageIndex].estimatedRects[i].center.x << " | " << (int) images[imageIndex].estimatedRects[i].center.y << " | "
 					<< (int) images[imageIndex].estimatedRects[i].size.width << " | " << (int) images[imageIndex].estimatedRects[i].size.height << " | "
 					<< (int) images[imageIndex].estimatedRects[i].angle << "]";
@@ -477,9 +470,7 @@ void showRects(std::vector<img> &images, std::string path)
 			cv::putText(Image_, output, cv::Point(OriginalImage_.cols + 5, offset + 25 * (i + 1)), cv::FONT_HERSHEY_SIMPLEX, 0.5, blue, 1.5, 8, false);
 			if (showWords)
 				if (images[imageIndex].estimatedTexts.size() > i)
-					cv::putText(Image_, images[imageIndex].estimatedTexts[i], cv::Point(OriginalImage_.cols + 300, offset + 25 * (i + 1)), cv::FONT_HERSHEY_SIMPLEX, 0.5, blue,
-							1.5, 8, false);
-
+					cv::putText(Image_, images[imageIndex].estimatedTexts[i], cv::Point(OriginalImage_.cols + 300, offset + 25 * (i + 1)), cv::FONT_HERSHEY_SIMPLEX, 0.5, blue, 1.5, 8, false);
 		}
 
 		// Show results
@@ -875,10 +866,10 @@ void calculateWordResults(std::vector<img> &images)
 		std::vector<std::string> brokenWords; // single words
 
 		//Breaking into words
-		for (unsigned int j = 0; j < images[imageIndex].estimatedTexts.size(); j++)
+		for (unsigned int e = 0; e < images[imageIndex].estimatedTexts.size(); e++)
 		{
-			std::string dummyString(images[imageIndex].estimatedTexts[j]);
-			if (dummyString.find(" ") != std::string::npos) // find empty spaces in estimated words -> separate ĺine into words
+			std::string dummyString(images[imageIndex].estimatedTexts[e]);
+			if (dummyString.find(" ") != std::string::npos) // find empty spaces in estimated words -> separate line into words
 				while (dummyString.find(" ") != std::string::npos) // more than one empty space possible
 				{
 					if ((dummyString.substr(0, dummyString.find(" ")).compare("") != 0)) // if it is not an empty string
@@ -889,15 +880,15 @@ void calculateWordResults(std::vector<img> &images)
 							brokenWords.push_back(dummyString);
 				}
 			else
-				brokenWords.push_back(images[imageIndex].estimatedTexts[j]); // if there are no empty spaces, push the whole text in brokenWords
+				brokenWords.push_back(images[imageIndex].estimatedTexts[e]); // if there are no empty spaces, push the whole text in brokenWords
 		}
 
 		// Take solution word and look up whether its in the estimated set
-		for (unsigned int j = 0; j < images[imageIndex].correctTexts.size(); j++)
+		for (unsigned int t = 0; t < images[imageIndex].correctTexts.size(); t++)
 		{
 			bool found = false;
-			for (unsigned int k = 0; k < images[imageIndex].estimatedTexts.size(); k++)
-				if ((images[imageIndex].estimatedTexts[k]).find(images[imageIndex].correctTexts[j]) != std::string::npos)
+			for (unsigned int e = 0; e < images[imageIndex].estimatedTexts.size(); e++)
+				if ((images[imageIndex].estimatedTexts[e]).find(images[imageIndex].correctTexts[t]) != std::string::npos)
 				{
 					foundWords++;
 					images[imageIndex].wordWasFound.push_back(true);
@@ -909,26 +900,26 @@ void calculateWordResults(std::vector<img> &images)
 		}
 
 		images[imageIndex].foundWordsRatio = foundWords / (float) images[imageIndex].correctTexts.size();
-		images[imageIndex].wrongWordsRatio = brokenWords.size() > 0 ? (brokenWords.size() - foundWords) / (float) brokenWords.size() : 0;
+		images[imageIndex].wrongWordsRatio = brokenWords.size() > 0 ? (brokenWords.size()-foundWords) / (float)brokenWords.size() : 0;
 	}
 }
 
-std::vector<float> printAverageResults(std::vector<img> &images, std::string path)
+std::vector<double> printAverageResults(std::vector<img> &images, std::string path)
 {
-	std::vector<float> results;
+	std::vector<double> results;
 	//calculate average of all images:
-	float averagePrecision = 0;
-	float averageRecall = 0;
-	float averageWords = 0;
+	double averagePrecision = 0;
+	double averageRecall = 0;
+	double averageWords = 0;
 	for (unsigned int i = 0; i < images.size(); i++)
 	{
 		averagePrecision += images[i].precision;
 		averageRecall += images[i].recall;
 		averageWords += images[i].foundWordsRatio;
 	}
-	averagePrecision /= images.size();
-	averageRecall /= images.size();
-	averageWords /= images.size();
+	averagePrecision /= (double)images.size();
+	averageRecall /= (double)images.size();
+	averageWords /= (double)images.size();
 
 	// output
 	std::cout << "------------------" << std::endl;
@@ -1070,17 +1061,11 @@ int main(int argc, char **argv)
 	//calculate how many words got recognized
 	calculateWordResults(images);
 
-	std::cout << "b\n";
-
 	//show everything
 	showRects(images, argv[1]);
 
-	std::cout << "c\n";
-
 	//print everything to stdout and show final result image for all images
-	std::vector<float> results = printAverageResults(images, argv[1]);
-
-	std::cout << "d\n";
+	std::vector<double> results = printAverageResults(images, argv[1]);
 
 	//save all results in a txt file in results directory
 	writeAllResultsInTxt(results, images, argv[1]);
