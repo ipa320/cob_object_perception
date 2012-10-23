@@ -963,7 +963,7 @@ bool fOrder(img a, img b)
 	return a.f > b.f;
 }
 
-void writeAllResultsInTxt(std::vector<float> results, std::vector<img> &images, std::string path)
+void writeAllResultsInTxt(std::vector<double> results, std::vector<img> &images, std::string path)
 {
 	std::ofstream resultFile;
 	std::string textname = path.substr(0, path.find_last_of("/") + 1);
