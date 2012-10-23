@@ -1,12 +1,11 @@
 <launch>
 
-<arg name="image" default="$(find cob_read_text_data)/sample_image.png"/>
+	<arg name="image" default="$(find cob_read_text_data)/common/files/sample_image.png"/>
 
 	<env name="TESSDATA_PREFIX" value="$(find cob_tesseract_data)/" />
 
 	<rosparam command="load" file="$(find cob_read_text)/launch/params.yaml" />
 
-	<node 
-name="run_detect" pkg="cob_read_text" type="run_detect" output="screen" args=" $(arg image) $(find cob_read_text_data)/fonts/new_correlation.txt $(find cob_read_text_data)/dictionary/full-dictionary_ger">
-		</node>
+	<node name="run_detect" pkg="cob_read_text" type="run_detect" output="screen" args=" $(arg image) $(find cob_read_text_data)/fonts/new_correlation.txt $(find cob_read_text_data)/dictionary/full-dictionary_ger">
+	</node>
 </launch>
