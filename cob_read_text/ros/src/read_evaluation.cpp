@@ -107,7 +107,7 @@ double cutout(std::string label, std::string output)
 		return -1.;
 }
 
-int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectangleFormat evaluationRectangleFormat)
+int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectangleFormat evaluationRectangleFormat, bool evaluateOCR)
 {
 	for (unsigned int imageIndex = 0; imageIndex < images.size(); imageIndex++)
 	{
@@ -130,6 +130,8 @@ int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectan
 				+ "/fonts/new_correlation.txt " + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
 
 		cmd_.append(" eval");
+		if (evaluateOCR == false)
+			cmd_.append(" OCRoff");
 
 		std::cout << "cmd_: " << cmd_ << std::endl;
 
@@ -1026,6 +1028,7 @@ int main(int argc, char **argv)
 	// todo: make parameter for database to use, whether rotated detections are used, what to evaluate (e.g. use OCR?), etc.
 	DatabaseFormat databaseFormat = ICDAR2003;
 	EvaluationRectangleFormat evaluationRectangleFormat = UPRIGHT;
+	bool evaluateOCR = false;
 
 	if (argc < 2)
 	{
@@ -1041,7 +1044,7 @@ int main(int argc, char **argv)
 	readInSolution(images, argv[1], databaseFormat);
 
 	//run read_text and write results in ocrImages
-	readInEstimates(images, argv[1], evaluationRectangleFormat);
+	readInEstimates(images, argv[1], evaluationRectangleFormat, evaluateOCR);
 
 	std::cout << "Number of images that were processed: " << images.size() << std::endl;
 

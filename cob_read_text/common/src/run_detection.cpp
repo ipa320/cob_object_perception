@@ -14,9 +14,15 @@ int main(int argc, char* argv[])
     if ((std::string)argv[4] == "eval")
       eval = true;
 
-  DetectText detector = DetectText(eval);
+  bool enableOCR = true;
+  if (argc > 5)
+	  if ((std::string)argv[5] == "OCRoff")
+		  enableOCR = false;
+
+  DetectText detector = DetectText(eval, enableOCR);
   detector.readLetterCorrelation(argv[2]);
   detector.readWordList(argv[3]);
+
   ros::init(argc, argv, "run_detection");
   ros::NodeHandle nh;
   detector.setParams(nh);

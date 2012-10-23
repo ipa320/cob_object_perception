@@ -70,11 +70,14 @@
 
 DetectText::DetectText()
 {
+	eval_ = false;
+	enableOCR_ = true;
 }
 
-DetectText::DetectText(bool eval)
+DetectText::DetectText(bool eval, bool enableOCR)
 {
 	eval_ = eval;
+	enableOCR_ = enableOCR;
 }
 
 DetectText::~DetectText()
@@ -175,42 +178,50 @@ void DetectText::detect()
 	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
 	// OCR
-	//  ocrPreprocess(transformedBoundingBoxes_);
-	//  ocrPreprocess(notTransformedBoundingBoxes_);
-
-	// delete boxes that are complete inside other boxes
-	//deleteDoubleBrokenWords(boundingBoxes_);
-
-
-	// fill textImages_ with either rectangles or rotated rectangles
-	for (size_t i = 0; i < transformedImage_.size(); i++)
+	if (enableOCR_ == true)
 	{
-		if (transformImages)
+		//  ocrPreprocess(transformedBoundingBoxes_);
+		//  ocrPreprocess(notTransformedBoundingBoxes_);
+
+		// delete boxes that are complete inside other boxes
+		//deleteDoubleBrokenWords(boundingBoxes_);
+
+
+		// fill textImages_ with either rectangles or rotated rectangles
+		for (size_t i = 0; i < transformedImage_.size(); i++)
 		{
-			cv::Mat rotatedFlippedBox;
-			cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
-			textImages_.push_back(sharpenImage(transformedImage_[i]));
-			textImages_.push_back(sharpenImage(rotatedFlippedBox));
+			if (transformImages)
+			{
+				cv::Mat rotatedFlippedBox;
+				cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
+				textImages_.push_back(sharpenImage(transformedImage_[i]));
+				textImages_.push_back(sharpenImage(rotatedFlippedBox));
+			}
+			else
+			{
+				textImages_.push_back(sharpenImage(notTransformedImage_[i]));
+			}
+
+			// sometimes tesseract likes gray images
+			//    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
+			//    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
+			// textImages_.push_back(sharpenImage(grayImage));
+
+			// binary image
+			// textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
+
+			// binary image #2
 		}
-		else
-		{
-			textImages_.push_back(sharpenImage(notTransformedImage_[i]));
-		}
 
-		// sometimes tesseract likes gray images
-		//    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
-		//    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
-		// textImages_.push_back(sharpenImage(grayImage));
-
-		// binary image
-		// textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
-
-		// binary image #2
+		ocrRead(textImages_);
+		// Draw output on resultImage_
+		showBoundingBoxes(finalBoxes_, finalTexts_);
 	}
-
-	ocrRead(textImages_);
-	// Draw output on resultImage_
-	showBoundingBoxes(finalBoxes_, finalTexts_);
+	else
+	{
+		finalBoxes_ = finalRotatedBoundingBoxes_;
+		finalTexts_.resize(finalBoxes_.size(), "");
+	}
 
 	std::cout << "eval_: " << eval_ << std::endl;
 

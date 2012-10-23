@@ -19,7 +19,7 @@ class DetectText
 {
 public:
   DetectText();
-  DetectText(bool eval);
+  DetectText(bool eval, bool enableOCR);
   ~DetectText();
 
   // API
@@ -302,6 +302,7 @@ private:
   double sigma_sharp, threshold_sharp, amount_sharp;
 
   // OCR
+  bool enableOCR_;
   int result_;
   std::vector<cv::Mat> textImages_;
   std::vector<cv::RotatedRect> finalBoxes_;
