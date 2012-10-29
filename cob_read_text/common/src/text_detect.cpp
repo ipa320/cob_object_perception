@@ -95,7 +95,7 @@ void DetectText::detect(std::string filename)
 		ROS_ERROR("Cannot read image input.");
 		return;
 	}
-	mode_ = IMAGE;
+	//mode_ = IMAGE;
 	detect();
 }
 
@@ -104,7 +104,7 @@ void DetectText::detect(cv::Mat& image)
 	// Read image from topic
 	filename_ = std::string("streaming.jpg");
 	originalImage_ = image;
-	mode_ = STREAM;
+	//mode_ = STREAM;
 	detect();
 }
 
@@ -151,6 +151,16 @@ std::vector<cv::RotatedRect>& DetectText::getBoxes()
 
 void DetectText::detect()
 {
+	if (processing_method_ == ORIGINAL_EPSHTEIN)
+		detect_original_epshtein();
+	else if (processing_method_ == BORMANN)
+		detect_bormann();
+	else
+		std::cout << "DetectText::detect: Error: Desired processing method is not implemented." << std::endl;
+}
+
+void DetectText::detect_original_epshtein()
+{
 	// start timer
 	double start_time;
 	double time_in_seconds;
@@ -167,13 +177,107 @@ void DetectText::detect()
 	preprocess();
 
 	// bright font
-	firstPass_ = true; // todo: double occurrence, as param and here
-	pipeline(1);
+	firstPass_ = true;
+	pipeline();
 	disposal();
 
 	// dark font
 	firstPass_ = false;
-	pipeline(-1);
+	pipeline();
+
+	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
+
+	// OCR
+	if (enableOCR_ == true)
+	{
+		//  ocrPreprocess(transformedBoundingBoxes_);
+		//  ocrPreprocess(notTransformedBoundingBoxes_);
+
+		// delete boxes that are complete inside other boxes
+		//deleteDoubleBrokenWords(boundingBoxes_);
+
+
+		// fill textImages_ with either rectangles or rotated rectangles
+		for (size_t i = 0; i < transformedImage_.size(); i++)
+		{
+			if (transformImages)
+			{
+				cv::Mat rotatedFlippedBox;
+				cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
+				textImages_.push_back(sharpenImage(transformedImage_[i]));
+				textImages_.push_back(sharpenImage(rotatedFlippedBox));
+			}
+			else
+			{
+				textImages_.push_back(sharpenImage(notTransformedImage_[i]));
+			}
+
+			// sometimes tesseract likes gray images
+			//    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
+			//    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
+			// textImages_.push_back(sharpenImage(grayImage));
+
+			// binary image
+			// textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
+
+			// binary image #2
+		}
+
+		ocrRead(textImages_);
+		// Draw output on resultImage_
+		showBoundingBoxes(finalBoxes_, finalTexts_);
+	}
+	else
+	{
+		finalBoxes_ = finalRotatedBoundingBoxes_;
+		finalTexts_.resize(finalBoxes_.size(), "");
+	}
+
+	std::cout << "eval_: " << eval_ << std::endl;
+
+	// Write results
+	if (eval_)
+		writeTxtsForEval();
+	else
+		cv::imwrite(outputPrefix_ + "_detection.jpg", resultImage_);
+
+	// Show results
+	if (debug["showResult"])
+	{
+		cv::imshow("detection", resultImage_);
+		cvMoveWindow("detection", 0, 0);
+		cv::waitKey(0);
+	}
+
+	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
+	std::cout << std::endl << "[" << time_in_seconds << " s] total in process\n" << std::endl;
+}
+
+void DetectText::detect_bormann()
+{
+	// start timer
+	double start_time;
+	double time_in_seconds;
+	start_time = std::clock();
+
+	// grayImage for SWT
+	grayImage_ = cv::Mat(originalImage_.size(), CV_8UC1, cv::Scalar(0));
+	cv::cvtColor(originalImage_, grayImage_, CV_RGB2GRAY);
+
+	// Show image information
+	std::cout << std::endl;
+	std::cout << "Image: " << filename_ << std::endl;
+	std::cout << "Size:" << grayImage_.cols << " x " << grayImage_.rows << std::endl << std::endl;
+	preprocess();
+
+	// bright font
+	firstPass_ = true;
+	pipeline();
+	disposal();
+
+	// dark font
+	firstPass_ = false;
+	pipeline();
 
 	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
@@ -274,7 +378,7 @@ void DetectText::preprocess()
 	resultImage_ = img1; //.clone();
 }
 
-void DetectText::pipeline(int blackWhite)
+void DetectText::pipeline()
 {
 	double start_time;
 	double time_in_seconds;
@@ -282,12 +386,19 @@ void DetectText::pipeline(int blackWhite)
 	start_time = clock();
 	cv::Mat swtmap(grayImage_.size(), CV_32FC1, cv::Scalar(initialStrokeWidth_));
 
+	int searchDirection = 0;
 	if (firstPass_)
+	{
 		std::cout << "--- Bright Font ---" << std::endl;
+		searchDirection = 1;
+	}
 	else
+	{
 		std::cout << "--- Dark Font ---" << std::endl;
+		searchDirection = -1;
+	}
 
-	strokeWidthTransform(grayImage_, swtmap, blackWhite);
+	strokeWidthTransform(grayImage_, swtmap, searchDirection);
 	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
 	std::cout << "[" << time_in_seconds << " s] in strokeWidthTransform" << std::endl;
 
@@ -365,15 +476,15 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 		Sobel(grayImage_, dx, CV_32FC1, 1, 0, 3);
 		Sobel(grayImage_, dy, CV_32FC1, 0, 1, 3);
 
-		theta_ = cv::Mat(grayImage_.size(), CV_32FC1);
+		theta_ = cv::Mat::zeros(grayImage_.size(), CV_32FC1);
 
 		edgepoints_.clear();
 
 		for (int y = 0; y < edgemap_.rows; y++)
 			for (int x = 0; x < edgemap_.cols; x++)
-				if (edgemap_.at<unsigned char> (y, x) == 255) // In case (x,y) is an edge
+				if (edgemap_.at<unsigned char>(y, x) == 255) // In case (x,y) is an edge
 				{
-					theta_.at<float> (y, x) = atan2(dy.at<float> (y, x), dx.at<float> (y, x)); //rise = arctan dy/dx
+					theta_.at<float>(y, x) = atan2(dy.at<float>(y, x), dx.at<float>(y, x)); //rise = arctan dy/dx
 					edgepoints_.push_back(cv::Point(x, y)); //Save edge as point in edgepoints
 				}
 
@@ -481,54 +592,54 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 	return edgemap;
 }
 
-void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& startPoints, std::vector<cv::Point>& strokePoints, int searchDirection,
-		Purpose purpose)
+void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& startPoints, std::vector<cv::Point>& strokePoints, int searchDirection, Purpose purpose)
 {
-	// Loop through all edgepoints, compute stroke width
-	std::vector<cv::Point>::iterator itr = startPoints.begin();
-
 	std::vector<cv::Point> pointStack;
 	std::vector<float> SwtValues;
 
-	for (; itr != startPoints.end(); ++itr)
+	// Loop through all edgepoints, compute stroke width
+	for (std::vector<cv::Point>::iterator itr = startPoints.begin(); itr != startPoints.end(); ++itr)
 	{
 		pointStack.clear();
 		SwtValues.clear();
 		float step = 1;
-		float iy = (*itr).y;
 		float ix = (*itr).x;
-		float currY = iy;
+		float iy = (*itr).y;
 		float currX = ix;
+		float currY = iy;
 		bool isStroke = false;
-		float iTheta = theta_.at<float> (*itr);
+		float iTheta = theta_.at<float>(*itr);
 
 		pointStack.push_back(cv::Point(currX, currY));
-		SwtValues.push_back(swtmap.at<float> (currY, currX));
+		SwtValues.push_back(swtmap.at<float>(currY, currX));
 		while (step < maxStrokeWidth_)
 		{
 			//going one pixel in the direction of the gradient to check if next pixel is also an edge
-			float nextY = round(iy + sin(iTheta) * searchDirection * step);
 			float nextX = round(ix + cos(iTheta) * searchDirection * step);
+			float nextY = round(iy + sin(iTheta) * searchDirection * step);
 
-			if (nextY < 0 || nextX < 0 || nextY >= edgemap_.rows || nextX >= edgemap_.cols)
+			if (nextX < 0 || nextY < 0 || nextX >= edgemap_.cols || nextY >= edgemap_.rows)
 				break;
 
-			step = step + 1;
+			step++;
 
-			if (currY == nextY && currX == nextX)
+			if (currX == nextX && currY == nextY)
 				continue;
 
-			currY = nextY;
 			currX = nextX;
+			currY = nextY;
 
 			pointStack.push_back(cv::Point(currX, currY));
-			SwtValues.push_back(swtmap.at<float> (currY, currX));
+			SwtValues.push_back(swtmap.at<float>(currY, currX));
 
-			if (edgemap_.at<unsigned char> (currY, currX) == 255)
+			if (edgemap_.at<unsigned char>(currY, currX) == 255)
 			{
-				float jTheta = theta_.at<float> (currY, currX);
+				float jTheta = theta_.at<float>(currY, currX);
 				//if opposite point of stroke with roughly opposite gradient is found...
-				if (abs(abs(iTheta - jTheta) - 3.14) < compareGradientParameter) // paper: abs(abs(iTheta - jTheta) - 3.14) < 3.14 / 6
+				//double dTheta = abs(iTheta - jTheta);std::min(dTheta, 3.14159265359-dTheta)
+				//std::cout << iTheta << " " << jTheta << " " << fmod(jTheta+M_PI,2*M_PI) << " " << fabs(iTheta-fmod(jTheta+M_PI,2*M_PI)) << std::endl;
+				//getchar();
+				if (fabs(iTheta-fmod(jTheta+M_PI,2*M_PI)) < compareGradientParameter) // paper: abs(abs(iTheta - jTheta) - 3.14) < 3.14 / 6
 				{
 					isStroke = true;
 					if (purpose == UPDATE)
@@ -552,7 +663,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 
 			// set all cv::Points between to the newSwtVal except they are smaller because of another stroke
 			for (size_t i = 0; i < pointStack.size(); i++)
-				swtmap.at<float> (pointStack[i]) = std::min(swtmap.at<float> (pointStack[i]), newSwtVal);
+				swtmap.at<float> (pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
 		}
 	} // end loop through edge points
 
@@ -560,7 +671,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 	for (int y = 0; y < swtmap.rows; y++)
 		for (int x = 0; x < swtmap.cols; x++)
 			if (swtmap.at<float> (y, x) == initialStrokeWidth_)
-				swtmap.at<float> (y, x) = 0;
+				swtmap.at<float> (y, x) = 0;						// todo: check whether this may cause problems when grouping
 
 	if (debug["showSWT"] && purpose == REFINE)
 	{
@@ -4682,6 +4793,9 @@ unsigned int DetectText::calculateRealLetterHeight(cv::Point2f p, cv::Rect r, cv
 
 void DetectText::setParams(ros::NodeHandle & nh)
 {
+	int proc_meth = 0;
+	nh.getParam("processing_method", proc_meth);
+	this->processing_method_ = (ProcessingMethod)proc_meth;
 	nh.getParam("transformImages", this->transformImages);
 	nh.getParam("smoothImage", this->smoothImage);
 	nh.getParam("maxStrokeWidthParameter", this->maxStrokeWidthParameter);
@@ -4725,6 +4839,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
 	nh.getParam("showResult", this->debug["showResult"]);
 
+	std::cout << "processing_method:" << processing_method_ << std::endl;
 	std::cout << "smoothImage:" << smoothImage << std::endl;
 	std::cout << "maxStrokeWidthParameter:" << maxStrokeWidthParameter << std::endl;
 	std::cout << "useColorEdge:" << useColorEdge << std::endl;
@@ -4751,6 +4866,8 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	std::cout << "minE:" << minE << std::endl;
 	std::cout << "bendParameter:" << bendParameter << std::endl;
 	std::cout << "distanceParameter:" << distanceParameter << std::endl;
+
+
 
 }
 

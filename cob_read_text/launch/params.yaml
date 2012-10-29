@@ -1,4 +1,11 @@
-#tshowransform
+# general
+# -------
+
+# defines the method for finding texts in the image
+# enum ProcessingMethod {ORIGINAL_EPSHTEIN=0, BORMANN=1};
+processing_method: 0
+
+#showransform
 # ----------
 
 # default: true, use bezier-transformed images or normal rectangles around bezier lines
@@ -175,11 +182,11 @@ result_: 2
 
 # show gray colored edgemap image
 # bool
-showEdge: false
+showEdge: true
 
 # show swt map
 # bool
-showSWT: false
+showSWT: true
 
 # show connected components
 # bool

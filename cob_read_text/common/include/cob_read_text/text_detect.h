@@ -105,10 +105,12 @@ private:
 
   // main method
   void detect();
+  void detect_original_epshtein();
+  void detect_bormann();
 
   void preprocess();
 
-  void pipeline(int blackWhite);
+  void pipeline();
 
   void strokeWidthTransform(const cv::Mat &image, cv::Mat &swtmap, int searchDirection);
 
@@ -314,9 +316,13 @@ private:
   bool eval_; //true=evaluation (read_evaluation) false=standard
 
   // Not used but useful variables:
-  Mode mode_; // streaming from topic or reading image file
+  //Mode mode_; // streaming from topic or reading image file
 
   // Parameters given by yaml
+  // --- general ---
+  enum ProcessingMethod {ORIGINAL_EPSHTEIN=0, BORMANN};
+  ProcessingMethod processing_method_;				// defines the method for finding texts in the image
+
   // --- transform ---
   bool transformImages;
 

@@ -27,5 +27,8 @@ int main(int argc, char* argv[])
   ros::NodeHandle nh;
   detector.setParams(nh);
   detector.detect(std::string(argv[1]));
+
+  ros::shutdown();
+
   return 0;
 }
