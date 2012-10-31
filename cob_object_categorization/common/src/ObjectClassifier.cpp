@@ -4554,7 +4554,7 @@ int ObjectClassifier::CategorizeObject(SharedImage* pSourceImage, std::map<doubl
 				maxAPrioriProbability = classProbabilities[ItGlobalClassifierMap->first];
 				maxAPrioriLabel = ItGlobalClassifierMap->first;
 			}
-			//std::cout << "a priori: " << ItGlobalClassifierMap->first << "\t" << classProbabilities[ItGlobalClassifierMap->first] << std::endl;
+			std::cout << "a priori: " << ItGlobalClassifierMap->first << "\t" << classProbabilities[ItGlobalClassifierMap->first] << std::endl;
 		}
 		// max a posteriori label
 		std::map<std::string, double> p_ci_x;	// probability distribution for the actual object class given measurement x
@@ -4584,7 +4584,7 @@ int ObjectClassifier::CategorizeObject(SharedImage* pSourceImage, std::map<doubl
 				maxAPosterioriProbability = p_ci_x[groundTruthLabel];
 				maxAPosterioriLabel = groundTruthLabel;
 			}
-			//std::cout << "a posteriori: " << groundTruthLabel << "\t" << p_ci_x[groundTruthLabel] << std::endl;
+			std::cout << "a posteriori: " << groundTruthLabel << "\t" << p_ci_x[groundTruthLabel] << std::endl;
 		}
 
 		//for (std::map<double, std::string>::iterator it = pResults.begin(); it != pResults.end(); it++)

@@ -22,7 +22,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	input_pointcloud_camera_info_sub_ = node_handle_.subscribe("input_pointcloud_camera_info", 1, &ObjectCategorization::calibrationCallback, this);
 
 	// input synchronization
-	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >(30);
+	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >(60);
 	sync_input_->connectInput(input_pointcloud_sub_, color_image_sub_);
 	sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
 }
