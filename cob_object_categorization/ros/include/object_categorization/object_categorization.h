@@ -16,7 +16,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <cob_object_categorization/PointCloud2Array.h>
+#include <cob_perception_msgs/PointCloud2Array.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -51,13 +51,17 @@
 class ObjectCategorization
 {
 public:
+
+	ObjectCategorization();
 	ObjectCategorization(ros::NodeHandle nh);
 
 	~ObjectCategorization();
 
+	void Training();
+
 protected:
 	/// callback for the incoming pointcloud data stream
-	void inputCallback(const cob_object_categorization::PointCloud2Array::ConstPtr& input_pointcloud_segments_msg, const sensor_msgs::Image::ConstPtr& input_image_msg);
+	void inputCallback(const cob_perception_msgs::PointCloud2Array::ConstPtr& input_pointcloud_segments_msg, const sensor_msgs::Image::ConstPtr& input_image_msg);
 
 	/// Converts a color image message to cv::Mat format.
 	unsigned long convertColorImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image);
@@ -65,11 +69,11 @@ protected:
 	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
 //	ros::Subscriber input_pointcloud_sub_;	///< incoming point cloud topic
-	message_filters::Subscriber<cob_object_categorization::PointCloud2Array> input_pointcloud_sub_;	///< incoming point cloud topic
+	message_filters::Subscriber<cob_perception_msgs::PointCloud2Array> input_pointcloud_sub_;	///< incoming point cloud topic
 	ros::Subscriber input_pointcloud_camera_info_sub_;	///< camera calibration of incoming data
 	image_transport::ImageTransport* it_;
 	image_transport::SubscriberFilter color_image_sub_; ///< color camera image topic
-	message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_categorization::PointCloud2Array, sensor_msgs::Image> >* sync_input_;
+	message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >* sync_input_;
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 

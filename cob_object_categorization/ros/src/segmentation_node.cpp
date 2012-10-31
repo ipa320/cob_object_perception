@@ -3,7 +3,7 @@
 
 // ROS message includes
 #include <sensor_msgs/PointCloud2.h>
-#include <cob_object_categorization/PointCloud2Array.h>
+#include <cob_perception_msgs/PointCloud2Array.h>
 
 // PCL
 #include <pcl/ModelCoefficients.h>
@@ -26,7 +26,7 @@ public:
 	: node_handle_(nh)
 	{
 		input_pointcloud_sub_ = node_handle_.subscribe("input_pointcloud", 1, &SegmentationNode::inputCallback, this);
-		output_pointcloud_pub_ = node_handle_.advertise<cob_object_categorization::PointCloud2Array>("output_pointcloud_segments", 5);
+		output_pointcloud_pub_ = node_handle_.advertise<cob_perception_msgs::PointCloud2Array>("output_pointcloud_segments", 5);
 
 		last_publishing_time_ = ros::Time::now();
 
@@ -124,14 +124,14 @@ protected:
 
 			std::vector<pcl::PointIndices> cluster_indices;
 			pcl::EuclideanClusterExtraction<PointType> ec;
-			ec.setClusterTolerance (0.10); // 2cm
-			ec.setMinClusterSize (200);
+			ec.setClusterTolerance (0.5); // 2cm
+			ec.setMinClusterSize (50);
 			ec.setMaxClusterSize (25000);
 			ec.setSearchMethod (tree);
 			ec.setInputCloud( cloud_filtered);
 			ec.extract (cluster_indices);
 
-			cob_object_categorization::PointCloud2Array output_pointcloud_segments_msg;
+			cob_perception_msgs::PointCloud2Array output_pointcloud_segments_msg;
 			int j = 0;
 			for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
 			{
@@ -147,7 +147,7 @@ protected:
 
 				std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
 
-				if ((fabs(avgPoint.x) < cloud_cluster->points.size()*/*0.15*/0.5) && (fabs(avgPoint.y) < /*0.30*/0.5*cloud_cluster->points.size()))
+				if ((fabs(avgPoint.x) < cloud_cluster->points.size()*/*0.15*/0.5) && (fabs(avgPoint.y) < /*0.30*/0.5*cloud_cluster->points.size()) && (fabs(avgPoint.z) < 1.0*cloud_cluster->points.size()))
 				{
 					std::cout << "found a cluster in the center" << std::endl;
 					cloud_cluster->header.stamp = input_pointcloud_msg->header.stamp;

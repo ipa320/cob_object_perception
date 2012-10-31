@@ -17,6 +17,7 @@
   <depend package="sensor_msgs"/>
   <depend package="message_filters"/>
   <depend package="image_transport"/>
+  <depend package="cob_perception_msgs"/>
   
   <!--rosdep name="pcl"/-->
 
