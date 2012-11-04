@@ -272,13 +272,14 @@ private:
   std::vector<cv::Point> edgepoints_; // all points where an edge is
 
   // Connect Component
-  std::vector<cv::Rect> labeledRegions; // all regions (with label) that could be a letter
-  std::size_t nComponent_; // =labeledRegions.size()
+  std::vector<cv::Rect> labeledRegions_; // all regions (with label) that could be a letter
+  std::size_t nComponent_; // =labeledRegions_.size()
   cv::Mat ccmapBright_, ccmapDark_; // copy of whole cc map
   std::vector<std::vector<connectedComponent> > connectedComponents_;
 
   // Identify Letters
   std::vector<bool> isLetterRegion_; // which region is letter
+  std::vector<double> medianStrokeWidth_;	// median stroke width for each letter region
   std::vector<std::vector<float> > meanRGB_; // mean R,G,B and Gray value of foreground pixels of every region
   std::vector<std::vector<float> > meanBgRGB_; // same with background pixels
   unsigned int nLetter_; // how many regions are letters
