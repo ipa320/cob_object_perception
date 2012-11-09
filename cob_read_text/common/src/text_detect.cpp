@@ -885,7 +885,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 	// For every found component
 	for (size_t i = 0; i < nComponent_; i++)
 	{
-		std::vector<bool> innerComponents(nComponent_, false);
+		//std::vector<bool> innerComponents(nComponent_, false);
 		isLetterRegion_[i] = false;
 		float maxStrokeWidth = 0;
 		double sumStrokeWidth = 0;
@@ -922,8 +922,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 					maxStrokeWidth = std::max(maxStrokeWidth, currentStrokeWidth);
 					sumStrokeWidth += currentStrokeWidth;
 				}
-				else if (component >= 0)
-					innerComponents[component] = true;
+//				else if (component >= 0)
+//					innerComponents[component] = true;
 			}
 		}
 		double pixelCount = static_cast<double>(iComponentStrokeWidth.size());
@@ -959,7 +959,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		//  isLetter = isLetter && (itr.width < heightParameter * itr.height);
 
 		// rule #6: number of inner components must be small
-		isLetter = isLetter && (countInnerLetterCandidates(innerComponents) <= innerLetterCandidatesParameter);
+		// attention: does not make sense at this place! -> this rule is checked after this loop
+		//isLetter = isLetter && (countInnerLetterCandidates(innerComponents) <= innerLetterCandidatesParameter);
 
 		// rule #7: Ratio of background color / foreground color has to be big.
 		meanRGB_[i] = getMeanIntensity(ccmap, itr, static_cast<int>(i), false);
@@ -985,6 +986,27 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		isLetterRegion_[i] = isLetter;
 		if (isLetter)
 			nLetter_++;
+	}
+
+	// rule #6: number of inner components must be small
+	for (unsigned int i=0; i<nComponent_; i++)
+	{
+		if (isLetterRegion_[i] == false)
+			continue;
+
+		std::vector<bool> innerComponents(nComponent_, false);
+		for (unsigned int j=0; j<nComponent_; j++)
+		{
+			if (i==j || isLetterRegion_[j]==false)
+				continue;
+			if ((labeledRegions_[i] & labeledRegions_[j]).area() != 0)
+				innerComponents[j] = true;
+		}
+		if (countInnerLetterCandidates(innerComponents) > innerLetterCandidatesParameter)
+		{
+			isLetterRegion_[i] = false;
+			nLetter_--;
+		}
 	}
 
 	// Show the components before and after the rules/criterions were applied (letter candidates and letters)
@@ -1070,12 +1092,8 @@ inline int DetectText::countInnerLetterCandidates(std::vector<bool> & array)
 {
 	int count = 0;
 	for (size_t i = 0; i < array.size(); i++)
-	{
-		if (array[i]) // && isLetterRegion_[i])  // todo: does this make sense before all letter regions are determined?
-		{
+		if (array[i] == true)
 			count++;
-		}
-	}
 	return count;
 }
 
