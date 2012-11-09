@@ -351,7 +351,10 @@ void DetectText::detect_bormann()
 
 void DetectText::preprocess()
 {
-	maxStrokeWidth_ = round((std::max(grayImage_.cols, grayImage_.rows)) / (float) maxStrokeWidthParameter);
+	if (processing_method_==ORIGINAL_EPSHTEIN)
+		maxStrokeWidth_ = maxStrokeWidthParameter;
+	else
+		maxStrokeWidth_ = round((std::max(grayImage_.cols, grayImage_.rows)) / (float) maxStrokeWidthParameter);
 	initialStrokeWidth_ = maxStrokeWidth_ * 2;
 
 	// outputPrefix_: filename without extension
@@ -440,15 +443,23 @@ void DetectText::pipeline()
 	if (processing_method_==ORIGINAL_EPSHTEIN)
 	{
 		// todo: check those functions for compliance with the paper
-		//start_time = clock();
-		//filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
-		//time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-		//std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
 
+		// some feasibility checks
+//		start_time = clock();
+//		filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
+//		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
+
+		// separating several lines of text the hard way
 		start_time = clock();
 		breakLines(boundingBoxes);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLines: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
+
+		start_time = clock();
+		breakLinesIntoWords(boundingBoxes);
+		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
 	}
 	else
 	{
@@ -666,7 +677,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 
 			// set all cv::Points between to the newSwtVal except they are smaller because of another stroke
 			for (size_t i = 0; i < pointStack.size(); i++)
-				swtmap.at<float> (pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
+				swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
 		}
 	} // end loop through edge points
 
@@ -714,10 +725,12 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 
 	int ccmapInitialVal = ccmap.at<float>(0, 0);
 	int offsetY[] =
-	{ -1, -1, -1, 0, 0, 1, 1, 1 };
+	{ -2, -2, -2, -2, -2, -1, -1, -1, -1, -1,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2 };
+	//{ -1, -1, -1, 0, 0, 1, 1, 1 };
 	int offsetX[] =
-	{ -1, 0, 1, -1, 1, -1, 0, 1 };
-	int nNeighbors = 8;
+	{ -2, -1,  0,  1,  2, -2, -1,  0,  1,  2, -2, -1,  1,  2, -2, -1,  0,  1,  2, -2, -1,  0,  1,  2 };
+	//{ -1, 0, 1, -1, 1, -1, 0, 1 };
+	int nNeighbors = 24;//8;
 	int label = 0;
 
 	int vectorSize = ccmap.rows * ccmap.cols;
@@ -842,7 +855,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 				}
 				else
 					// pixel had no neighbor with similar color and sw
-					ccmap.at<float> (y, x) = -2;
+					ccmap.at<float>(y, x) = -2;
 			}
 		}// loop through ccmap
 	}
@@ -921,7 +934,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		varianceStrokeWidth = varianceStrokeWidth / pixelCount;
 
 		// rule #2: variance of stroke width of pixels in region that are part of component
-		isLetter = isLetter && (varianceStrokeWidth <= varianceParameter*meanStrokeWidth);
+		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
 
 		// rule #3: aspect ration has to be within 0.1 and 10
 		if (processing_method_ == ORIGINAL_EPSHTEIN)
@@ -1314,13 +1327,16 @@ std::vector<cv::Rect> DetectText::chainPairs()
 	if (debug["showChains"])
 	{
 		cv::Mat output = originalImage_.clone();
+		std::cout << "Initial Boxes: " << std::endl;
 		for (unsigned int ii = 0; ii < initialBoxes.size(); ii++)
 		{
+			std::cout << "   " << initialBoxes[ii].x << "\t" << initialBoxes[ii].y << "\t" << initialBoxes[ii].width << "\t" << initialBoxes[ii].height << "\t" << std::endl;
 			for (unsigned int i = 0; i < connectedComponents_[ii].size(); i++)
 			{
 				cv::rectangle(output, connectedComponents_[ii][i].r, cv::Scalar(255, 255, 255), 1, 1, 0);
 				cv::rectangle(output, connectedComponents_[ii][i].middlePoint, connectedComponents_[ii][i].middlePoint, cv::Scalar(255, 255, 255), 2, 1, 0);
 			}
+			cv::rectangle(output, cv::Point(initialBoxes[ii].x, initialBoxes[ii].y), cv::Point(initialBoxes[ii].x+initialBoxes[ii].width, initialBoxes[ii].y+initialBoxes[ii].height), cv::Scalar(0,255,0), 2, 1, 0);
 			cv::imshow("chains", output);
 			cvMoveWindow("chains", 0, 0);
 			cv::waitKey(0);
@@ -1502,17 +1518,18 @@ void DetectText::filterBoundingBoxes(std::vector<cv::Rect>& boundingBoxes, cv::M
 		int nonLetterArea = 0;
 		cv::Rect rect = boundingBoxes[i];
 
-		float width = static_cast<float> (rect.width);
-		float height = static_cast<float> (rect.height);
+		float width = static_cast<float>(rect.width);
+		float height = static_cast<float>(rect.height);
 		if (width < 20) // Only these rects/words with width > 20 -> maybe to be changed when rotated
 			continue;
-		if (std::max(width, height) / std::min(width, height) > 20) // maybe to be changed
+		if (std::max(width, height) > 20.0*std::min(width, height)) // maybe to be changed
 			continue;
 
 		for (int y = rect.y; y < rect.y + rect.height; y++)
+		{
 			for (int x = rect.x; x < rect.x + rect.width; x++)
 			{
-				int componetIndex = static_cast<int> (ccmap.at<float> (y, x));
+				int componetIndex = static_cast<int>(ccmap.at<float>(y, x));
 
 				if (componetIndex < 0)
 					continue;
@@ -1529,9 +1546,10 @@ void DetectText::filterBoundingBoxes(std::vector<cv::Rect>& boundingBoxes, cv::M
 						isLetterCount++;
 				}
 			}
+		}
 
 		// accept patch with few noise inside
-		if (letterArea > 3 * nonLetterArea || static_cast<int> (components.size()) < rejectRatio * isLetterCount)
+		if (letterArea > 3 * nonLetterArea || static_cast<int>(components.size()) < rejectRatio * isLetterCount)
 			qualifiedBoxes.push_back(rect);
 
 		components.clear();
@@ -1725,27 +1743,190 @@ void DetectText::combineNeighborBoxes(std::vector<cv::Rect> & originalBoxes)
 		originalBoxes.push_back(finalBoxes[i]);
 }
 
-void DetectText::breakLines(std::vector<cv::Rect> & boxes)
+
+void DetectText::breakLines(std::vector<cv::Rect>& boxes)
 {
-	// break text into separate lines without destroying letter boxes
-	std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
-	cv::Mat output = originalImage_.clone();
+	// this function splits up bounding boxes of potentially multiline text into boxes around single line text
+
+	if (debug["showBreakLines"])
+		std::cout << "Breaking boxes into single-line boxes." << std::endl;
 
 	std::vector<cv::Rect> letters;
 
 	if (firstPass_)
-		for (unsigned int i = 0; i < brightLetters_.size(); i++)
-			letters.push_back(brightLetters_[i]);
+		letters = brightLetters_;
+//		for (unsigned int i = 0; i < brightLetters_.size(); i++)
+//			letters.push_back(brightLetters_[i]);
 	else
-		for (unsigned int i = 0; i < darkLetters_.size(); i++)
-			letters.push_back(darkLetters_[i]);
-
-	std::vector<cv::Rect> dummyBoxes;
+		letters = darkLetters_;
+//		for (unsigned int i = 0; i < darkLetters_.size(); i++)
+//			letters.push_back(darkLetters_[i]);
 
 	//For every boundingBox:
+	std::vector<cv::Rect> splitUpBoxes;
 	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
 	{
-		currentLetters.clear();
+		//which Letters belong to the current boundingBox
+		// save bounding boxes and mid points of the currently active letters
+		std::vector<cv::Rect> currentLetterBoxes;
+		std::vector<cv::Point2d> currentPoints;
+		for (unsigned int i = 0; i < letters.size(); i++)
+			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
+				currentLetterBoxes.push_back(letters[i]);
+		double averageLetterSize = 0;
+		for (unsigned int i = 0; i < currentLetterBoxes.size(); i++)
+		{
+			currentPoints.push_back(cv::Point2d(currentLetterBoxes[i].x + 0.5 * currentLetterBoxes[i].width, currentLetterBoxes[i].y + 0.5 * currentLetterBoxes[i].height));
+			averageLetterSize += sqrt(currentLetterBoxes[i].width*currentLetterBoxes[i].width + currentLetterBoxes[i].height*currentLetterBoxes[i].height);
+		}
+		averageLetterSize /= (double)currentLetterBoxes.size();
+
+		// use RANSAC to fit letters to straight lines
+		// -------------------------------------------
+		double confidenceLevel = 0.99;
+		double problemDimension = 2;
+
+		// calculate percent outliers based on pca
+		cv::Mat pcaData(currentPoints.size(), 2, CV_32FC1);
+		for (unsigned int i = 0; i < currentPoints.size(); i++)
+		{
+			pcaData.at<float>(i, 0) = currentPoints[i].x;
+			pcaData.at<float>(i, 1) = currentPoints[i].y;
+		}
+		cv::PCA pca(pcaData, cv::noArray(), CV_PCA_DATA_AS_ROW, 2);
+		float eigenValQuotient = std::min(pca.eigenvalues.at<float>(0, 0), pca.eigenvalues.at<float>(1, 0)) / std::max(pca.eigenvalues.at<float>(0, 0), pca.eigenvalues.at<float>(1, 0));
+		// with perfect points orientation (all on one line) eigenValQuotient ~> 0 -> then percent of false data is supposed to be low
+		// points are spread around the whole space -> similiar eigenvalues -> percent outliers is high: maxE
+		double outlierRatio = (maxE - minE) * eigenValQuotient + minE;
+		// calculate number of iterations
+		int maxRANSACIterations = 5 * std::ceil(std::log10(1 - confidenceLevel) / (double)(std::log10(1 - (std::pow((1 - outlierRatio), problemDimension)))));
+
+		double inlierDistanceThreshold = averageLetterSize * 0.6;
+		if (debug["showBreakLines"])
+			std::cout << "inlierDistanceThreshold=" << inlierDistanceThreshold << std::endl;
+
+		while (currentPoints.size()>2)
+		{
+			double bestScore = 0.;
+			cv::Point2d bestP1(0,0);
+			cv::Point2d bestNormal(-1,-1);
+			for (int ransacAttempt=0; ransacAttempt<maxRANSACIterations; ransacAttempt++)
+			{
+				std::vector<int> randomPointSet; // which 3 points are chosen (index)
+				std::vector<cv::Point> supportingPoints; //which points support the model
+
+				// fill randomPointSet with random points for model
+				while (randomPointSet.size() < problemDimension)
+				{
+					int nn = (int)((std::rand() / (float) RAND_MAX) * currentPoints.size());
+					if (std::find(randomPointSet.begin(), randomPointSet.end(), nn) == randomPointSet.end())
+					{
+						randomPointSet.push_back(nn);
+					}
+				}
+
+				// compute line model
+				cv::Point2d p1 = currentPoints[randomPointSet[0]];
+				double normVal = sqrt((currentPoints[randomPointSet[1]].x-currentPoints[randomPointSet[0]].x)*(currentPoints[randomPointSet[1]].x-currentPoints[randomPointSet[0]].x)+(currentPoints[randomPointSet[1]].y-currentPoints[randomPointSet[0]].y)*(currentPoints[randomPointSet[1]].y-currentPoints[randomPointSet[0]].y));
+				cv::Point2d normal((currentPoints[randomPointSet[1]].y-currentPoints[randomPointSet[0]].y)/normVal, (currentPoints[randomPointSet[1]].x-currentPoints[randomPointSet[0]].x)/normVal);
+
+				// compute distance related score for the current model
+				double score = 0.;
+				for (unsigned int i=0; i<currentPoints.size(); i++)
+				{
+					cv::Point2d diff = p1-currentPoints[i];
+					double dist = fabs(diff.x*normal.x + diff.y*normal.y);
+					score += exp(log(0.1) * dist/inlierDistanceThreshold);
+				}
+
+				// update best
+				if (score > bestScore)
+				{
+					bestScore = score;
+					bestP1 = p1;
+					bestNormal = normal;
+				}
+			}
+			if (debug["showBreakLines"])
+				std::cout << "bestScore=" << bestScore << std::endl;
+
+			// collect all inliers
+			std::vector<int> inlierSet;
+			for (unsigned int i=0; i<currentPoints.size(); i++)
+			{
+				cv::Point2d diff = bestP1-currentPoints[i];
+				double dist = fabs(diff.x*bestNormal.x + diff.y*bestNormal.y);
+				if (dist < inlierDistanceThreshold)
+				{
+					inlierSet.push_back(i);
+					if (debug["showBreakLines"])
+						std::cout << "inlier found with dist=" << dist << std::endl;
+				}
+			}
+
+			// retrieve bounding box of inlier set
+			cv::Point minPoint(100000, 100000), maxPoint(0, 0);
+			for (unsigned int i=0; i<inlierSet.size(); i++)
+			{
+				if (minPoint.x > currentLetterBoxes[inlierSet[i]].x)
+					minPoint.x = currentLetterBoxes[inlierSet[i]].x;
+				if (minPoint.y > currentLetterBoxes[inlierSet[i]].y)
+					minPoint.y = currentLetterBoxes[inlierSet[i]].y;
+				if (maxPoint.x < currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width)
+					maxPoint.x = currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width;
+				if (maxPoint.y < currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height)
+					maxPoint.y = currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height;
+			}
+			splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
+
+			// debug
+			if (debug["showBreakLines"])
+			{
+				cv::Mat output = originalImage_.clone();
+				for (unsigned int i=0; i<inlierSet.size(); i++)
+					cv::rectangle(output, cv::Point(currentLetterBoxes[inlierSet[i]].x, currentLetterBoxes[inlierSet[i]].y), cv::Point(currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width, currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height), cv::Scalar(0,0,255), 2, 1, 0);
+				cv::rectangle(output, cv::Point(minPoint.x, minPoint.y), cv::Point(maxPoint.x, maxPoint.y), cv::Scalar(0,255,0), 2, 1, 0);
+				cv::imshow("breaking", output);
+				cvMoveWindow("breaking", 0, 0);
+				cv::waitKey(0);
+			}
+
+			// remove inlier set from currentPoints and currentLetterBoxes
+			std::sort(inlierSet.begin(), inlierSet.end(), std::greater<int>());
+			for (unsigned int i=0; i<inlierSet.size(); i++)
+			{
+				currentPoints.erase(currentPoints.begin()+inlierSet[i]);
+				currentLetterBoxes.erase(currentLetterBoxes.begin()+inlierSet[i]);
+			}
+		}
+	}
+
+	// return the set of divided boxes
+	boxes = splitUpBoxes;
+
+
+
+// Robert's code
+/*
+	// break text into separate lines without destroying letter boxes
+	cv::Mat output = originalImage_.clone();		// todo: make this a debug parameter
+
+	std::vector<cv::Rect> letters;
+
+	if (firstPass_)
+		letters = brightLetters_;
+//		for (unsigned int i = 0; i < brightLetters_.size(); i++)
+//			letters.push_back(brightLetters_[i]);
+	else
+		letters = darkLetters_;
+//		for (unsigned int i = 0; i < darkLetters_.size(); i++)
+//			letters.push_back(darkLetters_[i]);
+
+	//For every boundingBox:
+	std::vector<cv::Rect> dummyBoxes;
+	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
+	{
+		std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
 
 		//which Letters belong to the current boundingBox
 		for (unsigned int i = 0; i < letters.size(); i++)
@@ -1758,13 +1939,10 @@ void DetectText::breakLines(std::vector<cv::Rect> & boxes)
 		for (unsigned int i = 0; i < currentLetters.size(); i++)
 			currentLetterBoxes.push_back(letters[currentLetters[i]]);
 
-		sort(currentLetterBoxes.begin(), currentLetterBoxes.end(), DetectText::spaticalOrderX);
+		sort(currentLetterBoxes.begin(), currentLetterBoxes.end(), DetectText::spatialOrderX);
 
 		for (unsigned int i = 0; i < currentLetterBoxes.size(); i++)
-		{
-			cv::Point p(currentLetterBoxes[i].x + 0.5 * currentLetterBoxes[i].width, currentLetterBoxes[i].y + 0.5 * currentLetterBoxes[i].height);
-			currentPoints.push_back(p);
-		}
+			currentPoints.push_back(cv::Point(currentLetterBoxes[i].x + 0.5 * currentLetterBoxes[i].width, currentLetterBoxes[i].y + 0.5 * currentLetterBoxes[i].height));
 
 		// Save all points on the edge of all boxes
 		std::vector<cv::Point> allEdgePoints;
@@ -2203,7 +2381,7 @@ void DetectText::breakLines(std::vector<cv::Rect> & boxes)
 		 }
 		 }
 		 */
-	}
+/*	}
 
 	boxes.clear();
 	for (unsigned int boxIndex = 0; boxIndex < dummyBoxes.size(); boxIndex++)
@@ -2245,9 +2423,10 @@ void DetectText::breakLines(std::vector<cv::Rect> & boxes)
 		cv::imshow("breaking apart", output);
 		cv::waitKey(0);
 	}
+*/
 }
 
-bool DetectText::spaticalOrderX(cv::Rect a, cv::Rect b)
+bool DetectText::spatialOrderX(cv::Rect a, cv::Rect b)
 {
 	return a.x < b.x;
 }
@@ -4893,6 +5072,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	nh.getParam("showPairs", this->debug["showPairs"]);
 	nh.getParam("showChains", this->debug["showChains"]);
 	nh.getParam("showBreakLines", this->debug["showBreakLines"]);
+	nh.getParam("showWords", this->debug["showWords"]);
 	nh.getParam("showBezier", this->debug["showBezier"]);
 	nh.getParam("showRansac", this->debug["showRansac"]);
 	nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
@@ -4932,7 +5112,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 
 // Methods not used at the moment:
 
-bool DetectText::spaticalOrder(cv::Rect a, cv::Rect b)
+bool DetectText::spatialOrder(cv::Rect a, cv::Rect b)
 {
 	return a.y < b.y;
 }
@@ -5428,721 +5608,709 @@ cv::Mat DetectText::filterPatch(const cv::Mat& patch)
 	return result;
 }
 
-void DetectText::breakLinesIntoWords()
+void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 {
-	/*
-	 for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
-	 {
-	 for (unsigned int i = 0; i < letters.size(); i++)
-	 if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
-	 currentLetters.push_back(i);
+	// break text into separate lines without destroying letter boxes
+	cv::Mat output = originalImage_.clone();		// todo: make this a debug parameter
 
-	 std::vector<cv::Rect> currentBoxes;
-	 std::vector<cv::Point> currentPoints;
-	 for (unsigned int i = 0; i < currentLetters.size(); i++)
-	 {
-	 currentBoxes.push_back(letters[currentLetters[i]]);
-	 }
-	 sort(currentBoxes.begin(), currentBoxes.end(), DetectText::spaticalOrderX);
-	 for (unsigned int i = 0; i < currentBoxes.size(); i++)
-	 {
-	 cv::Point p(currentBoxes[i].x + 0.5 * currentBoxes[i].width, currentBoxes[i].y + 0.5 * currentBoxes[i].height);
-	 currentPoints.push_back(p);
-	 }
-	 // Linear Regression
+	std::vector<cv::Rect> letters;
 
-	 float averageX = 0, averageY = 0, sx = 0, sy = 0, sxy = 0, rxy;
-	 //-------------------------------
-	 //       for (unsigned int i = 1; i < currentPoints.size(); i++)
-	 //       {
-	 //       currentPoints[i].x -= boxes[boxIndex].x;
-	 //       currentPoints[i].y = boxes[boxIndex].y + boxes[boxIndex].height - currentPoints[i].y;
-	 //       std::cout << "[" << currentPoints[i].x << "|" << currentPoints[i].y << "]" << std::endl;
-	 //       }
-	 //       for (unsigned int i = 1; i < currentPoints.size(); i++)
-	 //       {
-	 //       averageX += currentPoints[i].x;
-	 //       averageY += currentPoints[i].y;
-	 //       }
-	 //       averageX /= (float)currentPoints.size();
-	 //       averageY /= (float)currentPoints.size();
-	 //       for (unsigned int i = 1; i < currentPoints.size(); i++)
-	 //       {
-	 //       sx += (currentPoints[i].x - averageX) * (currentPoints[i].x - averageX);
-	 //       sy += (currentPoints[i].y - averageY) * (currentPoints[i].y - averageY);
-	 //       sxy += (currentPoints[i].y - averageY) * (currentPoints[i].x - averageX);
-	 //       }
-	 //       sx = std::sqrt(sx);
-	 //       sy = std::sqrt(sy);
-	 //       sxy /= (float)currentPoints.size();
-	 //
-	 //       rxy = sxy / (float)(sx * sy);
-	 //
-	 //       float byx = rxy * (sy / (float)sx);
-	 //       float ayx = averageY - byx * averageX;
-	 //
-	 //       std::cout << "GLEICHUNG: " << ayx << " + " << byx << "x" << std::endl;
-	 //       std::cout << "BESTIMMTHEITSMAß: " << rxy * rxy << std::endl;
+	if (firstPass_)
+		letters = brightLetters_;
+//		for (unsigned int i = 0; i < brightLetters_.size(); i++)
+//			letters.push_back(brightLetters_[i]);
+	else
+		letters = darkLetters_;
+//		for (unsigned int i = 0; i < darkLetters_.size(); i++)
+//			letters.push_back(darkLetters_[i]);
 
-	 //------------------------------------
+	//For every boundingBox:
+	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
+	{
+/*		std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
+		for (unsigned int i = 0; i < letters.size(); i++)
+			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
+				currentLetters.push_back(i);
 
+		std::vector<cv::Rect> currentBoxes;
+		std::vector<cv::Point> currentPoints;
+		for (unsigned int i = 0; i < currentLetters.size(); i++)
+			currentBoxes.push_back(letters[currentLetters[i]]);
+		sort(currentBoxes.begin(), currentBoxes.end(), DetectText::spatialOrderX);
+		for (unsigned int i = 0; i < currentBoxes.size(); i++)
+			currentPoints.push_back(cv::Point(currentBoxes[i].x + 0.5 * currentBoxes[i].width, currentBoxes[i].y + 0.5 * currentBoxes[i].height));
 
-	 int negative = 0, positive = 0;
-	 for (unsigned int i = 0; i < currentPoints.size(); i++)
-	 {
-	 cv::rectangle(output, cv::Rect(currentPoints[i].x - 1, currentPoints[i].y - 1, 2, 2), cv::Scalar(0, 0, 255), 2);
-	 }
+		// Linear Regression
+		//float averageX = 0, averageY = 0, sx = 0, sy = 0, sxy = 0, rxy;
+		//-------------------------------
+		//       for (unsigned int i = 1; i < currentPoints.size(); i++)
+		//       {
+		//       currentPoints[i].x -= boxes[boxIndex].x;
+		//       currentPoints[i].y = boxes[boxIndex].y + boxes[boxIndex].height - currentPoints[i].y;
+		//       std::cout << "[" << currentPoints[i].x << "|" << currentPoints[i].y << "]" << std::endl;
+		//       }
+		//       for (unsigned int i = 1; i < currentPoints.size(); i++)
+		//       {
+		//       averageX += currentPoints[i].x;
+		//       averageY += currentPoints[i].y;
+		//       }
+		//       averageX /= (float)currentPoints.size();
+		//       averageY /= (float)currentPoints.size();
+		//       for (unsigned int i = 1; i < currentPoints.size(); i++)
+		//       {
+		//       sx += (currentPoints[i].x - averageX) * (currentPoints[i].x - averageX);
+		//       sy += (currentPoints[i].y - averageY) * (currentPoints[i].y - averageY);
+		//       sxy += (currentPoints[i].y - averageY) * (currentPoints[i].x - averageX);
+		//       }
+		//       sx = std::sqrt(sx);
+		//       sy = std::sqrt(sy);
+		//       sxy /= (float)currentPoints.size();
+		//
+		//       rxy = sxy / (float)(sx * sy);
+		//
+		//       float byx = rxy * (sy / (float)sx);
+		//       float ayx = averageY - byx * averageX;
+		//
+		//       std::cout << "GLEICHUNG: " << ayx << " + " << byx << "x" << std::endl;
+		//       std::cout << "BESTIMMTHEITSMAß: " << rxy * rxy << std::endl;
 
-	 std::vector<float> middlepointDistances;
-	 std::vector<float> gradients;
-	 for (unsigned int i = 0; i < currentPoints.size() - 1; i++)
-	 {
-	 float minDistance = 1000;
-	 int minNeighbor = 0;
-	 for (unsigned int j = i + 1; j < currentPoints.size(); j++)
-	 {
-	 if (std::sqrt(abs(currentPoints[i].y - currentPoints[j].y) * abs(currentPoints[i].y - currentPoints[j].y)
-	 + abs(currentPoints[i].x - currentPoints[j].x) * abs(currentPoints[i].x - currentPoints[j].x))
-	 < minDistance)
-	 {
-	 minDistance = std::sqrt(abs(currentPoints[i].y - currentPoints[j].y) * abs(currentPoints[i].y
-	 - currentPoints[j].y) + abs(currentPoints[i].x - currentPoints[j].x) * abs(currentPoints[i].x
-	 - currentPoints[j].x));
-	 minNeighbor = j;
-	 }
-	 }
-	 float gradient = std::atan2(std::abs(currentPoints[i].y - currentPoints[minNeighbor].y),
-	 std::abs(currentPoints[i].x - currentPoints[minNeighbor].x));
-	 middlepointDistances.push_back(minDistance);
-	 gradients.push_back(gradient);
-	 std::cout << "GRADIENT: " << gradient << std::endl;
-	 cv::line(output, currentPoints[i], currentPoints[minNeighbor], cv::Scalar(i * 10, i * 20, i * 5), 1, 1, 0);
-	 cv::imshow("break", output);
-	 cv::waitKey(0);
-	 }
+		//------------------------------------
 
-	 std::cout << "new gradients: ";
-	 float meanGradient = 0;
-	 for (unsigned int i = 0; i < gradients.size(); i++)
-	 {
-	 std::cout << gradients[i] << " ";
-	 meanGradient += gradients[i];
-	 }
-	 std::cout << std::endl;
-	 meanGradient /= gradients.size();
-	 float varianceGradient = 0;
-	 std::cout << "meanGradient: " << meanGradient << std::endl;
-	 for (unsigned int i = 0; i < gradients.size(); i++)
-	 {
-	 varianceGradient += (gradients[i] - meanGradient) * (gradients[i] - meanGradient);
-	 }
-	 varianceGradient /= gradients.size() - 1;
-	 std::cout << "varianceGradient: " << varianceGradient << std::endl;
+		//int negative = 0, positive = 0;
+		for (unsigned int i = 0; i < currentPoints.size(); i++)
+			cv::rectangle(output, cv::Rect(currentPoints[i].x - 1, currentPoints[i].y - 1, 2, 2), cv::Scalar(0, 0, 255), 2);
 
-	 //-------------------------------------------------------
-	 // Save all points on the edge of all boxes (tolerance one pixel)
-	 std::vector<cv::Point> allEdgePoints;
-	 for (unsigned int i = 0; i < currentBoxes.size(); i++)
-	 {
-	 int xDir = currentBoxes[i].x + 1, yDir = currentBoxes[i].y + 1;
-	 while (xDir < currentBoxes[i].x + currentBoxes[i].width - 2)
-	 {
-	 allEdgePoints.push_back(cv::Point(xDir, currentBoxes[i].y));
-	 xDir++;
-	 }
-	 while (yDir < currentBoxes[i].y + currentBoxes[i].height - 1)
-	 {
-	 allEdgePoints.push_back(cv::Point(currentBoxes[i].x + currentBoxes[i].width, yDir));
-	 yDir++;
-	 }
-	 xDir = currentBoxes[i].x + 1;
-	 yDir = currentBoxes[i].y + 1;
-	 while (yDir < currentBoxes[i].y + currentBoxes[i].height - 1)
-	 {
-	 allEdgePoints.push_back(cv::Point(currentBoxes[i].x, yDir));
-	 yDir++;
-	 }
-	 while (xDir < currentBoxes[i].x + currentBoxes[i].width - 2)
-	 {
-	 allEdgePoints.push_back(cv::Point(xDir, currentBoxes[i].y + currentBoxes[i].height));
-	 xDir++;
-	 }
-	 }
+		std::vector<float> middlepointDistances;
+		std::vector<float> gradients;
+		for (unsigned int i = 0; i < currentPoints.size() - 1; i++)
+		{
+			float minDistance = 1000;
+			int minNeighbor = 0;
+			for (unsigned int j = i + 1; j < currentPoints.size(); j++)
+			{
+				float dist = std::sqrt((currentPoints[i].y - currentPoints[j].y) * (currentPoints[i].y - currentPoints[j].y) + (currentPoints[i].x - currentPoints[j].x) * (currentPoints[i].x - currentPoints[j].x));
+				if (dist < minDistance)
+				{
+					minDistance = dist;
+					minNeighbor = j;
+				}
+			}
+			float gradient = std::atan2(std::abs(currentPoints[i].y - currentPoints[minNeighbor].y), std::abs(currentPoints[i].x - currentPoints[minNeighbor].x));	// todo: why abs?
+			middlepointDistances.push_back(minDistance);
+			gradients.push_back(gradient);
+			std::cout << "GRADIENT: " << gradient << std::endl;
+			cv::line(output, currentPoints[i], currentPoints[minNeighbor], cv::Scalar(i * 10, i * 20, i * 5), 1, 1, 0);
+			cv::imshow("break", output);
+			cv::waitKey(0);
+		}
 
-	 for (unsigned int i = 0; i < allEdgePoints.size(); i++)
-	 {
-	 cv::rectangle(output, allEdgePoints[i], allEdgePoints[i], cv::Scalar(255, 255, 255), 1, 1, 0);
-	 }
+		std::cout << "new gradients: ";
+		double meanGradient = 0;
+		for (unsigned int i = 0; i < gradients.size(); i++)
+		{
+			std::cout << gradients[i] << " ";
+			meanGradient += gradients[i];
+		}
+		std::cout << std::endl;
+		meanGradient /= (double)gradients.size();
+		double varianceGradient = 0;
+		std::cout << "meanGradient: " << meanGradient << std::endl;
+		for (unsigned int i = 0; i < gradients.size(); i++)
+			varianceGradient += (gradients[i] - meanGradient) * (gradients[i] - meanGradient);
+		varianceGradient /= (double)gradients.size() - 1.;
+		std::cout << "varianceGradient: " << varianceGradient << std::endl;
 
-	 std::cout << " allEdgePoints.size(): " << allEdgePoints.size() << std::endl;
+		//-------------------------------------------------------
+		// Save all points on the edge of all boxes (tolerance one pixel)
+		std::vector<cv::Point> allEdgePoints;
+		for (unsigned int i = 0; i < currentBoxes.size(); i++)
+		{
+			int xDir = currentBoxes[i].x + 1, yDir = currentBoxes[i].y + 1;
+			while (xDir < currentBoxes[i].x + currentBoxes[i].width - 2)
+			{
+				allEdgePoints.push_back(cv::Point(xDir, currentBoxes[i].y));
+				xDir++;
+			}
+			while (yDir < currentBoxes[i].y + currentBoxes[i].height - 1)
+			{
+				allEdgePoints.push_back(cv::Point(currentBoxes[i].x + currentBoxes[i].width, yDir));
+				yDir++;
+			}
+			xDir = currentBoxes[i].x + 1;
+			yDir = currentBoxes[i].y + 1;
+			while (yDir < currentBoxes[i].y + currentBoxes[i].height - 1)
+			{
+				allEdgePoints.push_back(cv::Point(currentBoxes[i].x, yDir));
+				yDir++;
+			}
+			while (xDir < currentBoxes[i].x + currentBoxes[i].width - 2)
+			{
+				allEdgePoints.push_back(cv::Point(xDir, currentBoxes[i].y + currentBoxes[i].height));
+				xDir++;
+			}
+		}
 
-	 cv::Point startPoint, endPoint;
-	 startPoint.x = boxes[boxIndex].x;
-	 endPoint.x = boxes[boxIndex].x + boxes[boxIndex].width;
+		for (unsigned int i = 0; i < allEdgePoints.size(); i++)
+			cv::rectangle(output, allEdgePoints[i], allEdgePoints[i], cv::Scalar(255, 255, 255), 1, 1, 0);
 
-	 std::vector<cv::Point> rightStartPoint, rightEndPoint;
+		std::cout << " allEdgePoints.size(): " << allEdgePoints.size() << std::endl;
 
-	 for (unsigned int i = 0; i < boxes[boxIndex].height; i++)
-	 {
-	 for (unsigned int j = 0; j < boxes[boxIndex].height; j++)
-	 {
-	 cv::Mat output2 = output.clone();
-	 bool isNeg = false;
-	 float m;
-	 if (j >= i)
-	 {
-	 isNeg = true;
-	 m = (j - i) / (float)(boxes[boxIndex].width);
-	 }
-	 else
-	 {
-	 m = (i - j) / (float)(boxes[boxIndex].width);
+//		cv::Point startPoint, endPoint;
+//		startPoint.x = boxes[boxIndex].x;
+//		endPoint.x = boxes[boxIndex].x + boxes[boxIndex].width;
+//
+//		std::vector<cv::Point> rightStartPoint, rightEndPoint;
+//
+//		for (int i = 0; i < boxes[boxIndex].height; i++)
+//		{
+//			for (int j = 0; j < boxes[boxIndex].height; j++)
+//			{
+//				cv::Mat output2 = output.clone();
+//				bool isNeg = false;
+//				float m;
+//				if (j >= i)
+//				{
+//					isNeg = true;
+//					m = (j - i) / (float)(boxes[boxIndex].width);
+//				}
+//				else
+//				{
+//					m = (i - j) / (float)(boxes[boxIndex].width);
+//
+//				}
+//				bool breakSoon = false;
+//				// f(x) = m*x+j;
+//				for (unsigned int k = 0; k < allEdgePoints.size(); k++)
+//				{
+//					if (!isNeg)
+//					{
+//						if (j + (int)(m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y)
+//						{
+//							breakSoon = true;
+//							break;
+//						}
+//					}
+//					else
+//					{
+//						if ((float)j > m * (allEdgePoints[k].x - boxes[boxIndex].x))
+//							if (j - (int)(m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y)
+//							{
+//								breakSoon = true;
+//								break;
+//							}
+//					}
+//				}
+//				if (breakSoon)
+//				{
+//
+//				}
+//				else
+//				{
+//					rightStartPoint.push_back(cv::Point(boxes[boxIndex].x, j + boxes[boxIndex].y));
+//					rightEndPoint.push_back(cv::Point(boxes[boxIndex].x + boxes[boxIndex].width, boxes[boxIndex].y + i));
+//					// cv::line(output, cv::Point(boxes[boxIndex].x, j + boxes[boxIndex].y), cv::Point(boxes[boxIndex].x
+//					//     + boxes[boxIndex].width, boxes[boxIndex].y + i), cv::Scalar(0, 0, 255), 1, 1, 0);
+//				}
+//
+//				// cv::imshow("break", output2);
+//				// cv::waitKey(0);
+//
+//				// bool showLine = true;
+//				// startPoint.y = i + boxes[boxIndex].y;
+//				// endPoint.y = j + boxes[boxIndex].y;
+//				// for (unsigned int k = 0; k < allEdgePoints.size(); k++)
+//				// if ((unsigned)(allEdgePoints[k].y - boxes[boxIndex].y) == (j - i) / (boxes[boxIndex].width)
+//				// * (allEdgePoints[k].x - boxes[boxIndex].x) + j)
+//				// {
+//				// showLine = false;
+//				// break;
+//				// }
+//				// if (showLine)
+//				// {
+//				// rightStartPoint.push_back(startPoint);
+//				// rightEndPoint.push_back(endPoint);
+//				// }
+//			}
+//		}
 
-	 }
-	 bool breakSoon = false;
-	 // f(x) = m*x+j;
-	 for (unsigned int k = 0; k < allEdgePoints.size(); k++)
-	 {
-	 if (!isNeg)
-	 {
-	 if (j + (int)(m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y)
-	 {
-	 breakSoon = true;
-	 break;
-	 }
-	 }
-	 else
-	 {
-	 if ((float)j > m * (allEdgePoints[k].x - boxes[boxIndex].x))
-	 if (j - (int)(m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y)
-	 {
-	 breakSoon = true;
-	 break;
-	 }
-	 }
-	 }
-	 if (breakSoon)
-	 {
+//		for (int i = 0; i < rightStartPoint.size(); i++)
+//		{
+//			float m = (rightEndPoint[i].y - rightStartPoint[i].y) / (float)(rightEndPoint[i].x - rightStartPoint[i].x);
+//			float b = rightStartPoint[i].y - m * rightStartPoint[i].x;
+//			// y = m*x+b , on which side lies the point? => y - m*x > or < b
+//			unsigned int pointsOver = 0, pointsUnder = 0;
+//			for (int j = 0; j < currentPoints.size(); j++)
+//			{
+//				if (currentPoints[j].y - m * currentPoints[j].x > b)
+//					pointsOver++;
+//				if (currentPoints[j].y - m * currentPoints[j].x < b)
+//					pointsUnder++;
+//			}
+//			if (pointsOver > 1 && pointsUnder > 1)
+//			{
+//				std::cout << "pointsOver: " << pointsOver << std::endl;
+//				std::cout << "pointsUnder: " << pointsUnder << std::endl;
+//				cv::line(output, rightStartPoint[i], rightEndPoint[i], cv::Scalar(0, 100, 255), 1, 1, 0);
+//				cv::imshow("break", output);
+//				cv::waitKey(0);
+//			}
+//		}
+		cv::imshow("break", output);
+		cv::waitKey(0);
 
-	 }
-	 else
-	 {
-	 rightStartPoint.push_back(cv::Point(boxes[boxIndex].x, j + boxes[boxIndex].y));
-	 rightEndPoint.push_back(cv::Point(boxes[boxIndex].x + boxes[boxIndex].width, boxes[boxIndex].y + i));
-	 // cv::line(output, cv::Point(boxes[boxIndex].x, j + boxes[boxIndex].y), cv::Point(boxes[boxIndex].x
-	 //     + boxes[boxIndex].width, boxes[boxIndex].y + i), cv::Scalar(0, 0, 255), 1, 1, 0);
-	 }
+	//--------------------------------------------------------
+//	}
 
-	 // cv::imshow("break", output2);
-	 // cv::waitKey(0);
+//	currentLetters.clear();
+//	wordBreaks.clear();
+//	if (debug["showWords"])
+//	{
+//		std::cout << std::endl;
+//		std::cout << "BoundingBox [" << boxIndex << "] " << std::endl;
+//		std::cout << "---------------" << std::endl;
+//		std::cout << boxes[boxIndex].x << "|" << boxes[boxIndex].y << "|" << boxes[boxIndex].width << "|" << boxes[boxIndex].height << std::endl;
+//		std::cout << "---------------" << std::endl;
+//	}
+*/
 
-	 // bool showLine = true;
-	 // startPoint.y = i + boxes[boxIndex].y;
-	 // endPoint.y = j + boxes[boxIndex].y;
-	 // for (unsigned int k = 0; k < allEdgePoints.size(); k++)
-	 // if ((unsigned)(allEdgePoints[k].y - boxes[boxIndex].y) == (j - i) / (boxes[boxIndex].width)
-	 // * (allEdgePoints[k].x - boxes[boxIndex].x) + j)
-	 // {
-	 // showLine = false;
-	 // break;
-	 // }
-	 // if (showLine)
-	 // {
-	 // rightStartPoint.push_back(startPoint);
-	 // rightEndPoint.push_back(endPoint);
-	 // }
+		//which Letters belong to the current boundingBox
+		std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
+		for (unsigned int i = 0; i < letters.size(); i++)
+			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
+				currentLetters.push_back(i);
 
+		std::vector<Pair> wordBreaks;
 
-	 }
-	 }
+		// Determine distance to nearest neighbor
+		int smallestDistanceEdge = 100000; //inf
+		int smallestDistanceEdgeIndex = 0;
+		for (unsigned int i = 0; i < currentLetters.size(); i++)
+		{
+			smallestDistanceEdge = 100000;
+			for (unsigned int j = 0; j < currentLetters.size(); j++)
+			{
+				float distanceEdge = 100000;
 
-	 for (int i = 0; i < rightStartPoint.size(); i++)
-	 {
-	 float m = (rightEndPoint[i].y - rightStartPoint[i].y) / (float)(rightEndPoint[i].x - rightStartPoint[i].x);
-	 float b = rightStartPoint[i].y - m * rightStartPoint[i].x;
-	 // y = m*x+b , on which side lies the point? => y - m*x > or < b
-	 unsigned int pointsOver = 0, pointsUnder = 0;
-	 for (int j = 0; j < currentPoints.size(); j++)
-	 {
-	 if (currentPoints[j].y - m * currentPoints[j].x > b)
-	 pointsOver++;
-	 if (currentPoints[j].y - m * currentPoints[j].x < b)
-	 pointsUnder++;
-	 }
-	 if (pointsOver > 1 && pointsUnder > 1)
-	 {
-	 std::cout << "pointsOver: " << pointsOver << std::endl;
-	 std::cout << "pointsUnder: " << pointsUnder << std::endl;
-	 cv::line(output, rightStartPoint[i], rightEndPoint[i], cv::Scalar(0, 100, 255), 1, 1, 0);
-	 cv::imshow("break", output);
-	 cv::waitKey(0);
-	 }
-	 }
-	 cv::imshow("break", output);
-	 cv::waitKey(0);
+				if (letters[currentLetters[j]].x > letters[currentLetters[i]].x)
+					distanceEdge = letters[currentLetters[j]].x - letters[currentLetters[i]].x - letters[currentLetters[i]].width;
 
-	 //--------------------------------------------------------
-	 }
-	 */
+				if (distanceEdge < smallestDistanceEdge)
+				{
+					smallestDistanceEdge = distanceEdge;
+					smallestDistanceEdgeIndex = j;
+				}
+			}
 
-	//      currentLetters.clear();
-	//      wordBreaks.clear();
-	//      if (debug["showWords"])
-	//      {
-	//        std::cout << std::endl;
-	//        std::cout << "BoundingBox [" << boxIndex << "] " << std::endl;
-	//        std::cout << "---------------" << std::endl;
-	//        std::cout << boxes[boxIndex].x << "|" << boxes[boxIndex].y << "|" << boxes[boxIndex].width << "|"
-	//            << boxes[boxIndex].height << std::endl;
-	//        std::cout << "---------------" << std::endl;
-	//      }
-	//
-	//      int smallestDistanceEdge = 100000; //inf
-	//
-	//      //which Letters belong to the current boundingBox
-	//      for (unsigned int i = 0; i < letters.size(); i++)
-	//        if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
-	//          currentLetters.push_back(i);
-	//
-	//      // Determine distance to nearest neighbor
-	//      int smallestDistanceEdgeIndex = 0;
-	//      for (unsigned int i = 0; i < currentLetters.size(); i++)
-	//      {
-	//        smallestDistanceEdge = 100000;
-	//        for (unsigned int j = 0; j < currentLetters.size(); j++)
-	//        {
-	//          float distanceEdge = 100000;
-	//
-	//          if (letters[currentLetters[j]].x > letters[currentLetters[i]].x)
-	//            distanceEdge = letters[currentLetters[j]].x - letters[currentLetters[i]].x
-	//                - letters[currentLetters[i]].width;
-	//
-	//          if (distanceEdge < smallestDistanceEdge)
-	//          {
-	//            smallestDistanceEdge = distanceEdge;
-	//            smallestDistanceEdgeIndex = j;
-	//          }
-	//        }
-	//
-	//        if (smallestDistanceEdge != 100000) //100000 distance means there is no other letter on the right, its the last letter of a line
-	//          wordBreaks.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].x, smallestDistanceEdge));
-	//
-	//        if (debug["showWords"])
-	//        {
-	//          if (colorCounter == 0)
-	//          {
-	//            cv::rectangle(output, letters[currentLetters[i]], cv::Scalar((255), (255), (255)), 1);
-	//            cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]], cv::Scalar((255), (255), (255)),
-	//                          1);
-	//          }
-	//          else
-	//          {
-	//            cv::rectangle(output, letters[currentLetters[i]], cv::Scalar((0), (0), (0)), 1);
-	//            cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]], cv::Scalar((0), (0), (0)), 1);
-	//          }
-	//          cv::rectangle(output, boxes[boxIndex], cv::Scalar((155), (155), (155)), 2);
-	//          cv::imshow("break", output);
-	//          cvMoveWindow("break", 0, 0);
-	//        }
-	//      }
-	//
-	//      //Sort wordBreaks
-	//      sort(wordBreaks.begin(), wordBreaks.end(), DetectText::pairOrder);
-	//
-	//      //Histogram of distances between characters in every bounding box
-	//      int histWidth = 600;
-	//      int histHeight = wordBreaks.size() * 4 > 100 ? wordBreaks.size() : 100;
-	//      int max = 300;
-	//      int bin = 30;
-	//
-	//      // Determine bin based on width of boundingBox
-	//      switch ((int)boxes[boxIndex].width / 100)
-	//      {
-	//        case 0:
-	//          bin = 60;
-	//          break;
-	//        case 1:
-	//          bin = 60;
-	//          break;
-	//        case 2:
-	//          bin = 30;
-	//          break;
-	//        case 3:
-	//          bin = 30;
-	//          break;
-	//        case 4:
-	//          bin = 15;
-	//          break;
-	//        case 5:
-	//          bin = 15;
-	//          break;
-	//      }
-	//      if ((int)boxes[boxIndex].width / 100 > 5)
-	//      {
-	//        if (currentLetters.size() < 6)
-	//          bin = 7;
-	//        else
-	//          bin = 10;
-	//      }
-	//
-	//      if (debug["showWords"])
-	//        std::cout << "bin: " << bin << std::endl;
-	//      int hist[bin];
-	//      int newHistogram[bin];
-	//
-	//      //reset histogram
-	//      for (unsigned int i = 0; i < (unsigned int)bin; i++)
-	//      {
-	//        hist[i] = 0;
-	//        newHistogram[i] = 0;
-	//      }
-	//
-	//      //tolerate negative distances down to -2
-	//      for (unsigned int i = 0; i < wordBreaks.size(); i++)
-	//        if (wordBreaks[i].right == -1 || wordBreaks[i].right == -2)
-	//          wordBreaks[i].right = 0;
-	//
-	//      if (debug["showWords"])
-	//        for (unsigned int a = 0; a < wordBreaks.size(); a++)
-	//          std::cout << "X-Coord: " << wordBreaks[a].left << "     Distance: " << wordBreaks[a].right << std::endl;
-	//
-	//      //shift into positive numbers:
-	//      int smallest = 0;
-	//      for (unsigned int i = 0; i < wordBreaks.size(); i++)
-	//        if (wordBreaks[i].right < smallest)
-	//          smallest = wordBreaks[i].right;
-	//
-	//      int shift = (max / ((double)bin)) * std::ceil(smallest / (-max / ((double)bin)));
-	//      // shift in multiples of (max/bin), e.g. (max/bin)=5: smallest=-2 => shift=5; smallest=-19 => shift=20
-	//
-	//      // push negative distances into positive space for histogram
-	//      for (unsigned int i = 0; i < wordBreaks.size(); i++)
-	//        wordBreaks[i].right = wordBreaks[i].right + shift;
-	//
-	//      // fill histogram
-	//      for (unsigned int i = 0; i < wordBreaks.size(); i++)
-	//      {
-	//        int dis = wordBreaks[i].right;
-	//        if (dis < max)
-	//        {
-	//          dis = dis * bin / max;
-	//          hist[dis]++;
-	//        }
-	//        else
-	//          hist[bin - 1]++;
-	//      }
-	//
-	//      if (debug["showWords"])
-	//      {
-	//        std::cout << "hist: ";
-	//        for (int a = 0; a < bin; a++)
-	//          std::cout << hist[a] << " ";
-	//        std::cout << std::endl;
-	//        std::cout << std::endl;
-	//      }
-	//
-	//      /*
-	//       //smoothing
-	//       double mask[3];
-	//       mask[0] = 0.25;
-	//       mask[1] = 0.5;
-	//       mask[2] = 0.25;
-	//
-	//       for (unsigned int a = 1; a < bin - 1; a++)
-	//       {
-	//       double smoothedValue = 0;
-	//       for (int i = 0; i < 3; i++)
-	//       {
-	//       smoothedValue += hist[a - 1 + i] * mask[i];
-	//       }
-	//       newHistogram[a] = smoothedValue;
-	//       }
-	//
-	//       newHistogram[0] = (int)(hist[0] * 2 / 3 + hist[1] * 1 / 3);
-	//       std::cout << "hist[0]" << hist[0] << ",hist[1]" << hist[1] << std::endl;
-	//       std::cout << "newHistogram[0]: " << newHistogram[0] << std::endl;
-	//       newHistogram[bin - 1] = hist[bin - 2] * (1 / 3) + hist[bin - 1] * (2 / 3);
-	//
-	//       for (int a = 0; a < bin; a++)
-	//       {
-	//       hist[a] = newHistogram[a];
-	//       std::cout << "hist[" << a << "]: " << hist[a];
-	//       }
-	//       */
-	//
-	//      // Get maxValues of peaks
-	//      int maxPeakNumbers = 0, secondMaxPeakNumbers = 0, maxPeakDistance = 0, secondMaxPeakDistance = 0, scale = 0;
-	//
-	//      // find biggest most left peak in histogram
-	//      for (int j = bin - 1; j >= 0; j--)
-	//        if (hist[j] >= maxPeakNumbers)
-	//        {
-	//          maxPeakNumbers = hist[j];
-	//          maxPeakDistance = j;
-	//        }
-	//
-	//      // find second biggest most right peak in histogrma
-	//      for (int j = 0; j < bin; j++)
-	//        if (j != maxPeakDistance)
-	//          if (hist[j] >= secondMaxPeakNumbers)
-	//          {
-	//            secondMaxPeakNumbers = hist[j];
-	//            secondMaxPeakDistance = j;
-	//          }
-	//
-	//      if (debug["showWords"])
-	//      {
-	//        cv::Mat canvas(histHeight, histWidth, CV_8UC3, cv::Scalar(255, 255, 255));
-	//
-	//        // Fit histogram to the canvas height
-	//        scale = maxPeakNumbers > canvas.rows ? (double)canvas.rows / maxPeakNumbers : 1.;
-	//
-	//        //Draw histogram
-	//        for (int j = 0; j < bin; j++)
-	//        {
-	//          for (int k = 0; k < histWidth / bin; k++)
-	//          {
-	//            cv::Point pt1((j * histWidth / bin) + k, canvas.rows - (hist[j] * scale * 10));
-	//            cv::Point pt2((j * histWidth / bin) + k, canvas.rows);
-	//            cv::line(canvas, pt1, pt2, cv::Scalar(250, 210, 25), 1, 8, 0);
-	//          }
-	//          cv::line(canvas, cv::Point(j * histWidth / bin, canvas.rows), cv::Point(j * histWidth / bin, 0),
-	//                   cv::Scalar(200, 200, 200), 1, 8, 0);
-	//          std::stringstream out;
-	//          out << j * (max / bin) - shift;
-	//          if (bin > 30) // showing only every second number when there are too many, just for look
-	//
-	//          {
-	//            if (j % 2 == 0)
-	//              cv::putText(canvas, out.str(), cv::Point((j * histWidth / bin) + 0.25 * (histWidth / bin), canvas.rows
-	//                  - 3), cv::FONT_HERSHEY_SIMPLEX, 0.25, cv::Scalar(0, 0, 0, 0), 1, 8, false);
-	//          }
-	//          else
-	//            cv::putText(canvas, out.str(),
-	//                        cv::Point((j * histWidth / bin) + 0.25 * (histWidth / bin), canvas.rows - 3),
-	//                        cv::FONT_HERSHEY_SIMPLEX, 0.25, cv::Scalar(0, 0, 0, 0), 1, 8, false);
-	//        }
-	//        cv::imshow("~", canvas);
-	//        cv::waitKey(0);
-	//        std::cout << "high of highest peak: " << maxPeakNumbers << ", distance at peak: " << maxPeakDistance
-	//            << std::endl;
-	//        std::cout << "high of second-highest peak: " << secondMaxPeakNumbers << ", distance of peak: "
-	//            << secondMaxPeakDistance << std::endl;
-	//        std::cout << std::endl;
-	//      }
-	//
-	//      bool broke = true; // shall box be broken into separate boxes?
-	//
-	//      // Ratio negative distances / all distances
-	//      float howManyNegative = 0.0;
-	//      for (int j = 0; j < shift / (max / bin); j++)
-	//        howManyNegative += hist[j];
-	//      float negPosRatio = howManyNegative / (wordBreaks.size());
-	//
-	//      // Ratios of y and height between the letterboxes inside a boundingBox
-	//      float maxY = 0.0, minY = 1000.0, relativeY = 0.0, meanHeight = 0.0, heightVariance = 0;
-	//      for (unsigned int j = 0; j < currentLetters.size(); j++)
-	//      {
-	//        if (letters[currentLetters[j]].y < minY)
-	//          minY = letters[currentLetters[j]].y;
-	//        if (letters[currentLetters[j]].y > maxY)
-	//          maxY = letters[currentLetters[j]].y;
-	//        meanHeight += letters[currentLetters[j]].height + letters[currentLetters[j]].y;
-	//      }
-	//
-	//      meanHeight /= currentLetters.size();
-	//
-	//      for (unsigned int j = 0; j < currentLetters.size(); j++)
-	//        heightVariance += (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight)
-	//            * (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight);
-	//
-	//      heightVariance /= currentLetters.size();
-	//
-	//      relativeY = (maxY - minY) / boxes[boxIndex].height;
-	//
-	//      unsigned int numberBinsNotZero = 0;
-	//
-	//      for (int j = 0; j < bin; j++)
-	//        if (hist[j] > 0)
-	//          numberBinsNotZero++;
-	//
-	//      float lettersArea = 0;
-	//      for (unsigned int j = 0; j < currentLetters.size(); j++)
-	//        lettersArea += letters[currentLetters[j]].area();
-	//
-	//      // is text probably rotated?
-	//      bool textIsRotated = false;
-	//      int letterSmallerThanLast = 0;
-	//      int letterBiggerThanLast = 0;
-	//
-	//      bool steadyStructure = true;
-	//
-	//      std::vector<cv::Rect> dummyRects;
-	//      for (unsigned int j = 0; j < currentLetters.size(); j++)
-	//        dummyRects.push_back(letters[currentLetters[j]]);
-	//
-	//      sort(dummyRects.begin(), dummyRects.end(), DetectText::spaticalOrderX);
-	//      for (unsigned int j = 1; j < dummyRects.size(); j++)
-	//      {
-	//        if (dummyRects[j].y > dummyRects[j - 1].y)
-	//          letterSmallerThanLast++;
-	//
-	//        if (dummyRects[j].y < dummyRects[j - 1].y)
-	//          letterBiggerThanLast++;
-	//
-	//        if (dummyRects[j].y > dummyRects[j - 1].y + dummyRects[j - 1].height)
-	//          steadyStructure = false;
-	//      }
-	//      if (letterSmallerThanLast - letterBiggerThanLast >= std::ceil(currentLetters.size() * 0.5))
-	//        textIsRotated = true;
-	//      if (letterBiggerThanLast - letterSmallerThanLast >= std::ceil(currentLetters.size() * 0.5))
-	//        textIsRotated = true;
-	//      std::cout << "letterSmallerThanLast: " << letterSmallerThanLast << std::endl;
-	//      std::cout << "letterBiggerThanLast: " << letterBiggerThanLast << std::endl;
-	//
-	//      // same area
-	//      float sameArea = 0;
-	//      if (currentLetters.size() == 2)
-	//        sameArea = letters[currentLetters[0]].area() / (float)letters[currentLetters[1]].area();
-	//
-	//      //---------------------------------------------------------------------------------------
-	//      // Criterions
-	//      int crit = decideWhichBreaks(negPosRatio, max / bin, heightVariance, howManyNegative, shift, maxPeakDistance,
-	//                                   secondMaxPeakDistance, maxPeakNumbers, secondMaxPeakNumbers, boxes[boxIndex].width,
-	//                                   boxes[boxIndex].height, numberBinsNotZero, wordBreaks, boxes[boxIndex],
-	//                                   textIsRotated, relativeY, steadyStructure, sameArea);
-	//
-	//      //!!!
-	//      crit = 1;
-	//
-	//      if (crit == -1)
-	//      {
-	//        if (debug["showWords"])
-	//        {
-	//          cv::rectangle(output, boxes[boxIndex], cv::Scalar((0), (0), (255)), 2);
-	//          cv::imshow("break", output);
-	//          cvMoveWindow("break", 0, 0);
-	//          cv::waitKey(0);
-	//        }
-	//        continue;
-	//      }
-	//      if (crit == 1)
-	//        broke = false;
-	//
-	//      int start = boxes[boxIndex].x;
-	//      int wordBreakAt = start;
-	//
-	//      int brokenWordsSize = brokenWords_.size();
-	//
-	//      // Merging letterboxes that are on top of each other (e.g. 's' is separated into upper and lower semi circle after cc)
-	//      // In this case merging means deleting one of the letterboxes, as the words are going to be broken based on the x-coordinate
-	//      if (broke == true)
-	//      {
-	//        std::set<int, std::greater<int> > deleteList;
-	//        for (unsigned int r = 0; r < wordBreaks.size(); r++)
-	//          for (unsigned int s = r + 1; s < wordBreaks.size(); s++)
-	//            if (abs(wordBreaks[r].left - wordBreaks[s].left) < 5)
-	//              deleteList.insert((int)s);
-	//
-	//        for (std::set<int, std::greater<int> >::iterator it = deleteList.begin(); it != deleteList.end(); it++)
-	//          wordBreaks.erase(wordBreaks.begin() + *it);
-	//      }
-	//
-	//      // Broking and saving broken words
-	//      if (broke == true)
-	//        for (unsigned int r = 0; r < wordBreaks.size(); r++)
-	//        {
-	//          bool letter = false;
-	//          if (maxPeakDistance < 0)
-	//          {
-	//            if (wordBreaks[r].right - shift < abs(((((max / bin) * maxPeakDistance) - shift) + (max / bin))))
-	//              letter = true;
-	//          }
-	//          else if (wordBreaks[r].right - shift <= ((((max / bin) * maxPeakDistance) - shift) + (max / bin)))
-	//          {
-	//            letter = true;
-	//          }
-	//
-	//          // reaching a break between two words:
-	//          if (letter == false)
-	//          {
-	//            wordBreakAt = wordBreaks[r].left - wordBreaks[r].right + shift;
-	//            cv::Rect re(start, boxes[boxIndex].y, abs(wordBreakAt - start), boxes[boxIndex].height);
-	//            start = wordBreaks[r].left;
-	//            brokenWords_.push_back(re);
-	//          }
-	//          // reaching the end
-	//          if (r == wordBreaks.size() - 1)
-	//          {
-	//            cv::Rect re(start, boxes[boxIndex].y, abs((boxes[boxIndex].x + boxes[boxIndex].width) - start),
-	//                        boxes[boxIndex].height);
-	//            brokenWords_.push_back(re);
-	//          }
-	//        }
-	//      else
-	//        brokenWords_.push_back(boxes[boxIndex]);
-	//
-	//      // Make Boxes smaller to increase precision and recall
-	//      std::vector<cv::Rect> smallerBrokenWords;
-	//      unsigned int newBrokenWordsSize = brokenWords_.size();
-	//      for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < (newBrokenWordsSize - brokenWordsSize); makeSmallerIndex++)
-	//      {
-	//        unsigned int smallestX = 10000, smallestY = 10000, biggestX = 0, biggestY = 0;
-	//        cv::Rect re = brokenWords_[brokenWords_.size() - 1];
-	//
-	//        for (unsigned int letterIndex = 0; letterIndex < currentLetters.size(); letterIndex++)
-	//          if ((re & letters[currentLetters[letterIndex]]).area() / letters[currentLetters[letterIndex]].area() > 0.5)
-	//          {
-	//            if ((unsigned int)letters[currentLetters[letterIndex]].x < smallestX)
-	//              smallestX = letters[currentLetters[letterIndex]].x;
-	//            if ((unsigned int)letters[currentLetters[letterIndex]].y < smallestY)
-	//              smallestY = letters[currentLetters[letterIndex]].y;
-	//            if ((unsigned int)letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width
-	//                > biggestX)
-	//              biggestX = letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width;
-	//            if ((unsigned int)letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height
-	//                > biggestY)
-	//              biggestY = letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height;
-	//          }
-	//        if (smallestX == 10000)
-	//          continue;
-	//
-	//        cv::Rect smallerRe(smallestX, smallestY, biggestX - smallestX, biggestY - smallestY);
-	//
-	//        if (debug["showWords"])
-	//        {
-	//          cv::rectangle(output, smallerRe, cv::Scalar((0), (255), (0)), 2);
-	//          cv::imshow("break", output);
-	//          cvMoveWindow("break", 0, 0);
-	//          cv::waitKey(0);
-	//        }
-	//        smallerBrokenWords.push_back(smallerRe);
-	//        brokenWords_.pop_back();
-	//        cv::Mat cut = originalImage_(smallerRe);
-	//        DFT(cut);
-	//      }
+			if (smallestDistanceEdge != 100000) //100000 distance means there is no other letter on the right, its the last letter of a line
+				wordBreaks.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].x, smallestDistanceEdge));
+
+			if (debug["showWords"])
+			{
+				if (firstPass_ == true)
+				{
+					cv::rectangle(output, letters[currentLetters[i]], cv::Scalar((255), (255), (255)), 1);
+					cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]], cv::Scalar((255), (255), (255)), 1);
+				}
+				else
+				{
+					cv::rectangle(output, letters[currentLetters[i]], cv::Scalar((0), (0), (0)), 1);
+					cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]], cv::Scalar((0), (0), (0)), 1);
+				}
+				cv::rectangle(output, boxes[boxIndex], cv::Scalar((155), (155), (155)), 2);
+				cv::imshow("break", output);
+				cvMoveWindow("break", 0, 0);
+			}
+		}
+
+		//Sort wordBreaks
+		sort(wordBreaks.begin(), wordBreaks.end(), DetectText::pairOrder);
+
+		//Histogram of distances between characters in every bounding box
+		int histWidth = 600;
+		int histHeight = wordBreaks.size() * 4 > 100 ? wordBreaks.size() : 100;
+		int max = 300;
+		int bin = 30;
+
+		// Determine bin based on width of boundingBox
+		switch ((int)boxes[boxIndex].width / 100)
+		{
+		case 0:
+			bin = 60;
+			break;
+		case 1:
+			bin = 60;
+			break;
+		case 2:
+			bin = 30;
+			break;
+		case 3:
+			bin = 30;
+			break;
+		case 4:
+			bin = 15;
+			break;
+		case 5:
+			bin = 15;
+			break;
+		}
+		if ((int)boxes[boxIndex].width / 100 > 5)
+		{
+			if (currentLetters.size() < 6)
+				bin = 7;
+			else
+				bin = 10;
+		}
+
+		if (debug["showWords"])
+			std::cout << "bin: " << bin << std::endl;
+		int hist[bin];
+		int newHistogram[bin];
+
+		//reset histogram
+		for (unsigned int i = 0; i < (unsigned int)bin; i++)
+		{
+			hist[i] = 0;
+			newHistogram[i] = 0;
+		}
+
+		//tolerate negative distances down to -2
+		for (unsigned int i = 0; i < wordBreaks.size(); i++)
+			if (wordBreaks[i].right == -1 || wordBreaks[i].right == -2)
+				wordBreaks[i].right = 0;
+
+		if (debug["showWords"])
+			for (unsigned int a = 0; a < wordBreaks.size(); a++)
+				std::cout << "X-Coord: " << wordBreaks[a].left << "     Distance: " << wordBreaks[a].right << std::endl;
+
+		//shift into positive numbers:
+		int smallest = 0;
+		for (unsigned int i = 0; i < wordBreaks.size(); i++)
+			if (wordBreaks[i].right < smallest)
+				smallest = wordBreaks[i].right;
+
+		int shift = (max / ((double)bin)) * std::ceil(smallest / (-max / ((double)bin)));
+		// shift in multiples of (max/bin), e.g. (max/bin)=5: smallest=-2 => shift=5; smallest=-19 => shift=20
+
+		// push negative distances into positive space for histogram
+		for (unsigned int i = 0; i < wordBreaks.size(); i++)
+			wordBreaks[i].right = wordBreaks[i].right + shift;
+
+		// fill histogram
+		for (unsigned int i = 0; i < wordBreaks.size(); i++)
+		{
+			int dis = wordBreaks[i].right;
+			if (dis < max)
+			{
+				dis = dis * bin / max;
+				hist[dis]++;
+			}
+			else
+				hist[bin - 1]++;
+		}
+
+		if (debug["showWords"])
+		{
+			std::cout << "hist: ";
+			for (int a = 0; a < bin; a++)
+				std::cout << hist[a] << " ";
+			std::cout << std::endl;
+			std::cout << std::endl;
+		}
+
+		/*
+		 //smoothing
+		 double mask[3];
+		 mask[0] = 0.25;
+		 mask[1] = 0.5;
+		 mask[2] = 0.25;
+
+		 for (unsigned int a = 1; a < bin - 1; a++)
+		 {
+		 double smoothedValue = 0;
+		 for (int i = 0; i < 3; i++)
+		 {
+		 smoothedValue += hist[a - 1 + i] * mask[i];
+		 }
+		 newHistogram[a] = smoothedValue;
+		 }
+
+		 newHistogram[0] = (int)(hist[0] * 2 / 3 + hist[1] * 1 / 3);
+		 std::cout << "hist[0]" << hist[0] << ",hist[1]" << hist[1] << std::endl;
+		 std::cout << "newHistogram[0]: " << newHistogram[0] << std::endl;
+		 newHistogram[bin - 1] = hist[bin - 2] * (1 / 3) + hist[bin - 1] * (2 / 3);
+
+		 for (int a = 0; a < bin; a++)
+		 {
+		 hist[a] = newHistogram[a];
+		 std::cout << "hist[" << a << "]: " << hist[a];
+		 }
+		 */
+
+		// Get maxValues of peaks
+		int maxPeakNumbers = 0, secondMaxPeakNumbers = 0, maxPeakDistance = 0, secondMaxPeakDistance = 0, scale = 0;
+
+		// find biggest most left peak in histogram
+		for (int j = bin - 1; j >= 0; j--)
+			if (hist[j] >= maxPeakNumbers)
+			{
+				maxPeakNumbers = hist[j];
+				maxPeakDistance = j;
+			}
+
+		// find second biggest most right peak in histogrma
+		for (int j = 0; j < bin; j++)
+			if (j != maxPeakDistance)
+				if (hist[j] >= secondMaxPeakNumbers)
+				{
+					secondMaxPeakNumbers = hist[j];
+					secondMaxPeakDistance = j;
+				}
+
+		if (debug["showWords"])
+		{
+			cv::Mat canvas(histHeight, histWidth, CV_8UC3, cv::Scalar(255, 255, 255));
+
+			// Fit histogram to the canvas height
+			scale = maxPeakNumbers > canvas.rows ? (double)canvas.rows / maxPeakNumbers : 1.;
+
+			//Draw histogram
+			for (int j = 0; j < bin; j++)
+			{
+				for (int k = 0; k < histWidth / bin; k++)
+				{
+					cv::Point pt1((j * histWidth / bin) + k, canvas.rows - (hist[j] * scale * 10));
+					cv::Point pt2((j * histWidth / bin) + k, canvas.rows);
+					cv::line(canvas, pt1, pt2, cv::Scalar(250, 210, 25), 1, 8, 0);
+				}
+				cv::line(canvas, cv::Point(j * histWidth / bin, canvas.rows), cv::Point(j * histWidth / bin, 0), cv::Scalar(200, 200, 200), 1, 8, 0);
+				std::stringstream out;
+				out << j * (max / bin) - shift;
+				if (bin > 30) // showing only every second number when there are too many, just for look
+
+				{
+					if (j % 2 == 0)
+						cv::putText(canvas, out.str(), cv::Point((j * histWidth / bin) + 0.25 * (histWidth / bin), canvas.rows - 3), cv::FONT_HERSHEY_SIMPLEX, 0.25,
+								cv::Scalar(0, 0, 0, 0), 1, 8, false);
+				}
+				else
+					cv::putText(canvas, out.str(), cv::Point((j * histWidth / bin) + 0.25 * (histWidth / bin), canvas.rows - 3), cv::FONT_HERSHEY_SIMPLEX, 0.25,
+							cv::Scalar(0, 0, 0, 0), 1, 8, false);
+			}
+			cv::imshow("~", canvas);
+			cv::waitKey(0);
+			std::cout << "high of highest peak: " << maxPeakNumbers << ", distance at peak: " << maxPeakDistance << std::endl;
+			std::cout << "high of second-highest peak: " << secondMaxPeakNumbers << ", distance of peak: " << secondMaxPeakDistance << std::endl;
+			std::cout << std::endl;
+		}
+
+		bool broke = true; // shall box be broken into separate boxes?
+
+		// Ratio negative distances / all distances
+		float howManyNegative = 0.0;
+		for (int j = 0; j < shift / (max / bin); j++)
+			howManyNegative += hist[j];
+		float negPosRatio = howManyNegative / (wordBreaks.size());
+
+		// Ratios of y and height between the letterboxes inside a boundingBox
+		float maxY = 0.0, minY = 1000.0, relativeY = 0.0, meanHeight = 0.0, heightVariance = 0;
+		for (unsigned int j = 0; j < currentLetters.size(); j++)
+		{
+			if (letters[currentLetters[j]].y < minY)
+				minY = letters[currentLetters[j]].y;
+			if (letters[currentLetters[j]].y > maxY)
+				maxY = letters[currentLetters[j]].y;
+			meanHeight += letters[currentLetters[j]].height + letters[currentLetters[j]].y;
+		}
+
+		meanHeight /= currentLetters.size();
+
+		for (unsigned int j = 0; j < currentLetters.size(); j++)
+			heightVariance += (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight) * (letters[currentLetters[j]].height + letters[currentLetters[j]].y
+					- meanHeight);
+
+		heightVariance /= currentLetters.size();
+
+		relativeY = (maxY - minY) / boxes[boxIndex].height;
+
+		unsigned int numberBinsNotZero = 0;
+
+		for (int j = 0; j < bin; j++)
+			if (hist[j] > 0)
+				numberBinsNotZero++;
+
+		float lettersArea = 0;
+		for (unsigned int j = 0; j < currentLetters.size(); j++)
+			lettersArea += letters[currentLetters[j]].area();
+
+		// is text probably rotated?
+		bool textIsRotated = false;
+		int letterSmallerThanLast = 0;
+		int letterBiggerThanLast = 0;
+
+		bool steadyStructure = true;
+
+		std::vector<cv::Rect> dummyRects;
+		for (unsigned int j = 0; j < currentLetters.size(); j++)
+			dummyRects.push_back(letters[currentLetters[j]]);
+
+		sort(dummyRects.begin(), dummyRects.end(), DetectText::spatialOrderX);
+		for (unsigned int j = 1; j < dummyRects.size(); j++)
+		{
+			if (dummyRects[j].y > dummyRects[j - 1].y)
+				letterSmallerThanLast++;
+
+			if (dummyRects[j].y < dummyRects[j - 1].y)
+				letterBiggerThanLast++;
+
+			if (dummyRects[j].y > dummyRects[j - 1].y + dummyRects[j - 1].height)
+				steadyStructure = false;
+		}
+		if (letterSmallerThanLast - letterBiggerThanLast >= std::ceil(currentLetters.size() * 0.5))
+			textIsRotated = true;
+		if (letterBiggerThanLast - letterSmallerThanLast >= std::ceil(currentLetters.size() * 0.5))
+			textIsRotated = true;
+		std::cout << "letterSmallerThanLast: " << letterSmallerThanLast << std::endl;
+		std::cout << "letterBiggerThanLast: " << letterBiggerThanLast << std::endl;
+
+		// same area
+		float sameArea = 0;
+		if (currentLetters.size() == 2)
+			sameArea = letters[currentLetters[0]].area() / (float)letters[currentLetters[1]].area();
+
+		//---------------------------------------------------------------------------------------
+		// Criterions
+		int crit = decideWhichBreaks(negPosRatio, max / bin, heightVariance, howManyNegative, shift, maxPeakDistance, secondMaxPeakDistance, maxPeakNumbers, secondMaxPeakNumbers,
+				boxes[boxIndex].width, boxes[boxIndex].height, numberBinsNotZero, wordBreaks, boxes[boxIndex], textIsRotated, relativeY, steadyStructure, sameArea);
+
+		//!!!
+		crit = 1;
+
+		if (crit == -1)
+		{
+			if (debug["showWords"])
+			{
+				cv::rectangle(output, boxes[boxIndex], cv::Scalar((0), (0), (255)), 2);
+				cv::imshow("break", output);
+				cvMoveWindow("break", 0, 0);
+				cv::waitKey(0);
+			}
+			continue;
+		}
+		if (crit == 1)
+			broke = false;
+
+		int start = boxes[boxIndex].x;
+		int wordBreakAt = start;
+
+		std::vector<cv::Rect> brokenWords_;	// hack
+		int brokenWordsSize = brokenWords_.size();
+
+		// Merging letterboxes that are on top of each other (e.g. 's' is separated into upper and lower semi circle after cc)
+		// In this case merging means deleting one of the letterboxes, as the words are going to be broken based on the x-coordinate
+		if (broke == true)
+		{
+			std::set< int, std::greater<int> > deleteList;
+			for (unsigned int r = 0; r < wordBreaks.size(); r++)
+				for (unsigned int s = r + 1; s < wordBreaks.size(); s++)
+					if (abs(wordBreaks[r].left - wordBreaks[s].left) < 5)
+						deleteList.insert((int)s);
+
+			for (std::set< int, std::greater<int> >::iterator it = deleteList.begin(); it != deleteList.end(); it++)
+				wordBreaks.erase(wordBreaks.begin() + *it);
+		}
+
+		// Broking and saving broken words
+		if (broke == true)
+			for (unsigned int r = 0; r < wordBreaks.size(); r++)
+			{
+				bool letter = false;
+				if (maxPeakDistance < 0)
+				{
+					if (wordBreaks[r].right - shift < abs(((((max / bin) * maxPeakDistance) - shift) + (max / bin))))
+						letter = true;
+				}
+				else if (wordBreaks[r].right - shift <= ((((max / bin) * maxPeakDistance) - shift) + (max / bin)))
+				{
+					letter = true;
+				}
+
+				// reaching a break between two words:
+				if (letter == false)
+				{
+					wordBreakAt = wordBreaks[r].left - wordBreaks[r].right + shift;
+					cv::Rect re(start, boxes[boxIndex].y, abs(wordBreakAt - start), boxes[boxIndex].height);
+					start = wordBreaks[r].left;
+					brokenWords_.push_back(re);
+				}
+				// reaching the end
+				if (r == wordBreaks.size() - 1)
+				{
+					cv::Rect re(start, boxes[boxIndex].y, abs((boxes[boxIndex].x + boxes[boxIndex].width) - start), boxes[boxIndex].height);
+					brokenWords_.push_back(re);
+				}
+			}
+		else
+			brokenWords_.push_back(boxes[boxIndex]);
+
+		// Make Boxes smaller to increase precision and recall
+		std::vector<cv::Rect> smallerBrokenWords;
+		unsigned int newBrokenWordsSize = brokenWords_.size();
+		for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < (newBrokenWordsSize - brokenWordsSize); makeSmallerIndex++)
+		{
+			unsigned int smallestX = 10000, smallestY = 10000, biggestX = 0, biggestY = 0;
+			cv::Rect re = brokenWords_[brokenWords_.size() - 1];
+
+			for (unsigned int letterIndex = 0; letterIndex < currentLetters.size(); letterIndex++)
+				if ((re & letters[currentLetters[letterIndex]]).area() / letters[currentLetters[letterIndex]].area() > 0.5)
+				{
+					if ((unsigned int)letters[currentLetters[letterIndex]].x < smallestX)
+						smallestX = letters[currentLetters[letterIndex]].x;
+					if ((unsigned int)letters[currentLetters[letterIndex]].y < smallestY)
+						smallestY = letters[currentLetters[letterIndex]].y;
+					if ((unsigned int)letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width > biggestX)
+						biggestX = letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width;
+					if ((unsigned int)letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height > biggestY)
+						biggestY = letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height;
+				}
+			if (smallestX == 10000)
+				continue;
+
+			cv::Rect smallerRe(smallestX, smallestY, biggestX - smallestX, biggestY - smallestY);
+
+			if (debug["showWords"])
+			{
+				cv::rectangle(output, smallerRe, cv::Scalar((0), (255), (0)), 2);
+				cv::imshow("break", output);
+				cvMoveWindow("break", 0, 0);
+				cv::waitKey(0);
+			}
+			smallerBrokenWords.push_back(smallerRe);
+			brokenWords_.pop_back();
+			cv::Mat cut = originalImage_(smallerRe);
+			DFT(cut);
+		}
+	}
 
 	// Save all words into brokenWords_
-	//  for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < boxes.size(); makeSmallerIndex++)
+//	for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < boxes.size(); makeSmallerIndex++)
 
 
-	// Make Boxes smaller to increase precision and recall
+		// Make Boxes smaller to increase precision and recall
+// if ((unsigned int)letters[currentLetters[letterIndex]].x < smallestX)
+//   smallestX = letters[currentLetters[letterIndex]].x;
+// if ((unsigned int)letters[currentLetters[letterIndex]].y < smallestY)
+//   smallestY = letters[currentLetters[letterIndex]].y;
+// if ((unsigned int)letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width
+//     > biggestX)
+//   biggestX = letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width;
+// if ((unsigned int)letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height
+//     > biggestY)
+//   biggestY = letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height;
 
-	// if ((unsigned int)letters[currentLetters[letterIndex]].x < smallestX)
-	//   smallestX = letters[currentLetters[letterIndex]].x;
-	// if ((unsigned int)letters[currentLetters[letterIndex]].y < smallestY)
-	//   smallestY = letters[currentLetters[letterIndex]].y;
-	// if ((unsigned int)letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width
-	//     > biggestX)
-	//   biggestX = letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width;
-	// if ((unsigned int)letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height
-	//     > biggestY)
-	//   biggestY = letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height;
+// if (smallestX == 10000)
+//   continue;
 
-	// if (smallestX == 10000)
-	//   continue;
-
-	// cv::Rect smallerRe(smallestX, smallestY, biggestX - smallestX, biggestY - smallestY);
+// cv::Rect smallerRe(smallestX, smallestY, biggestX - smallestX, biggestY - smallestY);
 }
 
 void DetectText::showEdgeMap()

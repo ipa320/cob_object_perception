@@ -145,7 +145,7 @@ private:
 
   void breakLines(std::vector<cv::Rect> & boundingBoxes);
 
-  static bool spaticalOrderX(cv::Rect a, cv::Rect b);
+  static bool spatialOrderX(cv::Rect a, cv::Rect b);
 
   void disposal();
 
@@ -213,7 +213,7 @@ private:
 
   void filterBoundingBoxes(std::vector<cv::Rect>& boundingBoxes, cv::Mat& ccmap, int rejectRatio);
 
-  static bool spaticalOrder(cv::Rect a, cv::Rect b);
+  static bool spatialOrder(cv::Rect a, cv::Rect b);
 
   static bool pairOrder(Pair i, Pair j);
 
@@ -231,7 +231,7 @@ private:
 
   cv::Mat filterPatch(const cv::Mat& patch);
 
-  void breakLinesIntoWords();
+  void breakLinesIntoWords(std::vector<cv::Rect> & boundingBoxes);
 
   // Methods for debugging only
   //------------------------------------------
