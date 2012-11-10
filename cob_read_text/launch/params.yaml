@@ -176,6 +176,9 @@ amount_sharp: 1.5
 # int
 result_: 2
 
+showWords: true
+
+showCriterions: true
 
 # debug
 # ----------
@@ -207,6 +210,10 @@ showChains: false
 # breaks text block into several lines
 # bool
 showBreakLines: false
+
+showWords: false
+
+showCriterions: false
 
 # show all bezier models that are created within ransac
 # bool

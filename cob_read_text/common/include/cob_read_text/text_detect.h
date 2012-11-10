@@ -221,7 +221,7 @@ private:
 
   void overlapBoundingBoxes(std::vector<cv::Rect>& boundingBoxes);
 
-  int decideWhichBreaks(float negPosRatio, float max_Bin, float heightVariance, unsigned int howManyNegative,
+  int decideWhichBreaks(float negPosRatio, float max_Bin, float heightStddev, unsigned int howManyNegative,
                         unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance, int maxPeakNumbers,
                         int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight,
                         unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks, cv::Rect box,
