@@ -1067,7 +1067,7 @@ int main(int argc, char **argv)
 	calculateWordResults(images);
 
 	//show everything
-	showRects(images, argv[1]);
+//	showRects(images, argv[1]);
 
 	//print everything to stdout and show final result image for all images
 	std::vector<double> results = printAverageResults(images, argv[1]);

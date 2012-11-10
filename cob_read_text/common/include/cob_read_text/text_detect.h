@@ -143,7 +143,7 @@ private:
 
   void combineNeighborBoxes(std::vector<cv::Rect> & boundingBoxes);
 
-  void breakLines(std::vector<cv::Rect> & boundingBoxes);
+  void breakLines(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations);
 
   static bool spatialOrderX(cv::Rect a, cv::Rect b);
 
@@ -231,7 +231,7 @@ private:
 
   cv::Mat filterPatch(const cv::Mat& patch);
 
-  void breakLinesIntoWords(std::vector<cv::Rect> & boundingBoxes);
+  void breakLinesIntoWords(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations);
 
   // Methods for debugging only
   //------------------------------------------

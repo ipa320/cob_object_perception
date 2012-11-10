@@ -461,15 +461,16 @@ void DetectText::pipeline()
 //		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
 
 		// separating several lines of text
+		std::vector<cv::RotatedRect> lineEquations;
 		start_time = clock();
-		breakLines(boundingBoxes);
+		breakLines(boundingBoxes, lineEquations);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLines: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
 		// after this block the indices between boundingBoxes and connectedComponents_ do not correspond anymore!
 
 		// separate words on a single line
 		start_time = clock();
-		breakLinesIntoWords(boundingBoxes);
+		breakLinesIntoWords(boundingBoxes, lineEquations);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
 
@@ -1798,7 +1799,7 @@ void DetectText::combineNeighborBoxes(std::vector<cv::Rect>& originalBoxes)
 }
 
 
-void DetectText::breakLines(std::vector<cv::Rect>& boxes)
+void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::RotatedRect>& lineEquations)
 {
 	// this function splits up bounding boxes of potentially multiline text into boxes around single line text
 
@@ -1935,6 +1936,7 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes)
 					maxPoint.y = currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height;
 			}
 			splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
+			lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
 
 			// debug
 			if (debug["showBreakLines"])
@@ -5678,7 +5680,7 @@ cv::Mat DetectText::filterPatch(const cv::Mat& patch)
 	return result;
 }
 
-void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
+void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<cv::RotatedRect>& lineEquations)
 {
 	// break text into separate lines without destroying letter boxes
 	cv::Mat output;
@@ -5700,252 +5702,6 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 	//For every boundingBox:
 	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
 	{
-/*		std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
-		for (unsigned int i = 0; i < letters.size(); i++)
-			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
-				currentLetters.push_back(i);
-
-		std::vector<cv::Rect> currentBoxes;
-		std::vector<cv::Point> currentPoints;
-		for (unsigned int i = 0; i < currentLetters.size(); i++)
-			currentBoxes.push_back(letters[currentLetters[i]]);
-		sort(currentBoxes.begin(), currentBoxes.end(), DetectText::spatialOrderX);
-		for (unsigned int i = 0; i < currentBoxes.size(); i++)
-			currentPoints.push_back(cv::Point(currentBoxes[i].x + 0.5 * currentBoxes[i].width, currentBoxes[i].y + 0.5 * currentBoxes[i].height));
-
-		// Linear Regression
-		//float averageX = 0, averageY = 0, sx = 0, sy = 0, sxy = 0, rxy;
-		//-------------------------------
-		//       for (unsigned int i = 1; i < currentPoints.size(); i++)
-		//       {
-		//       currentPoints[i].x -= boxes[boxIndex].x;
-		//       currentPoints[i].y = boxes[boxIndex].y + boxes[boxIndex].height - currentPoints[i].y;
-		//       std::cout << "[" << currentPoints[i].x << "|" << currentPoints[i].y << "]" << std::endl;
-		//       }
-		//       for (unsigned int i = 1; i < currentPoints.size(); i++)
-		//       {
-		//       averageX += currentPoints[i].x;
-		//       averageY += currentPoints[i].y;
-		//       }
-		//       averageX /= (float)currentPoints.size();
-		//       averageY /= (float)currentPoints.size();
-		//       for (unsigned int i = 1; i < currentPoints.size(); i++)
-		//       {
-		//       sx += (currentPoints[i].x - averageX) * (currentPoints[i].x - averageX);
-		//       sy += (currentPoints[i].y - averageY) * (currentPoints[i].y - averageY);
-		//       sxy += (currentPoints[i].y - averageY) * (currentPoints[i].x - averageX);
-		//       }
-		//       sx = std::sqrt(sx);
-		//       sy = std::sqrt(sy);
-		//       sxy /= (float)currentPoints.size();
-		//
-		//       rxy = sxy / (float)(sx * sy);
-		//
-		//       float byx = rxy * (sy / (float)sx);
-		//       float ayx = averageY - byx * averageX;
-		//
-		//       std::cout << "GLEICHUNG: " << ayx << " + " << byx << "x" << std::endl;
-		//       std::cout << "BESTIMMTHEITSMAß: " << rxy * rxy << std::endl;
-
-		//------------------------------------
-
-		//int negative = 0, positive = 0;
-		for (unsigned int i = 0; i < currentPoints.size(); i++)
-			cv::rectangle(output, cv::Rect(currentPoints[i].x - 1, currentPoints[i].y - 1, 2, 2), cv::Scalar(0, 0, 255), 2);
-
-		std::vector<float> middlepointDistances;
-		std::vector<float> gradients;
-		for (unsigned int i = 0; i < currentPoints.size() - 1; i++)
-		{
-			float minDistance = 1000;
-			int minNeighbor = 0;
-			for (unsigned int j = i + 1; j < currentPoints.size(); j++)
-			{
-				float dist = std::sqrt((currentPoints[i].y - currentPoints[j].y) * (currentPoints[i].y - currentPoints[j].y) + (currentPoints[i].x - currentPoints[j].x) * (currentPoints[i].x - currentPoints[j].x));
-				if (dist < minDistance)
-				{
-					minDistance = dist;
-					minNeighbor = j;
-				}
-			}
-			float gradient = std::atan2(std::abs(currentPoints[i].y - currentPoints[minNeighbor].y), std::abs(currentPoints[i].x - currentPoints[minNeighbor].x));	// todo: why abs?
-			middlepointDistances.push_back(minDistance);
-			gradients.push_back(gradient);
-			std::cout << "GRADIENT: " << gradient << std::endl;
-			cv::line(output, currentPoints[i], currentPoints[minNeighbor], cv::Scalar(i * 10, i * 20, i * 5), 1, 1, 0);
-			cv::imshow("breaking words", output);
-			cv::waitKey(0);
-		}
-
-		std::cout << "new gradients: ";
-		double meanGradient = 0;
-		for (unsigned int i = 0; i < gradients.size(); i++)
-		{
-			std::cout << gradients[i] << " ";
-			meanGradient += gradients[i];
-		}
-		std::cout << std::endl;
-		meanGradient /= (double)gradients.size();
-		double varianceGradient = 0;
-		std::cout << "meanGradient: " << meanGradient << std::endl;
-		for (unsigned int i = 0; i < gradients.size(); i++)
-			varianceGradient += (gradients[i] - meanGradient) * (gradients[i] - meanGradient);
-		varianceGradient /= (double)gradients.size() - 1.;
-		std::cout << "varianceGradient: " << varianceGradient << std::endl;
-
-		//-------------------------------------------------------
-		// Save all points on the edge of all boxes (tolerance one pixel)
-		std::vector<cv::Point> allEdgePoints;
-		for (unsigned int i = 0; i < currentBoxes.size(); i++)
-		{
-			int xDir = currentBoxes[i].x + 1, yDir = currentBoxes[i].y + 1;
-			while (xDir < currentBoxes[i].x + currentBoxes[i].width - 2)
-			{
-				allEdgePoints.push_back(cv::Point(xDir, currentBoxes[i].y));
-				xDir++;
-			}
-			while (yDir < currentBoxes[i].y + currentBoxes[i].height - 1)
-			{
-				allEdgePoints.push_back(cv::Point(currentBoxes[i].x + currentBoxes[i].width, yDir));
-				yDir++;
-			}
-			xDir = currentBoxes[i].x + 1;
-			yDir = currentBoxes[i].y + 1;
-			while (yDir < currentBoxes[i].y + currentBoxes[i].height - 1)
-			{
-				allEdgePoints.push_back(cv::Point(currentBoxes[i].x, yDir));
-				yDir++;
-			}
-			while (xDir < currentBoxes[i].x + currentBoxes[i].width - 2)
-			{
-				allEdgePoints.push_back(cv::Point(xDir, currentBoxes[i].y + currentBoxes[i].height));
-				xDir++;
-			}
-		}
-
-		for (unsigned int i = 0; i < allEdgePoints.size(); i++)
-			cv::rectangle(output, allEdgePoints[i], allEdgePoints[i], cv::Scalar(255, 255, 255), 1, 1, 0);
-
-		std::cout << " allEdgePoints.size(): " << allEdgePoints.size() << std::endl;
-
-//		cv::Point startPoint, endPoint;
-//		startPoint.x = boxes[boxIndex].x;
-//		endPoint.x = boxes[boxIndex].x + boxes[boxIndex].width;
-//
-//		std::vector<cv::Point> rightStartPoint, rightEndPoint;
-//
-//		for (int i = 0; i < boxes[boxIndex].height; i++)
-//		{
-//			for (int j = 0; j < boxes[boxIndex].height; j++)
-//			{
-//				cv::Mat output2 = output.clone();
-//				bool isNeg = false;
-//				float m;
-//				if (j >= i)
-//				{
-//					isNeg = true;
-//					m = (j - i) / (float)(boxes[boxIndex].width);
-//				}
-//				else
-//				{
-//					m = (i - j) / (float)(boxes[boxIndex].width);
-//
-//				}
-//				bool breakSoon = false;
-//				// f(x) = m*x+j;
-//				for (unsigned int k = 0; k < allEdgePoints.size(); k++)
-//				{
-//					if (!isNeg)
-//					{
-//						if (j + (int)(m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y)
-//						{
-//							breakSoon = true;
-//							break;
-//						}
-//					}
-//					else
-//					{
-//						if ((float)j > m * (allEdgePoints[k].x - boxes[boxIndex].x))
-//							if (j - (int)(m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y)
-//							{
-//								breakSoon = true;
-//								break;
-//							}
-//					}
-//				}
-//				if (breakSoon)
-//				{
-//
-//				}
-//				else
-//				{
-//					rightStartPoint.push_back(cv::Point(boxes[boxIndex].x, j + boxes[boxIndex].y));
-//					rightEndPoint.push_back(cv::Point(boxes[boxIndex].x + boxes[boxIndex].width, boxes[boxIndex].y + i));
-//					// cv::line(output, cv::Point(boxes[boxIndex].x, j + boxes[boxIndex].y), cv::Point(boxes[boxIndex].x
-//					//     + boxes[boxIndex].width, boxes[boxIndex].y + i), cv::Scalar(0, 0, 255), 1, 1, 0);
-//				}
-//
-//				// cv::imshow("breaking words", output2);
-//				// cv::waitKey(0);
-//
-//				// bool showLine = true;
-//				// startPoint.y = i + boxes[boxIndex].y;
-//				// endPoint.y = j + boxes[boxIndex].y;
-//				// for (unsigned int k = 0; k < allEdgePoints.size(); k++)
-//				// if ((unsigned)(allEdgePoints[k].y - boxes[boxIndex].y) == (j - i) / (boxes[boxIndex].width)
-//				// * (allEdgePoints[k].x - boxes[boxIndex].x) + j)
-//				// {
-//				// showLine = false;
-//				// break;
-//				// }
-//				// if (showLine)
-//				// {
-//				// rightStartPoint.push_back(startPoint);
-//				// rightEndPoint.push_back(endPoint);
-//				// }
-//			}
-//		}
-
-//		for (int i = 0; i < rightStartPoint.size(); i++)
-//		{
-//			float m = (rightEndPoint[i].y - rightStartPoint[i].y) / (float)(rightEndPoint[i].x - rightStartPoint[i].x);
-//			float b = rightStartPoint[i].y - m * rightStartPoint[i].x;
-//			// y = m*x+b , on which side lies the point? => y - m*x > or < b
-//			unsigned int pointsOver = 0, pointsUnder = 0;
-//			for (int j = 0; j < currentPoints.size(); j++)
-//			{
-//				if (currentPoints[j].y - m * currentPoints[j].x > b)
-//					pointsOver++;
-//				if (currentPoints[j].y - m * currentPoints[j].x < b)
-//					pointsUnder++;
-//			}
-//			if (pointsOver > 1 && pointsUnder > 1)
-//			{
-//				std::cout << "pointsOver: " << pointsOver << std::endl;
-//				std::cout << "pointsUnder: " << pointsUnder << std::endl;
-//				cv::line(output, rightStartPoint[i], rightEndPoint[i], cv::Scalar(0, 100, 255), 1, 1, 0);
-//				cv::imshow("breaking words", output);
-//				cv::waitKey(0);
-//			}
-//		}
-		cv::imshow("breaking words", output);
-		cv::waitKey(0);
-
-	//--------------------------------------------------------
-//	}
-
-//	currentLetters.clear();
-//	wordBreaks.clear();
-//	if (debug["showWords"])
-//	{
-//		std::cout << std::endl;
-//		std::cout << "BoundingBox [" << boxIndex << "] " << std::endl;
-//		std::cout << "---------------" << std::endl;
-//		std::cout << boxes[boxIndex].x << "|" << boxes[boxIndex].y << "|" << boxes[boxIndex].width << "|" << boxes[boxIndex].height << std::endl;
-//		std::cout << "---------------" << std::endl;
-//	}
-*/
-
 		//which Letters belong to the current boundingBox
 		std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
 		for (unsigned int i = 0; i < letters.size(); i++)
@@ -6005,6 +5761,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 		int bin = 30;		// number of bins of the histogram
 
 		// Determine bin based on width of boundingBox
+		max = 4*ceil(boxes[boxIndex].width/(double)currentLetters.size());
 		bin = std::max(10, (int)currentLetters.size());
 //		switch ((int)boxes[boxIndex].width / 100)				// todo: check
 //		{

@@ -105,11 +105,7 @@ clrComponentParameter: 20
 
 # maximum pythagorean distance between components, default: 2.0
 # double
-<<<<<<< HEAD
-distanceRatioParameter: 3.0
-=======
 distanceRatioParameter: 2.5
->>>>>>> 7140ef1c7773ea1a2ddaa23fc3edf53b6ec5d0fb
 
 # comparison between median sw of components, default: 2.5
 # double
@@ -217,11 +213,8 @@ showBreakLines: false
 
 showWords: false
 
-<<<<<<< HEAD
-=======
 showCriterions: false
 
->>>>>>> 7140ef1c7773ea1a2ddaa23fc3edf53b6ec5d0fb
 # show all bezier models that are created within ransac
 # bool
 showBezier: false
