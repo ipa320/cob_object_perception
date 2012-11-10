@@ -329,14 +329,15 @@ void DetectText::detect_bormann()
 		}
 
 		ocrRead(textImages_);
-		// Draw output on resultImage_
-		showBoundingBoxes(finalBoxes_, finalTexts_);
 	}
 	else
 	{
 		finalBoxes_ = finalRotatedBoundingBoxes_;
 		finalTexts_.resize(finalBoxes_.size(), "");
 	}
+
+	// Draw output on resultImage_
+	showBoundingBoxes(finalBoxes_, finalTexts_);
 
 	std::cout << "eval_: " << eval_ << std::endl;
 
@@ -459,22 +460,41 @@ void DetectText::pipeline()
 //		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 //		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
 
-		// separating several lines of text the hard way
+		// separating several lines of text
 		start_time = clock();
 		breakLines(boundingBoxes);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLines: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
+		// after this block the indices between boundingBoxes and connectedComponents_ do not correspond anymore!
 
+		// separate words on a single line
 		start_time = clock();
 		breakLinesIntoWords(boundingBoxes);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
 
+		// write found bounding boxes into the respective structures
 		for (unsigned int i=0; i<boundingBoxes.size(); i++)
 		{
 			finalBoundingBoxes_.push_back(boundingBoxes[i]);
 			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(boundingBoxes[i].x+0.5*boundingBoxes[i].width, boundingBoxes[i].y+0.5*boundingBoxes[i].height),
 					cv::Size2f(boundingBoxes[i].width, boundingBoxes[i].height), 0.f));
+		}
+
+		// filter boxes that lie completely inside others
+		for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
+		{
+			for (int j=0; j<(int)finalBoundingBoxes_.size(); j++)
+			{
+				if (j==i)
+					continue;
+				if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.95*finalBoundingBoxes_[i].area())
+				{
+					finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
+					finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
+					break;
+				}
+			}
 		}
 	}
 	else
@@ -1804,9 +1824,12 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes)
 		// save bounding boxes and mid points of the currently active letters
 		std::vector<cv::Rect> currentLetterBoxes;
 		std::vector<cv::Point2d> currentPoints;
-		for (unsigned int i = 0; i < letters.size(); i++)
-			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
-				currentLetterBoxes.push_back(letters[i]);
+//		for (unsigned int i = 0; i < letters.size(); i++)
+//			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
+//				currentLetterBoxes.push_back(letters[i]);
+		for (unsigned int i=0; i<connectedComponents_[boxIndex].size(); i++)
+			currentLetterBoxes.push_back(connectedComponents_[boxIndex][i].r);
+
 		double averageLetterSize = 0;
 		for (unsigned int i = 0; i < currentLetterBoxes.size(); i++)
 		{
@@ -1920,8 +1943,8 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes)
 				for (unsigned int i=0; i<inlierSet.size(); i++)
 					cv::rectangle(output, cv::Point(currentLetterBoxes[inlierSet[i]].x, currentLetterBoxes[inlierSet[i]].y), cv::Point(currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width, currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height), cv::Scalar(0,0,255), 2, 1, 0);
 				cv::rectangle(output, cv::Point(minPoint.x, minPoint.y), cv::Point(maxPoint.x, maxPoint.y), cv::Scalar(0,255,0), 2, 1, 0);
-				cv::imshow("breaking", output);
-				cvMoveWindow("breaking", 0, 0);
+				cv::imshow("breaking lines", output);
+				cvMoveWindow("breaking lines", 0, 0);
 				cv::waitKey(0);
 			}
 
@@ -5107,6 +5130,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	nh.getParam("showChains", this->debug["showChains"]);
 	nh.getParam("showBreakLines", this->debug["showBreakLines"]);
 	nh.getParam("showWords", this->debug["showWords"]);
+	nh.getParam("showCriterions", this->debug["showCriterions"]);
 	nh.getParam("showBezier", this->debug["showBezier"]);
 	nh.getParam("showRansac", this->debug["showRansac"]);
 	nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
@@ -5196,12 +5220,15 @@ void DetectText::overlapBoundingBoxes(std::vector<cv::Rect>& boundingBoxes)
 	boundingBoxes = bigBoxes;
 }
 
-int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float heightVariance, unsigned int howManyNegative, unsigned int shift,
+int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float heightStddev, unsigned int howManyNegative, unsigned int shift,
 		int maxPeakDistance, int secondMaxPeakDistance, int maxPeakNumbers, int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight,
 		unsigned int numberBinsNotZero, std::vector<Pair> wordBreaks, cv::Rect box, bool textIsRotated, float relativeY, bool steadyStructure, float sameArea)
 {
 	bool broke = true;
 	bool showCriterions = debug["showCriterions"];
+
+	if (wordBreaks.size()==0)
+		return -1;
 
 	//---------------------------------------------------------------------------------------
 	//criterion #1 more negative than positive distances -> probably no letters -> throw away
@@ -5233,7 +5260,7 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 	 std::cout << "Negatives too negative: -" << shift << std::endl;
 	 std::cout << "- Text will not be saved!" << std::endl;
 	 cv::rectangle(output, boxes[j], cv::Scalar((0), (0), (255)), 2);
-	 cv::imshow("break", output);
+	 cv::imshow("breaking words", output);
 	 cv::waitKey(0);
 	 continue;
 	 }*/
@@ -5249,15 +5276,16 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 			std::cout << "Criterion #2" << std::endl;
 			std::cout << "Only one peak in histogram." << std::endl;
 			std::cout << "- Text will not be broken" << std::endl;
+			std::cout << "wordBreaks.size: " << wordBreaks.size() << std::endl;
 		}
 		int allDistances = 0;
 		for (unsigned int i = 0; i < wordBreaks.size(); i++)
 		{
-			std::cout << wordBreaks[i].right << "!" << std::endl;
+			std::cout << "wordBreaks[" << i << "]: " << wordBreaks[i].right << std::endl;
 			allDistances += wordBreaks[i].right;
 		}
-		std::cout << box.width << "!" << std::endl;
-		if (allDistances / (float) box.width > 0.4)
+		std::cout << "box.width: " << box.width << std::endl;
+		if (allDistances > 0.5*box.width)
 			return -1;
 	}
 
@@ -5266,7 +5294,8 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 		//criterion #3 highest peak has to have more elements than second highest peak
 		//---------------------------------------------------------------------------------------
 		if (secondMaxPeakNumbers != 0)
-			if (std::abs(maxPeakNumbers - secondMaxPeakNumbers) <= 0)
+			//if (std::abs(maxPeakNumbers - secondMaxPeakNumbers) <= 0)
+			if (maxPeakNumbers - secondMaxPeakNumbers< 0)
 			{
 				broke = false;
 				if (showCriterions)
@@ -5332,17 +5361,17 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 		{
 			if (showCriterions)
 			{
-				std::cout << "Criterion #6" << std::endl;
+				std::cout << "Criterion #6.1" << std::endl;
 				std::cout << "highest peak too small: " << maxPeakNumbers << std::endl;
 				std::cout << "- Text will not be saved!" << std::endl;
 			}
 			return -1;
 		}
-		else if (relativeY > 0.1)
+		else if (relativeY > 0.5)
 		{
 			if (showCriterions)
 			{
-				std::cout << "Criterion #6" << std::endl;
+				std::cout << "Criterion #6.2" << std::endl;
 				std::cout << "highest peak too small: " << maxPeakNumbers << std::endl;
 				std::cout << "- Text will not be saved!" << std::endl;
 			}
@@ -5352,7 +5381,7 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 		{
 			if (showCriterions)
 			{
-				std::cout << "Criterion #6" << std::endl;
+				std::cout << "Criterion #6.3" << std::endl;
 				std::cout << "highest peak too small: " << maxPeakNumbers << std::endl;
 				std::cout << "- Text will not be saved!" << std::endl;
 			}
@@ -5377,7 +5406,7 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 	 //   std::cout << "- Text will not be broken" << std::endl;
 	 //   std::cout << "- Text will not be saved!" << std::endl;
 	 cv::rectangle(output, boxes[j], cv::Scalar((0), (0), (255)), 2);
-	 cv::imshow("break", output);
+	 cv::imshow("breaking words", output);
 	 cv::waitKey(0);
 	 continue;
 	 // }
@@ -5425,110 +5454,115 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 		std::cout << "TEXT IS ROTATED!" << std::endl;
 	else
 		std::cout << "TEXT IS NOT ROTATED!" << std::endl;
-	if (!textIsRotated)
-		if (wordBreaks[0].right - shift > 0)
-			if (wordBreaks[0].right - shift > secondMaxPeakDistance * max_Bin - shift && wordBreaks[0].right - shift < secondMaxPeakDistance * max_Bin - shift
-					+ max_Bin)
-			{
-				std::cout << wordBreaks[0].right << ">" << secondMaxPeakDistance << "*" << max_Bin << " - " << shift << std::endl;
-				std::cout << "heightVariance: " << heightVariance << std::endl;
-				std::cout << "relativeY: " << relativeY << std::endl;
-				if (heightVariance > 2 || relativeY > 0.35) //additional criterion to allow some boxes with single letters
-
+	if (false)
+		//if (!textIsRotated)
+			if (wordBreaks[0].right - shift > 0)
+				if ((wordBreaks[0].right > secondMaxPeakDistance*max_Bin + 0.5*max_Bin) && (wordBreaks[0].right < secondMaxPeakDistance * max_Bin + 1.5*max_Bin))
+				{
+					std::cout << wordBreaks[0].right << ">" << secondMaxPeakDistance << "*" << max_Bin << " - " << shift << std::endl;
+					std::cout << "heightVariance: " << heightStddev << std::endl;
+					std::cout << "relativeY: " << relativeY << std::endl;
+					if (heightStddev > 1.41 || relativeY > 0.35) //additional criterion to allow some boxes with single letters
+					{
+						if (showCriterions)
+						{
+							std::cout << "Criterion #11.1.1" << std::endl;
+							std::cout << "big gap/distance shall not be first element of wordBreaks!" << std::endl;
+							std::cout << "- Text will not be saved!" << std::endl;
+						}
+						return -1;
+					}
+				}
+	// Criterion #11.2 Last distance is not supposed to be a big distance
+	if (false)
+		if (wordBreaks[wordBreaks.size()-1].right-shift > 0)
+			if ((wordBreaks[wordBreaks.size()-1].right >= secondMaxPeakDistance*max_Bin+0.5*max_Bin) && (wordBreaks[wordBreaks.size()-1].right < secondMaxPeakDistance * max_Bin + 1.5*max_Bin))
+				if (heightStddev > 1.41)
 				{
 					if (showCriterions)
 					{
-						std::cout << "Criterion #11.1.1" << std::endl;
-						std::cout << "big gap/distance shall not be first element of wordBreaks!" << std::endl;
+						std::cout << "Criterion #11.1.2" << std::endl;
+						std::cout << "big gap/distance shall not be last element of wordBreaks!" << std::endl;
 						std::cout << "- Text will not be saved!" << std::endl;
+						std::cout << "wordBreaks[wordBreaks.size() - 1].right: " << wordBreaks[wordBreaks.size() - 1].right << std::endl;
 					}
 					return -1;
 				}
-			}
-	// Criterion #11.2 Last distance is not supposed to be a big distance
-	if (wordBreaks[wordBreaks.size() - 1].right - shift > 0)
-		if (wordBreaks[wordBreaks.size() - 1].right - shift >= secondMaxPeakDistance * max_Bin - shift && wordBreaks[wordBreaks.size() - 1].right - shift
-				< secondMaxPeakDistance * max_Bin - shift + max_Bin)
-			if (heightVariance > 2)
-			{
-				if (showCriterions)
-				{
-					std::cout << "Criterion #11.1.2" << std::endl;
-					std::cout << "big gap/distance shall not be last element of wordBreaks!" << std::endl;
-					std::cout << "- Text will not be saved!" << std::endl;
-					std::cout << "wordBreaks[wordBreaks.size() - 1].right: " << wordBreaks[wordBreaks.size() - 1].right << std::endl;
-				}
-				return -1;
-			}
 
 	//---------------------------------------------------------------------------------------
 	//criterion #12 variance of letter heights < 4
 	//---------------------------------------------------------------------------------------
-	if (heightVariance > 5 && wordBreaks.size() <= 2)
+	if (heightStddev > 0.05*box.height && wordBreaks.size() <= 2)
 	{
 		if (showCriterions)
 		{
 			std::cout << "Criterion #12.1" << std::endl;
-			std::cout << "Variance of heights too big: " << heightVariance << std::endl;
+			std::cout << "Variance of heights too big: " << heightStddev << "  (threshold: " << 0.05*box.height << ")" << std::endl;
 			std::cout << "- Text will not be saved!" << std::endl;
 		}
 		return -1;
 	}
-	else
+	else if (heightStddev > 0.3*box.height)
 	{
-		if (!textIsRotated)
+		if (showCriterions)
 		{
-			if (heightVariance > 40 && wordBreaks.size() <= 10)
-			{
-				if (showCriterions)
-				{
-					std::cout << "Criterion #12.2" << std::endl;
-					std::cout << "Variance of heights too big: " << heightVariance << std::endl;
-					std::cout << "- Text will not be saved!" << std::endl;
-				}
-				return -1;
-			}
-			else if (!textIsRotated)
-			{
-				if (heightVariance > 80 && wordBreaks.size() <= 15)
-				{
-					if (showCriterions)
-					{
-						std::cout << "Criterion #12.2" << std::endl;
-						std::cout << "Variance of heights too big: " << heightVariance << std::endl;
-						std::cout << "- Text will not be saved!" << std::endl;
-					}
-					return -1;
-				}
-			}
-			else if (!textIsRotated)
-			{
-				if (heightVariance > 100 && wordBreaks.size() <= 20)
-				{
-					if (showCriterions)
-					{
-						std::cout << "Criterion #12.2" << std::endl;
-						std::cout << "Variance of heights too big: " << heightVariance << std::endl;
-						std::cout << "- Text will not be saved!" << std::endl;
-					}
-					return -1;
-				}
-			}
-			else if (!textIsRotated)
-			{
-				if (heightVariance > 120)
-				{
-					if (showCriterions)
-					{
-						std::cout << "Criterion #12.2" << std::endl;
-						std::cout << "Variance of heights too big: " << heightVariance << std::endl;
-						std::cout << "- Text will not be saved!" << std::endl;
-					}
-					return -1;
-				}
-			}
+			std::cout << "Criterion #12.2.1" << std::endl;
+			std::cout << "Variance of heights too big: " << heightStddev << "  (threshold: " << 0.3*box.height << ")" << std::endl;
+			std::cout << "- Text will not be saved!" << std::endl;
 		}
+		return -1;
 	}
+	else if (heightStddev > (0.01333333*wordBreaks.size()+0.03333333)*box.height)
+	{
+		if (showCriterions)
+		{
+			std::cout << "Criterion #12.2.2"
+					"" << std::endl;
+			std::cout << "Variance of heights too big: " << heightStddev << "  (threshold: " << (0.01333333*wordBreaks.size()+0.03333333)*box.height << ")" << std::endl;
+			std::cout << "- Text will not be saved!" << std::endl;
+		}
+		return -1;
+	}
+//	else if (heightStddev > 0.1*box.height && wordBreaks.size() < 10)
+//	{
+//		if (showCriterions)
+//		{
+//			std::cout << "Criterion #12.2.1" << std::endl;
+//			std::cout << "Variance of heights too big: " << heightStddev << std::endl;
+//			std::cout << "- Text will not be saved!" << std::endl;
+//		}
+//		return -1;
+//	}
+//	else if (heightStddev > 0.2*box.height && wordBreaks.size() < 15)
+//	{
+//		if (showCriterions)
+//		{
+//			std::cout << "Criterion #12.2.2" << std::endl;
+//			std::cout << "Variance of heights too big: " << heightStddev << std::endl;
+//			std::cout << "- Text will not be saved!" << std::endl;
+//		}
+//		return -1;
+//	}
+//	else if (heightStddev > 0.25*box.height && wordBreaks.size() < 20)
+//	{
+//		if (showCriterions)
+//		{
+//			std::cout << "Criterion #12.2.3" << std::endl;
+//			std::cout << "Variance of heights too big: " << heightStddev << std::endl;
+//			std::cout << "- Text will not be saved!" << std::endl;
+//		}
+//		return -1;
+//	}
+//	else if (heightStddev > 0.3*box.height)
+//	{
+//		if (showCriterions)
+//		{
+//			std::cout << "Criterion #12.2.4" << std::endl;
+//			std::cout << "Variance of heights too big: " << heightStddev << std::endl;
+//			std::cout << "- Text will not be saved!" << std::endl;
+//		}
+//		return -1;
+//	}
 
 	//---------------------------------------------------------------------------------------
 	//criterion #13 Steady Structure
@@ -5739,7 +5773,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 			gradients.push_back(gradient);
 			std::cout << "GRADIENT: " << gradient << std::endl;
 			cv::line(output, currentPoints[i], currentPoints[minNeighbor], cv::Scalar(i * 10, i * 20, i * 5), 1, 1, 0);
-			cv::imshow("break", output);
+			cv::imshow("breaking words", output);
 			cv::waitKey(0);
 		}
 
@@ -5851,7 +5885,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 //					//     + boxes[boxIndex].width, boxes[boxIndex].y + i), cv::Scalar(0, 0, 255), 1, 1, 0);
 //				}
 //
-//				// cv::imshow("break", output2);
+//				// cv::imshow("breaking words", output2);
 //				// cv::waitKey(0);
 //
 //				// bool showLine = true;
@@ -5890,11 +5924,11 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 //				std::cout << "pointsOver: " << pointsOver << std::endl;
 //				std::cout << "pointsUnder: " << pointsUnder << std::endl;
 //				cv::line(output, rightStartPoint[i], rightEndPoint[i], cv::Scalar(0, 100, 255), 1, 1, 0);
-//				cv::imshow("break", output);
+//				cv::imshow("breaking words", output);
 //				cv::waitKey(0);
 //			}
 //		}
-		cv::imshow("break", output);
+		cv::imshow("breaking words", output);
 		cv::waitKey(0);
 
 	//--------------------------------------------------------
@@ -5956,8 +5990,8 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 					cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]], cv::Scalar((0), (0), (0)), 1);
 				}
 				cv::rectangle(output, boxes[boxIndex], cv::Scalar((155), (155), (155)), 2);
-				cv::imshow("break", output);
-				cvMoveWindow("break", 0, 0);
+				cv::imshow("breaking words", output);
+				cvMoveWindow("breaking words", 0, 0);
 			}
 		}
 
@@ -5971,34 +6005,35 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 		int bin = 30;		// number of bins of the histogram
 
 		// Determine bin based on width of boundingBox
-		switch ((int)boxes[boxIndex].width / 100)				// todo: check
-		{
-		case 0:
-			bin = 60;
-			break;
-		case 1:
-			bin = 60;
-			break;
-		case 2:
-			bin = 30;
-			break;
-		case 3:
-			bin = 30;
-			break;
-		case 4:
-			bin = 15;
-			break;
-		case 5:
-			bin = 15;
-			break;
-		}
-		if ((int)boxes[boxIndex].width / 100 > 5)
-		{
-			if (currentLetters.size() < 6)
-				bin = 7;
-			else
-				bin = 10;
-		}
+		bin = std::max(10, (int)currentLetters.size());
+//		switch ((int)boxes[boxIndex].width / 100)				// todo: check
+//		{
+//		case 0:
+//			bin = 60;	//60
+//			break;
+//		case 1:
+//			bin = 60;	//60
+//			break;
+//		case 2:
+//			bin = 30;	//30
+//			break;
+//		case 3:
+//			bin = 30;	//30
+//			break;
+//		case 4:
+//			bin = 30;	//15
+//			break;
+//		case 5:
+//			bin = 30;	//15
+//			break;
+//		}
+//		if ((int)boxes[boxIndex].width / 100 > 5)
+//		{
+//			if (currentLetters.size() < 6)
+//				bin = 30;	//7
+//			else
+//				bin = 30;	//10
+//		}
 
 		if (debug["showWords"])
 			std::cout << "bin: " << bin << std::endl;
@@ -6151,7 +6186,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 		float negPosRatio = howManyNegative / (float)(wordBreaks.size());
 
 		// Ratios of y and height between the letterboxes inside a boundingBox
-		float maxY = 0.0, minY = 1000.0, relativeY = 0.0, meanHeight = 0.0, heightVariance = 0;
+		float maxY = 0.0, minY = 1000.0, relativeY = 0.0, meanHeight = 0.0, heightStddev = 0;
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
 		{
 			if (letters[currentLetters[j]].y < minY)
@@ -6160,11 +6195,11 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 				maxY = letters[currentLetters[j]].y;
 			meanHeight += letters[currentLetters[j]].height + letters[currentLetters[j]].y;
 		}
-		meanHeight /= currentLetters.size();
+		meanHeight /= (float)currentLetters.size();
 
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
-			heightVariance += (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight) * (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight);
-		heightVariance /= (float)currentLetters.size();
+			heightStddev += (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight) * (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight);
+		heightStddev = std::sqrt(heightStddev/(float)currentLetters.size());
 
 		relativeY = (maxY - minY) / (float)boxes[boxIndex].height;
 
@@ -6207,15 +6242,16 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 			textIsRotated = true;
 		std::cout << "letterSmallerThanLast: " << letterSmallerThanLast << std::endl;
 		std::cout << "letterBiggerThanLast: " << letterBiggerThanLast << std::endl;
+		textIsRotated = false;		// todo: hack!
 
 		// same area
-		float sameArea = 0;
+		float sameArea = 1.0;
 		if (currentLetters.size() == 2)
 			sameArea = letters[currentLetters[0]].area() / (float)letters[currentLetters[1]].area();
 
 		//---------------------------------------------------------------------------------------
 		// Criterions
-		int crit = decideWhichBreaks(negPosRatio, max / bin, heightVariance, howManyNegative, shift, maxPeakDistance, secondMaxPeakDistance, maxPeakNumbers, secondMaxPeakNumbers,
+		int crit = decideWhichBreaks(negPosRatio, max / bin, heightStddev, howManyNegative, shift, maxPeakDistance, secondMaxPeakDistance, maxPeakNumbers, secondMaxPeakNumbers,
 				boxes[boxIndex].width, boxes[boxIndex].height, numberBinsNotZero, wordBreaks, boxes[boxIndex], textIsRotated, relativeY, steadyStructure, sameArea);
 
 		bool breakBox = true; // shall box be broken into separate boxes?
@@ -6228,8 +6264,8 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 			if (debug["showWords"])
 			{
 				cv::rectangle(output, boxes[boxIndex], cv::Scalar((0), (0), (255)), 2);
-				cv::imshow("break", output);
-				cvMoveWindow("break", 0, 0);
+				cv::imshow("breaking words", output);
+				cvMoveWindow("breaking words", 0, 0);
 				cv::waitKey(0);
 			}
 			continue;
@@ -6264,7 +6300,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 				bool letter = false;
 				if (maxPeakDistance < 0)
 				{
-					if (wordBreaks[r].right - shift < abs(((((max / bin) * maxPeakDistance) - shift) + (max / bin))))
+					if (wordBreaks[r].right - shift < abs((((max / bin) * maxPeakDistance) - shift) + (max / bin)))
 						letter = true;
 				}
 				else if (wordBreaks[r].right - shift <= ((((max / bin) * maxPeakDistance) - shift) + (max / bin)))
@@ -6320,8 +6356,8 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes)
 			if (debug["showWords"])
 			{
 				cv::rectangle(output, smallerRe, cv::Scalar((0), (255), (0)), 2);
-				cv::imshow("break", output);
-				cvMoveWindow("break", 0, 0);
+				cv::imshow("breaking words", output);
+				cvMoveWindow("breaking words", 0, 0);
 				cv::waitKey(0);
 			}
 			brokenWords[makeSmallerIndex] = smallerRe;
