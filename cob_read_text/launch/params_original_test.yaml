@@ -18,7 +18,7 @@ transformImages:  false
 
 # default: false, smoothing sometimes leads to merging of letters within small texts
 # bool
-smoothImage: false 
+smoothImage: true 
 
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
@@ -130,6 +130,14 @@ areaParameter: 1.5
 # maximum pixel ratio (pixels belonging to letter), default: 0.3 - turned off
 # double
 pixelParameter: 0.3 
+
+
+# breaking text into linear lines 
+# --------------------------------
+
+# factor for the threshold of inliers during linear RANSAC
+# double
+inlierDistanceThresholdFactor: 0.7
 
 
 # ransac

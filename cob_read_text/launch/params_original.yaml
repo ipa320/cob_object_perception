@@ -132,6 +132,14 @@ areaParameter: 1.5
 pixelParameter: 0.3 
 
 
+# breaking text into linear lines 
+# --------------------------------
+
+# factor for the threshold of inliers during linear RANSAC
+# double
+inlierDistanceThresholdFactor: 0.6
+
+
 # ransac
 # ----------
 

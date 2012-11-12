@@ -221,7 +221,7 @@ private:
 
   void overlapBoundingBoxes(std::vector<cv::Rect>& boundingBoxes);
 
-  int decideWhichBreaks(float negPosRatio, float max_Bin, float heightStddev, unsigned int howManyNegative,
+  int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative,
                         unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance, int maxPeakNumbers,
                         int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight,
                         unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks, cv::Rect box,
@@ -356,6 +356,8 @@ private:
   double clrSingleParameter; // better 15 default: 35
   double areaParameter; // better: 1.5 ; default: 5
   double pixelParameter; // default 0.3
+  // --- linear ransac (original implementation) ---
+  double inlierDistanceThresholdFactor_;
   // --- ransac ---
   double p; // probability p, default: 0.99
   double maxE;

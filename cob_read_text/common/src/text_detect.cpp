@@ -545,6 +545,12 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 	std::vector<cv::Point> strokePoints;
 	updateStrokeWidth(swtmap, edgepoints_, strokePoints, searchDirection, UPDATE);
 	updateStrokeWidth(swtmap, strokePoints, strokePoints, searchDirection, REFINE);
+
+	cv::Mat temp;
+	cv::dilate(swtmap, temp, cv::Mat());
+	cv::erode(temp, swtmap, cv::Mat(), cv::Point(-1, -1), 2);
+	cv::dilate(swtmap, temp, cv::Mat());
+	swtmap = temp;
 }
 
 cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
@@ -935,10 +941,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high..
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
 		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_))
-		{
-			isLetterRegion_[i] = false;
 			continue;
-		}
 
 		float maxY = itr.y + itr.height;
 		float minY = itr.y;
@@ -964,6 +967,11 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			}
 		}
 		double pixelCount = static_cast<double>(iComponentStrokeWidth.size());
+
+		// rule #2: remove components that are too small
+		if (pixelCount < 0.1*itr.area())
+			continue;
+
 		double meanStrokeWidth = sumStrokeWidth / pixelCount;
 		double varianceStrokeWidth = 0;
 		for (size_t ii = 0; ii < iComponentStrokeWidth.size(); ii++)
@@ -1859,7 +1867,7 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 		// calculate number of iterations
 		int maxRANSACIterations = 5 * std::ceil(std::log10(1 - confidenceLevel) / (double)(std::log10(1 - (std::pow((1 - outlierRatio), problemDimension)))));
 
-		double inlierDistanceThreshold = averageLetterSize * 0.6;
+		double inlierDistanceThreshold = averageLetterSize * inlierDistanceThresholdFactor_;
 		if (debug["showBreakLines"])
 			std::cout << "inlierDistanceThreshold=" << inlierDistanceThreshold << std::endl;
 
@@ -1920,6 +1928,59 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 					if (debug["showBreakLines"])
 						std::cout << "inlier found with dist=" << dist << std::endl;
 				}
+			}
+
+			// determine better line approximation based on all inliers with linear regression
+			if (inlierSet.size() > 2)
+			{
+//				std::cout << "line equation before: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")" << std::endl;
+				cv::Mat A(inlierSet.size(), 3, CV_64FC1);
+				for (unsigned int i=0; i<inlierSet.size(); i++)
+				{
+					// regression problem: [x y 1] * [a; b; c] = 0
+					A.at<double>(i,0) = currentPoints[inlierSet[i]].x;
+					A.at<double>(i,1) = currentPoints[inlierSet[i]].y;
+					A.at<double>(i,2) = 1.;
+				}
+				cv::SVD svd(A);
+//				std::cout << "u,w,v: (" << svd.u.rows << ", " << svd.u.cols << "), (" << svd.w.rows << ", " << svd.w.cols << "), (" << svd.vt.rows << ", " << svd.vt.cols << ")\n";
+//				cv::Mat W = cv::Mat::zeros(A.cols,A.cols,CV_64FC1);
+//				for (int i=0; i<svd.w.rows; i++)
+//					W.at<double>(i,i) = svd.w.at<double>(i);
+//				cv::Mat B = svd.u * W * svd.vt;
+//				std::cout << "A\n";
+//				for (int i=0; i<4; i++)
+//					std::cout << A.at<double>(i, 0) << ", " << A.at<double>(i, 1) << ", " << A.at<double>(i, 2) << std::endl;
+//				std::cout << "B\n";
+//				for (int i=0; i<4; i++)
+//					std::cout << B.at<double>(i, 0) << ", " << B.at<double>(i, 1) << ", " << B.at<double>(i, 2) << std::endl;
+//				std::cout << "vt\n";
+//				for (int i=0; i<svd.vt.rows; i++)
+//					std::cout << svd.vt.at<double>(i, 0) << ", " << svd.vt.at<double>(i, 1) << ", " << svd.vt.at<double>(i, 2) << ", " << svd.vt.at<double>(i, 3) << std::endl;
+
+				// compute normal and point from [a;b;c]
+				if (svd.vt.at<double>(2, 1) != 0.)
+				{
+					// y = -a/b * x - c/b
+					bestNormal.x = svd.vt.at<double>(2, 0) / svd.vt.at<double>(2, 1);
+					bestNormal.y = 1.;
+					double normMagnitude = sqrt(bestNormal.x*bestNormal.x + bestNormal.y*bestNormal.y);
+					bestNormal.x /= normMagnitude;	// normalize normal
+					bestNormal.y /= normMagnitude;
+
+					bestP1.x = 0.;
+					bestP1.y = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 1);
+				}
+				else
+				{
+					// x = -c/a
+					bestNormal.x = 1.;
+					bestNormal.y = 0.;
+					bestP1.x = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 0);
+					bestP1.y = 0;
+				}
+
+//				std::cout << "line equation after: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")\n\n" << std::endl;
 			}
 
 			// retrieve bounding box of inlier set
@@ -5115,6 +5176,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	nh.getParam("clrSingleParameter", this->clrSingleParameter);
 	nh.getParam("areaParameter", this->areaParameter);
 	nh.getParam("pixelParameter", this->pixelParameter);
+	nh.getParam("inlierDistanceThresholdFactor", this->inlierDistanceThresholdFactor_);
 	nh.getParam("p", this->p);
 	nh.getParam("maxE", this->maxE);
 	nh.getParam("minE", this->minE);
@@ -5160,6 +5222,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	std::cout << "clrSingleParameter:" << clrSingleParameter << std::endl;
 	std::cout << "areaParameter:" << areaParameter << std::endl;
 	std::cout << "pixelParameter:" << pixelParameter << std::endl;
+	std::cout << "inlierDistanceThresholdFactor:" << inlierDistanceThresholdFactor_ << std::endl;
 	std::cout << "p:" << p << std::endl;
 	std::cout << "maxE:" << maxE << std::endl;
 	std::cout << "minE:" << minE << std::endl;
@@ -5222,7 +5285,7 @@ void DetectText::overlapBoundingBoxes(std::vector<cv::Rect>& boundingBoxes)
 	boundingBoxes = bigBoxes;
 }
 
-int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float heightStddev, unsigned int howManyNegative, unsigned int shift,
+int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative, unsigned int shift,
 		int maxPeakDistance, int secondMaxPeakDistance, int maxPeakNumbers, int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight,
 		unsigned int numberBinsNotZero, std::vector<Pair> wordBreaks, cv::Rect box, bool textIsRotated, float relativeY, bool steadyStructure, float sameArea)
 {
@@ -5462,9 +5525,9 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 				if ((wordBreaks[0].right > secondMaxPeakDistance*max_Bin + 0.5*max_Bin) && (wordBreaks[0].right < secondMaxPeakDistance * max_Bin + 1.5*max_Bin))
 				{
 					std::cout << wordBreaks[0].right << ">" << secondMaxPeakDistance << "*" << max_Bin << " - " << shift << std::endl;
-					std::cout << "heightVariance: " << heightStddev << std::endl;
+					std::cout << "heightVariance: " << baselineStddev << std::endl;
 					std::cout << "relativeY: " << relativeY << std::endl;
-					if (heightStddev > 1.41 || relativeY > 0.35) //additional criterion to allow some boxes with single letters
+					if (baselineStddev > 1.41 || relativeY > 0.35) //additional criterion to allow some boxes with single letters
 					{
 						if (showCriterions)
 						{
@@ -5479,7 +5542,7 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 	if (false)
 		if (wordBreaks[wordBreaks.size()-1].right-shift > 0)
 			if ((wordBreaks[wordBreaks.size()-1].right >= secondMaxPeakDistance*max_Bin+0.5*max_Bin) && (wordBreaks[wordBreaks.size()-1].right < secondMaxPeakDistance * max_Bin + 1.5*max_Bin))
-				if (heightStddev > 1.41)
+				if (baselineStddev > 1.41)
 				{
 					if (showCriterions)
 					{
@@ -5494,33 +5557,35 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float height
 	//---------------------------------------------------------------------------------------
 	//criterion #12 variance of letter heights < 4
 	//---------------------------------------------------------------------------------------
-	if (heightStddev > 0.05*box.height && wordBreaks.size() <= 2)
+	std::cout << "Criterion 12.2.2: " << baselineStddev << "  (threshold: " << (0.05/15.*wordBreaks.size()+0.25/3.)*box.height << ", i.e. " << (0.05/15.*wordBreaks.size()+0.25/3.) << "*box.height)" << std::endl;
+
+	if (baselineStddev > 0.05*box.height && wordBreaks.size() <= 2)
 	{
 		if (showCriterions)
 		{
 			std::cout << "Criterion #12.1" << std::endl;
-			std::cout << "Variance of heights too big: " << heightStddev << "  (threshold: " << 0.05*box.height << ")" << std::endl;
+			std::cout << "Variance of heights too big: " << baselineStddev << "  (threshold: " << 0.05*box.height << ")" << std::endl;
 			std::cout << "- Text will not be saved!" << std::endl;
 		}
 		return -1;
 	}
-	else if (heightStddev > 0.3*box.height)
+	else if (baselineStddev > 0.15*box.height)
 	{
 		if (showCriterions)
 		{
 			std::cout << "Criterion #12.2.1" << std::endl;
-			std::cout << "Variance of heights too big: " << heightStddev << "  (threshold: " << 0.3*box.height << ")" << std::endl;
+			std::cout << "Variance of heights too big: " << baselineStddev << "  (threshold: " << 0.3*box.height << ")" << std::endl;
 			std::cout << "- Text will not be saved!" << std::endl;
 		}
 		return -1;
 	}
-	else if (heightStddev > (0.01333333*wordBreaks.size()+0.03333333)*box.height)
+	else if (baselineStddev > (0.05/15.*wordBreaks.size()+0.25/3.)*box.height)
+	//else if (baselineStddev > (0.013333333*wordBreaks.size()+0.033333333)*box.height)
 	{
 		if (showCriterions)
 		{
-			std::cout << "Criterion #12.2.2"
-					"" << std::endl;
-			std::cout << "Variance of heights too big: " << heightStddev << "  (threshold: " << (0.01333333*wordBreaks.size()+0.03333333)*box.height << ")" << std::endl;
+			std::cout << "Criterion #12.2.2" << std::endl;
+			std::cout << "Variance of heights too big: " << baselineStddev << "  (threshold: " << (0.05/15.*wordBreaks.size()+0.25/3.)*box.height << ", i.e. " << (0.05/15.*wordBreaks.size()+0.25/3.) << "*box.height)" << std::endl;
 			std::cout << "- Text will not be saved!" << std::endl;
 		}
 		return -1;
@@ -5703,14 +5768,30 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
 	{
 		//which Letters belong to the current boundingBox
-		std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
+		std::vector<int> innerLetters, currentLetters; // which ones of all found letters on the image belong to the current boundingBox
+		double averageLetterSize = 0.;
 		for (unsigned int i = 0; i < letters.size(); i++)
-			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
-				currentLetters.push_back(i);
+		{
+			if ((boxes[boxIndex] & letters[i]).area() == 1.0 * letters[i].area())
+			{
+				innerLetters.push_back(i);
+				averageLetterSize += sqrt(letters[i].width*letters[i].width + letters[i].height*letters[i].height);
+			}
+		}
+		averageLetterSize /= (double)innerLetters.size();
+		double inlierDistanceThreshold = averageLetterSize * inlierDistanceThresholdFactor_;
+		for (unsigned int i = 0; i < innerLetters.size(); i++)
+		{
+			cv::Point2f centralBasePoint(letters[innerLetters[i]].x+0.5*letters[innerLetters[i]].width, letters[innerLetters[i]].y+letters[innerLetters[i]].height);
+			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
+			float dist = fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
+			if (dist < inlierDistanceThreshold)
+				currentLetters.push_back(innerLetters[i]);
+		}
 
-		std::vector<Pair> wordBreaks;
 
 		// Determine distance to nearest neighbor
+		std::vector<Pair> wordBreaks;
 		int smallestDistanceEdge = 100000; //inf
 		int smallestDistanceEdgeIndex = 0;
 		for (unsigned int i = 0; i < currentLetters.size(); i++)
@@ -5754,15 +5835,39 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		//Sort wordBreaks
 		sort(wordBreaks.begin(), wordBreaks.end(), DetectText::pairOrder);
 
+		//tolerate negative distances down to -2, compute mean distance
+		double meanDistanceEdge = 0.0;		// mean distance between the available boxes
+		for (unsigned int i = 0; i < wordBreaks.size(); i++)
+		{
+			if (wordBreaks[i].right == -1 || wordBreaks[i].right == -2)
+				wordBreaks[i].right = 0;
+			meanDistanceEdge += wordBreaks[i].right;
+		}
+		meanDistanceEdge /= (double)wordBreaks.size();
+
+		if (debug["showWords"])
+			for (unsigned int a = 0; a < wordBreaks.size(); a++)
+				std::cout << "X-Coord: " << wordBreaks[a].left << "     Distance: " << wordBreaks[a].right << std::endl;
+
+		// find smallest distance
+		int smallestWordBreak = 0;
+		for (unsigned int i = 0; i < wordBreaks.size(); i++)
+			if (wordBreaks[i].right < smallestWordBreak)
+				smallestWordBreak = wordBreaks[i].right;
+
+
 		//Histogram of distances between characters in every bounding box
 		int histWidth = 600;
 		int histHeight = wordBreaks.size() * 4 > 100 ? wordBreaks.size() : 100;
-		int max = 300;
+		int max = 300;		// largest bin in histogram
 		int bin = 30;		// number of bins of the histogram
 
 		// Determine bin based on width of boundingBox
-		max = 4*ceil(boxes[boxIndex].width/(double)currentLetters.size());
-		bin = std::max(10, (int)currentLetters.size());
+		max = (int)std::max(50.0, 10*ceil((double)(meanDistanceEdge-smallestWordBreak)));
+		bin = std::max(6, (int)currentLetters.size()/3);
+		//max = (int)std::max(100.0, 4*ceil(boxes[boxIndex].width/(double)currentLetters.size()));		// todo: mittlere boxbreite und nicht die Anzahl verwenden
+		//bin = std::max(10, (int)currentLetters.size());
+
 //		switch ((int)boxes[boxIndex].width / 100)				// todo: check
 //		{
 //		case 0:
@@ -5793,7 +5898,10 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 //		}
 
 		if (debug["showWords"])
+		{
 			std::cout << "bin: " << bin << std::endl;
+			std::cout << "max: " << max << std::endl;
+		}
 		int hist[bin];
 		int newHistogram[bin];
 
@@ -5804,22 +5912,8 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 			newHistogram[i] = 0;
 		}
 
-		//tolerate negative distances down to -2
-		for (unsigned int i = 0; i < wordBreaks.size(); i++)
-			if (wordBreaks[i].right == -1 || wordBreaks[i].right == -2)
-				wordBreaks[i].right = 0;
-
-		if (debug["showWords"])
-			for (unsigned int a = 0; a < wordBreaks.size(); a++)
-				std::cout << "X-Coord: " << wordBreaks[a].left << "     Distance: " << wordBreaks[a].right << std::endl;
-
 		//shift into positive numbers:
-		int smallest = 0;
-		for (unsigned int i = 0; i < wordBreaks.size(); i++)
-			if (wordBreaks[i].right < smallest)
-				smallest = wordBreaks[i].right;
-
-		int shift = (max / ((double)bin)) * std::ceil(smallest / (-max / ((double)bin)));
+		int shift = (max / ((double)bin)) * std::ceil(smallestWordBreak / (-max / ((double)bin)));
 		// shift in multiples of (max/bin), e.g. (max/bin)=5: smallest=-2 => shift=5; smallest=-19 => shift=20
 
 		// push negative distances into positive space for histogram
@@ -5935,6 +6029,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		}
 
 		// criteria for splitting into single boxes
+		// ----------------------------------------
 
 		// Ratio negative distances / all distances
 		float howManyNegative = 0.0;
@@ -5943,20 +6038,29 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		float negPosRatio = howManyNegative / (float)(wordBreaks.size());
 
 		// Ratios of y and height between the letterboxes inside a boundingBox
-		float maxY = 0.0, minY = 1000.0, relativeY = 0.0, meanHeight = 0.0, heightStddev = 0;
+		float maxY = 0.0, minY = 1000.0, relativeY = 0.0, meanBaseline = 0.0, baselineStddev = 0;
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
 		{
 			if (letters[currentLetters[j]].y < minY)
 				minY = letters[currentLetters[j]].y;
 			if (letters[currentLetters[j]].y > maxY)
 				maxY = letters[currentLetters[j]].y;
-			meanHeight += letters[currentLetters[j]].height + letters[currentLetters[j]].y;
+			cv::Point2f centralBasePoint(letters[currentLetters[j]].x+0.5*letters[currentLetters[j]].width, letters[currentLetters[j]].y+letters[currentLetters[j]].height);
+			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
+			meanBaseline += fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
+			//meanBaseline += letters[currentLetters[j]].height + letters[currentLetters[j]].y;
 		}
-		meanHeight /= (float)currentLetters.size();
+		meanBaseline /= (float)currentLetters.size();
 
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
-			heightStddev += (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight) * (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanHeight);
-		heightStddev = std::sqrt(heightStddev/(float)currentLetters.size());
+		{
+			cv::Point2f centralBasePoint(letters[currentLetters[j]].x+0.5*letters[currentLetters[j]].width, letters[currentLetters[j]].y+letters[currentLetters[j]].height);
+			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
+			float dist = fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
+			baselineStddev += (dist-meanBaseline) * (dist-meanBaseline);
+			//baselineStddev += (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanBaseline) * (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanBaseline);
+		}
+		baselineStddev = std::sqrt(baselineStddev/(float)currentLetters.size());
 
 		relativeY = (maxY - minY) / (float)boxes[boxIndex].height;
 
@@ -6008,13 +6112,20 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 
 		//---------------------------------------------------------------------------------------
 		// Criterions
-		int crit = decideWhichBreaks(negPosRatio, max / bin, heightStddev, howManyNegative, shift, maxPeakDistance, secondMaxPeakDistance, maxPeakNumbers, secondMaxPeakNumbers,
+		int crit = decideWhichBreaks(negPosRatio, max / bin, baselineStddev, howManyNegative, shift, maxPeakDistance, secondMaxPeakDistance, maxPeakNumbers, secondMaxPeakNumbers,
 				boxes[boxIndex].width, boxes[boxIndex].height, numberBinsNotZero, wordBreaks, boxes[boxIndex], textIsRotated, relativeY, steadyStructure, sameArea);
 
 		bool breakBox = true; // shall box be broken into separate boxes?
 
 		//!!!
 		//crit = 1;
+
+		if (debug["showWords"])
+		{
+			//std::cout << "line equation: p1=(" << lineEquations[boxIndex].center.x << ", " << lineEquations[boxIndex].center.y << ")  normal=(" << lineEquations[boxIndex].size.width << ", " << lineEquations[boxIndex].size.height << ")" << std::endl;
+			cv::line(output, cv::Point(lineEquations[boxIndex].center.x, lineEquations[boxIndex].center.y), cv::Point(lineEquations[boxIndex].center.x+5000*lineEquations[boxIndex].size.height, lineEquations[boxIndex].center.y-5000*lineEquations[boxIndex].size.width), cv::Scalar(255, 0, 0), 2);
+			cv::line(output, cv::Point(lineEquations[boxIndex].center.x, lineEquations[boxIndex].center.y), cv::Point(lineEquations[boxIndex].center.x-5000*lineEquations[boxIndex].size.height, lineEquations[boxIndex].center.y+5000*lineEquations[boxIndex].size.width), cv::Scalar(255, 0, 0), 2);
+		}
 
 		if (crit == -1)
 		{
@@ -6037,7 +6148,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 
 		// Merging letterboxes that are on top of each other (e.g. 's' is separated into upper and lower semi circle after cc)
 		// In this case merging means deleting one of the letterboxes, as the words are going to be broken based on the x-coordinate
-		if (breakBox == true)
+		if (breakBox == true)		// todo: get this right
 		{
 			std::set< int, std::greater<int> > deleteList;
 			for (unsigned int r = 0; r < wordBreaks.size(); r++)
