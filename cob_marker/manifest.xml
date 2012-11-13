@@ -4,8 +4,8 @@
      cob_marker allows to find 6DOF markers of different types, like datamatrix, Qr, natural landmarks, ... 
 
   </description>
-  <author>josh</author>
-  <license>BSD</license>
+  <author>Joshua Hampp</author>
+  <license>LGPL</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_marker</url>
   <depend package="roscpp"/>
