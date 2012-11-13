@@ -37,13 +37,13 @@ useColorEdge: false
 #computeEdgeMap
 # ----------
 
-# edgemap threshold #default: 120  #90
+# edgemap threshold #default: 120  #90  #160
 # int
-cannyThreshold1: 160
+cannyThreshold1: 120
 
-# cannyThreshold1 > cannyThreshold2 #default: 50 #50
+# cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
-cannyThreshold2: 100  
+cannyThreshold2: 50  
 
 
 #updateStrokeWidth
@@ -137,7 +137,7 @@ pixelParameter: 0.3
 
 # factor for the threshold of inliers during linear RANSAC
 # double
-inlierDistanceThresholdFactor: 0.7
+inlierDistanceThresholdFactor: 0.6
 
 
 # ransac
@@ -193,19 +193,19 @@ result_: 2
 
 # show gray colored edgemap image
 # bool
-showEdge: false
+showEdge: true
 
 # show swt map
 # bool
-showSWT: false
+showSWT: true
 
 # show connected components
 # bool
-showLetterCandidates: false
+showLetterCandidates: true
 
 # show connected components recognized as letters
 # bool
-showLetters: false
+showLetters: true
 
 # show pairs (2 letters belonging together)
 # bool
@@ -219,9 +219,9 @@ showChains: false
 # bool
 showBreakLines: false
 
-showWords: false
+showWords: true
 
-showCriterions: false
+showCriterions: true
 
 # show all bezier models that are created within ransac
 # bool

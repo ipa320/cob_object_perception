@@ -170,6 +170,20 @@ void DetectText::detect_original_epshtein()
 	double time_in_seconds;
 	start_time = std::clock();
 
+	// Smooth image
+	if (smoothImage) // default: turned off
+	{
+		cv::imshow("original", originalImage_);
+		cv::Mat dummy = originalImage_.clone();
+		//cv::bilateralFilter(dummy, originalImage_, 7, 20, 50); // sensor noise
+		cv::bilateralFilter(dummy, originalImage_, 7, 40, 10); // sensor noise
+		originalImage_ = sharpenImage(originalImage_);
+		dummy = originalImage_.clone();
+		cv::bilateralFilter(dummy, originalImage_, 7, 40, 10); // sensor noise
+		cv::imshow("original filtered", originalImage_);
+		cv::waitKey();
+	}
+
 	// grayImage for SWT
 	grayImage_ = cv::Mat(originalImage_.size(), CV_8UC1, cv::Scalar(0));
 	cv::cvtColor(originalImage_, grayImage_, CV_RGB2GRAY);
@@ -379,13 +393,6 @@ void DetectText::preprocess()
 	}
 	outputPrefix_ = filename_.substr(slashIndex + 1, dotIndex - slashIndex - 1);
 
-	// Smooth image
-	if (smoothImage) // default: turned off
-	{
-		cv::Mat dummy = grayImage_.clone();
-		cv::bilateralFilter(dummy, grayImage_, 7, 20, 50); // sensor noise
-	}
-
 	// add 600 pixel width to have space for displaying results
 	cv::Mat img1(originalImage_.rows, originalImage_.cols + 600, originalImage_.type(), cv::Scalar(0, 0, 0));
 	cv::Mat tmp = img1(cv::Rect(0, 0, originalImage_.cols, originalImage_.rows));
@@ -489,7 +496,7 @@ void DetectText::pipeline()
 			{
 				if (j==i)
 					continue;
-				if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.95*finalBoundingBoxes_[i].area())
+				if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.92*finalBoundingBoxes_[i].area())
 				{
 					finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
 					finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
@@ -1930,85 +1937,96 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 				}
 			}
 
-			// determine better line approximation based on all inliers with linear regression
-			if (inlierSet.size() > 2)
+			// check whether inliers have similar size -> filter clutter
+			double stddevLetterSize = 0.;
+			for (unsigned int i = 0; i < inlierSet.size(); i++)
 			{
-//				std::cout << "line equation before: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")" << std::endl;
-				cv::Mat A(inlierSet.size(), 3, CV_64FC1);
+				double letterSize = sqrt(currentLetterBoxes[inlierSet[i]].width*currentLetterBoxes[inlierSet[i]].width + currentLetterBoxes[inlierSet[i]].height*currentLetterBoxes[inlierSet[i]].height);
+				stddevLetterSize += (letterSize - averageLetterSize) * (letterSize - averageLetterSize);
+			}
+			stddevLetterSize = sqrt(stddevLetterSize/(double)inlierSet.size());
+			if (stddevLetterSize < 0.3*averageLetterSize)
+			{
+				// determine better line approximation based on all inliers with linear regression
+				if (inlierSet.size() > 2)
+				{
+	//				std::cout << "line equation before: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")" << std::endl;
+					cv::Mat A(inlierSet.size(), 3, CV_64FC1);
+					for (unsigned int i=0; i<inlierSet.size(); i++)
+					{
+						// regression problem: [x y 1] * [a; b; c] = 0
+						A.at<double>(i,0) = currentPoints[inlierSet[i]].x;
+						A.at<double>(i,1) = currentPoints[inlierSet[i]].y;
+						A.at<double>(i,2) = 1.;
+					}
+					cv::SVD svd(A);
+	//				std::cout << "u,w,v: (" << svd.u.rows << ", " << svd.u.cols << "), (" << svd.w.rows << ", " << svd.w.cols << "), (" << svd.vt.rows << ", " << svd.vt.cols << ")\n";
+	//				cv::Mat W = cv::Mat::zeros(A.cols,A.cols,CV_64FC1);
+	//				for (int i=0; i<svd.w.rows; i++)
+	//					W.at<double>(i,i) = svd.w.at<double>(i);
+	//				cv::Mat B = svd.u * W * svd.vt;
+	//				std::cout << "A\n";
+	//				for (int i=0; i<4; i++)
+	//					std::cout << A.at<double>(i, 0) << ", " << A.at<double>(i, 1) << ", " << A.at<double>(i, 2) << std::endl;
+	//				std::cout << "B\n";
+	//				for (int i=0; i<4; i++)
+	//					std::cout << B.at<double>(i, 0) << ", " << B.at<double>(i, 1) << ", " << B.at<double>(i, 2) << std::endl;
+	//				std::cout << "vt\n";
+	//				for (int i=0; i<svd.vt.rows; i++)
+	//					std::cout << svd.vt.at<double>(i, 0) << ", " << svd.vt.at<double>(i, 1) << ", " << svd.vt.at<double>(i, 2) << ", " << svd.vt.at<double>(i, 3) << std::endl;
+
+					// compute normal and point from [a;b;c]
+					if (svd.vt.at<double>(2, 1) != 0.)
+					{
+						// y = -a/b * x - c/b
+						bestNormal.x = svd.vt.at<double>(2, 0) / svd.vt.at<double>(2, 1);
+						bestNormal.y = 1.;
+						double normMagnitude = sqrt(bestNormal.x*bestNormal.x + bestNormal.y*bestNormal.y);
+						bestNormal.x /= normMagnitude;	// normalize normal
+						bestNormal.y /= normMagnitude;
+
+						bestP1.x = 0.;
+						bestP1.y = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 1);
+					}
+					else
+					{
+						// x = -c/a
+						bestNormal.x = 1.;
+						bestNormal.y = 0.;
+						bestP1.x = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 0);
+						bestP1.y = 0;
+					}
+
+	//				std::cout << "line equation after: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")\n\n" << std::endl;
+				}
+
+				// retrieve bounding box of inlier set
+				cv::Point minPoint(100000, 100000), maxPoint(0, 0);
 				for (unsigned int i=0; i<inlierSet.size(); i++)
 				{
-					// regression problem: [x y 1] * [a; b; c] = 0
-					A.at<double>(i,0) = currentPoints[inlierSet[i]].x;
-					A.at<double>(i,1) = currentPoints[inlierSet[i]].y;
-					A.at<double>(i,2) = 1.;
+					if (minPoint.x > currentLetterBoxes[inlierSet[i]].x)
+						minPoint.x = currentLetterBoxes[inlierSet[i]].x;
+					if (minPoint.y > currentLetterBoxes[inlierSet[i]].y)
+						minPoint.y = currentLetterBoxes[inlierSet[i]].y;
+					if (maxPoint.x < currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width)
+						maxPoint.x = currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width;
+					if (maxPoint.y < currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height)
+						maxPoint.y = currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height;
 				}
-				cv::SVD svd(A);
-//				std::cout << "u,w,v: (" << svd.u.rows << ", " << svd.u.cols << "), (" << svd.w.rows << ", " << svd.w.cols << "), (" << svd.vt.rows << ", " << svd.vt.cols << ")\n";
-//				cv::Mat W = cv::Mat::zeros(A.cols,A.cols,CV_64FC1);
-//				for (int i=0; i<svd.w.rows; i++)
-//					W.at<double>(i,i) = svd.w.at<double>(i);
-//				cv::Mat B = svd.u * W * svd.vt;
-//				std::cout << "A\n";
-//				for (int i=0; i<4; i++)
-//					std::cout << A.at<double>(i, 0) << ", " << A.at<double>(i, 1) << ", " << A.at<double>(i, 2) << std::endl;
-//				std::cout << "B\n";
-//				for (int i=0; i<4; i++)
-//					std::cout << B.at<double>(i, 0) << ", " << B.at<double>(i, 1) << ", " << B.at<double>(i, 2) << std::endl;
-//				std::cout << "vt\n";
-//				for (int i=0; i<svd.vt.rows; i++)
-//					std::cout << svd.vt.at<double>(i, 0) << ", " << svd.vt.at<double>(i, 1) << ", " << svd.vt.at<double>(i, 2) << ", " << svd.vt.at<double>(i, 3) << std::endl;
+				splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
+				lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
 
-				// compute normal and point from [a;b;c]
-				if (svd.vt.at<double>(2, 1) != 0.)
+				// debug
+				if (debug["showBreakLines"])
 				{
-					// y = -a/b * x - c/b
-					bestNormal.x = svd.vt.at<double>(2, 0) / svd.vt.at<double>(2, 1);
-					bestNormal.y = 1.;
-					double normMagnitude = sqrt(bestNormal.x*bestNormal.x + bestNormal.y*bestNormal.y);
-					bestNormal.x /= normMagnitude;	// normalize normal
-					bestNormal.y /= normMagnitude;
-
-					bestP1.x = 0.;
-					bestP1.y = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 1);
+					cv::Mat output = originalImage_.clone();
+					for (unsigned int i=0; i<inlierSet.size(); i++)
+						cv::rectangle(output, cv::Point(currentLetterBoxes[inlierSet[i]].x, currentLetterBoxes[inlierSet[i]].y), cv::Point(currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width, currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height), cv::Scalar(0,0,255), 2, 1, 0);
+					cv::rectangle(output, cv::Point(minPoint.x, minPoint.y), cv::Point(maxPoint.x, maxPoint.y), cv::Scalar(0,255,0), 2, 1, 0);
+					cv::imshow("breaking lines", output);
+					cvMoveWindow("breaking lines", 0, 0);
+					cv::waitKey(0);
 				}
-				else
-				{
-					// x = -c/a
-					bestNormal.x = 1.;
-					bestNormal.y = 0.;
-					bestP1.x = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 0);
-					bestP1.y = 0;
-				}
-
-//				std::cout << "line equation after: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")\n\n" << std::endl;
-			}
-
-			// retrieve bounding box of inlier set
-			cv::Point minPoint(100000, 100000), maxPoint(0, 0);
-			for (unsigned int i=0; i<inlierSet.size(); i++)
-			{
-				if (minPoint.x > currentLetterBoxes[inlierSet[i]].x)
-					minPoint.x = currentLetterBoxes[inlierSet[i]].x;
-				if (minPoint.y > currentLetterBoxes[inlierSet[i]].y)
-					minPoint.y = currentLetterBoxes[inlierSet[i]].y;
-				if (maxPoint.x < currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width)
-					maxPoint.x = currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width;
-				if (maxPoint.y < currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height)
-					maxPoint.y = currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height;
-			}
-			splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
-			lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
-
-			// debug
-			if (debug["showBreakLines"])
-			{
-				cv::Mat output = originalImage_.clone();
-				for (unsigned int i=0; i<inlierSet.size(); i++)
-					cv::rectangle(output, cv::Point(currentLetterBoxes[inlierSet[i]].x, currentLetterBoxes[inlierSet[i]].y), cv::Point(currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width, currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height), cv::Scalar(0,0,255), 2, 1, 0);
-				cv::rectangle(output, cv::Point(minPoint.x, minPoint.y), cv::Point(maxPoint.x, maxPoint.y), cv::Scalar(0,255,0), 2, 1, 0);
-				cv::imshow("breaking lines", output);
-				cvMoveWindow("breaking lines", 0, 0);
-				cv::waitKey(0);
 			}
 
 			// remove inlier set from currentPoints and currentLetterBoxes
@@ -5774,20 +5792,21 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		{
 			if ((boxes[boxIndex] & letters[i]).area() == 1.0 * letters[i].area())
 			{
-				innerLetters.push_back(i);
-				averageLetterSize += sqrt(letters[i].width*letters[i].width + letters[i].height*letters[i].height);
+				currentLetters.push_back(i);	// todo: exact method was not better, is it now?
+				//innerLetters.push_back(i);
+				//averageLetterSize += sqrt(letters[i].width*letters[i].width + letters[i].height*letters[i].height);
 			}
 		}
-		averageLetterSize /= (double)innerLetters.size();
-		double inlierDistanceThreshold = averageLetterSize * inlierDistanceThresholdFactor_;
-		for (unsigned int i = 0; i < innerLetters.size(); i++)
-		{
-			cv::Point2f centralBasePoint(letters[innerLetters[i]].x+0.5*letters[innerLetters[i]].width, letters[innerLetters[i]].y+letters[innerLetters[i]].height);
-			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
-			float dist = fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
-			if (dist < inlierDistanceThreshold)
-				currentLetters.push_back(innerLetters[i]);
-		}
+//		averageLetterSize /= (double)innerLetters.size();
+//		double inlierDistanceThreshold = averageLetterSize * (inlierDistanceThresholdFactor_+0.1);
+//		for (unsigned int i = 0; i < innerLetters.size(); i++)
+//		{
+//			cv::Point2f centralBasePoint(letters[innerLetters[i]].x+0.5*letters[innerLetters[i]].width, letters[innerLetters[i]].y+letters[innerLetters[i]].height);
+//			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
+//			float dist = fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
+//			if (dist < inlierDistanceThreshold)
+//				currentLetters.push_back(innerLetters[i]);
+//		}
 
 
 		// Determine distance to nearest neighbor
