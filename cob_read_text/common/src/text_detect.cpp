@@ -176,10 +176,10 @@ void DetectText::detect_original_epshtein()
 		cv::imshow("original", originalImage_);
 		cv::Mat dummy = originalImage_.clone();
 		//cv::bilateralFilter(dummy, originalImage_, 7, 20, 50); // sensor noise
-		cv::bilateralFilter(dummy, originalImage_, 7, 40, 10); // sensor noise
+		cv::bilateralFilter(dummy, originalImage_, 9, 30, 10); // sensor noise
 		originalImage_ = sharpenImage(originalImage_);
 		dummy = originalImage_.clone();
-		cv::bilateralFilter(dummy, originalImage_, 7, 40, 10); // sensor noise
+		cv::bilateralFilter(dummy, originalImage_, 9, 30, 10); // sensor noise
 		cv::imshow("original filtered", originalImage_);
 		cv::waitKey();
 	}
