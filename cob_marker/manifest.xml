@@ -22,7 +22,6 @@
   <depend package="actionlib"/>
   
   <depend package="libzxing"/>
-  <rosdep name="libdmtx-dev" />
   
 </package>
 
