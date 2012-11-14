@@ -6,3 +6,7 @@ libdmtx-dev:
   ubuntu: libdmtx-dev
 libmagick++-dev:
   ubuntu: libmagick++-dev
+ant:
+  ubuntu: ant
+scons:
+  ubuntu: scons

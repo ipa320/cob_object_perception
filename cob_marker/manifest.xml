@@ -20,8 +20,10 @@
   <depend package="cob_object_detection_msgs"/>
   <depend package="visualization_msgs"/>
   <depend package="actionlib"/>
-  <!--depend package="zxing" /-->
-  
-  <rosdep name="libmagick++-dev" />
+  <depend package="libzxing"/>
+
+  <rosdep name="libdmtx-dev"/>
+
+</package>
 
 </package>

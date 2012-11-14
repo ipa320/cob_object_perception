@@ -9,9 +9,9 @@
   <author>Joshua Hampp</author>
   <license>LGPL</license>
   <review status="unreviewed" notes=""/>
-  <url></url>
+  <url>http://ros.org/wiki/libdmtx</url>
 
-  <rosdep name="libdmtx-dev" />
+  <rosdep name="libdmtx-dev"/>
 
   <export>
     <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -ldmtx"/>
