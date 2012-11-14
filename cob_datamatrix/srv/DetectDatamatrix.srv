@@ -1,4 +1,0 @@
-string[] names
-float32 timeout
----
-cob_object_detection_msgs/DetectionArray object_list
