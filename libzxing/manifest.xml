@@ -5,11 +5,13 @@
 
   </description>
   <author>Joshua Hampp</author>
-  <license>BSD</license>
+  <license>LGPL</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/libzxing</url>
 
   <rosdep name="libmagick++-dev" />
+  <rosdep name="ant" />
+  <rosdep name="scons" />
 
   <export>
     <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lzxing -lMagick++ "/>
