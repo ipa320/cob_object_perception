@@ -2,7 +2,9 @@ cvs:
   ubuntu: cvs
 leptonica:
   ubuntu: libleptonica-dev
-libdmtx-dev:
-  ubuntu: libdmtx-dev
-cob_marker:
+libzxing:
+  unzip
+  ant
+  scons
   libmagick++-dev
+  libdmtx-dev
