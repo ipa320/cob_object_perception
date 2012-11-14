@@ -11,9 +11,6 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
 rosbuild_init()
 
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/common/include ${PROJECT_SOURCE_DIR}/ros/include /usr/include/ImageMagick)
-LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/libs )
-
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
@@ -24,9 +21,13 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #uncomment if you have defined services
 #rosbuild_gensrv()
 
-rosbuild_add_executable(cob_marker
-	ros/src/marker_action.cpp
-	common/src/MagickBitmapSource.cpp
-)
+#common commands for building c++ executables and libraries
+#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
+#target_link_libraries(${PROJECT_NAME} another_library)
+#rosbuild_add_boost_directories()
+#rosbuild_link_boost(${PROJECT_NAME} thread)
+#rosbuild_add_executable(example examples/example.cpp)
+#target_link_libraries(example ${PROJECT_NAME})
 
-target_link_libraries(cob_marker dmtx)
+rosbuild_download_data(http://zxing.googlecode.com/files/ZXing-2.1.zip build/ZXing.zip 2926e06bb9a67b4a90ede7937596ebea)
+
