@@ -11,8 +11,6 @@
   <review status="unreviewed" notes=""/>
   <url></url>
 
-  <rosdep name="libdmtx-dev" />
-
   <export>
     <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -ldmtx"/>
   </export>

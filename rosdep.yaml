@@ -9,3 +9,5 @@ libzxing:
   ant
   scons
   libmagick++-dev
+libdmtx_python:
+  libdmtx-dev
