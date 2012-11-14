@@ -12,6 +12,7 @@
   <rosdep name="libmagick++-dev" />
   <rosdep name="ant" />
   <rosdep name="scons" />
+  <rosdep name="openjdk-6-jdk" />
 
   <export>
     <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lzxing -lMagick++ "/>
