@@ -1122,10 +1122,9 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		if (processing_method_==BORMANN && isLetter)
 		{
 			if (itr.area() > 200) // too small areas have bigger color difference
-				if ((std::abs(meanRGB_[i][0] - meanBgRGB_[i][0]) < clrComponentParameter) || (std::abs(meanRGB_[i][1] - meanBgRGB_[i][1])
-						< clrComponentParameter) || (std::abs(meanRGB_[i][2] - meanBgRGB_[i][2]) < clrComponentParameter))
-					if ((std::abs(meanRGB_[i][0] - meanBgRGB_[i][0])) + (std::abs(meanRGB_[i][1] - meanBgRGB_[i][1])) + (std::abs(
-							meanRGB_[i][2] - meanBgRGB_[i][2])) < clrComponentParameter * 4)
+				if ((std::abs(meanRGB_[i][0] - meanBgRGB_[i][0]) < clrComponentParameter) ||
+						(std::abs(meanRGB_[i][1]-meanBgRGB_[i][1]) < clrComponentParameter) || (std::abs(meanRGB_[i][2]-meanBgRGB_[i][2]) < clrComponentParameter))
+					if ((std::abs(meanRGB_[i][0]-meanBgRGB_[i][0])) + (std::abs(meanRGB_[i][1]-meanBgRGB_[i][1])) + (std::abs(meanRGB_[i][2]-meanBgRGB_[i][2])) < clrComponentParameter * 4)
 						isLetter = false;
 		}
 
@@ -1320,6 +1319,10 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 	//std::vector<float> medianSw(nComponent_);
 
+	double largeLetterCountFactor = 1.0;
+	if (nLetter_ > 200)
+		largeLetterCountFactor = 0.4;
+
 	// for all possible letter candidate rects
 	for (size_t i = 0; i < nComponent_; i++)
 	{
@@ -1345,12 +1348,12 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			// rule 1a: distance of two letters must be small enough
 			if (processing_method_==ORIGINAL_EPSHTEIN)
 			{
-				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter)
+				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
 					continue;
 			}
 			else
 			{
-				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter)
+				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter * largeLetterCountFactor)
 					continue;
 			}
 

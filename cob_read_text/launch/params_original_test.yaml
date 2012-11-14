@@ -197,15 +197,15 @@ showEdge: false
 
 # show swt map
 # bool
-showSWT: true
+showSWT: false
 
 # show connected components
 # bool
-showLetterCandidates: true
+showLetterCandidates: false
 
 # show connected components recognized as letters
 # bool
-showLetters: true
+showLetters: false
 
 # show pairs (2 letters belonging together)
 # bool
@@ -219,9 +219,9 @@ showChains: false
 # bool
 showBreakLines: false
 
-showWords: true
+showWords: false
 
-showCriterions: true
+showCriterions: false
 
 # show all bezier models that are created within ransac
 # bool
