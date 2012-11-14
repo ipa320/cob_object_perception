@@ -4,3 +4,5 @@ leptonica:
   ubuntu: libleptonica-dev
 libdmtx-dev:
   ubuntu: libdmtx-dev
+cob_marker:
+  libmagick++-dev
