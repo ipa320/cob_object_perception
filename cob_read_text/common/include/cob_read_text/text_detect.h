@@ -79,19 +79,19 @@ private:
 
   struct bgr
   {
-    uchar r; // red channel value
-    uchar g; // green channel value
     uchar b; // blue channel value
+    uchar g; // green channel value
+    uchar r; // red channel value
 
     bgr()
     {
-      r = 255;
-      g = 255;
       b = 255;
+      g = 255;
+      r = 255;
     }
 
-    bgr(uchar red, uchar green, uchar blue) :
-      r(red), g(green), b(blue)
+    bgr(uchar blue, uchar green, uchar red) :
+    	b(blue), g(green), r(red)
     {
     }
   };
@@ -118,6 +118,8 @@ private:
 
   void updateStrokeWidth(cv::Mat &swtmap, std::vector<cv::Point> &startPoints, std::vector<cv::Point> &strokePoints,
                          int searchDirection, Purpose purpose);
+
+  void closeOutline(cv::Mat& edgemap);
 
   int connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap);
 
@@ -269,6 +271,8 @@ private:
   float initialStrokeWidth_;
   cv::Mat edgemap_; // edges detected at gray image
   cv::Mat theta_; // gradient map, arctan(dy,dx)
+  cv::Mat dx_;
+  cv::Mat dy_;
   std::vector<cv::Point> edgepoints_; // all points where an edge is
 
   // Connect Component
@@ -336,7 +340,7 @@ private:
   int cannyThreshold1; // default: 120
   int cannyThreshold2; // default: 50 , cannyThreshold1 > cannyThreshold2
   // --- updateStrokeWidth ---
-  double compareGradientParameter; // default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
+  double compareGradientParameter_; // default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
   // --- connectComponentAnalysis ---
   double swCompareParameter; // default: 3.0
   int colorCompareParameter; // default: 100, set to 255 to deactivate
