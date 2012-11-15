@@ -21,8 +21,9 @@
   <depend package="visualization_msgs"/>
   <depend package="actionlib"/>
   
-  <rosdep name="libmagick++-dev" />
-  <rosdep name="zxing" />
+  <depend package="libzxing"/>
+  <rosdep name="libdmtx-dev"/>
+  
 </package>
 
 
