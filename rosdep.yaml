@@ -2,12 +2,13 @@ cvs:
   ubuntu: cvs
 leptonica:
   ubuntu: libleptonica-dev
-cob_marker:
-  libdmtx-dev
-libzxing:
-  unzip
-  ant
-  scons
-  libmagick++-dev
-libdmtx_python:
-  libdmtx-dev
+libdmtx-dev:
+  ubuntu: libdmtx-dev
+libmagick++-dev:
+  ubuntu: libmagick++-dev
+ant:
+  ubuntu: ant
+scons:
+  ubuntu: scons
+openjdk-6-jdk:
+  ubuntu: openjdk-6-jdk
