@@ -30,3 +30,6 @@ rosbuild_add_executable(cob_marker
 )
 
 target_link_libraries(cob_marker dmtx)
+
+# rostest
+rosbuild_add_roslaunch_check(ros/launch)
