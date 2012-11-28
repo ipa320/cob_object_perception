@@ -10,3 +10,5 @@ ant:
   ubuntu: ant
 scons:
   ubuntu: scons
+openjdk-6-jdk:
+  ubuntu: openjdk-6-jdk
