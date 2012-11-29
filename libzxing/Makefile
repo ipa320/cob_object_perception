@@ -24,5 +24,5 @@ installed: $(SOURCE_DIR)/unpacked
 clean:
 	rm -rf common $(SOURCE_DIR) $(TARBALL)
 
-wipe:
+wipe: clean
 	-rm -rf build
