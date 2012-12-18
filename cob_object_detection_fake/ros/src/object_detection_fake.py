@@ -3,6 +3,7 @@ import roslib
 roslib.load_manifest('cob_object_detection_fake')
 
 import rospy
+import random
 
 from cob_object_detection_msgs.srv import *
 from cob_object_detection_msgs.msg import *
@@ -17,10 +18,11 @@ import tf
 roslib.load_manifest('cob_script_server')
 from simple_script_server import *
 
+tf_listener = tf.TransformListener()
 
 def handle_detect_object(req):
 	name = req.object_name.data
-	tf_listener = tf.TransformListener()
+
 	rospy.loginfo("fake detection of %s",name)
 	
 	# get world properties from gazebo, get all objects in gazebo (including ground_plance etc.)
@@ -28,6 +30,11 @@ def handle_detect_object(req):
 	res_world = srv_get_world_properties()
 
 	resp = DetectObjectsResponse()
+
+	# return sometines no detection result
+	detection_success_rate = 0.7 # 70% successfull detection out of 100
+	if random.randint(0,99)/100.0 < 1.0-detection_success_rate:
+		return resp
 
 	# check if name is an object in gazebo, otherwise return empty response
 	if name not in res_world.model_names:
@@ -106,6 +113,15 @@ def handle_detect_object(req):
 	# expression below
 	detection.bounding_box_lwh.z = box_max[2]
 
+	print detection.pose.pose.position
+	# filter out objects which are not in the rage of the camera
+	if detection.pose.pose.position.x <= -1.0 or detection.pose.pose.position.x >= 1.0: # left right axis
+		return resp
+	if detection.pose.pose.position.y <= -1.0 or detection.pose.pose.position.y >= 1.0: # up down axis
+		return resp
+	if detection.pose.pose.position.z <= 0.0 or detection.pose.pose.position.z >= 2.0: # depth axis
+		return resp
+
 	# insert object to detection_list
 	resp.object_list.detections.insert(0,detection)
 
@@ -115,6 +131,7 @@ def handle_detect_object(req):
 
 def detect_object():	
 	rospy.init_node('detect_object')
+	rospy.sleep(2)
 	s = rospy.Service('detect_object', DetectObjects, handle_detect_object)
 
 

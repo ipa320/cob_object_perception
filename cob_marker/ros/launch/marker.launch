@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <launch>
   <node pkg="cob_marker" type="cob_marker" name="cob_marker" output="screen">
-	<!--remap from="/camera/rgb/image_color" to="/cam3d/rgb/image_color"/>
+	<remap from="/camera/rgb/image_color" to="/cam3d/rgb/image_color"/>
 	<remap from="/camera/rgb/camera_info" to="/cam3d/rgb/camera_info"/>
-	<remap from="/camera/depth/points" to="/cam3d/depth/points"/-->
+	<remap from="/camera/depth/points" to="/cam3d/depth/points"/>
 	<param name="algorithm" value="dmtx" />
   </node>
 
