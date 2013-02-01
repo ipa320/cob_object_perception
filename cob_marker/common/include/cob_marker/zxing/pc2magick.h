@@ -10,7 +10,7 @@
 *****************************************************************
 *
 * \note
-* Project name: TODO FILL IN PROJECT NAME HERE
+* Project name: none
 * \note
 * ROS stack name: cob_object_perception
 * \note
@@ -18,11 +18,13 @@
 *
 * \author
 * Author: Joshua Hampp
+* \author
+* Supervised by:
 *
-* \date Date of creation: 24.8.2012
+* \date Date of creation: 01.09.2012
 *
 * \brief
-* 6DOF marker
+* cob_marker -> marker recognition with 6dof
 *
 *****************************************************************
 *
@@ -54,6 +56,8 @@
 * If not, see <http://www.gnu.org/licenses/>.
 *
 ****************************************************************/
+
+
 
 #ifndef PC2MAGICK_H_
 #define PC2MAGICK_H_

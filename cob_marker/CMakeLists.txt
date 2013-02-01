@@ -11,7 +11,7 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
 rosbuild_init()
 
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/common/include ${PROJECT_SOURCE_DIR}/ros/include /usr/include/ImageMagick /home/josh/workspace/zxing-2.0/cpp/core/src)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/common/include ${PROJECT_SOURCE_DIR}/ros/include /usr/include/ImageMagick)
 LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/libs )
 
 #set the default path for built executables to the "bin" directory
@@ -29,4 +29,7 @@ rosbuild_add_executable(cob_marker
 	common/src/MagickBitmapSource.cpp
 )
 
-target_link_libraries(cob_marker zxing Magick++ dmtx)
+target_link_libraries(cob_marker dmtx)
+
+# rostest
+rosbuild_add_roslaunch_check(ros/launch)
