@@ -22,14 +22,16 @@ distance_vfh = [1, 2, 3.2, 5];
 % performance on vfh
 performance_vfh = [0.684127, 0.701455, 0.643254, 0.560516];
 
-distance = distance_vfh;
-performance772 = performance_vfh;
-% distance = distance_sap772_rollnorm;
-% performance772 = performance_sap772_rollnorm;
+% distance = distance_vfh;
+% performance772 = performance_vfh;
+ distance = distance_sap772_rollnorm;
+ performance772 = performance_sap772_rollnorm;
 
 figure(1)
 set(gca, 'FontSize', 12)
-plot(distance, [performance772']*100, 'LineWidth', 1.25)
+plot(distance(1:4), [performance772(1:4)']*100, 'LineWidth', 1.25)
+hold on
+plot(distance(4:6), [performance772(4:6)']*100, '-.', 'LineWidth', 1.25)
 grid
 xlim([1,5])
 ylim([0, 100])
@@ -42,12 +44,28 @@ set(l__, 'FontSize', 12)
 
 figure(2)
 set(gca, 'FontSize', 12)
-plot(distance, [performance_sap772_pcanorm', performance_sap772_rollnorm', performance_sap772_nonorm']*100, 'LineWidth', 1.25)
+plot(distance(1:4), [performance_sap772_pcanorm(1:4)', performance_sap772_rollnorm(1:4)', performance_sap772_nonorm(1:4)']*100, 'LineWidth', 1.25)
+hold on
+plot(distance(4:6), [performance_sap772_pcanorm(4:6)', performance_sap772_rollnorm(4:6)', performance_sap772_nonorm(4:6)']*100, '-.', 'LineWidth', 1.25)
 grid
 xlim([1,5])
 ylim([0, 100])
 xlabel('Distance Factor  of Unknown Object View')
 ylabel('Recall (%)')
 l__ = legend('SAP-7-7-2 PCA normalized', 'SAP-7-7-2 roll compensation', 'SAP-7-7-2 not normalized', 'Location', 'SouthWest');
+set(l__, 'Box', 'off')
+set(l__, 'FontSize', 12)
+
+figure(3)
+set(gca, 'FontSize', 12)
+plot(distance_vfh(1:3), [performance_vfh(1:3)']*100, 'LineWidth', 1.25)
+hold on
+plot(distance_vfh(3:4), [performance_vfh(3:4)']*100, '-.', 'LineWidth', 1.25)
+grid
+xlim([1,5])
+ylim([0, 100])
+xlabel('Distance Factor of Unknown Object View')
+ylabel('Recall (%)')
+l__ = legend('VFH', 'Location', 'SouthWest');
 set(l__, 'Box', 'off')
 set(l__, 'FontSize', 12)
