@@ -19,6 +19,12 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
+#ifdef PCL_VERSION_COMPARE //fuerte
+	#define pcl_search pcl::search::KdTree
+#else
+	#define pcl_search pcl::KdTreeFLANN
+#endif
+
 
 class SegmentationNode
 {
@@ -132,7 +138,7 @@ protected:
 	//		output_pointcloud_pub_.publish(output_pointcloud_msg);
 
 			// Creating the KdTree object for the search method of the extraction
-			pcl::KdTree<PointType>::Ptr tree (new pcl::KdTreeFLANN<PointType>);
+			pcl_search<PointType>::Ptr tree (new pcl_search<PointType>);
 			//tree->setInputCloud (cloud_filtered);
 
 			std::vector<pcl::PointIndices> cluster_indices;

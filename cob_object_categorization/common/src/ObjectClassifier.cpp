@@ -35,7 +35,9 @@ namespace fs = boost::filesystem;
 //#include <pcl/visualization/pcl_visualizer.h>
 
 #ifdef PCL_VERSION_COMPARE //fuerte
-	#include <pcl/io/openni_grabber.h>
+	#ifndef __LINUX__
+		#include <pcl/io/openni_grabber.h>
+	#endif
 	#define pcl_search pcl::search::KdTree
 #else
 	#define pcl_search pcl::KdTreeFLANN

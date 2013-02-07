@@ -104,7 +104,8 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 		si.setCoord(coordinate_image);
 		si.setShared(color_image);
 		std::map<double, std::string> resultsOrdered;
-		object_classifier_.CategorizeObject(&si, resultsOrdered, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, globalFeatureParams);
+		std::map<std::string, double> results;
+		object_classifier_.CategorizeObject(&si, results, resultsOrdered, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, globalFeatureParams);
 		si.Release();
 
 		std::map<double, std::string>::iterator it = resultsOrdered.end();
