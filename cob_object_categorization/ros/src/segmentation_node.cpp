@@ -28,6 +28,8 @@ public:
 		input_pointcloud_sub_ = node_handle_.subscribe("input_pointcloud", 1, &SegmentationNode::inputCallback, this);
 		output_pointcloud_pub_ = node_handle_.advertise<cob_object_categorization::PointCloud2Array>("output_pointcloud_segments", 5);
 
+		output_plane_pub_ = node_handle_.advertise<sensor_msgs::PointCloud2>("plane", 5);
+
 		last_publishing_time_ = ros::Time::now();
 
 		// Parameters
@@ -105,6 +107,9 @@ protected:
 
 				// Write the planar inliers to disk
 				extract.filter (*cloud_plane);
+				sensor_msgs::PointCloud2 output_plane_msg;
+				pcl::toROSMsg(*cloud_plane, output_plane_msg);
+				output_plane_pub_.publish(output_plane_msg);
 				std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
 
 				// Remove the planar inliers, extract the rest
@@ -120,7 +125,7 @@ protected:
 
 			// Creating the KdTree object for the search method of the extraction
 			pcl::KdTree<PointType>::Ptr tree (new pcl::KdTreeFLANN<PointType>);
-			tree->setInputCloud (cloud_filtered);
+			//tree->setInputCloud (cloud_filtered);
 
 			std::vector<pcl::PointIndices> cluster_indices;
 			pcl::EuclideanClusterExtraction<PointType> ec;
@@ -169,6 +174,7 @@ protected:
 
 	ros::Subscriber input_pointcloud_sub_;	///< incoming point cloud topic
 	ros::Publisher output_pointcloud_pub_;	///< pointcloud with one segmented object
+	ros::Publisher output_plane_pub_;
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 
