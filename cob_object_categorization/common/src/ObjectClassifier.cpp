@@ -16,7 +16,7 @@ namespace fs = boost::filesystem;
 #include <pcl/features/rsd.h>
 #include <pcl/features/fpfh.h>
 #ifndef __LINUX__
-	#include <pcl/features/gfpfh_1.7.h>
+	#include <pcl/features/gfpfh.h>
 #endif
 #include <pcl/features/vfh.h>
 #include <pcl/features/normal_3d.h>
@@ -35,8 +35,10 @@ namespace fs = boost::filesystem;
 //#include <pcl/visualization/pcl_visualizer.h>
 
 #ifdef PCL_VERSION_COMPARE //fuerte
-	#include <pcl/io/openni_grabber.h>
-	#define pcl_search pcl16::search::KdTree
+	#ifndef __LINUX__
+		#include <pcl/io/openni_grabber.h>
+	#endif
+	#define pcl_search pcl::search::KdTree
 #else
 	#define pcl_search pcl::KdTreeFLANN
 #endif
@@ -673,7 +675,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (PointXYZRGBIM,
 
 
 int ObjectClassifier::LoadWashingtonDatabase(std::string pAnnotationFileName, std::string pDatabasePath, int pMode, ClusterMode pClusterMode, GlobalFeatureParams& pGlobalFeatureParams, std::string pLocalFeatureFileName,
-										std::string pGlobalFeatureFileName, std::string pCovarianceMatrixFileName, std::string pLocalFeatureClustererPath, std::string pTimingLogFileName, std::ofstream& pScreenLogFile, MaskMode pMaskMode)
+										std::string pGlobalFeatureFileName, std::string pCovarianceMatrixFileName, std::string pLocalFeatureClustererPath, std::string pTimingLogFileName, std::ofstream& pScreenLogFile, MaskMode pMaskMode, bool useIPA3Database)
 {
 	SimpleStopWatch sw;
 	sw.start();
@@ -781,49 +783,59 @@ int ObjectClassifier::LoadWashingtonDatabase(std::string pAnnotationFileName, st
 
 				// open every fifth file per object 
 				// count number of views in each sequence, sequences are numbered 1,2,4
-				for (int sequence=1; sequence<=4; sequence+=sequence)
+				int maxSequence = (useIPA3Database==true) ? 1 : 4;
+				for (int sequence=1; sequence<=maxSequence; sequence+=sequence)
 				{
-					int numberViews = 0;
+					int numberViews = (useIPA3Database==true) ? 62 : 0;
 
 					// count number of views in each sequence
-					for (fs::directory_iterator viewDirIter(directory); viewDirIter!=fs::directory_iterator(); ++viewDirIter)
+					if (useIPA3Database==false)
 					{
-						std::stringstream ss;
-#if !defined(BOOST_FILESYSTEM_VERSION) || BOOST_FILESYSTEM_VERSION<3
-						std::string filename = viewDirIter->path().filename();
-						ss << viewDirIter->path().parent_path().filename() << "_" << sequence << "_";
-#else
-						std::string filename = viewDirIter->path().filename().string();
-						ss << viewDirIter->path().parent_path().filename().string() << "_" << sequence << "_";
-#endif
-						std::string namePrefix = ss.str();
-
-						// if this file originates from the sequence at hand
-						if (filename.find(namePrefix) != filename.npos)
+						for (fs::directory_iterator viewDirIter(directory); viewDirIter!=fs::directory_iterator(); ++viewDirIter)
 						{
-							// get view index and compare with numberViews
-							filename.erase(0, namePrefix.length());
-							filename.erase(filename.length()-4, 4);
-							std::stringstream ssViewIndex;
-							ssViewIndex << filename;
-							int viewIndex = 0;
-							ssViewIndex >> viewIndex;
-							if (viewIndex > numberViews)
-								numberViews = viewIndex;
+							std::stringstream ss;
+	#if !defined(BOOST_FILESYSTEM_VERSION) || BOOST_FILESYSTEM_VERSION<3
+							std::string filename = viewDirIter->path().filename();
+							ss << viewDirIter->path().parent_path().filename() << "_" << sequence << "_";
+	#else
+							std::string filename = viewDirIter->path().filename().string();
+							ss << viewDirIter->path().parent_path().filename().string() << "_" << sequence << "_";
+	#endif
+							std::string namePrefix = ss.str();
+
+							// if this file originates from the sequence at hand
+							if (filename.find(namePrefix) != filename.npos)
+							{
+								// get view index and compare with numberViews
+								filename.erase(0, namePrefix.length());
+								filename.erase(filename.length()-4, 4);
+								std::stringstream ssViewIndex;
+								ssViewIndex << filename;
+								int viewIndex = 0;
+								ssViewIndex >> viewIndex;
+								if (viewIndex > numberViews)
+									numberViews = viewIndex;
+							}
 						}
 					}
 
 					fs::directory_iterator viewDirIter(directory);
 					std::stringstream ssNamePrefix;
 #if !defined(BOOST_FILESYSTEM_VERSION) || BOOST_FILESYSTEM_VERSION<3
-					ssNamePrefix << viewDirIter->path().parent_path().filename() << "_" << sequence << "_";
+					ssNamePrefix << viewDirIter->path().parent_path().filename() << "_";
+					if (useIPA3Database==false)
+						ssNamePrefix << sequence << "_";
 #else
-					ssNamePrefix << viewDirIter->path().parent_path().filename().string() << "_" << sequence << "_";
+					ssNamePrefix << viewDirIter->path().parent_path().filename().string() << "_";
+					if (useIPA3Database==false)
+						ssNamePrefix << sequence << "_";
 #endif
 					std::string namePrefix = ssNamePrefix.str();
 
 					// iterate through all views taking every fifth
-					for (int imageIndex = 1; imageIndex < numberViews; imageIndex+=5)
+					int startImageIndex = (useIPA3Database==true ? 0 : 1);
+					int stepImageIndex = (useIPA3Database==true ? 1 : 5);
+					for (int imageIndex = startImageIndex; imageIndex < numberViews; imageIndex+=stepImageIndex)
 					{
 						// assemble filename
 						std::stringstream ss;
@@ -890,6 +902,12 @@ int ObjectClassifier::LoadWashingtonDatabase(std::string pAnnotationFileName, st
 
 						si.Release();
 
+						if (useIPA3Database==true && TempBlobListStruct.BlobFPs.size()==0)
+						{
+							BlobFeature blob;
+							blob.m_D.push_back(0);
+							TempBlobListStruct.BlobFPs.push_back(blob);
+						}
 						(mData.mLocalFeaturesMap[ItObjectCategoryMap->first])[ClassObjectCounter].push_back(TempBlobListStruct);
 		
 						std::cout << ".";
@@ -936,7 +954,7 @@ int ObjectClassifier::LoadWashingtonDatabase(std::string pAnnotationFileName, st
 		const int MINCLUSTERS = pGlobalFeatureParams.vocabularySize;//250;//10;
 		if (MaxClusters > MAXCLUSTERS) MaxClusters=MAXCLUSTERS;
 //MaxClusters=11;
-		ClusterLocalFeatures(pCovarianceMatrixFileName, pLocalFeatureClustererPath, MINCLUSTERS, MaxClusters, cvRound((MaxClusters-MINCLUSTERS)/10), 10, 0.005, &pScreenLogFile); //0.005
+		ClusterLocalFeatures(pCovarianceMatrixFileName, pLocalFeatureClustererPath, MINCLUSTERS, MaxClusters, std::max(1,cvRound((MaxClusters-MINCLUSTERS)/10)), 10, 0.005, &pScreenLogFile); //0.005
 
 		std::cout << "\n\nGlobal feature extraction\n\n";
 		pScreenLogFile << "\n\nGlobal feature extraction\n\n";
@@ -3059,11 +3077,10 @@ int ObjectClassifier::CrossValidationGlobal(ClassifierType pClassifierType, std:
 	std::cout << std::endl;
 	
 	/// Test classifier with the unseen test set.
+	// train classifier with whole train data	// hack: this is normally contained in the following if statement
+	TrainGlobal(pClassifierType, pClass, NumberSamplesCorrect-NumberSamplesCorrectTest+NumberSamplesIncorrect-NumberSamplesIncorrectTest, NumberFeatures, ItGlobalFeaturesClass, &IndicesTrainCorrect, &IndicesTrainIncorrect, NegativeSamplesMatrix, pViewsPerObject);
 	if (NumberObjectsCorrectTest > 0)
 	{
-		// train classifier with whole train data
-		TrainGlobal(pClassifierType, pClass, NumberSamplesCorrect-NumberSamplesCorrectTest+NumberSamplesIncorrect-NumberSamplesIncorrectTest, NumberFeatures, ItGlobalFeaturesClass, &IndicesTrainCorrect, &IndicesTrainIncorrect, NegativeSamplesMatrix, pViewsPerObject);
-
 		// test classifier
 		ValidateGlobal(pClassifierType, pClass, NumberFeatures, ItGlobalFeaturesClass, &IndicesTestCorrect, &IndicesTestIncorrect, NegativeSamplesMatrix, NegativeSamplesLabels, pTestSetOutput);
 	}
@@ -4479,7 +4496,7 @@ bool CompareDistances(ClassifiedBlob Blob1, ClassifiedBlob Blob2)
 	return true;
 }
 
-int ObjectClassifier::CategorizeObject(SharedImage* pSourceImage, std::map<double, std::string>& pResults, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
+int ObjectClassifier::CategorizeObject(SharedImage* pSourceImage, std::map<std::string, double>& pResults, std::map<double, std::string>& pResultsOrdered, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
 {
 	/// create a pseudo blob
 	BlobFeatureRiB Blob;
@@ -4578,7 +4595,8 @@ int ObjectClassifier::CategorizeObject(SharedImage* pSourceImage, std::map<doubl
 		{
 			std::string groundTruthLabel = ItGroundTruthClass->first;
 			p_ci_x[groundTruthLabel] /= p_ci_x_sum;
-			pResults[p_ci_x[groundTruthLabel]] = groundTruthLabel;
+			pResultsOrdered[p_ci_x[groundTruthLabel]] = groundTruthLabel;
+			pResults[groundTruthLabel] = p_ci_x[groundTruthLabel];
 			if (p_ci_x[groundTruthLabel] > maxAPosterioriProbability)
 			{
 				maxAPosterioriProbability = p_ci_x[groundTruthLabel];
@@ -4587,7 +4605,7 @@ int ObjectClassifier::CategorizeObject(SharedImage* pSourceImage, std::map<doubl
 			//std::cout << "a posteriori: " << groundTruthLabel << "\t" << p_ci_x[groundTruthLabel] << std::endl;
 		}
 
-		//for (std::map<double, std::string>::iterator it = pResults.begin(); it != pResults.end(); it++)
+		//for (std::map<double, std::string>::iterator it = pResultsOrdered.begin(); it != pResultsOrdered.end(); it++)
 		//{
 		//	std::cout << "a posteriori: " << it->second << "\t" << it->first << std::endl;
 		//}
@@ -4597,7 +4615,7 @@ int ObjectClassifier::CategorizeObject(SharedImage* pSourceImage, std::map<doubl
 		//if (maxAPosterioriProbability > 0.3)
 		//{
 		//	std::stringstream text1a, text1b, text2a, text2b;
-		//	std::map<double, std::string>::iterator it = pResults.end();
+		//	std::map<double, std::string>::iterator it = pResultsOrdered.end();
 		//	it--;
 		//	text1a << it->second;
 		//	text1b << setprecision(3) << 100*it->first << "%";
@@ -6787,6 +6805,100 @@ int ObjectClassifier::CrossValidationStatisticsOutput(std::string pClass, Classi
 }
 
 
+
+int ObjectClassifier::LoadParameters(std::string pFilename)
+{
+	// standard parameters
+	mTargetScreenResolution.width = 1920;
+	mTargetScreenResolution.height = 1200;
+	mTargetSegmentationImageResolution.width = 640;
+	mTargetSegmentationImageResolution.height = 480;
+	mConsideredVolume.x = 0.2;
+	mConsideredVolume.y = 100.0;
+	mConsideredVolume.z = 1.2;
+	mVoxelFilterLeafSize.x = 0.01f;
+	mVoxelFilterLeafSize.y = 0.01f;
+	mVoxelFilterLeafSize.z = 0.01f;
+	mPlaneSearchMaxIterations = 100;
+	mPlaneSearchDistanceThreshold = 0.02;
+	mPlaneSearchAbortRemainingPointsFraction = 0.3;
+	mPlaneSearchAbortMinimumPlaneSize = 1000;
+	mClusterSearchToleranceValue = 0.05;
+	mClusterSearchMinClusterSize = 50;
+	mClusterSearchMaxClusterSize = 25000;
+	mConsideredClusterCenterVolume.x = 0.3;
+	mConsideredClusterCenterVolume.y = 0.3;
+	mConsideredClusterCenterVolume.z = 1.0;
+	mTrackingInfluenceFactorOldData = 0.6;
+
+	std::fstream paramFile(pFilename.c_str(), std::ios::in);
+	if (paramFile.is_open() == false)
+	{
+		std::cout << "ObjectClassifier::LoadParameters: Warning: Could not open file " << pFilename << ". Using default parameters." << std::endl;
+		return ipa_utils::RET_FAILED;
+	}
+
+	while (paramFile.eof() == false)
+	{
+		std::string tag;
+		
+		paramFile >> tag;
+		if (tag.compare("TargetScreenResolutionWidth:")==0)
+			paramFile >> mTargetScreenResolution.width;
+		else if (tag.compare("TargetScreenResolutionHeight:")==0)
+			paramFile >> mTargetScreenResolution.height;
+		else if (tag.compare("TargetSegmentationImageResolutionWidth:")==0)
+			paramFile >> mTargetSegmentationImageResolution.width;
+		else if (tag.compare("TargetSegmentationImageResolutionHeight:")==0)
+			paramFile >> mTargetSegmentationImageResolution.height;
+		else if (tag.compare("ConsideredVolumeX:")==0)
+			paramFile >> mConsideredVolume.x;
+		else if (tag.compare("ConsideredVolumeY:")==0)
+			paramFile >> mConsideredVolume.y;
+		else if (tag.compare("ConsideredVolumeZ:")==0)
+			paramFile >> mConsideredVolume.z;
+		else if (tag.compare("VoxelFilterLeafSizeX:")==0)
+			paramFile >> mVoxelFilterLeafSize.x;
+		else if (tag.compare("VoxelFilterLeafSizeY:")==0)
+			paramFile >> mVoxelFilterLeafSize.y;
+		else if (tag.compare("VoxelFilterLeafSizeZ:")==0)
+			paramFile >> mVoxelFilterLeafSize.z;
+		else if (tag.compare("PlaneSearchMaxIterations:")==0)
+			paramFile >> mPlaneSearchMaxIterations;
+		else if (tag.compare("PlaneSearchDistanceThreshold:")==0)
+			paramFile >> mPlaneSearchDistanceThreshold;
+		else if (tag.compare("PlaneSearchAbortRemainingPointsFraction:")==0)
+			paramFile >> mPlaneSearchAbortRemainingPointsFraction;
+		else if (tag.compare("PlaneSearchAbortMinimumPlaneSize:")==0)
+			paramFile >> mPlaneSearchAbortMinimumPlaneSize;
+		else if (tag.compare("ClusterSearchToleranceValue:")==0)
+			paramFile >> mClusterSearchToleranceValue;
+		else if (tag.compare("ClusterSearchMinClusterSize:")==0)
+			paramFile >> mClusterSearchMinClusterSize;
+		else if (tag.compare("ClusterSearchMaxClusterSize:")==0)
+			paramFile >> mClusterSearchMaxClusterSize;
+		else if (tag.compare("ConsideredClusterCenterVolumeX:")==0)
+			paramFile >> mConsideredClusterCenterVolume.x;
+		else if (tag.compare("ConsideredClusterCenterVolumeY:")==0)
+			paramFile >> mConsideredClusterCenterVolume.y;
+		else if (tag.compare("ConsideredClusterCenterVolumeZ:")==0)
+			paramFile >> mConsideredClusterCenterVolume.z;
+		else if (tag.compare("DisplayFontColorB:")==0)
+			paramFile >> mDisplayFontColorBGR.val[0];
+		else if (tag.compare("DisplayFontColorG:")==0)
+			paramFile >> mDisplayFontColorBGR.val[1];
+		else if (tag.compare("DisplayFontColorR:")==0)
+			paramFile >> mDisplayFontColorBGR.val[2];
+		else if (tag.compare("TrackingInfluenceFactorOldData:")==0)
+			paramFile >> mTrackingInfluenceFactorOldData;
+	}
+
+	paramFile.close();
+
+	return ipa_utils::RET_OK;
+}
+
+
 int ObjectClassifier::CategorizeContinuously(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
 {
 	mImageNumber = 0;
@@ -6799,12 +6911,26 @@ int ObjectClassifier::CategorizeContinuously(ClusterMode pClusterMode, Classifie
 
 	std::cout << "Categorization started.\n" << std::endl;
 	
+	mDisplayImageOriginal = cv::Mat::zeros(480,640,CV_8UC3);
+	mDisplayImageSegmentation = cv::Mat::zeros(48,64,CV_8UC3);
+	cv::imshow("original image", mDisplayImageOriginal);
+	cv::imshow("cluster image", mDisplayImageSegmentation);
+	cvMoveWindow("original image", 0, 0);
+	cvMoveWindow("cluster image", 0, 30);
+	cv::waitKey(10);
+
 	char key = 0;
+	std::cout << "Hit 'q' to quit.\n\n";
 	while (key != 'q')
 	{
-		std::cout << "Hit 'q' to quit.\n\n";
-		key = getchar();
-		cvWaitKey(10);
+		{
+			//key = getchar();
+			boost::mutex::scoped_lock lock(mDisplayImageMutex);
+			cv::imshow("original image", mDisplayImageOriginal);
+			cv::imshow("cluster image", mDisplayImageSegmentation);
+			cv::waitKey(20);
+		}
+		key = cvWaitKey(30);
 	}
 
 	kinectGrabber->stop();
@@ -6814,8 +6940,421 @@ int ObjectClassifier::CategorizeContinuously(ClusterMode pClusterMode, Classifie
 	return ipa_utils::RET_OK;
 }
 
+
 #define isnan(x) ((x) != (x))
 void ObjectClassifier::PointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
+{
+	try
+	{
+		//boost::mutex::scoped_lock lock(callbackMutex);
+
+		if (pInputCloud->isOrganized() == false)
+		{
+			std::cout << "ObjectClassifier::PointcloudCallback: Warning: Point cloud is not organized. Skipping.\n" << std::endl;
+			return;
+		}
+
+		// segment incoming point cloud
+		std::cout << "\nSegmenting data..." << std::endl;
+
+		// only keep points inside a defined volume
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloudVoI(new pcl::PointCloud<pcl::PointXYZRGB>);
+		for (unsigned int v=0; v<pInputCloud->height; v++)
+			for (unsigned int u=0; u<pInputCloud->width; u++)
+				if (fabs(pInputCloud->at(u,v).x)<mConsideredVolume.x && fabs(pInputCloud->at(u,v).y)<mConsideredVolume.y && pInputCloud->at(u,v).z<mConsideredVolume.z)
+					inputCloudVoI->push_back(pInputCloud->at(u,v));
+	
+		// Create the filtering object: downsample the dataset using a leaf size of 1cm
+		pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB>);
+		vg.setInputCloud(inputCloudVoI);
+		vg.setLeafSize(mVoxelFilterLeafSize.x, mVoxelFilterLeafSize.y, mVoxelFilterLeafSize.z);
+	//	vg.setLeafSize(0.02f, 0.02f, 0.02f);
+		vg.filter(*cloud_filtered);
+		std::cout << "PointCloud after filtering has: " << cloud_filtered->size()  << " data points left from " << pInputCloud->size() << "." << std::endl;
+	
+		if (cloud_filtered->points.size() == 0)
+			return;
+
+		// Create the segmentation object for the planar model and set all the parameters
+		pcl::SACSegmentation<pcl::PointXYZRGB> seg;
+		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+	//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_plane (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		seg.setOptimizeCoefficients(true);
+		seg.setModelType(pcl::SACMODEL_PLANE);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setMaxIterations(mPlaneSearchMaxIterations);
+		seg.setDistanceThreshold(mPlaneSearchDistanceThreshold);
+
+		int nr_points = (int) cloud_filtered->points.size();
+		while (cloud_filtered->points.size () > mPlaneSearchAbortRemainingPointsFraction * nr_points)
+		{
+			// Segment the largest planar component from the remaining cloud
+			seg.setInputCloud(cloud_filtered);
+			seg.segment (*inliers, *coefficients);
+			if (inliers->indices.size() == 0)
+			{
+				std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
+				break;
+			}
+			if (inliers->indices.size() < mPlaneSearchAbortMinimumPlaneSize)
+				break;
+
+			// Extract the planar inliers from the input cloud
+			pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+			extract.setInputCloud(cloud_filtered);
+			extract.setIndices(inliers);
+
+			// Write the planar inliers to disk
+			//extract.setNegative(false);
+			//extract.filter(*cloud_plane);
+			//std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
+
+			// Remove the planar inliers, extract the rest
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr temp(new pcl::PointCloud<pcl::PointXYZRGB>);
+			extract.setNegative(true);
+			extract.filter(*temp);
+			cloud_filtered = temp;
+		}
+
+		// Creating the KdTree object for the search method of the extraction
+		pcl_search<pcl::PointXYZRGB>::Ptr ktree(new pcl_search<pcl::PointXYZRGB>);
+		ktree->setInputCloud(cloud_filtered);
+
+		std::vector<pcl::PointIndices> cluster_indices;
+		pcl::EuclideanClusterExtraction<pcl::PointXYZRGB> ec;
+	//	ec.setClusterTolerance(0.05); //0.05 //0.10// 2cm
+		ec.setClusterTolerance(mClusterSearchToleranceValue); //0.05 //0.10// 2cm
+		ec.setMinClusterSize(mClusterSearchMinClusterSize);
+		ec.setMaxClusterSize(mClusterSearchMaxClusterSize);
+		ec.setSearchMethod(ktree);
+		ec.setInputCloud(cloud_filtered);
+		ec.extract(cluster_indices);
+
+		int height = pInputCloud->height;
+		int width = pInputCloud->width;
+		cv::Mat originalImage(cvSize(width, height), CV_8UC3);
+		int u=0, v=0;
+		for (unsigned int i=0; i<pInputCloud->size(); i++)
+		{
+			pcl::PointXYZRGB point = pInputCloud->at(i);
+			originalImage.at< cv::Point3_<uchar> >(v, u) = cv::Point3_<uchar>(point.b, point.g, point.r);
+			u++;
+			if (u>=width)
+			{
+				u=0;
+				v++;
+			}
+		}
+		//std::stringstream ss;
+		//ss << "common/files/live/img" << mImageNumber << ".png";
+		//cv::imwrite(ss.str().c_str(), originalImage);
+		cv::Mat clusterImage = cv::Mat::zeros(cvSize(width, height), CV_8UC3);
+
+		mLastDetections = mCurrentDetections;
+		mCurrentDetections.clear();
+
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZRGB>);
+		//int j = 0;
+		int clusterIndex = 0;
+		for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
+		{
+			cv::Point3d avgPoint;
+			avgPoint.x = 0; avgPoint.y = 0; avgPoint.z = 0;
+			for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++)
+			{
+				cloud_cluster->points.push_back(cloud_filtered->points[*pit]);
+				avgPoint.x += cloud_filtered->points[*pit].x;
+				avgPoint.y += cloud_filtered->points[*pit].y;
+				avgPoint.z += cloud_filtered->points[*pit].z;
+			}
+
+			std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+
+			//if ((fabs(avgPoint.x) < cloud_cluster->points.size()*0.15) && (fabs(avgPoint.y) < 0.30*cloud_cluster->points.size()))
+			if ((fabs(avgPoint.x) < mConsideredClusterCenterVolume.x*cloud_cluster->points.size()) && (fabs(avgPoint.y) < mConsideredClusterCenterVolume.y*cloud_cluster->points.size()) && (fabs(avgPoint.z) < mConsideredClusterCenterVolume.z*cloud_cluster->points.size()))
+			{
+				std::cout << "found a cluster in the center" << std::endl;
+
+				// write the pixels within the cluster back to an image
+				pcl_search<pcl::PointXYZRGB>::Ptr selectionTree (new pcl_search<pcl::PointXYZRGB>);
+				selectionTree->setInputCloud(cloud_cluster);
+
+				IplImage* coordinateImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
+				cvSetZero(coordinateImage);
+				IplImage* colorImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
+				cvSetZero(colorImage);
+
+				int u=0, v=0;
+				int umin=100000, vmin=100000;
+				cv::Point3_<uchar> randomColor(255.*rand()/(double)RAND_MAX, 255.*rand()/(double)RAND_MAX, 255.*rand()/(double)RAND_MAX);
+				for (unsigned int i=0; i<pInputCloud->size(); i++)
+				{
+					pcl::PointXYZRGB point = pInputCloud->at(i);
+
+					if (isnan(point.z) == false)
+					{
+						std::vector<int> indices;
+						std::vector<float> sqr_distances;
+						selectionTree->nearestKSearch(point, 1, indices, sqr_distances);
+
+						// if there is a voxel of the cluster close to the query point, save this point in the image
+						if (sqr_distances[0] < 0.01*0.01)
+						{
+							clusterImage.at< cv::Point3_<uchar> >(v, u) = randomColor;
+							cvSet2D(colorImage, v, u, CV_RGB(point.r, point.g, point.b));
+							cvSet2D(coordinateImage, v, u, cvScalar(point.x, point.y, point.z));
+							if (u<umin) umin=u;
+							if (v<vmin) vmin=v;
+						}
+					}
+
+					u++;
+					if (u>=width)
+					{
+						u=0;
+						v++;
+					}
+				}
+
+				std::map<double, std::string> resultsOrdered;
+				std::map<std::string, double> results;
+				SharedImage si;
+				si.setCoord(coordinateImage);
+				si.setShared(colorImage);
+				CategorizeObject(&si, results, resultsOrdered, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams);
+				si.Release();
+
+				ObjectLocalizationIdentification oli;
+				oli.objectCenter = avgPoint;
+				oli.textPosition = cv::Point2i(umin, vmin);
+				oli.identificationPDF = results;
+				mCurrentDetections.push_back(oli);
+
+				clusterIndex++;
+			}
+			cloud_cluster->clear();
+
+			//std::stringstream ss;
+			//ss << "cloud_cluster_" << j << ".pcd";
+			//writer.write<pcl::PointXYZ> (ss.str (), *cloud_cluster, false);
+			//j++;
+		}
+
+		// display results
+		for (unsigned int i=0; i<mCurrentDetections.size(); i++)
+		{
+			// track detections over the frames
+			int indexNearest = -1;
+			double distanceSquaredNearest = 1e10;
+			for (unsigned int j=0; j<mLastDetections.size(); j++)
+			{
+				double distSquared = (mCurrentDetections[i].objectCenter.x-mLastDetections[j].objectCenter.x)*(mCurrentDetections[i].objectCenter.x-mLastDetections[j].objectCenter.x)
+					+ (mCurrentDetections[i].objectCenter.y-mLastDetections[j].objectCenter.y)*(mCurrentDetections[i].objectCenter.y-mLastDetections[j].objectCenter.y)
+					+ (mCurrentDetections[i].objectCenter.z-mLastDetections[j].objectCenter.z)*(mCurrentDetections[i].objectCenter.z-mLastDetections[j].objectCenter.z);
+				if (distSquared < distanceSquaredNearest)
+				{
+					indexNearest = j;
+					distanceSquaredNearest = distSquared;
+				}
+			}
+
+			// if there is a good fit with a previous detection, smooth the current result and remove the last result from the list
+			if (distanceSquaredNearest < 0.2*0.2)
+			{
+				for (std::map<string, double>::iterator itPDF=mCurrentDetections[i].identificationPDF.begin(); itPDF!=mCurrentDetections[i].identificationPDF.end(); itPDF++)
+					itPDF->second = mTrackingInfluenceFactorOldData*mLastDetections[indexNearest].identificationPDF[itPDF->first] + (1.0-mTrackingInfluenceFactorOldData)*itPDF->second;
+				mLastDetections.erase(mLastDetections.begin()+indexNearest);
+			}
+
+			// find best result
+			std::string predictedClass = "";
+			double predictedConfidence = 0.0;
+			for (std::map<string, double>::iterator itPDF=mCurrentDetections[i].identificationPDF.begin(); itPDF!=mCurrentDetections[i].identificationPDF.end(); itPDF++)
+			{
+				if (itPDF->second > predictedConfidence)
+				{
+					predictedClass = itPDF->first;
+					predictedConfidence = itPDF->second;
+				}
+			}
+
+
+			std::stringstream text1a;
+			if (predictedClass.compare("coffee_mug") == 0)
+				text1a << "cup";
+			else if (predictedClass.compare("water_bottle") == 0)
+				text1a << "bottle";
+			else if (predictedClass.compare("shampoo") == 0)
+				text1a << "bottle";
+			else if (predictedClass.compare("food_can") == 0)
+				text1a << "can";
+			else if (predictedClass.compare("soda_can") == 0)
+				text1a << "can";
+			else if (predictedClass.compare("shampoo") == 0)
+				text1a << "bottle";
+			else if (predictedClass.compare("cereal_box") == 0)
+				text1a << "box";
+			else
+				//if (predictedClass.second.compare("dishliquids") == 0)
+				//	text1a << "bottle";
+				//else
+				text1a << predictedClass;
+			text1a << " (" << setprecision(3) << 100*predictedConfidence << "%)";
+			cv::putText(originalImage, text1a.str().c_str(), cvPoint(mCurrentDetections[i].textPosition.x, std::max(0,mCurrentDetections[i].textPosition.y-20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, mDisplayFontColorBGR);
+		}
+
+		
+		//if (cloud_cluster->size() == 0)
+		//{
+		//	std::cout << "Could not find any object in the center." << std::endl;
+		//	return;
+		//}
+		std::cout << "\n-----------------------------------------------------------------------------------------------\n\n\n" << std::endl;
+		//std::stringstream ss2,ss3;
+		//ss2 << "common/files/live/img_ann" << mImageNumber << ".png";
+		//cv::imwrite(ss2.str().c_str(), originalImage);
+		//ss3 << "common/files/live/img_cluster" << mImageNumber << ".png";
+		//cv::imwrite(ss3.str().c_str(), clusterImage);
+		//mImageNumber++;
+
+		{
+			boost::mutex::scoped_lock lock(mDisplayImageMutex);
+			int cutHeight = (int)(originalImage.cols/(double)mTargetScreenResolution.width * mTargetScreenResolution.height);
+			cv::Mat originalImageROI = originalImage(cv::Rect(0, (originalImage.rows-cutHeight)/2, originalImage.cols, cutHeight));
+			cv::Mat originalImageResized;
+			cv::resize(originalImageROI, originalImageResized, mTargetScreenResolution);
+			cv::Mat clusterImageResized;
+			cv::resize(clusterImage, clusterImageResized, mTargetSegmentationImageResolution);
+			mDisplayImageOriginal = originalImageResized;
+			mDisplayImageSegmentation = clusterImageResized;
+		}
+		//cv::imshow("original image", originalImageResized);
+		//cv::imshow("cluster image", clusterImage);
+		//cv::waitKey(100);
+		//cvMoveWindow("original image", 0, 0);
+		//cvMoveWindow("cluster image", 1920-640, 0);
+		std::cout << std::endl;
+
+		//// write the pixels within the cluster back to an image
+		//pcl_search<pcl::PointXYZRGB>::Ptr selectionTree (new pcl_search<pcl::PointXYZRGB>);
+		//selectionTree->setInputCloud(cloud_cluster);
+		//
+		//int height = pInputCloud->height;
+		//int width = pInputCloud->width;
+		//IplImage* coordinateImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
+		//cvSetZero(coordinateImage);
+		//IplImage* colorImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
+		//cvSetZero(colorImage);
+		//IplImage* originalImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
+
+		//int u=0, v=0;
+		//for (unsigned int i=0; i<(int)pInputCloud->size(); i++)
+		//{
+		//	pcl::PointXYZRGB point = pInputCloud->at(i);
+
+		//	cvSet2D(originalImage, v, u, CV_RGB(point.r, point.g, point.b));
+
+		//	if (isnan(point.z) == false)
+		//	{
+		//		std::vector<int> indices;
+		//		std::vector<float> sqr_distances;
+		//		selectionTree->nearestKSearch(point, 1, indices, sqr_distances);
+
+		//		// if there is a voxel of the cluster close to the query point, save this point in the image
+		//		if (sqr_distances[0] < 0.01*0.01)
+		//		{
+		//			cvSet2D(colorImage, v, u, CV_RGB(point.r, point.g, point.b));
+		//			cvSet2D(coordinateImage, v, u, cvScalar(point.x, point.y, point.z));
+		//		}
+		//	}
+
+		//	u++;
+		//	if (u>=640)
+		//	{
+		//		u=0;
+		//		v++;
+		//	}
+		//}
+
+		//std::map<double, std::string> resultsOrdered;
+		//SharedImage si;
+		//si.setCoord(coordinateImage);
+		//si.setShared(colorImage);
+		//CategorizeObject(&si, resultsOrdered, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams);
+		//si.Release();
+
+		//std::stringstream text1a, text1b, text2a, text2b;
+		//std::map<double, std::string>::iterator it = resultsOrdered.end();
+		//it--;
+		//text1a << it->second;
+		//text1b << setprecision(3) << 100*it->first << "%";
+		//it--;
+		//text2a << it->second;
+		//text2b << setprecision(3) << 100*it->first << "%";
+		//CvFont font;
+		//cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 1, 1);
+		//cvPutText(originalImage, text1a.str().c_str(), cvPoint(10, 50), &font, CV_RGB(0, 255, 0));
+		//cvPutText(originalImage, text1b.str().c_str(), cvPoint(320, 50), &font, CV_RGB(0, 255, 0));
+		//cvPutText(originalImage, text2a.str().c_str(), cvPoint(10, 90), &font, CV_RGB(0, 255, 0));
+		//cvPutText(originalImage, text2b.str().c_str(), cvPoint(320, 90), &font, CV_RGB(0, 255, 0));
+
+		//cvShowImage("original image", originalImage);
+		//cv::waitKey(10);
+
+		//cvReleaseImage(&originalImage);
+	}
+	catch (exception& e)
+	{
+		std::cout << e.what() << std::endl;
+		getchar();
+	}
+}
+
+
+
+
+
+
+
+// capture code
+
+int ObjectClassifier::CaptureSegmentedPCD(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
+{
+#ifndef __LINUX__
+	std::cout << "Input object name: ";
+	std::cin >> mFilePrefix;
+
+	mFinishCapture = false;
+	mPanAngle = 0;
+	mTiltAngle = 0;
+	mFileCounter = 0;
+
+	std::cout << "Begin file counter with number? ";
+	std::cin >> mFileCounter;
+
+	pcl::Grabber* kinectGrabber = new pcl::OpenNIGrabber();
+	boost::function<void (const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr&)> f = boost::bind(&ObjectClassifier::CapturePointcloudCallback, this, _1, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams);
+	kinectGrabber->registerCallback(f);
+	kinectGrabber->start();
+
+	std::cout << "Capture started.\n" << std::endl;
+
+	while(!mFinishCapture)
+	{
+		//std::cout << "--------------------------------------------------------------" << std::endl;
+		cvWaitKey(50);
+	}
+
+	kinectGrabber->stop();
+	
+#endif
+
+	return ipa_utils::RET_OK;
+}
+
+void ObjectClassifier::CapturePointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
 {
 	if (pInputCloud->isOrganized() == false)
 	{
@@ -6823,18 +7362,57 @@ void ObjectClassifier::PointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB
 		return;
 	}
 
+	if (mFinishCapture == true)
+		return;
+
+	// display image
+	int width = pInputCloud->width;
+	int height = pInputCloud->height;
+	double scaleFactor = 255./5.;
+	cv::Mat colorImage(height, width, CV_8UC3);
+	cv::Mat depthImage(height, width, CV_8UC1);
+	for (int v=0; v<height; v++)
+	{
+		for (int u=0; u<width; u++)
+		{
+			pcl::PointXYZRGB point = pInputCloud->points[v*width + u];
+			cv::Vec3b rgb(point.b, point.g, point.r);
+			colorImage.at<cv::Vec3b>(v,u) = rgb;
+			depthImage.at<uchar>(v,u) = 255-(uchar)(point.z*scaleFactor);
+		}
+	}
+	cv::imshow("depth image", depthImage);
+	cv::imshow("color image", colorImage);
+	int key = cv::waitKey(10);
+
+	// check key inputs
+	if (key=='q')
+	{
+		mFinishCapture = true;
+		return;
+	}
+	else if (key=='c')
+	{
+		// capture an image, i.e. execute the remainder of the code
+		cvDestroyWindow("cluster image");
+	}
+	else
+	{
+		// if no action initiated, then just return after the display
+		return;
+	}
+
 	// segment incoming point cloud
 	std::cout << "\nSegmenting data..." << std::endl;
-	
+
 	// Create the filtering object: downsample the dataset using a leaf size of 1cm
 	pcl::VoxelGrid<pcl::PointXYZRGB> vg;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB>);
 	vg.setInputCloud(pInputCloud);
 	vg.setLeafSize(0.0075f, 0.0075f, 0.0075f);
-//	vg.setLeafSize(0.02f, 0.02f, 0.02f);
 	vg.filter(*cloud_filtered);
 	std::cout << "PointCloud after filtering has: " << cloud_filtered->size()  << " data points left from " << pInputCloud->size() << "." << std::endl;
-	
+
 	if (cloud_filtered->points.size() == 0)
 		return;
 
@@ -6842,7 +7420,7 @@ void ObjectClassifier::PointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB
 	pcl::SACSegmentation<pcl::PointXYZRGB> seg;
 	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_plane (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_plane (new pcl::PointCloud<pcl::PointXYZRGB> ());
 	seg.setOptimizeCoefficients (true);
 	seg.setModelType (pcl::SACMODEL_PLANE);
 	seg.setMethodType (pcl::SAC_RANSAC);
@@ -6884,68 +7462,73 @@ void ObjectClassifier::PointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB
 
 	std::vector<pcl::PointIndices> cluster_indices;
 	pcl::EuclideanClusterExtraction<pcl::PointXYZRGB> ec;
-//	ec.setClusterTolerance(0.05); //0.05 //0.10// 2cm
-	ec.setClusterTolerance(0.05); //0.05 //0.10// 2cm
+	ec.setClusterTolerance(0.15); //0.05 //0.10// 2cm
 	ec.setMinClusterSize(50);
 	ec.setMaxClusterSize(25000);
 	ec.setSearchMethod(ktree);
 	ec.setInputCloud(cloud_filtered);
 	ec.extract(cluster_indices);
 
-	int height = pInputCloud->height;
-	int width = pInputCloud->width;
-	cv::Mat originalImage(cvSize(width, height), CV_8UC3);
-	int u=0, v=0;
-	for (unsigned int i=0; i<pInputCloud->size(); i++)
-	{
-		pcl::PointXYZRGB point = pInputCloud->at(i);
-		originalImage.at< cv::Point3_<uchar> >(v, u) = cv::Point3_<uchar>(point.b, point.g, point.r);
-		u++;
-		if (u>=width)
-		{
-			u=0;
-			v++;
-		}
-	}
-	//std::stringstream ss;
-	//ss << "common/files/live/img" << mImageNumber << ".png";
-	//cv::imwrite(ss.str().c_str(), originalImage);
-	cv::Mat clusterImage = cv::Mat::zeros(cvSize(width, height), CV_8UC3);
-	
+
+	//int height = pInputCloud->height;
+	//int width = pInputCloud->width;
+	//IplImage* originalImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
+	//int u=0, v=0;
+	//for (unsigned int i=0; i<(int)pInputCloud->size(); i++)
+	//{
+	//	pcl::PointXYZRGB point = pInputCloud->at(i);
+	//	cvSet2D(originalImage, v, u, CV_RGB(point.r, point.g, point.b));
+	//	u++;
+	//	if (u>=width)
+	//	{
+	//		u=0;
+	//		v++;
+	//	}
+	//}
+	IplImage* clusterImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
+	cvSetZero(clusterImage);
+
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
-	//int j = 0;
+	pcl::PointCloud<PointXYZRGBIM>::Ptr center_cluster (new pcl::PointCloud<PointXYZRGBIM>);
 	int clusterIndex = 0;
+	int numberGoodClusters = 0;
 	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
 	{
 		pcl::PointXYZ avgPoint;
 		avgPoint.x = 0; avgPoint.y = 0; avgPoint.z = 0;
 		for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++)
 		{
-			cloud_cluster->points.push_back(cloud_filtered->points[*pit]);
+			PointXYZRGBIM point;
+			point.x = cloud_filtered->points[*pit].x;
+			point.y = cloud_filtered->points[*pit].y;
+			point.z = cloud_filtered->points[*pit].z;
+			uint32_t rgb = (((uint32_t)cloud_filtered->points[*pit].r<<16) + ((uint32_t)cloud_filtered->points[*pit].g<<8) + ((uint32_t)cloud_filtered->points[*pit].b));
+			point.rgb = *reinterpret_cast<float*>(&rgb);
+			center_cluster->points.push_back(point);
+			cloud_cluster->push_back(cloud_filtered->points[*pit]);
 			avgPoint.x += cloud_filtered->points[*pit].x;
 			avgPoint.y += cloud_filtered->points[*pit].y;
 			avgPoint.z += cloud_filtered->points[*pit].z;
 		}
+		avgPoint.x /= cloud_cluster->points.size();
+		avgPoint.y /= cloud_cluster->points.size();
+		avgPoint.z /= cloud_cluster->points.size();
+
 
 		std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
 
 		//if ((fabs(avgPoint.x) < cloud_cluster->points.size()*0.15) && (fabs(avgPoint.y) < 0.30*cloud_cluster->points.size()))
-		if ((fabs(avgPoint.x) < cloud_cluster->points.size()*0.3) && (fabs(avgPoint.y) < 0.30*cloud_cluster->points.size()) && (fabs(avgPoint.z) < 1.0*cloud_cluster->points.size()))
+		if ((fabs(avgPoint.x) < 0.15) && (fabs(avgPoint.y) < 0.15) && (fabs(avgPoint.z) < 1.25))
 		{
 			std::cout << "found a cluster in the center" << std::endl;
+			numberGoodClusters++;
 
 			// write the pixels within the cluster back to an image
 			pcl_search<pcl::PointXYZRGB>::Ptr selectionTree (new pcl_search<pcl::PointXYZRGB>);
 			selectionTree->setInputCloud(cloud_cluster);
 
-			IplImage* coordinateImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
-			cvSetZero(coordinateImage);
-			IplImage* colorImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
-			cvSetZero(colorImage);
-
 			int u=0, v=0;
-			int umin=100000, vmin=100000;
-			cv::Point3_<uchar> randomColor(255.*rand()/(double)RAND_MAX, 255.*rand()/(double)RAND_MAX, 255.*rand()/(double)RAND_MAX);
+			CvScalar randomColor = CV_RGB(255.*rand()/(double)RAND_MAX, 255.*rand()/(double)RAND_MAX, 255.*rand()/(double)RAND_MAX);
 			for (unsigned int i=0; i<pInputCloud->size(); i++)
 			{
 				pcl::PointXYZRGB point = pInputCloud->at(i);
@@ -6959,11 +7542,9 @@ void ObjectClassifier::PointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB
 					// if there is a voxel of the cluster close to the query point, save this point in the image
 					if (sqr_distances[0] < 0.01*0.01)
 					{
-						clusterImage.at< cv::Point3_<uchar> >(v, u) = randomColor;
-						cvSet2D(colorImage, v, u, CV_RGB(point.r, point.g, point.b));
-						cvSet2D(coordinateImage, v, u, cvScalar(point.x, point.y, point.z));
-						if (u<umin) umin=u;
-						if (v<vmin) vmin=v;
+						cvSet2D(clusterImage, v, u, randomColor);
+						center_cluster->at(indices[0]).imX = u;
+						center_cluster->at(indices[0]).imY = v;
 					}
 				}
 
@@ -6975,148 +7556,56 @@ void ObjectClassifier::PointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB
 				}
 			}
 
-			std::map<double, std::string> resultsOrdered;
-			SharedImage si;
-			si.setCoord(coordinateImage);
-			si.setShared(colorImage);
-			CategorizeObject(&si, resultsOrdered, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams);
-			si.Release();
-
-			std::stringstream text1a, text1b, text2a, text2b;
-			std::map<double, std::string>::iterator it = resultsOrdered.end();
-			it--;
-			//if (it->second.compare("coffee_mug") == 0)
-			//	text1a << "cup";
-			//else if (it->second.compare("water_bottle") == 0)
-			//	text1a << "bottle";
-			//else if (it->second.compare("shampoo") == 0)
-			//	text1a << "dish_liquid";
-			//else if (it->second.compare("food_can") == 0)
-			//	text1a << "can";
-			//else if (it->second.compare("soda_can") == 0)
-			//	text1a << "can";
-			//else if (it->second.compare("hand_towel") == 0)
-			//	text1a << "can";
-			//else
-			//if (it->second.compare("dishliquids") == 0)
-			//	text1a << "bottle";
-			//else
-				text1a << it->second;
-			text1a << " (" << setprecision(3) << 100*it->first << "%)";
-			it--;
-			text2a << it->second;
-			text2b << setprecision(3) << 100*it->first << "%";
-			//CvFont font;
-			//cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 1, 1);
-			cv::putText(originalImage, text1a.str().c_str(), cvPoint(umin, max(0,vmin-20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(0, 255, 0));
-			//cvPutText(originalImage, text1b.str().c_str(), cvPoint(320, 50), &font, CV_RGB(0, 255, 0));
-			//cvPutText(originalImage, text2a.str().c_str(), cvPoint(10, 90), &font, CV_RGB(0, 255, 0));
-			//cvPutText(originalImage, text2b.str().c_str(), cvPoint(320, 90), &font, CV_RGB(0, 255, 0));
-
 			clusterIndex++;
-
-			//break;
 		}
-		//else
-		//{
-			cloud_cluster->clear();
-		//}
-		//std::stringstream ss;
-		//ss << "cloud_cluster_" << j << ".pcd";
-		//writer.write<pcl::PointXYZ> (ss.str (), *cloud_cluster, false);
-		//j++;
+
+		cloud_cluster->clear();
 	}
-	//if (cloud_cluster->size() == 0)
-	//{
-	//	std::cout << "Could not find any object in the center." << std::endl;
-	//	return;
-	//}
+
 	std::cout << "\n-----------------------------------------------------------------------------------------------\n\n\n" << std::endl;
-	//std::stringstream ss2,ss3;
-	//ss2 << "common/files/live/img_ann" << mImageNumber << ".png";
-	//cv::imwrite(ss2.str().c_str(), originalImage);
-	//ss3 << "common/files/live/img_cluster" << mImageNumber << ".png";
-	//cv::imwrite(ss3.str().c_str(), clusterImage);
-	//mImageNumber++;
-	cv::imshow("original image", originalImage);
-	cv::imshow("cluster image", clusterImage);
-	cv::waitKey(100);
+	//cvShowImage("original image", originalImage);
+	CvFont font;
+	cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 1, 1);
+	bool saveData = false;
+	if (numberGoodClusters != 1)
+	{
+		cvPutText(clusterImage, "Image automatically discarded!", cvPoint(20, 30), &font, CV_RGB(255, 0, 0));
+	}
+	else
+	{
+		cvPutText(clusterImage, "Save picture (y/n)?", cvPoint(20, 30), &font, CV_RGB(0, 255, 0));
+		cvShowImage("cluster image", clusterImage);
+		key = cv::waitKey();
+		if (key == 'y' || key=='c')
+		{
+			// save image
+			cvPutText(clusterImage, "Saved!", cvPoint(20, 70), &font, CV_RGB(0, 255, 0));
+			saveData = true;
+		}
+		else
+		{
+			cvPutText(clusterImage, "Discarded!", cvPoint(20, 70), &font, CV_RGB(255, 0, 0));
+		}
+	}
+	cvShowImage("cluster image", clusterImage);
+	cv::waitKey(20);
+	//cvReleaseImage(&originalImage);
+	cvReleaseImage(&clusterImage);
 	std::cout << std::endl;
 
-	//// write the pixels within the cluster back to an image
-	//pcl_search<pcl::PointXYZRGB>::Ptr selectionTree (new pcl_search<pcl::PointXYZRGB>);
-	//selectionTree->setInputCloud(cloud_cluster);
-	//
-	//int height = pInputCloud->height;
-	//int width = pInputCloud->width;
-	//IplImage* coordinateImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_32F, 3);
-	//cvSetZero(coordinateImage);
-	//IplImage* colorImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
-	//cvSetZero(colorImage);
-	//IplImage* originalImage = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
+	if (saveData)
+	{
+		// save raw data
+		std::stringstream filename;
+		filename << "common/files/capture/" << mFilePrefix << "_" << mFileCounter << ".pcd";
+		center_cluster->height = 1;
+		center_cluster->width = center_cluster->size();
+		pcl::io::savePCDFileASCII(filename.str(), *center_cluster);
+		mFileCounter++;
 
-	//int u=0, v=0;
-	//for (unsigned int i=0; i<(int)pInputCloud->size(); i++)
-	//{
-	//	pcl::PointXYZRGB point = pInputCloud->at(i);
-
-	//	cvSet2D(originalImage, v, u, CV_RGB(point.r, point.g, point.b));
-
-	//	if (isnan(point.z) == false)
-	//	{
-	//		std::vector<int> indices;
-	//		std::vector<float> sqr_distances;
-	//		selectionTree->nearestKSearch(point, 1, indices, sqr_distances);
-
-	//		// if there is a voxel of the cluster close to the query point, save this point in the image
-	//		if (sqr_distances[0] < 0.01*0.01)
-	//		{
-	//			cvSet2D(colorImage, v, u, CV_RGB(point.r, point.g, point.b));
-	//			cvSet2D(coordinateImage, v, u, cvScalar(point.x, point.y, point.z));
-	//		}
-	//	}
-
-	//	u++;
-	//	if (u>=640)
-	//	{
-	//		u=0;
-	//		v++;
-	//	}
-	//}
-
-	//std::map<double, std::string> resultsOrdered;
-	//SharedImage si;
-	//si.setCoord(coordinateImage);
-	//si.setShared(colorImage);
-	//CategorizeObject(&si, resultsOrdered, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams);
-	//si.Release();
-
-	//std::stringstream text1a, text1b, text2a, text2b;
-	//std::map<double, std::string>::iterator it = resultsOrdered.end();
-	//it--;
-	//text1a << it->second;
-	//text1b << setprecision(3) << 100*it->first << "%";
-	//it--;
-	//text2a << it->second;
-	//text2b << setprecision(3) << 100*it->first << "%";
-	//CvFont font;
-	//cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 1, 1);
-	//cvPutText(originalImage, text1a.str().c_str(), cvPoint(10, 50), &font, CV_RGB(0, 255, 0));
-	//cvPutText(originalImage, text1b.str().c_str(), cvPoint(320, 50), &font, CV_RGB(0, 255, 0));
-	//cvPutText(originalImage, text2a.str().c_str(), cvPoint(10, 90), &font, CV_RGB(0, 255, 0));
-	//cvPutText(originalImage, text2b.str().c_str(), cvPoint(320, 90), &font, CV_RGB(0, 255, 0));
-
-	//cvShowImage("original image", originalImage);
-	//cv::waitKey(10);
-
-	//cvReleaseImage(&originalImage);
+		std::cout << "Saved " << center_cluster->points.size () << " data points to " << filename.str() << "." << std::endl;
+	}
 }
-
-
-
-
-
-
 
 
 

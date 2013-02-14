@@ -18,11 +18,12 @@ transformImages:  false
 
 # default: false, smoothing sometimes leads to merging of letters within small texts
 # bool
-smoothImage: false 
+smoothImage: true 
 
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
-maxStrokeWidthParameter: 50 
+# important: this parameter is not specified in the original paper
+maxStrokeWidthParameter: 75
 
 
 #strokeWidthTransform
@@ -36,21 +37,22 @@ useColorEdge: false
 #computeEdgeMap
 # ----------
 
-# edgemap threshold #default: 120
+# edgemap threshold #default: 120  #90  #160
 # int
-cannyThreshold1: 120 
+cannyThreshold1: 214
 
-# cannyThreshold1 > cannyThreshold2 #default: 50
+# cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
-cannyThreshold2: 50  
+cannyThreshold2: 78  
 
 
 #updateStrokeWidth
 # ----------
 
-# parameter when comparing gradients of opposing edges # default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
+# parameter when comparing gradients of opposing edges # default: 3.14 / 2 = 1.52 , in paper: 3.14 / 6 = 0.523 -> unrealistic
 # double
-compareGradientParameter: 1.57 
+# important: this parameter is not as specified in the paper
+compareGradientParameter: 1.25
 
 
 #connectComponentAnalysis
@@ -58,11 +60,12 @@ compareGradientParameter: 1.57
 
 # parameter when comparing strokewidths between pixels, default: 3.0
 # double
-swCompareParameter: 2.5  
+# important: 5.0 might yield better results for whole letters
+swCompareParameter: 5.0  
 
 # parameter when comparing color between pixels, default: 100, set to 255 to deactivate
 # int
-colorCompareParameter: 100 
+colorCompareParameter: 50
 
 
 #identifyLetter
@@ -70,15 +73,15 @@ colorCompareParameter: 100
 
 # maximum height of component in pixels, default: 600
 # int
-maxLetterHeight_: 100 
+maxLetterHeight_: 300
 
 # maximum variance of strokewidth inside component, default: 1.5
 # double
-varianceParameter: 1.5 
+varianceParameter: 0.5 
 
 # diagonal of rect must be smaller than x*medianStrokeWidth, default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
 # int
-diagonalParameter: 10 
+diagonalParameter: 20
 
 # pixelCount has to be bigger than maxStrokeWidth * x (belonging to possible letter, not all component pixels), default: 5
 # int
@@ -86,7 +89,7 @@ pixelCountParameter: 5
 
 # maximum number of foreign components inside component, default: 5 , paper: 2
 # int
-innerLetterCandidatesParameter: 5 
+innerLetterCandidatesParameter: 4
 
 # width has to be smaller than x * height (x>1), default: 2.5 - turned off
 # double
@@ -102,11 +105,11 @@ clrComponentParameter: 20
 
 # maximum pythagorean distance between components, default: 2.0
 # double
-distanceRatioParameter: 2.0 
+distanceRatioParameter: 2.5
 
 # comparison between median sw of components, default: 2.5
 # double
-medianSwParameter: 2.5 
+medianSwParameter: 2.0
 
 # maximum diagonal ratio, default 2.0
 # double
@@ -118,7 +121,7 @@ grayClrParameter: 10.0
 
 # maximum single color valur difference between components, default: 35.0
 # double
-clrSingleParameter: 20.0 
+clrSingleParameter: 35.0 
 
 # maximum area ratio between components, default: 5
 # double
@@ -184,20 +187,17 @@ amount_sharp: 1.5
 # int
 result_: 2
 
-showWords: true
-
-showCriterions: true
 
 # debug
 # ----------
 
 # show gray colored edgemap image
 # bool
-showEdge: true
+showEdge: false
 
 # show swt map
 # bool
-showSWT: true
+showSWT: false
 
 # show connected components
 # bool
@@ -237,7 +237,7 @@ showNeighborMerging: false
 
 # show results with ocr
 # bool
-showResult: true
+showResult: false
 
 # when showing results show all image regions that probably contain text, even if ocr didn't find text
 # bool

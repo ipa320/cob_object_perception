@@ -79,19 +79,19 @@ private:
 
   struct bgr
   {
-    uchar r; // red channel value
-    uchar g; // green channel value
     uchar b; // blue channel value
+    uchar g; // green channel value
+    uchar r; // red channel value
 
     bgr()
     {
-      r = 255;
-      g = 255;
       b = 255;
+      g = 255;
+      r = 255;
     }
 
-    bgr(uchar red, uchar green, uchar blue) :
-      r(red), g(green), b(blue)
+    bgr(uchar blue, uchar green, uchar red) :
+    	b(blue), g(green), r(red)
     {
     }
   };
@@ -119,6 +119,8 @@ private:
   void updateStrokeWidth(cv::Mat &swtmap, std::vector<cv::Point> &startPoints, std::vector<cv::Point> &strokePoints,
                          int searchDirection, Purpose purpose);
 
+  void closeOutline(cv::Mat& edgemap);
+
   int connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap);
 
   void identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap);
@@ -143,9 +145,9 @@ private:
 
   void combineNeighborBoxes(std::vector<cv::Rect> & boundingBoxes);
 
-  void breakLines(std::vector<cv::Rect> & boundingBoxes);
+  void breakLines(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations);
 
-  static bool spaticalOrderX(cv::Rect a, cv::Rect b);
+  static bool spatialOrderX(cv::Rect a, cv::Rect b);
 
   void disposal();
 
@@ -213,7 +215,7 @@ private:
 
   void filterBoundingBoxes(std::vector<cv::Rect>& boundingBoxes, cv::Mat& ccmap, int rejectRatio);
 
-  static bool spaticalOrder(cv::Rect a, cv::Rect b);
+  static bool spatialOrder(cv::Rect a, cv::Rect b);
 
   static bool pairOrder(Pair i, Pair j);
 
@@ -221,7 +223,7 @@ private:
 
   void overlapBoundingBoxes(std::vector<cv::Rect>& boundingBoxes);
 
-  int decideWhichBreaks(float negPosRatio, float max_Bin, float heightVariance, unsigned int howManyNegative,
+  int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative,
                         unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance, int maxPeakNumbers,
                         int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight,
                         unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks, cv::Rect box,
@@ -231,7 +233,7 @@ private:
 
   cv::Mat filterPatch(const cv::Mat& patch);
 
-  void breakLinesIntoWords();
+  void breakLinesIntoWords(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations);
 
   // Methods for debugging only
   //------------------------------------------
@@ -269,16 +271,19 @@ private:
   float initialStrokeWidth_;
   cv::Mat edgemap_; // edges detected at gray image
   cv::Mat theta_; // gradient map, arctan(dy,dx)
+  cv::Mat dx_;
+  cv::Mat dy_;
   std::vector<cv::Point> edgepoints_; // all points where an edge is
 
   // Connect Component
-  std::vector<cv::Rect> labeledRegions; // all regions (with label) that could be a letter
-  std::size_t nComponent_; // =labeledRegions.size()
+  std::vector<cv::Rect> labeledRegions_; // all regions (with label) that could be a letter
+  std::size_t nComponent_; // =labeledRegions_.size()
   cv::Mat ccmapBright_, ccmapDark_; // copy of whole cc map
   std::vector<std::vector<connectedComponent> > connectedComponents_;
 
   // Identify Letters
   std::vector<bool> isLetterRegion_; // which region is letter
+  std::vector<double> medianStrokeWidth_;	// median stroke width for each letter region
   std::vector<std::vector<float> > meanRGB_; // mean R,G,B and Gray value of foreground pixels of every region
   std::vector<std::vector<float> > meanBgRGB_; // same with background pixels
   unsigned int nLetter_; // how many regions are letters
@@ -335,7 +340,7 @@ private:
   int cannyThreshold1; // default: 120
   int cannyThreshold2; // default: 50 , cannyThreshold1 > cannyThreshold2
   // --- updateStrokeWidth ---
-  double compareGradientParameter; // default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
+  double compareGradientParameter_; // default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
   // --- connectComponentAnalysis ---
   double swCompareParameter; // default: 3.0
   int colorCompareParameter; // default: 100, set to 255 to deactivate
@@ -355,6 +360,8 @@ private:
   double clrSingleParameter; // better 15 default: 35
   double areaParameter; // better: 1.5 ; default: 5
   double pixelParameter; // default 0.3
+  // --- linear ransac (original implementation) ---
+  double inlierDistanceThresholdFactor_;
   // --- ransac ---
   double p; // probability p, default: 0.99
   double maxE;

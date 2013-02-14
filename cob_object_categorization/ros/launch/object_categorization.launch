@@ -3,10 +3,10 @@
 <launch>
 
   <node ns="object_categorization" name="object_categorization" pkg="cob_object_categorization" type="object_categorization" output="screen">
-    <!--param name="ip_address" type="str" value="192.168.21.102"/-->
-    <remap from="input_pointcloud_segments" to="/object_segmentation/segmented_object"/>
+    <!--remap from="input_pointcloud_segments" to="/object_segmentation/segmented_object"/-->  <!-- simple segmentation provided by this package -->
+    <remap from="input_pointcloud_segments" to="/tabletop_object_cluster/cluster_array"/>   <!-- segmentation of cob_table_object_cluster -->
     <remap from="input_color_image" to="/cam3d/rgb/image_color"/>
-    <remap from="input_pointcloud_camera_info" to="/cam3d/rgb/camera_info"/>
+    <remap from="input_pointcloud_camera_info" to="/cam3d/depth_registered/camera_info"/>
   </node>
 
 </launch>

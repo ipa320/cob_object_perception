@@ -112,7 +112,8 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\rmb\Documents\Diplomarbeit\Software\object_categorization\common\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>opencv_core231d.lib;opencv_imgproc231d.lib;opencv_highgui231d.lib;opencv_ml231d.lib;opencv_features2d231d.lib;opencv_calib3d231d.lib;pcl_features-gd.lib;pcl_common-gd.lib;pcl_kdtree-gd.lib;pcl_search-gd.lib;pcl_filters-gd.lib;pcl_io-gd.lib;pcl_segmentation-gd.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -160,7 +161,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\rmb\Documents\Diplomarbeit\Software\object_categorization\common\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>opencv_core231.lib;opencv_imgproc231.lib;opencv_highgui231.lib;opencv_ml231.lib;opencv_features2d231.lib;opencv_calib3d231.lib;pcl_features.lib;pcl_common.lib;pcl_kdtree.lib;pcl_search.lib;pcl_filters.lib;pcl_io.lib;pcl_segmentation.lib;pcl_visualization.lib;%(AdditionalDependencies)</AdditionalDependencies>

@@ -22,7 +22,8 @@ smoothImage: false
 
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
-maxStrokeWidthParameter: 50 
+# important: this parameter is not specified in the original paper
+maxStrokeWidthParameter: 50
 
 
 #strokeWidthTransform
@@ -38,7 +39,7 @@ useColorEdge: false
 
 # edgemap threshold #default: 120
 # int
-cannyThreshold1: 120 
+cannyThreshold1: 90 
 
 # cannyThreshold1 > cannyThreshold2 #default: 50
 # int
@@ -50,7 +51,8 @@ cannyThreshold2: 50
 
 # parameter when comparing gradients of opposing edges # default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
 # double
-compareGradientParameter: 1.57 
+# important: this parameter is not as specified in the paper
+compareGradientParameter: 1.52 
 
 
 #connectComponentAnalysis
@@ -58,7 +60,8 @@ compareGradientParameter: 1.57
 
 # parameter when comparing strokewidths between pixels, default: 3.0
 # double
-swCompareParameter: 2.5  
+# important: 5.0 might yield better results for whole letters
+swCompareParameter: 3.0  
 
 # parameter when comparing color between pixels, default: 100, set to 255 to deactivate
 # int
@@ -70,11 +73,11 @@ colorCompareParameter: 100
 
 # maximum height of component in pixels, default: 600
 # int
-maxLetterHeight_: 100 
+maxLetterHeight_: 300
 
 # maximum variance of strokewidth inside component, default: 1.5
 # double
-varianceParameter: 1.5 
+varianceParameter: 0.5 
 
 # diagonal of rect must be smaller than x*medianStrokeWidth, default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
 # int
@@ -86,7 +89,7 @@ pixelCountParameter: 5
 
 # maximum number of foreign components inside component, default: 5 , paper: 2
 # int
-innerLetterCandidatesParameter: 5 
+innerLetterCandidatesParameter: 2
 
 # width has to be smaller than x * height (x>1), default: 2.5 - turned off
 # double
@@ -102,11 +105,11 @@ clrComponentParameter: 20
 
 # maximum pythagorean distance between components, default: 2.0
 # double
-distanceRatioParameter: 2.0 
+distanceRatioParameter: 3.0
 
 # comparison between median sw of components, default: 2.5
 # double
-medianSwParameter: 2.5 
+medianSwParameter: 2.0
 
 # maximum diagonal ratio, default 2.0
 # double
@@ -118,7 +121,7 @@ grayClrParameter: 10.0
 
 # maximum single color valur difference between components, default: 35.0
 # double
-clrSingleParameter: 20.0 
+clrSingleParameter: 35.0 
 
 # maximum area ratio between components, default: 5
 # double
@@ -184,9 +187,6 @@ amount_sharp: 1.5
 # int
 result_: 2
 
-showWords: true
-
-showCriterions: true
 
 # debug
 # ----------
@@ -201,11 +201,11 @@ showSWT: true
 
 # show connected components
 # bool
-showLetterCandidates: false
+showLetterCandidates: true
 
 # show connected components recognized as letters
 # bool
-showLetters: false
+showLetters: true
 
 # show pairs (2 letters belonging together)
 # bool
@@ -213,15 +213,11 @@ showPairs: false
 
 # show all words/text segments after pairs were fused together
 # bool
-showChains: false
+showChains: true
 
 # breaks text block into several lines
 # bool
 showBreakLines: false
-
-showWords: false
-
-showCriterions: false
 
 # show all bezier models that are created within ransac
 # bool

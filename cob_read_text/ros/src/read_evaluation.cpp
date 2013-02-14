@@ -529,6 +529,8 @@ void showRects(std::vector<img> &images, std::string path)
 				std::cout << "Error occured while executing mkdir!" << std::endl;
 			folderCreated = true;
 		}
+		cv::destroyAllWindows();
+		cv::waitKey(10);
 		cv::imwrite(imgpath + images[imageIndex].img_name, Image_);
 		std::string winName = "Evaluation: " + images[imageIndex].img_name;
 		cv::imshow(winName, Image_);

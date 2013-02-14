@@ -1,16 +1,9 @@
-# general
-# -------
-
-# defines the method for finding texts in the image
-# enum ProcessingMethod {ORIGINAL_EPSHTEIN=0, BORMANN=1};
-processing_method: 0
-
-#showransform
+# evaluation
 # ----------
 
-# default: true, use bezier-transformed images or normal rectangles around bezier lines
+# true, if text_detect is called via read_evaluation (calculates recall and precision for image sets based on ground truth .xml)
 # bool
-transformImages:  false
+eval: true 
 
 
 #preprocess
@@ -129,14 +122,6 @@ areaParameter: 1.5
 pixelParameter: 0.3 
 
 
-# breaking text into linear lines 
-# --------------------------------
-
-# factor for the threshold of inliers during linear RANSAC
-# double
-inlierDistanceThresholdFactor: 0.6
-
-
 # ransac
 # ----------
 
@@ -174,7 +159,7 @@ threshold_sharp: 3.0
 
 # magnitude, how much contrast is added at the edges when sharpening, default: 1.0
 # double
-amount_sharp: 1.5
+amount_sharp: 1.0 
 
 
 # ocr
@@ -184,20 +169,17 @@ amount_sharp: 1.5
 # int
 result_: 2
 
-showWords: true
-
-showCriterions: true
 
 # debug
 # ----------
 
 # show gray colored edgemap image
 # bool
-showEdge: true
+showEdge: false
 
 # show swt map
 # bool
-showSWT: true
+showSWT: false
 
 # show connected components
 # bool
@@ -214,14 +196,14 @@ showPairs: false
 # show all words/text segments after pairs were fused together
 # bool
 showChains: false
+<<<<<<< HEAD
+#true
+=======
+>>>>>>> review-rmb-rh
 
 # breaks text block into several lines
 # bool
 showBreakLines: false
-
-showWords: false
-
-showCriterions: false
 
 # show all bezier models that are created within ransac
 # bool
@@ -230,6 +212,10 @@ showBezier: false
 # show Ransac result -> best model only
 # bool
 showRansac: false
+<<<<<<< HEAD
+#true 
+=======
+>>>>>>> review-rmb-rh
 
 # show how neighbor texts are merged if they fit together and were accidently separated before
 # bool
@@ -241,4 +227,4 @@ showResult: true
 
 # when showing results show all image regions that probably contain text, even if ocr didn't find text
 # bool
-showAllBoxes: false
+showAllBoxes: true
