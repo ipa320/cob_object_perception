@@ -2,7 +2,7 @@
 #ifdef __LINUX__
 	#include "cob_fiducials/FiducialModelPi.h"
 #else
-	#include "cob_object_perception_intern/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
 #endif
 
 using namespace ipa_Fiducials;

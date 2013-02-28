@@ -9,9 +9,9 @@
 	#include "cob_fiducials/FiducialPiParameters.h"
 #else
 	#include "cob_perception_common/cob_vision_utils/common/include/cob_vision_utils/VisionUtils.h"
-	#include "cob_object_perception_intern/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
-	#include "cob_object_perception_intern/cob_fiducials/common/include/cob_fiducials/AbstractFiducialModel.h"
-	#include "cob_object_perception_intern/cob_fiducials/common/include/cob_fiducials/FiducialPiParameters.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/AbstractFiducialModel.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialPiParameters.h"
 #endif
 
 

@@ -4,7 +4,7 @@
 #ifdef __LINUX__
 	#include "cob_fiducials/AbstractFiducialParameters.h"
 #else
-	#include "cob_object_perception_intern/cob_fiducials/common/include/cob_fiducials/AbstractFiducialParameters.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/AbstractFiducialParameters.h"
 #endif
 
 namespace ipa_Fiducials

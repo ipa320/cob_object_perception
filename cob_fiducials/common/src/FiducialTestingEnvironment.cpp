@@ -3,8 +3,8 @@
 	#include "cob_fiducials/FiducialModelPi.h"
 	#include "cob_fiducials/FiducialTestingEnvironment.h"
 #else
-	#include "cob_object_perception_intern/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
-	#include "cob_object_perception_intern/cob_fiducials/common/include/cob_fiducials/FiducialTestingEnvironment.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialTestingEnvironment.h"
 #endif
 
 using namespace ipa_Fiducials;
