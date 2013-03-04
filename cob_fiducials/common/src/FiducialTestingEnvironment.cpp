@@ -140,9 +140,9 @@ unsigned long FiducialTestingEnvironment::ReprojectXYZ(double x, double y, doubl
 	double dv = 0;
 	double dw = 0;
 
-	//x *= 1000;
-	//y *= 1000;
-	//z *= 1000;
+	x *= 1000;
+	y *= 1000;
+	z *= 1000;
 
 	d_ptr = XYZ.ptr<double>(0);
 	d_ptr[0] = x;
