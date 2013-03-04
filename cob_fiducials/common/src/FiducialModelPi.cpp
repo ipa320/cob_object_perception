@@ -22,7 +22,7 @@ FiducialModelPi::~FiducialModelPi()
 unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose)
 {
 	cv::Mat src_mat_8U1;
-	bool debug = true;
+	bool debug = false;
 	if (debug)
 		m_debug_img = image.clone();
 
@@ -99,7 +99,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 // ------------ Ellipse extraction --------------------------------------
 	int min_ellipse_size = 12; // Min ellipse size at 70cm distance is 20x20 pixels
 	int min_contour_points = int(1.5 * min_ellipse_size); 
-	int max_ellipse_aspect_ratio = 3;
+	int max_ellipse_aspect_ratio = 5;
 	std::vector<cv::RotatedRect> ellipses;
 	for(size_t i = 0; i < contours.size(); i++)
 	{
@@ -236,7 +236,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 
 // ------------ Fiducial line association --------------------------------------
-	double cross_ratio_max_dist = 0.015;
+	double cross_ratio_max_dist = 0.02;
 	double var_pi=3.14159265359;
 	std::vector<t_pi> final_tag_vec;
 
