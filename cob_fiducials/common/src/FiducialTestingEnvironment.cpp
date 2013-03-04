@@ -26,7 +26,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 		return ipa_Utils::RET_FAILED;
 
 	// ----------------------------------- Load images -----------------------------------------
-	std::string dataset_name = "dataset_130226";
+	std::string dataset_name = "dataset_130301";
 	std::string filename_prefix = "ConfigurationFiles/fiducials/" + dataset_name + "/";
 
 	bool load_next_image = true;
