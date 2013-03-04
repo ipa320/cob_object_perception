@@ -26,7 +26,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 		return ipa_Utils::RET_FAILED;
 
 	// ----------------------------------- Load images -----------------------------------------
-	std::string dataset_name = "dataset_130226";
+	std::string dataset_name = "dataset_130301";
 	std::string filename_prefix = "ConfigurationFiles/fiducials/" + dataset_name + "/";
 
 	bool load_next_image = true;
@@ -34,7 +34,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 	while (load_next_image)
 	{
 		std::stringstream filename;
-		filename << filename_prefix << "tags_" << image_vec.size() << "_coloredPC_color_8U3.png";
+		filename << filename_prefix << "tags_" << 11+image_vec.size() << "_coloredPC_color_8U3.png";
 
 		cv::Mat image = cv::imread(filename.str(),-1);
 		if (!image.data)
@@ -67,7 +67,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 		{
 			RenderPose(image_vec[i], tags_vec[j].rot, tags_vec[j].trans);
 			std::stringstream filename;
-			filename << filename_prefix << "result_" << i << "_" << j << "_coloredPC_color_8U3.png";
+			filename << filename_prefix << "result_" << i << "_" << j << "_" << tags_vec[j].id << "_coloredPC_color_8U3.png";
 			cv::imwrite(filename.str(), image_vec[i]);
 		}
 	}	
