@@ -11,7 +11,7 @@ class __DLL_LIBFIDUCIALS__ AbstractFiducialParameters
 {
 public:
 	int id; // Unique ID of tag
-	cv::Point offset; // Offset of tag to target coordinate system
+	cv::Point2d offset; // Offset of tag to target coordinate system
 
 };
 

@@ -118,6 +118,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			continue;
 		if (std::min(box.size.width, box.size.height) < 0.5*min_ellipse_size)
 			continue;
+		if (std::max(box.size.width, box.size.height) < min_ellipse_size)
+			continue;
 
 		ellipses.push_back(box);
 	}
