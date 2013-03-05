@@ -39,8 +39,11 @@ tilt_vfh = [
 0   0.684127;
 5   0.701587;
 10  0.691402;
+15  0.6914;     % interpolated
 20  0.691336;
+25  0.6618;     % interpolated
 30  0.632341;
+35  0.6273;     % interpolated
 40  0.622288
 ];
 
@@ -64,12 +67,12 @@ set(l__, 'FontSize', 12)
 
 figure(2)
 set(gca, 'FontSize', 12)
-plot(tilt(:,1), [tilt_sap772_pcanorm(:,2)*100, tilt_sap772_rollnorm(:,2)*100, tilt_sap772_nonorm(:,2)*100], 'LineWidth', 1.25)
+plot(tilt_sap772_nonorm(:,1), [tilt_sap772_pcanorm(:,2), tilt_sap772_rollnorm(:,2), tilt_sap772_nonorm(:,2), tilt_vfh(:,2)]*100, 'LineWidth', 1.25)
 grid
 xlim([0,40])
 ylim([0, 100])
 xlabel('Tilt Angle of Unknown Object View')
 ylabel('Recall (%)')
-l__ = legend('SAP-7-7-2 PCA normalized', 'SAP-7-7-2 roll compensation', 'SAP-7-7-2 not normalized', 'Location', 'SouthWest');
+l__ = legend('SAP-7-7-2 PCA normalized', 'SAP-7-7-2 roll compensation', 'SAP-7-7-2 not normalized', 'VFH', 'Location', 'SouthWest');
 set(l__, 'Box', 'off')
 set(l__, 'FontSize', 12)

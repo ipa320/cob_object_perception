@@ -45,7 +45,7 @@ int main()
 	globalFeatureParams.cellCount[1] = 5;
 	globalFeatureParams.cellSize[0] = 0.5;
 	globalFeatureParams.cellSize[1] = 0.5;
-	globalFeatureParams.vocabularySize = 250;
+	globalFeatureParams.vocabularySize = 5;
 //	globalFeatureParams.additionalArtificialTiltedViewAngle.push_back(0.);
 //	globalFeatureParams.additionalArtificialTiltedViewAngle.push_back(45.);
 	double factorSamplesTrainData = 1.;//2./3.;		// for each object, this ratio of samples should go to the training set, the rest is for testing (i.e. there are training and test objects but only factorSamplesTrainData of the samples of each training object are used for training - and only 1.0-factorSamplesTrainData of the samples from test objects are used for testing, e.g. use this to put samples from different tilt angles into the list - first tilt=0, then tilt=beta and finally tilt=beta/2 -> test set only with beta/2)
@@ -59,7 +59,7 @@ int main()
 	globalFeatureParams.useFeature["grsd"] = false;
 	globalFeatureParams.useFeature["gfpfh"] = false;
 	globalFeatureParams.useFullPCAPoseNormalization = false;
-	globalFeatureParams.useRollPoseNormalization = false;
+	globalFeatureParams.useRollPoseNormalization = true;
 
 	bool useSloppyMasks = true;
 
@@ -71,6 +71,19 @@ int main()
 	const float factorNegativeSet = 6.f;	// very old: 5.f
 	const float percentTest = 0.f;
 	const float percentValidation = 0.1f;
+
+	// capture data
+	bool capture = false;
+	if (capture == true)
+	{
+		ObjectClassifier objectClassifier;
+
+		globalFeatureParams.useFullPCAPoseNormalization = false;
+		globalFeatureParams.useRollPoseNormalization = true;
+		objectClassifier.CaptureSegmentedPCD(clusterMode, classifierType, globalFeatureParams);
+		
+		return 0;
+	}
 
 	// hermes capture and object finding with angle determination
 	bool hermes = false;
@@ -159,8 +172,11 @@ int main()
 	bool runtimeUse = false;
 	if (runtimeUse)
 	{
-		//ObjectClassifier objectClassifier("common/files/WashingtonData/PCA3CF - roll pose normalization/PCA3CF7-7-2/Classifier/EMClusterer5.txt", "common/files/WashingtonData/PCA3CF - roll pose normalization/PCA3CF7-7-2/Classifier/");
-		ObjectClassifier objectClassifier("common/files/IPA2Data/exp 21 - PCA3CF - roll pose normalization/PCA3CF7-7-2/Classifier/EMClusterer5.txt", "common/files/IPA2Data/exp 21 - PCA3CF - roll pose normalization/PCA3CF7-7-2/Classifier/");
+		ObjectClassifier objectClassifier("common/files/Classifier/EMClusterer5.txt", "common/files/Classifier/");
+		//ObjectClassifier objectClassifier("common/files/WashingtonData/PCA3CF - roll pose normalization/PCA3CF7-7-2 - 10/Classifier/EMClusterer5.txt", "common/files/WashingtonData/PCA3CF - roll pose normalization/PCA3CF7-7-2 - 10/Classifier/");
+		//ObjectClassifier objectClassifier("common/files/IPA2Data/exp 21 - PCA3CF - roll pose normalization/PCA3CF7-7-2/Classifier/EMClusterer5.txt", "common/files/IPA2Data/exp 21 - PCA3CF - roll pose normalization/PCA3CF7-7-2/Classifier/");
+		//ObjectClassifier objectClassifier("common/files/IPA3Data/Classifier/EMClusterer5.txt", "common/files/IPA3Data/Classifier/");
+		objectClassifier.LoadParameters("ros/launch/object_categorization.yaml");
 		objectClassifier.CategorizeContinuously(clusterMode, classifierType, globalFeatureParams);
 		return 0;
 	}
@@ -231,6 +247,7 @@ int main()
 			//viewsPerObjectVec.push_back(4);
 			//viewsPerObjectVec.push_back(6);
 			//viewsPerObjectVec.push_back(8);
+			//viewsPerObjectVec.push_back(9);
 			//viewsPerObjectVec.push_back(12);
 			//viewsPerObjectVec.push_back(16);
 			//viewsPerObjectVec.push_back(18);
@@ -416,16 +433,17 @@ int main()
 
 		std::string baseFolder = "common/files/";
 		std::string databasePath;
-		std::string localFeatureFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_loc.txt"; //"IPA2Data/IPA2_FPFH_loc.txt"; //"IPA2Data/IPA2_RSD_loc.txt"; //"WashingtonData/Wa_Surf64Dev2_loc.txt";//"IPA2Data/IPA2_Surf64Dev2_loc.txt";	//"IPAData/IPA_Surf64Dev2_loc.txt";
+		std::string localFeatureFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_loc.txt"; //"IPA3Data/IPA3_Surf64Dev2_loc.txt"; //"IPA2Data/IPA2_Surf64Dev2_loc.txt"; //"IPA2Data/IPA2_FPFH_loc.txt"; //"IPA2Data/IPA2_RSD_loc.txt"; //"WashingtonData/Wa_Surf64Dev2_loc.txt";//"IPA2Data/IPA2_Surf64Dev2_loc.txt";	//"IPAData/IPA_Surf64Dev2_loc.txt";
 		if (useSloppyMasks == true)
-			databasePath = "F:/ObjectDataNew/TrainingData/";
+			databasePath = "G:/Washington3dObjectsDataset/segmented"; //"C:/Users/rmb/Documents/Diplomarbeit/Software/object_categorization/common/files/capture/"; //"F:/ObjectDataNew/TrainingData/";
 		else
 		{
 			databasePath = "F:/ObjectDataNew_goodmasks/TrainingData/";
 			localFeatureFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_loc_goodmask.txt";
 		}
-		//std::string screenOutputLogFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_PCA3CF7-7-2_screen_log.txt";
-		std::string screenOutputLogFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_PCA3CF7-7-2_screen_log.txt";
+		//std::string screenOutputLogFileName = baseFolder + "IPA3Data/IPA3_Surf64Dev2_PCA3CF7-7-2_screen_log.txt";
+		std::string screenOutputLogFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_PCA3CF7-7-2_screen_log.txt";
+		//std::string screenOutputLogFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_PCA3CF7-7-2_screen_log.txt";
 		//std::string screenOutputLogFileName = baseFolder + "IPA2Data/IPA2_RSD_GRSD_screen_log.txt";
 		//std::string screenOutputLogFileName = baseFolder + "IPA2Data/IPA2_FPFH_GFPFH_screen_log.txt";
 		//std::string screenOutputLogFileName = baseFolder + "IPAData/IPA_Surf64Dev2_PCA3CF7-7-2_screen_log.txt";
@@ -440,25 +458,33 @@ int main()
 
 		srand(1);
 
-		//std::string annotationFileName = baseFolder + "object_lists/annotation_washington_test.txt";
-		//std::string globalFeatureFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_PCA3CF7-7-2_glob.txt";
-		//std::string covarianceMatrixFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_loc_covar";
-		//std::string localFeatureClustererPath = baseFolder + "WashingtonData/Classifier";
-		//std::string timingLogFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_PCA3CF7-7-2_timing.txt";
-		//OC.LoadWashingtonDatabase(annotationFileName, "G:/Washington3dObjectsDataset/segmented/", 1, clusterMode, globalFeatureParams, localFeatureFileName, globalFeatureFileName,
-		//					covarianceMatrixFileName, localFeatureClustererPath, timingLogFileName, screenLogFile, MASK_LOAD);
+		//std::string annotationFileName = baseFolder + "object_lists/annotation_ipa3.txt";
+		//std::string globalFeatureFileName = baseFolder + "IPA3Data/IPA3_Surf64Dev2_PCA3CF7-7-2_glob.txt";
+		//std::string covarianceMatrixFileName = baseFolder + "IPA3Data/IPA3_Surf64Dev2_loc_covar";
+		//std::string localFeatureClustererPath = baseFolder + "IPA3Data/Classifier";
+		//std::string timingLogFileName = baseFolder + "IPA3Data/IPA3_Surf64Dev2_PCA3CF7-7-2_timing.txt";
+		//OC.LoadWashingtonDatabase(annotationFileName, databasePath, 2, clusterMode, globalFeatureParams, localFeatureFileName, globalFeatureFileName,
+		//					covarianceMatrixFileName, localFeatureClustererPath, timingLogFileName, screenLogFile, MASK_LOAD, true);
 
-		std::string annotationFileName = baseFolder + "object_lists/annotation_cin2.txt";
-		std::string globalFeatureFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_PCA3CF7-7-2_glob.txt";
-		std::string covarianceMatrixFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_loc_covar";
-		std::string localFeatureClustererPath = baseFolder + "IPA2Data/Classifier";
-		std::string timingLogFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_PCA3CF7-7-2_timing.txt";
-		OC.LoadCIN2Database(annotationFileName, databasePath, 1, clusterMode, globalFeatureParams, localFeatureParams, localFeatureFileName, globalFeatureFileName,
+		std::string annotationFileName = baseFolder + "object_lists/annotation_washington_bestperformers10.txt";
+		std::string globalFeatureFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_PCA3CF7-7-2_glob.txt";
+		std::string covarianceMatrixFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_loc_covar";
+		std::string localFeatureClustererPath = baseFolder + "WashingtonData/Classifier";
+		std::string timingLogFileName = baseFolder + "WashingtonData/Wa_Surf64Dev2_PCA3CF7-7-2_timing.txt";
+		OC.LoadWashingtonDatabase(annotationFileName, databasePath, 2, clusterMode, globalFeatureParams, localFeatureFileName, globalFeatureFileName,
 							covarianceMatrixFileName, localFeatureClustererPath, timingLogFileName, screenLogFile, MASK_LOAD);
-		//OC.LoadCIN2Database("common/files/object_lists/annotation_cin2.txt", databasePath, 2, clusterMode, globalFeatureParams, localFeatureParams, localFeatureFileName, "IPA2Data/IPA2_RSD_GRSD_glob.txt",
-		//					"IPA2Data/IPA2_RSD_loc_covar", "IPA2Data/Classifier", "IPA2Data/IPA2_RSD_GRSD_timing.txt", screenLogFile, MASK_LOAD);
-		//OC.LoadCIN2Database("common/files/object_lists/annotation_cin2.txt", databasePath, 2, clusterMode, globalFeatureParams, localFeatureParams, localFeatureFileName, "IPA2Data/IPA2_FPFH_GFPFH_glob.txt",
-		//	"IPA2Data/IPA2_FPFH_loc_covar", "IPA2Data/Classifier", "IPA2Data/IPA2_FPFH_GFPFH_timing.txt", screenLogFile, MASK_LOAD);
+
+		//std::string annotationFileName = baseFolder + "object_lists/annotation_cin2.txt";
+		//std::string globalFeatureFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_PCA3CF7-7-2_glob.txt";
+		//std::string covarianceMatrixFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_loc_covar";
+		//std::string localFeatureClustererPath = baseFolder + "IPA2Data/Classifier";
+		//std::string timingLogFileName = baseFolder + "IPA2Data/IPA2_Surf64Dev2_PCA3CF7-7-2_timing.txt";
+		//OC.LoadCIN2Database(annotationFileName, databasePath, 1, clusterMode, globalFeatureParams, localFeatureParams, localFeatureFileName, globalFeatureFileName,
+		//					covarianceMatrixFileName, localFeatureClustererPath, timingLogFileName, screenLogFile, MASK_LOAD);
+		////OC.LoadCIN2Database("common/files/object_lists/annotation_cin2.txt", databasePath, 2, clusterMode, globalFeatureParams, localFeatureParams, localFeatureFileName, "IPA2Data/IPA2_RSD_GRSD_glob.txt",
+		////					"IPA2Data/IPA2_RSD_loc_covar", "IPA2Data/Classifier", "IPA2Data/IPA2_RSD_GRSD_timing.txt", screenLogFile, MASK_LOAD);
+		////OC.LoadCIN2Database("common/files/object_lists/annotation_cin2.txt", databasePath, 2, clusterMode, globalFeatureParams, localFeatureParams, localFeatureFileName, "IPA2Data/IPA2_FPFH_GFPFH_glob.txt",
+		////	"IPA2Data/IPA2_FPFH_loc_covar", "IPA2Data/Classifier", "IPA2Data/IPA2_FPFH_GFPFH_timing.txt", screenLogFile, MASK_LOAD);
 
 		//std::string annotationFileName = baseFolder + "object_lists/annotation_cin.txt";
 		//std::string globalFeatureFileName = baseFolder + "IPAData/IPA_Surf64Dev2_EM250_glob.txt"; //"IPAData/IPA_Surf64Dev2_PCA3CF7-7-2_glob.txt";
@@ -481,8 +507,8 @@ int main()
 
 		srand(1);
 		
-		std::string statisticsPath = baseFolder + "IPA2Data/Classifier/Statistics/";	//"WashingtonData/Classifier/Statistics/";	//"IPA2Data/Classifier/Statistics/"         //"IPAData/Classifier/Statistics/"
-		std::string configurationPrefix = "IPA2_Surf64Dev2_PCA3CF7-7-2"; //"IPA_Surf64Dev2_EM250";	//"IPA2_Surf64Dev2_PCA3CF7-7-2";	// "IPA2_FPFH_GFPFH" //"IPA2_RSD_GRSD"	//"IPA_Surf64Dev2_vfh"
+		std::string statisticsPath = baseFolder + "WashingtonData/Classifier/Statistics/"; //"IPA3Data/Classifier/Statistics/"; //"IPA2Data/Classifier/Statistics/";	//"WashingtonData/Classifier/Statistics/";	//"IPA2Data/Classifier/Statistics/"         //"IPAData/Classifier/Statistics/"
+		std::string configurationPrefix = "IPA3_Surf64Dev2_PCA3CF7-7-2"; //"IPA2_Surf64Dev2_PCA3CF7-7-2"; //"IPA_Surf64Dev2_EM250";	//"IPA2_Surf64Dev2_PCA3CF7-7-2";	// "IPA2_FPFH_GFPFH" //"IPA2_RSD_GRSD"	//"IPA_Surf64Dev2_vfh"
 		//OC.CrossValidationGlobalSampleRange(statisticsPath, configurationPrefix, classifierType, crossValidationFold, factorNegativeSet, percentTest, percentValidation, viewsPerObject, &screenLogFile, factorSamplesTrainData);
 		OC.CrossValidationGlobal(statisticsPath, configurationPrefix, classifierType, crossValidationFold, factorNegativeSet, percentTest, percentValidation, viewsPerObject, &screenLogFile);
 		std::string localClassifierSavePath = localFeatureClustererPath + "/";

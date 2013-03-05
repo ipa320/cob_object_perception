@@ -27,6 +27,8 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 
+#include <boost/thread/mutex.hpp>
+
 typedef BlobList BlobListRiB;
 typedef BlobFeature BlobFeatureRiB;
 
@@ -317,6 +319,13 @@ private:
 
 };
 
+struct ObjectLocalizationIdentification
+{
+	cv::Point3d objectCenter;
+	cv::Point2i textPosition;
+	std::map<std::string, double> identificationPDF;
+};
+
 /// Collection of functions und data structures for object categorization tasks. 
 class ObjectClassifier
 {
@@ -369,7 +378,7 @@ public:
 						 std::string pGlobalFeatureFileName, std::string pCovarianceMatrixFileName, std::string pLocalFeatureClustererPath, std::string pTimingLogFileName, std::ofstream& pScreenLogFile, MaskMode pMaskMode);
 
 	int LoadWashingtonDatabase(std::string pAnnotationFileName, std::string pDatabasePath, int pMode, ClusterMode pClusterMode, GlobalFeatureParams& pGlobalFeatureParams, std::string pLocalFeatureFileName,
-						std::string pGlobalFeatureFileName, std::string pCovarianceMatrixFileName, std::string pLocalFeatureClustererPath, std::string pTimingLogFileName, std::ofstream& pScreenLogFile, MaskMode pMaskMode);
+						std::string pGlobalFeatureFileName, std::string pCovarianceMatrixFileName, std::string pLocalFeatureClustererPath, std::string pTimingLogFileName, std::ofstream& pScreenLogFile, MaskMode pMaskMode, bool useIPA3Database=false);
 
 	/// Load function for the ALOI database.
 	/// Loads the local and global features of all objects of the database for further use with cross-validation or classifier training tasks.
@@ -675,6 +684,9 @@ public:
 		int pViewsPerObject=-1, std::ofstream* pScreenLogFile=0, double pFactorSamplesTrainData=0.5);
 
 
+	/// loads the parameters for runtime use
+	int LoadParameters(std::string pFilename);
+
 	/// Loop for runtime use
 	int CategorizeContinuously(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 
@@ -683,9 +695,12 @@ public:
 	int mImageNumber;
 
 	/// Categorizes an object
-	/// @param pResults ordered list of results (percentage, class name)
-	int CategorizeObject(SharedImage* pSourceImage, std::map<double, std::string>& pResults, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	/// @param pResultsOrdered ordered list of results (percentage, class name)
+	int CategorizeObject(SharedImage* pSourceImage, std::map<std::string, double>& pResults, std::map<double, std::string>& pResultsOrdered, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 
+
+	int CaptureSegmentedPCD(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	void CapturePointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 
 	int HermesDetect(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
@@ -884,4 +899,26 @@ private:
 	void StatisticsFromOutput(ClassifierOutputCollection pResponses, ClassifierPerformanceStruct& pPerformance, double pThreshold);
 
 	ClassificationData mData;		///< Data container for all classifier, feature and statistics data.
+
+	boost::mutex mDisplayImageMutex;
+
+	cv::Mat mDisplayImageOriginal, mDisplayImageSegmentation;
+
+	std::vector<ObjectLocalizationIdentification> mCurrentDetections, mLastDetections;
+
+	// parameters for runtime use
+	cv::Size mTargetScreenResolution;	// in [pixels]
+	cv::Size mTargetSegmentationImageResolution;	// in [pixels]
+	cv::Point3d mConsideredVolume;	// in [m]
+	cv::Point3f mVoxelFilterLeafSize;	// in [m]
+	int mPlaneSearchMaxIterations;
+	double mPlaneSearchDistanceThreshold;	// in [m]
+	double mPlaneSearchAbortRemainingPointsFraction;	// within [0.0, 1.0]
+	unsigned int mPlaneSearchAbortMinimumPlaneSize;	// int [#points]
+	double mClusterSearchToleranceValue;	// in [m]
+	int mClusterSearchMinClusterSize;
+	int mClusterSearchMaxClusterSize;
+	cv::Point3f mConsideredClusterCenterVolume;	// in [m]
+	cv::Scalar mDisplayFontColorBGR;	// order: B, G, R
+	double mTrackingInfluenceFactorOldData;	// within [0.0, 1.0]
 };

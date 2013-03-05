@@ -37,16 +37,13 @@
  *
  */
 
-#include <pcl/point_types.h>
-#include <pcl/impl/instantiate.hpp>
-#include <pcl/features/gfpfh_1.7.h>
-#include <pcl/features/impl/gfpfh_1.7.hpp>
-#include <pcl/octree/octree_impl.h>
+#include "pcl/point_types.h"
+#include "pcl/impl/instantiate.hpp"
+#include "pcl/features/gfpfh.h"
+#include "pcl/features/impl/gfpfh.hpp"
+#include "pcl/octree/octree_impl.h"
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 
 // Instantiations of specific point types
-#ifdef PCL_ONLY_CORE_POINT_TYPES
-  PCL_INSTANTIATE_PRODUCT(GFPFHEstimation, ((pcl::PointXYZ)(pcl::PointXYZI)(pcl::PointXYZRGBA)(pcl::PointXYZL))((pcl::PointXYZL))((pcl::GFPFHSignature16)))
-#else
-  PCL_INSTANTIATE_PRODUCT(GFPFHEstimation, (PCL_XYZ_POINT_TYPES)(PCL_XYZL_POINT_TYPES)((pcl::GFPFHSignature16)))
-#endif
-
+PCL_INSTANTIATE_PRODUCT(GFPFHEstimation, (PCL_XYZ_POINT_TYPES)(PCL_XYZL_POINT_TYPES)((pcl::GFPFHSignature16)))

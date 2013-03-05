@@ -2,9 +2,19 @@
 
 <launch>
 
+   <node ns="object_segmentation" pkg="nodelet" type="nodelet" name="object_segmentation_pass_through" args="standalone pcl/PassThrough" output="screen">
+    <remap from="~input" to="/cam3d/rgb/points" />
+    <rosparam>
+      filter_field_name: z
+      filter_limit_min: 0.0
+      filter_limit_max: 2.0
+      keep_organized: true
+    </rosparam>
+  </node>
+
   <node ns="object_segmentation" name="object_segmentation" pkg="cob_object_categorization" type="object_segmentation" output="screen">
-    <!--param name="ip_address" type="str" value="192.168.21.102"/-->
-    <remap from="input_pointcloud" to="/camera/depth_registered/points"/>
+    <remap from="input_pointcloud" to="object_segmentation_pass_through/output"/>
+    <!--remap from="input_pointcloud" to="/cam3d/depth_registered/points"/-->
     <remap from="output_pointcloud_segments" to="segmented_object"/>
   </node>
 
