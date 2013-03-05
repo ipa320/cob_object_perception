@@ -233,7 +233,7 @@ private:
 
   cv::Mat filterPatch(const cv::Mat& patch);
 
-  void breakLinesIntoWords(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations);
+  void breakLinesIntoWords(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations, std::vector<double>& qualityScore);
 
   // Methods for debugging only
   //------------------------------------------
@@ -305,6 +305,7 @@ private:
 
   std::vector<cv::Rect> finalBoundingBoxes_;
   std::vector<cv::RotatedRect> finalRotatedBoundingBoxes_;
+  std::vector<double> finalBoundingBoxesQualityScore_;
 
   double sigma_sharp, threshold_sharp, amount_sharp;
 

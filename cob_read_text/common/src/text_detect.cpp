@@ -164,6 +164,7 @@ void DetectText::detect_original_epshtein()
 	// clear data fields
 	finalBoundingBoxes_.clear();
 	finalRotatedBoundingBoxes_.clear();
+	finalBoundingBoxesQualityScore_.clear();
 
 	// start timer
 	double start_time;
@@ -282,6 +283,7 @@ void DetectText::detect_bormann()
 	// clear data fields
 	finalBoundingBoxes_.clear();
 	finalRotatedBoundingBoxes_.clear();
+	finalBoundingBoxesQualityScore_.clear();
 
 	// start timer
 	double start_time;
@@ -463,8 +465,6 @@ void DetectText::pipeline()
 
 	if (processing_method_==ORIGINAL_EPSHTEIN)
 	{
-		// todo: check those functions for compliance with the paper
-
 		// some feasibility checks
 //		start_time = clock();
 //		filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
@@ -481,7 +481,8 @@ void DetectText::pipeline()
 
 		// separate words on a single line
 		start_time = clock();
-		breakLinesIntoWords(boundingBoxes, lineEquations);
+		std::vector<double> qualityScore;
+		breakLinesIntoWords(boundingBoxes, lineEquations, qualityScore);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
 
@@ -491,6 +492,7 @@ void DetectText::pipeline()
 			finalBoundingBoxes_.push_back(boundingBoxes[i]);
 			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(boundingBoxes[i].x+0.5*boundingBoxes[i].width, boundingBoxes[i].y+0.5*boundingBoxes[i].height),
 					cv::Size2f(boundingBoxes[i].width, boundingBoxes[i].height), 0.f));
+			finalBoundingBoxesQualityScore_.push_back(qualityScore[i]);
 		}
 
 		// filter boxes that lie completely inside others
@@ -500,10 +502,12 @@ void DetectText::pipeline()
 			{
 				if (j==i)
 					continue;
-				if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.92*finalBoundingBoxes_[i].area())
+				if (((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[i].area() && finalBoundingBoxesQualityScore_[i]<=finalBoundingBoxesQualityScore_[j]) ||
+						((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[j].area() && finalBoundingBoxesQualityScore_[i]<finalBoundingBoxesQualityScore_[j]))
 				{
 					finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
 					finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
+					finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
 					break;
 				}
 			}
@@ -5885,12 +5889,16 @@ cv::Mat DetectText::filterPatch(const cv::Mat& patch)
 	return result;
 }
 
-void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<cv::RotatedRect>& lineEquations)
+void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<cv::RotatedRect>& lineEquations, std::vector<double>& qualityScore)
 {
 	// break text into separate lines without destroying letter boxes
 	cv::Mat output;
 	if (debug["showWords"])
 		output = originalImage_.clone();		// todo: make this a debug parameter
+
+	qualityScore.clear();
+	qualityScore.resize(boxes.size(), 0.);
+	std::vector<double> brokenWordsQualityScore;
 
 	std::vector<cv::Rect> letters;
 	std::vector<cv::Rect> brokenWords;
@@ -5924,9 +5932,10 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 			{
 				currentLetters.push_back(i);	// todo: exact method was not better, is it now?
 				//innerLetters.push_back(i);
-				//averageLetterSize += sqrt(letters[i].width*letters[i].width + letters[i].height*letters[i].height);
+				averageLetterSize += sqrt(letters[i].width*letters[i].width + letters[i].height*letters[i].height);
 			}
 		}
+		averageLetterSize /= (double)currentLetters.size();
 //		averageLetterSize /= (double)innerLetters.size();
 //		double inlierDistanceThreshold = averageLetterSize * (inlierDistanceThresholdFactor_+0.1);
 //		for (unsigned int i = 0; i < innerLetters.size(); i++)
@@ -6188,7 +6197,9 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		float negPosRatio = howManyNegative / (float)(wordBreaks.size());
 
 		// Ratios of y and height between the letterboxes inside a boundingBox
-		float maxY = 0.0, minY = 1000.0, relativeY = 0.0, meanBaseline = 0.0, baselineStddev = 0;
+		float maxY = 0.0, minY = 1000.0, relativeY = 0.0;
+		double meanBaseline = 0.0, baselineStddev = 0;
+		std::vector<double> distanceToBaseline(currentLetters.size());
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
 		{
 			if (letters[currentLetters[j]].y < minY)
@@ -6197,20 +6208,30 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 				maxY = letters[currentLetters[j]].y;
 			cv::Point2f centralBasePoint(letters[currentLetters[j]].x+0.5*letters[currentLetters[j]].width, letters[currentLetters[j]].y+letters[currentLetters[j]].height);
 			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
-			meanBaseline += fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
+			distanceToBaseline[j] = fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
+			meanBaseline += distanceToBaseline[j];
 			//meanBaseline += letters[currentLetters[j]].height + letters[currentLetters[j]].y;
 		}
 		meanBaseline /= (float)currentLetters.size();
 
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
 		{
-			cv::Point2f centralBasePoint(letters[currentLetters[j]].x+0.5*letters[currentLetters[j]].width, letters[currentLetters[j]].y+letters[currentLetters[j]].height);
-			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
-			float dist = fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
-			baselineStddev += (dist-meanBaseline) * (dist-meanBaseline);
+			baselineStddev += (distanceToBaseline[j]-meanBaseline) * (distanceToBaseline[j]-meanBaseline);
 			//baselineStddev += (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanBaseline) * (letters[currentLetters[j]].height + letters[currentLetters[j]].y - meanBaseline);
 		}
 		baselineStddev = std::sqrt(baselineStddev/(float)currentLetters.size());
+
+		// quality score for text line
+		// given to the whole text line
+		for (unsigned int j = 0; j < currentLetters.size(); j++)
+		{
+			double letterSize = sqrt(letters[currentLetters[j]].width*letters[currentLetters[j]].width + letters[currentLetters[j]].height*letters[currentLetters[j]].height);
+			if (std::abs(letterSize-averageLetterSize) < 0.2*averageLetterSize)
+				if (std::abs(distanceToBaseline[j]-meanBaseline) < 0.1*meanBaseline)
+					qualityScore[boxIndex] += 1.;
+		}
+		if (debug["showCriterions"])
+			std::cout << "Box quality score: " << qualityScore[boxIndex] << std::endl;
 
 		relativeY = (maxY - minY) / (float)boxes[boxIndex].height;
 
@@ -6297,17 +6318,17 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 
 		// Merging letterboxes that are on top of each other (e.g. 's' is separated into upper and lower semi circle after cc)
 		// In this case merging means deleting one of the letterboxes, as the words are going to be broken based on the x-coordinate
-		if (breakBox == true)		// todo: get this right
-		{
-			std::set< int, std::greater<int> > deleteList;
-			for (unsigned int r = 0; r < wordBreaks.size(); r++)
-				for (unsigned int s = r + 1; s < wordBreaks.size(); s++)
-					if (abs(wordBreaks[r].left - wordBreaks[s].left) < 5)
-						deleteList.insert((int)s);
-
-			for (std::set< int, std::greater<int> >::iterator it = deleteList.begin(); it != deleteList.end(); it++)
-				wordBreaks.erase(wordBreaks.begin() + *it);
-		}
+//		if (breakBox == true)		// todo: what is this good for? --> apparently has no effect
+//		{
+//			std::set< int, std::greater<int> > deleteList;
+//			for (unsigned int r = 0; r < wordBreaks.size(); r++)
+//				for (unsigned int s = r + 1; s < wordBreaks.size(); s++)
+//					if (abs(wordBreaks[r].left - wordBreaks[s].left) < 5)
+//						deleteList.insert((int)s);
+//
+//			for (std::set< int, std::greater<int> >::iterator it = deleteList.begin(); it != deleteList.end(); it++)
+//				wordBreaks.erase(wordBreaks.begin() + *it);
+//		}
 
 		// Breaking and saving broken words
 		if (breakBox == true)
@@ -6332,17 +6353,22 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 					cv::Rect re(start, boxes[boxIndex].y, abs(wordBreakAt - start), boxes[boxIndex].height);
 					start = wordBreaks[r].left;
 					brokenWords.push_back(re);
+					brokenWordsQualityScore.push_back(qualityScore[boxIndex]);
 				}
 				// reaching the end
 				if (r == wordBreaks.size() - 1)
 				{
 					cv::Rect re(start, boxes[boxIndex].y, abs((boxes[boxIndex].x + boxes[boxIndex].width) - start), boxes[boxIndex].height);
 					brokenWords.push_back(re);
+					brokenWordsQualityScore.push_back(qualityScore[boxIndex]);
 				}
 			}
 		}
 		else
+		{
 			brokenWords.push_back(boxes[boxIndex]);
+			brokenWordsQualityScore.push_back(qualityScore[boxIndex]);
+		}
 
 		// Make Boxes smaller to increase precision and recall
 //		std::vector<cv::Rect> smallerBrokenWords;
@@ -6385,6 +6411,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 	}
 
 	boxes = brokenWords;
+	qualityScore = brokenWordsQualityScore;
 
 	// Save all words into brokenWords_
 //	for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < boxes.size(); makeSmallerIndex++)
