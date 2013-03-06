@@ -65,8 +65,8 @@ rosbuild_add_executable(object_segmentation ros/src/segmentation_node.cpp)
 rosbuild_add_compile_flags(object_categorization -D__LINUX__)
 rosbuild_add_compile_flags(object_segmentation -D__LINUX__)
 
-rosbuild_link_boost(object_categorization filesystem system)
-rosbuild_link_boost(object_segmentation filesystem system)
+rosbuild_link_boost(object_categorization filesystem system signals)
+rosbuild_link_boost(object_segmentation filesystem system signals)
 
 target_link_libraries(object_categorization ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_FEATURES_LIBRARIES})
 target_link_libraries(object_segmentation ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_FEATURES_LIBRARIES})

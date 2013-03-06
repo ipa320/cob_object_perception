@@ -1448,6 +1448,7 @@ int ObjectClassifier::ClusterLocalFeatures(std::string pCovarianceMatrixFileName
 
 	
 	/// Perform EM
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvEMParams EMParams = CvEMParams(NumberClustersOptimal, CvEM::COV_MAT_SPHERICAL, CvEM::START_AUTO_STEP, cvTermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 100, FLT_EPSILON), NULL, NULL, NULL, NULL);
 	if (ClusterCentersOptimal != NULL)
 	{
@@ -1478,6 +1479,37 @@ int ObjectClassifier::ClusterLocalFeatures(std::string pCovarianceMatrixFileName
 	mData.mLocalFeatureClusterer->train(AllLocalFeatures, NULL, EMParams, NULL);
 	std::cout << "Second train done (diagonal). LogLikelihood: " << mData.mLocalFeatureClusterer->get_log_likelihood() << "\n";
 	if (pScreenLogFile) *pScreenLogFile << "Second train done (diagonal). LogLikelihood: " << mData.mLocalFeatureClusterer->get_log_likelihood() << "\n";
+#else
+	if (mData.mLocalFeatureClusterer != 0)
+			delete mData.mLocalFeatureClusterer;
+	mData.mLocalFeatureClusterer = new cv::EM(NumberClustersOptimal, cv::EM::COV_MAT_SPHERICAL, cv::TermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 100, FLT_EPSILON));
+	cv::Mat allLocalFeatures(AllLocalFeatures, true);
+	if (ClusterCentersOptimal != NULL)
+	{
+		cv::Mat clusterCentersOptimalMat(ClusterCentersOptimal);
+		mData.mLocalFeatureClusterer->trainE(allLocalFeatures, clusterCentersOptimalMat);
+		std::cout << "\nNumberClustersOptimal: " << NumberClustersOptimal << "   ClusterCentersOptimal: " << ClusterCentersOptimal->rows << " x " << ClusterCentersOptimal->cols << "\n";
+		if (pScreenLogFile) *pScreenLogFile << "\nNumberClustersOptimal: " << NumberClustersOptimal << "   ClusterCentersOptimal: " << ClusterCentersOptimal->rows << " x " << ClusterCentersOptimal->cols << "\n";
+	}
+	else
+	{
+		mData.mLocalFeatureClusterer->train(allLocalFeatures);
+	}
+	std::cout << "First train done (spherical).\n";
+	if (pScreenLogFile) *pScreenLogFile << "First train done (spherical).\n";
+
+	mData.mLocalFeatureClusterer->set("covMatType", cv::EM::COV_MAT_DIAGONAL);
+	cv::Mat means = mData.mLocalFeatureClusterer->get<cv::Mat>("means");
+	std::vector<cv::Mat> covs = mData.mLocalFeatureClusterer->get<std::vector<cv::Mat> >("covs");
+	cv::Mat weights = mData.mLocalFeatureClusterer->get<cv::Mat>("weights");
+	std::cout << covs[0].rows << "   " << covs[0].cols << "\n";
+	std::cout << means.rows << "   " << means.cols << "\n";
+	std::cout << weights.rows << "   " << weights.cols << "\n";
+	if (pScreenLogFile) *pScreenLogFile << covs[0].rows << "   " << covs[0].cols << "\n" << means.rows << "   " << means.cols << "\n" << weights.rows << "   " << weights.cols << "\n";
+	mData.mLocalFeatureClusterer->trainE(allLocalFeatures, means, covs, weights);
+	std::cout << "Second train done (diagonal).\n";
+	if (pScreenLogFile) *pScreenLogFile << "Second train done (diagonal).\n";
+#endif
 
 	/// Save EM
 	std::stringstream FileName;
@@ -1496,9 +1528,11 @@ int ObjectClassifier::ClusterLocalFeatures(std::string pCovarianceMatrixFileName
 	cvReleaseMat(&ClusterCenters);
 *///	cvReleaseMat(&ClusterLabels);
 
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	for (int i=0; i<NumberClustersOptimal; i++) cvReleaseMat(&(Covs[i]));
 	cvReleaseMat(&Means);
 	cvReleaseMat(&Weights);
+#endif
 
 	cvReleaseMat(&AllLocalFeatures);
 	// cvReleaseMat(&CovarMatrixSqrt);  --> pointer taken from mData.mSqrtInverseCovarianceMatrix
@@ -5461,7 +5495,11 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 			bool useRollPoseNormalization = pGlobalFeatureParams.useRollPoseNormalization;	// true;
 
 			int descriptorSize = 0;
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 			if (useFeature["bow"]) descriptorSize += mData.mLocalFeatureClusterer->get_nclusters();
+#else
+			if (useFeature["bow"]) descriptorSize += mData.mLocalFeatureClusterer->get<int>("nclusters");
+#endif
 			if (useFeature["sap"]) descriptorSize += 3+(numberLinesX[0]+numberLinesY[0])*(polynomOrder[0]+1);
 			if (useFeature["sap2"]) descriptorSize += (numberLinesX[1]+numberLinesY[1])*(polynomOrder[1]+1);
 			if (useFeature["pointdistribution"]) descriptorSize += pGlobalFeatureParams.cellCount[0] * pGlobalFeatureParams.cellCount[1];
@@ -5497,7 +5535,12 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 					{
 						CvMat* LocalFeatureVector = cvCreateMat(1, ItBlobFeatures->m_D.size(), CV_32FC1);
 						for (unsigned int j=0; j<ItBlobFeatures->m_D.size(); j++) cvSetReal1D(LocalFeatureVector, j, ItBlobFeatures->m_D[j]);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 						int Bin = cvRound(mData.mLocalFeatureClusterer->predict((const CvMat*)LocalFeatureVector, NULL));		// speedup: replace round by (int)
+#else
+						cv::Mat localFeatureVectorMat(LocalFeatureVector);
+						int Bin = cvRound((mData.mLocalFeatureClusterer->predict(localFeatureVectorMat))[1]);		// speedup: replace round by (int)
+#endif
 						//std::cout << Bin << "\n";
 						cvSetReal1D(*pGlobalFeatures, Bin, cvGetReal1D(*pGlobalFeatures, Bin)+1.0);
 						cvReleaseMat(&LocalFeatureVector);
@@ -5514,7 +5557,11 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 					}
 					if (NumberSamples > 0)
 						cvConvertScale(*pGlobalFeatures, *pGlobalFeatures, 1/(double)NumberSamples, 0);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 					GlobalFeatureVectorPosition += mData.mLocalFeatureClusterer->get_nclusters();		// data is inserted into pGlobalFeatures at this position
+#else
+					GlobalFeatureVectorPosition += mData.mLocalFeatureClusterer->get<int>("nclusters");		// data is inserted into pGlobalFeatures at this position
+#endif
 				}
 
 				/*std::cout << "pGlobalFeatures:\n";
@@ -6647,7 +6694,12 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 								{
 									CvMat* LocalFeatureVector = cvCreateMat(1, ItBlobFeatures->m_D.size(), CV_32FC1);
 									for (unsigned int j=0; j<ItBlobFeatures->m_D.size(); j++) cvSetReal1D(LocalFeatureVector, j, ItBlobFeatures->m_D[j]);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 									pointl.label = (unsigned char)cvRound(mData.mLocalFeatureClusterer->predict((const CvMat*)LocalFeatureVector, NULL));		// speedup: replace round by (int)
+#else
+									cv::Mat localFeatureVector(LocalFeatureVector);
+									pointl.label = (unsigned char)cvRound((mData.mLocalFeatureClusterer->predict(localFeatureVector))[1]);		// speedup: replace round by (int)
+#endif
 									cvReleaseMat(&LocalFeatureVector);
 								}
 								labels->push_back(pointl);
@@ -8636,7 +8688,11 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 ClassificationData::ClassificationData()
 {
 	mSqrtInverseCovarianceMatrix = NULL;
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	mLocalFeatureClusterer = new CvEM();
+#else
+	mLocalFeatureClusterer = new cv::EM;
+#endif
 }
 
 ClassificationData::~ClassificationData()
@@ -9709,22 +9765,41 @@ int ClassificationData::SaveLocalFeatureClusterer(std::string pFileName)
 		return ipa_utils::RET_FAILED;
 	}
 
-	f << mLocalFeatureClusterer->get_nclusters() << "\n";			// number of clusters
-
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
+	int numberClusters = mLocalFeatureClusterer->get_nclusters();
 	CvMat* Means = (CvMat*)mLocalFeatureClusterer->get_means();
-	f << Means->rows << "\t" << Means->cols << "\n";				// size of means matrix
-	f << MatToString(Means);										// means matrix
-
 	CvMat* Weights = (CvMat*)mLocalFeatureClusterer->get_weights();
-	f << Weights->rows << "\t" << Weights->cols << "\n";			// size of weights matrix
-	f << MatToString(Weights);										// weights matrix
+#else
+	int numberClusters = mLocalFeatureClusterer->get<int>("nclusters");
+	cv::Mat meansMat = mLocalFeatureClusterer->get<cv::Mat>("means");
+	CvMat Means = (CvMat)meansMat;
+	cv::Mat weightsMat = mLocalFeatureClusterer->get<cv::Mat>("weights");
+	CvMat Weights = (CvMat)weightsMat;
+#endif
+	f << numberClusters << "\n";			// number of clusters
 
+	f << Means.rows << "\t" << Means.cols << "\n";				// size of means matrix
+	f << MatToString(&Means);										// means matrix
+
+	f << Weights.rows << "\t" << Weights.cols << "\n";			// size of weights matrix
+	f << MatToString(&Weights);										// weights matrix
+
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvMat** Covs = (CvMat**)mLocalFeatureClusterer->get_covs();
-	for (int i=0; i<mLocalFeatureClusterer->get_nclusters(); i++)
+	for (int i=0; i<numberClusters; i++)
 	{
 		f << (Covs[i])->rows << "\t" << (Covs[i])->cols << "\n";	// size of covariance matrix
 		f << MatToString(Covs[i]);									// covariance matrix
 	}
+#else
+	std::vector<cv::Mat> covsVector = mLocalFeatureClusterer->get<std::vector<cv::Mat> >("covs");
+	for (int i=0; i<numberClusters; i++)
+	{
+		f << covsVector[i].rows << "\t" << covsVector[i].cols << "\n";	// size of covariance matrix
+		CvMat covsI = (CvMat)covsVector[i];
+		f << MatToString(&covsI);									// covariance matrix
+	}
+#endif
 	
 /*	CvMat* Probs = (CvMat*)mLocalFeatureClusterer->get_probs();
 	f << Probs->rows << "\t" << Probs->cols	<< "\n";				// size of probabilities matrix
@@ -9788,8 +9863,22 @@ int ClassificationData::LoadLocalFeatureClusterer(std::string pFileName)
 		return ipa_utils::RET_FAILED;
 	}
 	CvMat* AllLocalFeatures = CreateAllLocalFeatureMatrix(NumberSamples, NumberFeatures);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvEMParams EMParams = CvEMParams(NumberClusters, CvEM::COV_MAT_DIAGONAL, CvEM::START_E_STEP, cvTermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 100, FLT_EPSILON), /*(const CvMat*)Probs*/NULL, (const CvMat*)Weights, (const CvMat*)Means, (const CvMat**)Covs);
 	mLocalFeatureClusterer->train(AllLocalFeatures, NULL, EMParams);
+#else
+	mLocalFeatureClusterer->set("nclusters", NumberClusters);
+	mLocalFeatureClusterer->set("covMatType", cv::EM::COV_MAT_DIAGONAL);
+	mLocalFeatureClusterer->set("maxIters", 100);
+	mLocalFeatureClusterer->set("epsilon", FLT_EPSILON);
+	cv::Mat weightsMat(Weights);
+	cv::Mat meansMat(Means);
+	std::vector<cv::Mat> covsVector(NumberClusters);
+	for (int i=0; i<NumberClusters; i++)
+		covsVector[i] = cv::Mat(Covs[i]);
+	cv::Mat allLocalFeaturesMat(AllLocalFeatures);
+	mLocalFeatureClusterer->trainE(allLocalFeaturesMat, meansMat, covsVector, weightsMat);
+#endif
 	cvReleaseMat(&AllLocalFeatures);
 
 	std::cout << "Local feature clusterer (EM) loaded.\n";
