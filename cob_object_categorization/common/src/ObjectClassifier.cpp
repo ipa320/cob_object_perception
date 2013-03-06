@@ -9772,17 +9772,19 @@ int ClassificationData::SaveLocalFeatureClusterer(std::string pFileName)
 #else
 	int numberClusters = mLocalFeatureClusterer->get<int>("nclusters");
 	cv::Mat meansMat = mLocalFeatureClusterer->get<cv::Mat>("means");
-	CvMat Means = (CvMat)meansMat;
+	CvMat Means_ = (CvMat)meansMat;
+	CvMat* Means = &Means_;
 	cv::Mat weightsMat = mLocalFeatureClusterer->get<cv::Mat>("weights");
-	CvMat Weights = (CvMat)weightsMat;
+	CvMat Weights_ = (CvMat)weightsMat;
+	CvMat* Weights = &Weights_;
 #endif
 	f << numberClusters << "\n";			// number of clusters
 
-	f << Means.rows << "\t" << Means.cols << "\n";				// size of means matrix
-	f << MatToString(&Means);										// means matrix
+	f << Means->rows << "\t" << Means->cols << "\n";				// size of means matrix
+	f << MatToString(Means);										// means matrix
 
-	f << Weights.rows << "\t" << Weights.cols << "\n";			// size of weights matrix
-	f << MatToString(&Weights);										// weights matrix
+	f << Weights->rows << "\t" << Weights->cols << "\n";			// size of weights matrix
+	f << MatToString(Weights);										// weights matrix
 
 #if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvMat** Covs = (CvMat**)mLocalFeatureClusterer->get_covs();
