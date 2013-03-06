@@ -11,14 +11,14 @@
 
 #include <boost/thread/condition.hpp>
 
-#include <pcl/ros/conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization/point_cloud_handlers.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <pcl/visualization/cloud_viewer.h>
+//#include <pcl/ros/conversions.h>
+//#include <pcl/point_cloud.h>
+//#include <pcl/point_types.h>
+//#include <pcl/io/pcd_io.h>
+//#include <pcl/visualization/pcl_visualizer.h>
+//#include <pcl/visualization/point_cloud_handlers.h>
+//#include <sensor_msgs/PointCloud2.h>
+//#include <pcl/visualization/cloud_viewer.h>
 
 #include <cob_read_text/text_detect.h>
 
