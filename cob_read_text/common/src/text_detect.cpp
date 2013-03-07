@@ -2006,6 +2006,8 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 
 		while (currentPoints.size()>2)
 		{
+			// 1. RANSAC for line fitting
+			std::cout << "Number current points = " << currentPoints.size() << std::endl;
 			double bestScore = 0.;
 			cv::Point2d bestP1(0,0);
 			cv::Point2d bestNormal(-1,-1);
@@ -2035,7 +2037,7 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 				{
 					cv::Point2d diff = p1-currentPoints[i];
 					double dist = fabs(diff.x*normal.x + diff.y*normal.y);
-					score += exp(log(0.1) * dist/inlierDistanceThreshold);
+					score += exp(log(0.1) * dist/inlierDistanceThreshold);		// todo: what is the reason for this way of computing the score?
 				}
 
 				// update best
@@ -2049,7 +2051,7 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 			if (debug["showBreakLines"])
 				std::cout << "bestScore=" << bestScore << std::endl;
 
-			// collect all inliers
+			// 2. collect all inliers
 			std::vector<int> inlierSet;
 			for (unsigned int i=0; i<currentPoints.size(); i++)
 			{
@@ -2063,105 +2065,193 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 				}
 			}
 
-			// check whether inliers have similar size -> filter clutter
-			double stddevLetterSize = 0.;
+			// 3. break inlier set with respect to letter sizes using non-parametric mode seeking with mean shift
+			//  prepare mean shift set
+			std::vector<double> meanShiftSet(inlierSet.size()), meanShiftSet2(inlierSet.size());		// contains the letter sizes
 			for (unsigned int i = 0; i < inlierSet.size(); i++)
+				meanShiftSet[i] = sqrt(currentLetterBoxes[inlierSet[i]].width*currentLetterBoxes[inlierSet[i]].width + currentLetterBoxes[inlierSet[i]].height*currentLetterBoxes[inlierSet[i]].height);
+			//  compute median of letter sizes
+			double medianLetterSizeInlierSet = 0;
+			std::multiset<double> orderedLetterSizes;
+			for (unsigned int i = 0; i < meanShiftSet.size(); i++)
+				orderedLetterSizes.insert(meanShiftSet[i]);
+			std::multiset<double>::iterator it = orderedLetterSizes.begin();
+			for (int i=0; i<(int)orderedLetterSizes.size()/2; i++, it++);
+			medianLetterSizeInlierSet = *it;
+			double meanShiftBandwidth = 2./medianLetterSizeInlierSet * 2./medianLetterSizeInlierSet;
+			//  mean shift iteration
+			for (int iter=0; iter<100; iter++)
 			{
-				double letterSize = sqrt(currentLetterBoxes[inlierSet[i]].width*currentLetterBoxes[inlierSet[i]].width + currentLetterBoxes[inlierSet[i]].height*currentLetterBoxes[inlierSet[i]].height);
-				stddevLetterSize += (letterSize - averageLetterSize) * (letterSize - averageLetterSize);
+				for (int i=0; i<(int)meanShiftSet.size(); i++)
+				{
+					double nominator = 0., denominator = 0.;
+					for (int j=0; j<(int)meanShiftSet.size(); j++)
+					{
+						double weight = exp(meanShiftBandwidth * (meanShiftSet[j]-meanShiftSet[i]) * (meanShiftSet[j]-meanShiftSet[i]));
+						nominator += weight*meanShiftSet[j];
+						denominator += weight;
+					}
+					meanShiftSet2[i] = nominator/denominator;
+				}
+				meanShiftSet = meanShiftSet2;
 			}
-			stddevLetterSize = sqrt(stddevLetterSize/(double)inlierSet.size());
-			if (stddevLetterSize < 0.3*averageLetterSize)
+			for (int i=0; i<(int)meanShiftSet.size(); i++)
+				std::cout << "  meanshift[" << i << "]=" << meanShiftSet[i] << std::endl;
+			//  determine sets of letters that belong to the same cluster
+			std::vector< std::vector<int> > inlierSubSets(1, std::vector<int>(1, inlierSet[0]));
+			std::vector<double> convergencePoints(1, meanShiftSet[0]);
+			for (int i=1; i<(int)meanShiftSet.size(); i++)
 			{
-				// determine better line approximation based on all inliers with linear regression
-				if (inlierSet.size() > 2)
+				bool createNewSet = true;
+				for (int j=0; j<(int)convergencePoints.size(); j++)
 				{
-	//				std::cout << "line equation before: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")" << std::endl;
-					cv::Mat A(inlierSet.size(), 3, CV_64FC1);
-					for (unsigned int i=0; i<inlierSet.size(); i++)
+					if (abs(meanShiftSet[i]-convergencePoints[j]) < 1.)
 					{
-						// regression problem: [x y 1] * [a; b; c] = 0
-						A.at<double>(i,0) = currentPoints[inlierSet[i]].x;
-						A.at<double>(i,1) = currentPoints[inlierSet[i]].y;
-						A.at<double>(i,2) = 1.;
+						inlierSubSets[j].push_back(inlierSet[i]);
+						convergencePoints[j] = (convergencePoints[j]*(inlierSubSets[j].size()-1.) + meanShiftSet[i]) / (double)inlierSubSets[j].size();
+						createNewSet = false;
 					}
-					cv::SVD svd(A);
-	//				std::cout << "u,w,v: (" << svd.u.rows << ", " << svd.u.cols << "), (" << svd.w.rows << ", " << svd.w.cols << "), (" << svd.vt.rows << ", " << svd.vt.cols << ")\n";
-	//				cv::Mat W = cv::Mat::zeros(A.cols,A.cols,CV_64FC1);
-	//				for (int i=0; i<svd.w.rows; i++)
-	//					W.at<double>(i,i) = svd.w.at<double>(i);
-	//				cv::Mat B = svd.u * W * svd.vt;
-	//				std::cout << "A\n";
-	//				for (int i=0; i<4; i++)
-	//					std::cout << A.at<double>(i, 0) << ", " << A.at<double>(i, 1) << ", " << A.at<double>(i, 2) << std::endl;
-	//				std::cout << "B\n";
-	//				for (int i=0; i<4; i++)
-	//					std::cout << B.at<double>(i, 0) << ", " << B.at<double>(i, 1) << ", " << B.at<double>(i, 2) << std::endl;
-	//				std::cout << "vt\n";
-	//				for (int i=0; i<svd.vt.rows; i++)
-	//					std::cout << svd.vt.at<double>(i, 0) << ", " << svd.vt.at<double>(i, 1) << ", " << svd.vt.at<double>(i, 2) << ", " << svd.vt.at<double>(i, 3) << std::endl;
+				}
+				if (createNewSet == true)
+				{
+					inlierSubSets.push_back(std::vector<int>(1, inlierSet[i]));
+					convergencePoints.push_back(meanShiftSet[i]);
+				}
+			}
 
-					// compute normal and point from [a;b;c]
-					if (svd.vt.at<double>(2, 1) != 0.)
-					{
-						// y = -a/b * x - c/b
-						bestNormal.x = svd.vt.at<double>(2, 0) / svd.vt.at<double>(2, 1);
-						bestNormal.y = 1.;
-						double normMagnitude = sqrt(bestNormal.x*bestNormal.x + bestNormal.y*bestNormal.y);
-						bestNormal.x /= normMagnitude;	// normalize normal
-						bestNormal.y /= normMagnitude;
-
-						bestP1.x = 0.;
-						bestP1.y = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 1);
-					}
-					else
-					{
-						// x = -c/a
-						bestNormal.x = 1.;
-						bestNormal.y = 0.;
-						bestP1.x = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 0);
-						bestP1.y = 0;
-					}
-
-	//				std::cout << "line equation after: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")\n\n" << std::endl;
+			// 4. verify sub sets and store parameters
+			for (int subSetIndex=0; subSetIndex<(int)inlierSubSets.size(); subSetIndex++)
+			{
+				// skip single letters (and remove them from the set of current points, although they may fit elsewhere, but termination of procedure not guaranteed)
+				if (inlierSubSets[subSetIndex].size() < 2)
+				{
+					currentPoints.erase(currentPoints.begin()+inlierSubSets[subSetIndex][0]);
+					currentLetterBoxes.erase(currentLetterBoxes.begin()+inlierSubSets[subSetIndex][0]);
+					continue;
 				}
 
-				// retrieve bounding box of inlier set
-				cv::Point minPoint(100000, 100000), maxPoint(0, 0);
-				for (unsigned int i=0; i<inlierSet.size(); i++)
-				{
-					if (minPoint.x > currentLetterBoxes[inlierSet[i]].x)
-						minPoint.x = currentLetterBoxes[inlierSet[i]].x;
-					if (minPoint.y > currentLetterBoxes[inlierSet[i]].y)
-						minPoint.y = currentLetterBoxes[inlierSet[i]].y;
-					if (maxPoint.x < currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width)
-						maxPoint.x = currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width;
-					if (maxPoint.y < currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height)
-						maxPoint.y = currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height;
-				}
-				splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
-				lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
+				std::vector<int>& currentInlierSet = inlierSubSets[subSetIndex];
 
+				// check whether inliers have similar size -> filter clutter
+				double medianLetterSizeInlierSubSet = 0;
+				std::multiset<double> orderedLetterSizesSub;
+				for (unsigned int i = 0; i < currentInlierSet.size(); i++)
+					orderedLetterSizesSub.insert(sqrt(currentLetterBoxes[currentInlierSet[i]].width*currentLetterBoxes[currentInlierSet[i]].width + currentLetterBoxes[currentInlierSet[i]].height*currentLetterBoxes[currentInlierSet[i]].height));
+				std::multiset<double>::iterator it = orderedLetterSizesSub.begin();
+				for (int i=0; i<(int)orderedLetterSizesSub.size()/2; i++, it++);
+				medianLetterSizeInlierSubSet = *it;
+				double stddevLetterSize = 0.;
+				for (unsigned int i = 0; i < currentInlierSet.size(); i++)
+				{
+					double letterSize = sqrt(currentLetterBoxes[currentInlierSet[i]].width*currentLetterBoxes[currentInlierSet[i]].width + currentLetterBoxes[currentInlierSet[i]].height*currentLetterBoxes[currentInlierSet[i]].height);
+					stddevLetterSize += (letterSize - medianLetterSizeInlierSubSet) * (letterSize - medianLetterSizeInlierSubSet);
+				}
+				stddevLetterSize = sqrt(stddevLetterSize/(double)currentInlierSet.size());
 				// debug
 				if (debug["showBreakLines"])
 				{
 					cv::Mat output = originalImage_.clone();
-					for (unsigned int i=0; i<inlierSet.size(); i++)
-						cv::rectangle(output, cv::Point(currentLetterBoxes[inlierSet[i]].x, currentLetterBoxes[inlierSet[i]].y), cv::Point(currentLetterBoxes[inlierSet[i]].x+currentLetterBoxes[inlierSet[i]].width, currentLetterBoxes[inlierSet[i]].y+currentLetterBoxes[inlierSet[i]].height), cv::Scalar(0,0,255), 2, 1, 0);
-					cv::rectangle(output, cv::Point(minPoint.x, minPoint.y), cv::Point(maxPoint.x, maxPoint.y), cv::Scalar(0,255,0), 2, 1, 0);
+					for (unsigned int i=0; i<currentInlierSet.size(); i++)
+						cv::rectangle(output, cv::Point(currentLetterBoxes[currentInlierSet[i]].x, currentLetterBoxes[currentInlierSet[i]].y), cv::Point(currentLetterBoxes[currentInlierSet[i]].x+currentLetterBoxes[currentInlierSet[i]].width, currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height), cv::Scalar(0,0,255), 2, 1, 0);
+					cv::line(output, cv::Point(bestP1.x-(-1000*bestNormal.y), bestP1.y-1000*bestNormal.x), cv::Point(bestP1.x+(-1000*bestNormal.y), bestP1.y+1000*bestNormal.x), cv::Scalar(255,255,255), 2, 1, 0);
 					cv::imshow("breaking lines", output);
 					cvMoveWindow("breaking lines", 0, 0);
+					std::cout << "medianLetterSizeInlierSubSet=" << medianLetterSizeInlierSubSet << "   stddevLetterSize=" << stddevLetterSize << std::endl;
 					cv::waitKey(0);
+				}
+				if (stddevLetterSize < 0.35*medianLetterSizeInlierSubSet)	// todo: parameter
+				{
+					// determine better line approximation based on all inliers with linear regression if more than 2 inliers available
+					if (currentInlierSet.size() > 2)
+					{
+		//				std::cout << "line equation before: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")" << std::endl;
+						cv::Mat A(currentInlierSet.size(), 3, CV_64FC1);
+						for (unsigned int i=0; i<currentInlierSet.size(); i++)
+						{
+							// regression problem: [x y 1] * [a; b; c] = 0
+							A.at<double>(i,0) = currentPoints[currentInlierSet[i]].x;
+							A.at<double>(i,1) = currentPoints[currentInlierSet[i]].y;
+							A.at<double>(i,2) = 1.;
+						}
+						cv::SVD svd(A);
+		//				std::cout << "u,w,v: (" << svd.u.rows << ", " << svd.u.cols << "), (" << svd.w.rows << ", " << svd.w.cols << "), (" << svd.vt.rows << ", " << svd.vt.cols << ")\n";
+		//				cv::Mat W = cv::Mat::zeros(A.cols,A.cols,CV_64FC1);
+		//				for (int i=0; i<svd.w.rows; i++)
+		//					W.at<double>(i,i) = svd.w.at<double>(i);
+		//				cv::Mat B = svd.u * W * svd.vt;
+		//				std::cout << "A\n";
+		//				for (int i=0; i<4; i++)
+		//					std::cout << A.at<double>(i, 0) << ", " << A.at<double>(i, 1) << ", " << A.at<double>(i, 2) << std::endl;
+		//				std::cout << "B\n";
+		//				for (int i=0; i<4; i++)
+		//					std::cout << B.at<double>(i, 0) << ", " << B.at<double>(i, 1) << ", " << B.at<double>(i, 2) << std::endl;
+		//				std::cout << "vt\n";
+		//				for (int i=0; i<svd.vt.rows; i++)
+		//					std::cout << svd.vt.at<double>(i, 0) << ", " << svd.vt.at<double>(i, 1) << ", " << svd.vt.at<double>(i, 2) << ", " << svd.vt.at<double>(i, 3) << std::endl;
+
+						// compute normal and point from [a;b;c]
+						if (svd.vt.at<double>(2, 1) != 0.)
+						{
+							// y = -a/b * x - c/b
+							bestNormal.x = svd.vt.at<double>(2, 0) / svd.vt.at<double>(2, 1);
+							bestNormal.y = 1.;
+							double normMagnitude = sqrt(bestNormal.x*bestNormal.x + bestNormal.y*bestNormal.y);
+							bestNormal.x /= normMagnitude;	// normalize normal
+							bestNormal.y /= normMagnitude;
+
+							bestP1.x = 0.;
+							bestP1.y = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 1);
+						}
+						else
+						{
+							// x = -c/a
+							bestNormal.x = 1.;
+							bestNormal.y = 0.;
+							bestP1.x = -svd.vt.at<double>(2, 2) / svd.vt.at<double>(2, 0);
+							bestP1.y = 0;
+						}
+
+		//				std::cout << "line equation after: p1=(" << bestP1.x << ", " << bestP1.y << ")  normal=(" << bestNormal.x << ", " << bestNormal.y << ")\n\n" << std::endl;
+					}
+
+					// retrieve bounding box of inlier set
+					cv::Point minPoint(100000, 100000), maxPoint(0, 0);
+					for (unsigned int i=0; i<currentInlierSet.size(); i++)
+					{
+						if (minPoint.x > currentLetterBoxes[currentInlierSet[i]].x)
+							minPoint.x = currentLetterBoxes[currentInlierSet[i]].x;
+						if (minPoint.y > currentLetterBoxes[currentInlierSet[i]].y)
+							minPoint.y = currentLetterBoxes[currentInlierSet[i]].y;
+						if (maxPoint.x < currentLetterBoxes[currentInlierSet[i]].x+currentLetterBoxes[currentInlierSet[i]].width)
+							maxPoint.x = currentLetterBoxes[currentInlierSet[i]].x+currentLetterBoxes[currentInlierSet[i]].width;
+						if (maxPoint.y < currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height)
+							maxPoint.y = currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height;
+					}
+					splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
+					lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
+
+					// debug
+					if (debug["showBreakLines"])
+					{
+						cv::Mat output = originalImage_.clone();
+						for (unsigned int i=0; i<currentInlierSet.size(); i++)
+							cv::rectangle(output, cv::Point(currentLetterBoxes[currentInlierSet[i]].x, currentLetterBoxes[currentInlierSet[i]].y), cv::Point(currentLetterBoxes[currentInlierSet[i]].x+currentLetterBoxes[currentInlierSet[i]].width, currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height), cv::Scalar(0,0,255), 2, 1, 0);
+						cv::rectangle(output, cv::Point(minPoint.x, minPoint.y), cv::Point(maxPoint.x, maxPoint.y), cv::Scalar(0,255,0), 2, 1, 0);
+						cv::imshow("breaking lines", output);
+						cvMoveWindow("breaking lines", 0, 0);
+						cv::waitKey(0);
+					}
+				}
+
+				// remove inlier set from currentPoints and currentLetterBoxes
+				std::sort(currentInlierSet.begin(), currentInlierSet.end(), std::greater<int>());
+				for (unsigned int i=0; i<currentInlierSet.size(); i++)
+				{
+					currentPoints.erase(currentPoints.begin()+currentInlierSet[i]);
+					currentLetterBoxes.erase(currentLetterBoxes.begin()+currentInlierSet[i]);
 				}
 			}
 
-			// remove inlier set from currentPoints and currentLetterBoxes
-			std::sort(inlierSet.begin(), inlierSet.end(), std::greater<int>());
-			for (unsigned int i=0; i<inlierSet.size(); i++)
-			{
-				currentPoints.erase(currentPoints.begin()+inlierSet[i]);
-				currentLetterBoxes.erase(currentLetterBoxes.begin()+inlierSet[i]);
-			}
 		}
 	}
 
@@ -4382,7 +4472,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 				maxDistance += rectsArea[k];
 			maxDistance = distanceParameter * (maxDistance / actualRandomSet.size());
 
-			// Reject Criterion #1: Reject model if letter sizes are too different
+			// Reject Criterion #1: Reject model if letter sizes are too different (for the 3 randomly chosen letters)
 			if (std::max(rectsArea[0], rectsArea[1]) / (std::min(rectsArea[0], rectsArea[1])) > 3) // todo: (i) make this a parameter, (ii) avoid division
 				continue;
 			if (std::max(rectsArea[0], rectsArea[2]) / (std::min(rectsArea[0], rectsArea[2])) > 3)
@@ -5701,7 +5791,7 @@ int DetectText::decideWhichBreaks(float negPosRatio, float max_Bin, float baseli
 	//---------------------------------------------------------------------------------------
 	//criterion #12 variance of letter heights < 4
 	//---------------------------------------------------------------------------------------
-	std::cout << "Criterion 12.2.2: " << baselineStddev << "  (threshold: " << (0.05/15.*wordBreaks.size()+0.25/3.)*box.height << ", i.e. " << (0.05/15.*wordBreaks.size()+0.25/3.) << "*box.height)" << std::endl;
+//	std::cout << "Criterion 12.2.2: " << baselineStddev << "  (threshold: " << (0.05/15.*wordBreaks.size()+0.25/3.)*box.height << ", i.e. " << (0.05/15.*wordBreaks.size()+0.25/3.) << "*box.height)" << std::endl;
 
 	if (baselineStddev > 0.05*box.height && wordBreaks.size() <= 2)
 	{
@@ -6593,7 +6683,7 @@ void DetectText::testEdgePoints(std::vector<cv::Point>& edgepoints)
 	std::vector<cv::Point>::iterator itr = edgepoints.begin();
 	for (; itr != edgepoints.end(); ++itr)
 	{
-		temp.at<unsigned char> (*itr) = 255;
+		temp.at<unsigned char>(*itr) = 255;
 	}
 	imshow("test edge", temp);
 	cv::waitKey();
