@@ -31,6 +31,13 @@ public:
 
 	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename)
 	{
+		if (camera_matrix.empty())
+		{
+			std::cerr << "ERROR - AbstractFiducialModel::Init" << std::endl;
+			std::cerr << "\t [FAILED] Camera matrix not initialized" << std::endl;
+			return ipa_Utils::RET_FAILED;
+		}
+
 		m_camera_matrix = camera_matrix.clone();
 		return LoadParameters(directory_and_filename);
 	};
