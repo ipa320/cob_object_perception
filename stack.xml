@@ -11,6 +11,7 @@
   <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
   <depend stack="pr2_controllers" /> <!-- pr2_mechanism_controllers -->
   <depend stack="ros" />
+  <depend stack="cob_perception_common" />
   <depend stack="ros_comm" /> <!-- std_msgs, rospy, roscpp, message_filters -->
   <depend stack="simulator_gazebo" /> <!-- gazebo -->
   <depend stack="vision_opencv" /> <!-- opencv2, image_geometry, cv_bridge -->
