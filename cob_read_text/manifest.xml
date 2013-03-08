@@ -11,6 +11,7 @@ Text localisation and OCR occur separately and can be evaluated using precision,
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_read_text</url>
 
+  <depend package="pcl"/>
   <depend package="opencv2"/>
   <depend package="roscpp"/>
   <depend package="sensor_msgs"/>
@@ -19,7 +20,6 @@ Text localisation and OCR occur separately and can be evaluated using precision,
   <depend package="std_msgs"/>
   <depend package="image_transport"/>
   <depend package="cob_tesseract"/>
-  <depend package="pcl"/>
   <depend package="pcl_ros"/> 
   <depend package="geometry_msgs"/>
   <depend package="sensor_msgs"/>

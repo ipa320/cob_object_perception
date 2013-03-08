@@ -62,7 +62,7 @@
 
 // ROS includes
 #include <ros/ros.h>
-#include <pcl_ros/pcl_nodelet.h>
+#include <nodelet/nodelet.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -95,7 +95,7 @@ public:
   }
 };
 
-class As_Nodelet : public  pcl_ros::PCLNodelet
+class As_Nodelet : public  nodelet::Nodelet
 {
 protected:
   ros::NodeHandle n_;
@@ -106,7 +106,6 @@ public:
   virtual ~As_Nodelet() {}
 
   void start() {
-    PCLNodelet::onInit();
     n_ = getNodeHandle();
   }
 };

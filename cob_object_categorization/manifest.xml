@@ -9,11 +9,11 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_object_categorization</url>
 
-  <depend package="roscpp"/>
-  <depend package="opencv2"/>
-  <depend package="cv_bridge"/>
-  <!--depend package="pcl"/-->
+  <depend package="pcl"/>
   <depend package="pcl_ros"/>
+  <depend package="opencv2"/>
+  <depend package="roscpp"/>
+  <depend package="cv_bridge"/>
   <depend package="sensor_msgs"/>
   <depend package="message_filters"/>
   <depend package="image_transport"/>

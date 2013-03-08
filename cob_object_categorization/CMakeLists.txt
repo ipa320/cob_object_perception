@@ -30,8 +30,15 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ros/include
 		    #/usr/include/flann/
 		    #/usr/include/vtk-5.4/)
 
+find_package(Eigen REQUIRED)
+include_directories(${EIGEN_INCLUDE_DIRS})
+add_definitions(${EIGEN_DEFINITIONS})
+
+find_package(VTK REQUIRED)
+include_directories(${VTK_INCLUDE_DIRS})
+
 # external pcl
-#find_package(PCL 1.4 REQUIRED)
+#find_package(PCL 1.6 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -68,8 +75,8 @@ rosbuild_add_compile_flags(object_segmentation -D__LINUX__)
 rosbuild_link_boost(object_categorization filesystem system signals)
 rosbuild_link_boost(object_segmentation filesystem system signals)
 
-target_link_libraries(object_categorization ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_FEATURES_LIBRARIES})
-target_link_libraries(object_segmentation ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_FEATURES_LIBRARIES})
+target_link_libraries(object_categorization ${PCL_LIBRARIES})  #${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_FEATURES_LIBRARIES})
+target_link_libraries(object_segmentation ${PCL_LIBRARIES})    #${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_FEATURES_LIBRARIES})
 #target_link_libraries(object_categorization pcl_features pcl_common pcl_kdtree pcl_search pcl_filters pcl_io)
 #target_link_libraries(object_segmentation pcl_features pcl_common pcl_kdtree pcl_search pcl_filters pcl_io)
 
@@ -80,3 +87,5 @@ target_link_libraries(object_segmentation ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRA
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
+
+rosbuild_add_roslaunch_check(ros/launch)
