@@ -145,6 +145,9 @@ private:
 
   void combineNeighborBoxes(std::vector<cv::Rect> & boundingBoxes);
 
+  // computes the signed distance of a point (point) to a line (represented by a line point and the line normal is Hessian Normal Form)
+  double pointLineDistance2D(cv::Point2d linePoint, cv::Point2d lineNormal, cv::Point2d point);
+
   void breakLines(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations);
 
   static bool spatialOrderX(cv::Rect a, cv::Rect b);

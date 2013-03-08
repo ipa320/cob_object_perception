@@ -193,11 +193,11 @@ result_: 2
 
 # show gray colored edgemap image
 # bool
-showEdge: true
+showEdge: false
 
 # show swt map
 # bool
-showSWT: true
+showSWT: false
 
 # show connected components
 # bool
@@ -217,11 +217,11 @@ showChains: false
 
 # breaks text block into several lines
 # bool
-showBreakLines: true
+showBreakLines: false
 
-showWords: true
+showWords: false
 
-showCriterions: true
+showCriterions: false
 
 # show all bezier models that are created within ransac
 # bool

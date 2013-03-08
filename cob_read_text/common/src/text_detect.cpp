@@ -1939,6 +1939,13 @@ void DetectText::combineNeighborBoxes(std::vector<cv::Rect>& originalBoxes)
 		originalBoxes.push_back(finalBoxes[i]);
 }
 
+// computes the signed distance of a point (point) to a line (represented by a line point and the line normal is Hessian Normal Form)
+double DetectText::pointLineDistance2D(cv::Point2d linePoint, cv::Point2d lineNormal, cv::Point2d point)
+{
+	cv::Point2d diff = linePoint-point;
+	return diff.x*lineNormal.x + diff.y*lineNormal.y;
+}
+
 
 void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::RotatedRect>& lineEquations)
 {
@@ -2004,8 +2011,11 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 		if (debug["showBreakLines"])
 			std::cout << "inlierDistanceThreshold=" << inlierDistanceThreshold << std::endl;
 
-		while (currentPoints.size()>2)
+		unsigned int lastSetSizeCurrentPoints = 0;
+		while (currentPoints.size()>2 && (currentPoints.size()!=lastSetSizeCurrentPoints))
 		{
+			lastSetSizeCurrentPoints = currentPoints.size();
+
 			// 1. RANSAC for line fitting
 			std::cout << "Number current points = " << currentPoints.size() << std::endl;
 			double bestScore = 0.;
@@ -2013,7 +2023,7 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 			cv::Point2d bestNormal(-1,-1);
 			for (int ransacAttempt=0; ransacAttempt<maxRANSACIterations; ransacAttempt++)
 			{
-				std::vector<int> randomPointSet; // which 3 points are chosen (index)
+				std::vector<int> randomPointSet; // which 2 points are chosen (index)
 				std::vector<cv::Point> supportingPoints; //which points support the model
 
 				// fill randomPointSet with random points for model
@@ -2037,7 +2047,7 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 				{
 					cv::Point2d diff = p1-currentPoints[i];
 					double dist = fabs(diff.x*normal.x + diff.y*normal.y);
-					score += exp(log(0.1) * dist/inlierDistanceThreshold);		// todo: what is the reason for this way of computing the score?
+					score += exp(log(0.1) * dist/inlierDistanceThreshold);		// todo: what is the reason for this way of computing the score? (but works well)
 				}
 
 				// update best
@@ -2055,13 +2065,26 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 			std::vector<int> inlierSet;
 			for (unsigned int i=0; i<currentPoints.size(); i++)
 			{
-				cv::Point2d diff = bestP1-currentPoints[i];
-				double dist = fabs(diff.x*bestNormal.x + diff.y*bestNormal.y);
-				if (dist < inlierDistanceThreshold)
+				// a) point needs to be close enough to the line
+//				cv::Point2d diff = bestP1-currentPoints[i];
+//				double dist = fabs(diff.x*bestNormal.x + diff.y*bestNormal.y);
+				double dist = 0.;
+				if ((dist=fabs(pointLineDistance2D(bestP1, bestNormal, currentPoints[i]))) < inlierDistanceThreshold)
 				{
-					inlierSet.push_back(i);
-					if (debug["showBreakLines"])
-						std::cout << "inlier found with dist=" << dist << std::endl;
+					// b) line has to cross bounding box of letter
+					// todo: test all 4 corners of each letter box whether there distances to the line have different signs (i.e. all same sign, box is completely on one side of the line)
+					bool negativeSign = false, positiveSign = false;
+					(pointLineDistance2D(bestP1, bestNormal, cv::Point2d(currentLetterBoxes[i].x, currentLetterBoxes[i].y)) < 0.) ? negativeSign = true : positiveSign = true;
+					(pointLineDistance2D(bestP1, bestNormal, cv::Point2d(currentLetterBoxes[i].x+currentLetterBoxes[i].width, currentLetterBoxes[i].y)) < 0.) ? negativeSign = true : positiveSign = true;
+					(pointLineDistance2D(bestP1, bestNormal, cv::Point2d(currentLetterBoxes[i].x, currentLetterBoxes[i].y+currentLetterBoxes[i].height)) < 0.) ? negativeSign = true : positiveSign = true;
+					(pointLineDistance2D(bestP1, bestNormal, cv::Point2d(currentLetterBoxes[i].x+currentLetterBoxes[i].width, currentLetterBoxes[i].y+currentLetterBoxes[i].height)) < 0.) ? negativeSign = true : positiveSign = true;
+
+					if (negativeSign==true && positiveSign==true)
+					{
+						inlierSet.push_back(i);
+						if (debug["showBreakLines"])
+							std::cout << "inlier found with dist=" << dist << std::endl;
+					}
 				}
 			}
 
@@ -2122,11 +2145,11 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 			// 4. verify sub sets and store parameters
 			for (int subSetIndex=0; subSetIndex<(int)inlierSubSets.size(); subSetIndex++)
 			{
-				// skip single letters (and remove them from the set of current points, although they may fit elsewhere, but termination of procedure not guaranteed)
+				// skip single letters and do not remove them from the set of current points, they may fit elsewhere
 				if (inlierSubSets[subSetIndex].size() < 2)
 				{
-					currentPoints.erase(currentPoints.begin()+inlierSubSets[subSetIndex][0]);
-					currentLetterBoxes.erase(currentLetterBoxes.begin()+inlierSubSets[subSetIndex][0]);
+					//currentPoints.erase(currentPoints.begin()+inlierSubSets[subSetIndex][0]);
+					//currentLetterBoxes.erase(currentLetterBoxes.begin()+inlierSubSets[subSetIndex][0]);
 					continue;
 				}
 
@@ -2251,7 +2274,6 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 					currentLetterBoxes.erase(currentLetterBoxes.begin()+currentInlierSet[i]);
 				}
 			}
-
 		}
 	}
 
