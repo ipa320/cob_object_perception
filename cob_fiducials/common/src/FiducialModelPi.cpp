@@ -160,7 +160,12 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			double dot_IJ_IJ = vec_IJ.ddot(vec_IJ);
 
 			// Check all other ellipses if they fit to the line equation
-			for(int k = 0; k < ellipses.size(); k++)
+			// Condition: Between two points are at most two other points
+			// Not more and not less
+			std::vector<cv::Point2f> line_candidate;
+			int nLine_Candidates = 0;
+
+			for(int k = 0; k < ellipses.size() && nLine_Candidates < 2; k++)
 			{
 				// Check area
 				if (std::abs(ref_A[j] - ref_A[k]) >  max_ellipse_difference)
@@ -183,7 +188,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 				if (d_k_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 					continue;
 
-				for(int l = k+1; l < ellipses.size(); l++)
+				for(int l = k+1; l < ellipses.size() && nLine_Candidates < 2; l++)
 				{
 					// Check area
 					if (std::abs(ref_A[k] - ref_A[l]) >  max_ellipse_difference)
@@ -206,22 +211,25 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 						continue;
 
 					// Yeah, we found 4 fitting points
-					std::vector<cv::Point2f> line;
-					line.push_back(ellipses[i].center);
+					line_candidate.push_back(ellipses[i].center);
 					if (t_k < t_l)
 					{
-						line.push_back(ellipses[k].center);
-						line.push_back(ellipses[l].center);
+						line_candidate.push_back(ellipses[k].center);
+						line_candidate.push_back(ellipses[l].center);
 					}
 					else
 					{
-						line.push_back(ellipses[l].center);
-						line.push_back(ellipses[k].center);
+						line_candidate.push_back(ellipses[l].center);
+						line_candidate.push_back(ellipses[k].center);
 					}
-					line.push_back(ellipses[j].center);
-					marker_lines.push_back(line);
+					line_candidate.push_back(ellipses[j].center);
+					nLine_Candidates++;
 				}
 			}
+
+			// See condition above
+			if(nLine_Candidates == 1)
+				marker_lines.push_back(line_candidate);
 		}
 	}
 
@@ -824,6 +832,12 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		tag_pose.id = final_tag_vec[i].parameters.id;
 		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), dist_coeffs, 
 			tag_pose.rot, tag_pose.trans);
+
+		// Apply transformation
+		cv::Mat rot_3x3_CfromO;
+		cv::Rodrigues(tag_pose.rot, rot_3x3_CfromO);
+		ApplyExtrinsics(rot_3x3_CfromO, tag_pose.trans);
+		rot_3x3_CfromO.copyTo(tag_pose.rot);
 
 		vec_pose.push_back(tag_pose);
 	}

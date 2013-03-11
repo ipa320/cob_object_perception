@@ -29,7 +29,7 @@ public:
 	//*******************************************************************************
 	virtual ~AbstractFiducialModel(){};
 
-	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename)
+	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, cv::Mat& extrinsic_matrix = cv::Mat())
 	{
 		if (camera_matrix.empty())
 		{
@@ -37,17 +37,64 @@ public:
 			std::cerr << "\t [FAILED] Camera matrix not initialized" << std::endl;
 			return ipa_Utils::RET_FAILED;
 		}
-
 		m_camera_matrix = camera_matrix.clone();
+
+		m_extrinsic_XYfromC = cv::Mat::zeros(4, 4, CV_64FC1);
+		if (extrinsic_matrix.empty())
+		{
+			// Unit matrix
+			for (int i=0; i<3; i++)
+				m_extrinsic_XYfromC.at<double>(i,i) = 1.0;
+		}
+		else
+		{
+			for (int i=0; i<3; i++)
+				for (int j=0; j<4; j++)
+				{
+					m_extrinsic_XYfromC.at<double>(i,j) = extrinsic_matrix.at<double>(i,j);
+				}
+			m_extrinsic_XYfromC.at<double>(3,3) = 1.0;
+		}
+		
 		return LoadParameters(directory_and_filename);
 	};
 
+	unsigned long ApplyExtrinsics(cv::Mat& rot_CfromO, cv::Mat& trans_CfromO)
+	{
+		cv::Mat frame_CfromO = cv::Mat::zeros(4, 4, CV_64FC1);
+
+		// Copy ORIGINAL rotation and translation to frame
+		for (int i=0; i<3; i++)
+		{
+			frame_CfromO.at<double>(i, 3) = trans_CfromO.at<double>(i,0);
+			for (int j=0; j<3; j++)
+			{
+				frame_CfromO.at<double>(i,j) = rot_CfromO.at<double>(i,j);
+			}
+		}
+		frame_CfromO.at<double>(3,3) = 1.0;
+
+		cv::Mat frame_XYfromO = m_extrinsic_XYfromC * frame_CfromO;
+
+		// Copy MODIFIED rotation and translation to frame
+		for (int i=0; i<3; i++)
+		{
+			trans_CfromO.at<double>(i, 0) = frame_XYfromO.at<double>(i,3);
+			for (int j=0; j<3; j++)
+			{
+				rot_CfromO.at<double>(i,j) = frame_XYfromO.at<double>(i,j);
+			}
+		}
+
+		return ipa_Utils::RET_OK;
+	}
+
 	/// Locates the fiducial within the image and inferes the camera pose from it
 	/// @param image scene image
-	/// @param vec_pose Vector of poses from all detected tags
+	/// @param vec_pose Vector of poses from all detected tags relative to the camera
 	/// @return <code>RET_FAILED</code> if no tag could be detected
 	/// <code>RET_OK</code> on success
-	virtual unsigned long GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose) = 0;
+	virtual unsigned long GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose_CfromO) = 0;
 
 	cv::Mat GetCameraMatrix()
 	{
@@ -68,6 +115,7 @@ public:
 private:
 
 	cv::Mat m_camera_matrix; ///< Intrinsics of camera for PnP estimation
+	cv::Mat m_extrinsic_XYfromC; ///< Extrinsics 4x4 of camera to rotate and translate determined transformation before returning it
 };
 
 } // end namespace ipa_Fiducials

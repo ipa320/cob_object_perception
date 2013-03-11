@@ -26,7 +26,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 		return ipa_Utils::RET_FAILED;
 
 	// ----------------------------------- Load images -----------------------------------------
-	std::string dataset_name = "dataset_130301";
+	std::string dataset_name = "dataset_130311";
 	std::string filename_prefix = "ConfigurationFiles/fiducials/" + dataset_name + "/";
 
 	bool load_next_image = true;
@@ -34,7 +34,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 	while (load_next_image)
 	{
 		std::stringstream filename;
-		filename << filename_prefix << "tags_" << 11+image_vec.size() << "_coloredPC_color_8U3.png";
+		filename << filename_prefix << "tags_" << image_vec.size() << "_coloredPC_color_8U3.png";
 
 		cv::Mat image = cv::imread(filename.str(),-1);
 		if (!image.data)
@@ -75,7 +75,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 	return ipa_Utils::RET_OK;
 }
 
-unsigned long FiducialTestingEnvironment::RenderPose(cv::Mat& image, cv::Mat& rot, cv::Mat& trans)
+unsigned long FiducialTestingEnvironment::RenderPose(cv::Mat& image, cv::Mat& rot_3x3_CfromO, cv::Mat& trans_3x1_CfromO)
 {
 	cv::Mat object_center(3, 1, CV_64FC1);
 	double* p_object_center = object_center.ptr<double>(0);
@@ -83,10 +83,7 @@ unsigned long FiducialTestingEnvironment::RenderPose(cv::Mat& image, cv::Mat& ro
 	p_object_center[1] = 0;
 	p_object_center[2] = 0;
 
-	// Convert to 3x3 rotation matrix
-	cv::Mat rot_3x3;
-	cv::Rodrigues(rot, rot_3x3);
-	cv::Mat rot_inv = rot_3x3.inv();
+	cv::Mat rot_inv = rot_3x3_CfromO.inv();
 
 	// Compute coordinate axis for visualization
 	cv::Mat pt_axis(4, 3, CV_64FC1);
@@ -95,17 +92,17 @@ unsigned long FiducialTestingEnvironment::RenderPose(cv::Mat& image, cv::Mat& ro
 	p_pt_axis[1] = 0 + p_object_center[1];
 	p_pt_axis[2] = 0 + p_object_center[2];
 	p_pt_axis = pt_axis.ptr<double>(1);
-	p_pt_axis[0] = 100 + p_object_center[0];
+	p_pt_axis[0] = 0.1 + p_object_center[0];
 	p_pt_axis[1] = 0 + p_object_center[1];
 	p_pt_axis[2] = 0 + p_object_center[2];
 	p_pt_axis = pt_axis.ptr<double>(2);
 	p_pt_axis[0] = 0 + p_object_center[0];
-	p_pt_axis[1] = 100 + p_object_center[1];
+	p_pt_axis[1] = 0.1 + p_object_center[1];
 	p_pt_axis[2] = 0 + p_object_center[2];
 	p_pt_axis = pt_axis.ptr<double>(3);
 	p_pt_axis[0] = 0 + p_object_center[0];
 	p_pt_axis[1] = 0 + p_object_center[1];
-	p_pt_axis[2] = 100 + p_object_center[2];
+	p_pt_axis[2] = 0.1 + p_object_center[2];
 
 	// Transform data points
 	std::vector<cv::Point> vec_2d(4, cv::Point());
@@ -113,8 +110,8 @@ unsigned long FiducialTestingEnvironment::RenderPose(cv::Mat& image, cv::Mat& ro
 	{
 		cv::Mat vec_3d = pt_axis.row(i).clone();
 		vec_3d = vec_3d.t();
-		vec_3d = rot_3x3*vec_3d;
-		vec_3d += trans;
+		vec_3d = rot_3x3_CfromO*vec_3d;
+		vec_3d += trans_3x1_CfromO;
 		double* p_vec_3d = vec_3d.ptr<double>(0);
 
 		ReprojectXYZ(p_vec_3d[0], p_vec_3d[1], p_vec_3d[2],
