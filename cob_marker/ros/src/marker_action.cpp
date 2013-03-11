@@ -152,17 +152,16 @@ class Qr_Node : public Parent
   }
 
   bool compPCA(pcl::PCA<PointCloud::PointType> &pca, const PointCloud &pc, const float w, const Eigen::Vector2i &o, const Eigen::Vector2f &d) {
-    PointCloud tmp;
+    size_t s=0;
     for(int x=0; x<w; x++) {
       Eigen::Vector2i p = o + (d*x).cast<int>();
       if(pcl_isfinite(pc(p(0),p(1)).getVector3fMap().sum()))
-        tmp.push_back( pc(p(0),p(1)) );
+        {++s;pca.update( pc(p(0),p(1)) );}
     }
-    if(tmp.size()<2) {
+    if(s<2) {
       ROS_WARN("no valid points");
       return false;
     }
-    pca.compute(tmp);
     return true;
   }
 
