@@ -116,7 +116,8 @@ class CobFiducialsNode //: public nodelet::Nodelet
 private:
     ros::NodeHandle node_handle_;
 
-    boost::shared_ptr<image_transport::ImageTransport> image_transport_;
+    boost::shared_ptr<image_transport::ImageTransport> image_transport_0_;
+    boost::shared_ptr<image_transport::ImageTransport> image_transport_1_;
 
     // Subscriptions
     image_transport::SubscriberFilter color_camera_image_sub_;	///< color camera image topic
@@ -136,10 +137,10 @@ private:
     ros::Publisher fiducials_marker_publisher_;
     image_transport::Publisher img2D_pub_; ///< Publishes 2D image data to show detection results
 
-    cv::Mat color_mat_8U3_; 
+    cv::Mat color_mat_8U3_;
     IplImage* color_image_8U3_;	///< Received color image
     cv::Mat camera_matrix_;
-    bool camera_matrix_initialized_; 
+    bool camera_matrix_initialized_;
 
     ros::Time received_timestamp_;
     std::string received_frame_id_;
@@ -149,6 +150,9 @@ private:
     sensor_msgs::CvBridge cv_bridge_0_; ///< Converts ROS image messages to openCV IplImages
     static std::string color_image_encoding_; ///< Color encoding of incoming messages
     CobFiducialsNode::t_Mode ros_node_mode_;	///< Specifys if node is started as topic or service
+    std::string model_directory_; ///< Working directory, from which models are loaded and saved
+    std::string model_filename_;
+
     boost::mutex mutexQ_;
     boost::condition_variable condQ_;
 
@@ -176,7 +180,8 @@ public:
     {
         /// Create a handle for this node, initialize node
         //	  node_handle_ = getMTNodeHandle();
-        image_transport_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
+        image_transport_0_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
+	image_transport_1_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
 
         /// Initialize camera node
         if (!init()) return;
@@ -207,7 +212,7 @@ public:
 
         // Publisher for visualization/debugging
         fiducials_marker_publisher_ = node_handle_.advertise<visualization_msgs::Marker>( "fiducial_markers", 0 );
-        img2D_pub_= image_transport_->advertise("image", 1);
+        img2D_pub_= image_transport_1_->advertise("image", 1);
 
         synchronizer_received_ = false;
 
@@ -217,9 +222,9 @@ public:
         //dynamic_reconfigure_server_.updateConfig(launch_reconfigure_config_);
         //dynamic_reconfigure_server_.setCallback(f);
 
-	ROS_INFO("[fiducials] Setting up PI-tag library");
-	m_pi_tag = boost::shared_ptr<FiducialModelPi>(new FiducialModelPi());
-
+        ROS_INFO("[fiducials] Setting up PI-tag library");
+        m_pi_tag = boost::shared_ptr<FiducialModelPi>(new FiducialModelPi());
+	
         ROS_INFO("[fiducials] Initializing [OK]");
         ROS_INFO("[fiducials] Up and running");
         return true;
@@ -236,7 +241,7 @@ public:
     {
         ROS_INFO("[fiducials] Subscribing to camera topics");
 
-        color_camera_image_sub_.subscribe(*image_transport_, "image_color", 1);
+        color_camera_image_sub_.subscribe(*image_transport_0_, "image_color", 1);
         color_camera_info_sub_.subscribe(node_handle_, "camera_info", 1);
 
         color_image_sub_sync_ = boost::shared_ptr<message_filters::Synchronizer<ColorImageSyncPolicy> >(new message_filters::Synchronizer<ColorImageSyncPolicy>(ColorImageSyncPolicy(3)));
@@ -281,12 +286,19 @@ public:
                 camera_matrix_.at<double>(1,2) = color_camera_info->K[5];
                 camera_matrix_.at<double>(2,2) = 1;
 
+		ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix");
+		if (m_pi_tag->Init(camera_matrix_, model_directory_ + model_filename_) & ipa_Utils::RET_FAILED)
+		{
+			ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
+			return;
+		}
+
                 camera_matrix_initialized_ = true;
             }
 
             // Receive
             color_image_8U3_ = cv_bridge_0_.imgMsgToCv(color_camera_data, "bgr8");
-	    received_timestamp_ = color_camera_data->header.stamp;
+            received_timestamp_ = color_camera_data->header.stamp;
             received_frame_id_ = color_camera_data->header.frame_id;
             cv::Mat tmp = color_image_8U3_;
             color_mat_8U3_ = tmp.clone();
@@ -296,7 +308,7 @@ public:
                 cob_object_detection_msgs::DetectionArray detection_array;
                 detectFiducials(detection_array, color_mat_8U3_);
 
-		// Publish
+                // Publish
                 detect_fiducials_pub_.publish(detection_array);
 
                 cv_bridge::CvImage cv_ptr;
@@ -356,116 +368,114 @@ public:
 
 
             // Publish reprojection matrix
-            cob_object_detection_msgs::DetectionArray detection_array;
-            detectFiducials(detection_array, color_mat_8U3_);
-
-            detect_fiducials_pub_.publish(detection_array);
+            result = detectFiducials(res.object_list, color_mat_8U3_);
 
             cv_bridge::CvImage cv_ptr;
             cv_ptr.image = color_mat_8U3_;
             cv_ptr.encoding = CobFiducialsNode::color_image_encoding_;
             img2D_pub_.publish(cv_ptr.toImageMsg());
-
-            disconnectCallback();
-
-            return result;
         }
+	disconnectCallback();
+
+        return result;
     }
 
     bool detectFiducials(cob_object_detection_msgs::DetectionArray& detection_array, cv::Mat& color_image)
     {
-	std::vector<ipa_Fiducials::t_pose> tags_vec;
-	if (m_pi_tag->GetPose(color_image, tags_vec) & ipa_Utils::RET_FAILED)
-		return false;
+        std::vector<ipa_Fiducials::t_pose> tags_vec;
+        if (m_pi_tag->GetPose(color_image, tags_vec) & ipa_Utils::RET_FAILED)
+            return false;
 
-	if (tags_vec.empty())
-		return false;
+        if (tags_vec.empty())
+            return false;
 
-	// TODO: Average results
+        // TODO: Average results
         int id_start_idx = 2351;
-	for (unsigned int i=0; i<tags_vec.size(); i++)
-	{
-		cob_object_detection_msgs::Detection fiducial_instance;
-		fiducial_instance.label = tags_vec[i].id;
-		fiducial_instance.detector = "Fiducial_PI";
-		fiducial_instance.score = 0;
-		fiducial_instance.bounding_box_lwh.x = 0;
-		fiducial_instance.bounding_box_lwh.y = 0;
-		fiducial_instance.bounding_box_lwh.z = 0;
+        for (unsigned int i=0; i<tags_vec.size(); i++)
+        {
+            RenderPose(color_image, tags_vec[i].rot, tags_vec[i].trans);
 
-		// TODO: Set Mask
-		cv::Mat frame(3,4, CV_64FC1);
-		for (int k=0; k<3; k++)
-			for (int l=0; l<3; l++)
-				frame.at<double>(k,l) = tags_vec[i].trans.at<double>(k,l);
-		frame.at<double>(0,3) = tags_vec[i].trans.at<double>(0,0);
-		frame.at<double>(1,3) = tags_vec[i].trans.at<double>(1,0);
-		frame.at<double>(2,3) = tags_vec[i].trans.at<double>(2,0);
-		std::vector<double> vec7d = FrameToVec7(frame);
-		
-		// Results are given in CfromO
-		fiducial_instance.pose.pose.position.x =  vec7d[0];
-		fiducial_instance.pose.pose.position.y =  vec7d[1];
-		fiducial_instance.pose.pose.position.z =  vec7d[2];
-		fiducial_instance.pose.pose.orientation.w =  vec7d[3];
-		fiducial_instance.pose.pose.orientation.x =  vec7d[4];
-		fiducial_instance.pose.pose.orientation.y =  vec7d[5];
-		fiducial_instance.pose.pose.orientation.z =  vec7d[6];
+            cob_object_detection_msgs::Detection fiducial_instance;
+            fiducial_instance.label = "pi-tag"; //tags_vec[i].id;
+            fiducial_instance.detector = "Fiducial_PI";
+            fiducial_instance.score = 0;
+            fiducial_instance.bounding_box_lwh.x = 0;
+            fiducial_instance.bounding_box_lwh.y = 0;
+            fiducial_instance.bounding_box_lwh.z = 0;
 
-		fiducial_instance.pose.header.stamp = received_timestamp_;
-		fiducial_instance.pose.header.frame_id = received_frame_id_;
+            // TODO: Set Mask
+            cv::Mat frame(3,4, CV_64FC1);
+            for (int k=0; k<3; k++)
+                for (int l=0; l<3; l++)
+                    frame.at<double>(k,l) = tags_vec[i].rot.at<double>(k,l);
+            frame.at<double>(0,3) = tags_vec[i].trans.at<double>(0,0);
+            frame.at<double>(1,3) = tags_vec[i].trans.at<double>(1,0);
+            frame.at<double>(2,3) = tags_vec[i].trans.at<double>(2,0);
+            std::vector<double> vec7d = FrameToVec7(frame);
 
-		detection_array.detections.push_back(fiducial_instance);
-		ROS_INFO("[object_detection] Detected PI-Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
-				fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
-				vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
+            // Results are given in CfromO
+            fiducial_instance.pose.pose.position.x =  vec7d[0];
+            fiducial_instance.pose.pose.position.y =  vec7d[1];
+            fiducial_instance.pose.pose.position.z =  vec7d[2];
+            fiducial_instance.pose.pose.orientation.w =  vec7d[3];
+            fiducial_instance.pose.pose.orientation.x =  vec7d[4];
+            fiducial_instance.pose.pose.orientation.y =  vec7d[5];
+            fiducial_instance.pose.pose.orientation.z =  vec7d[6];
 
-		geometry_msgs::PoseStamped fiducial_pose;
-		fiducial_pose.pose.position.x = vec7d[0];
-		fiducial_pose.pose.position.y = vec7d[1];
-		fiducial_pose.pose.position.z = vec7d[2];
-		fiducial_pose.pose.orientation.w = vec7d[3];
-		fiducial_pose.pose.orientation.x = vec7d[4];
-		fiducial_pose.pose.orientation.y = vec7d[5];
-		fiducial_pose.pose.orientation.z = vec7d[6];
+            fiducial_instance.pose.header.stamp = received_timestamp_;
+            fiducial_instance.pose.header.frame_id = received_frame_id_;
 
-		// Broadcast transform of fiducial
-		// tf::Transform transform;
-		// std::stringstream tf_name;
-		// tf_name << fiducial_instance.label <<"_" << i;
-		// transform.setOrigin(tf::Vector3(fiducial_pose.pose.position.x, fiducial_pose.pose.position.y, fiducial_pose.pose.position.z));
-		// transform.setRotation(tf::Quaternion(fiducial_pose.pose.orientation.x, fiducial_pose.pose.orientation.y, fiducial_pose.pose.orientation.z, fiducial_pose.pose.orientation.w));
-		// tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), received_frame_id_, tf_name.str()));
+            detection_array.detections.push_back(fiducial_instance);
+            ROS_INFO("[fiducials] Detected PI-Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
+                     fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
+                     vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
 
-		// publish a marker for each object
-		visualization_msgs::Marker marker;
-		marker.header.frame_id = received_frame_id_;// "/" + frame_id;//"tf_name.str()";
-		marker.header.stamp = received_timestamp_;
-		marker.ns = "fiducials";
-		marker.id =  id_start_idx + i;
-		marker.type = 0;// 0 - Arrow
-		marker.action = visualization_msgs::Marker::ADD;	
-		
-		//geometry_msgs::PoseStamped obj_pose_new;
-		//marker.pose = fiducial_pose.pose;
-		marker.pose.position.x = fiducial_pose.pose.position.x;
-		marker.pose.position.y = fiducial_pose.pose.position.y;
-		marker.pose.position.z = fiducial_pose.pose.position.z;
-		marker.pose.orientation.x = fiducial_pose.pose.orientation.x;
-		marker.pose.orientation.y = fiducial_pose.pose.orientation.y;
-		marker.pose.orientation.z = fiducial_pose.pose.orientation.z;
-		marker.pose.orientation.w = fiducial_pose.pose.orientation.w;
-		marker.scale.x = 0.05;
-		marker.scale.y = 0.05;
-		marker.scale.z = 0.05;
-		marker.color.a = 0.85;
-		marker.color.r = 255;
-		marker.color.g = 255;
-		marker.color.b = 255;
+            geometry_msgs::PoseStamped fiducial_pose;
+            fiducial_pose.pose.position.x = vec7d[0];
+            fiducial_pose.pose.position.y = vec7d[1];
+            fiducial_pose.pose.position.z = vec7d[2];
+            fiducial_pose.pose.orientation.w = vec7d[3];
+            fiducial_pose.pose.orientation.x = vec7d[4];
+            fiducial_pose.pose.orientation.y = vec7d[5];
+            fiducial_pose.pose.orientation.z = vec7d[6];
 
-		fiducials_marker_publisher_.publish(marker);
-	}
-	
+            // Broadcast transform of fiducial
+            // tf::Transform transform;
+            // std::stringstream tf_name;
+            // tf_name << fiducial_instance.label <<"_" << i;
+            // transform.setOrigin(tf::Vector3(fiducial_pose.pose.position.x, fiducial_pose.pose.position.y, fiducial_pose.pose.position.z));
+            // transform.setRotation(tf::Quaternion(fiducial_pose.pose.orientation.x, fiducial_pose.pose.orientation.y, fiducial_pose.pose.orientation.z, fiducial_pose.pose.orientation.w));
+            // tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), received_frame_id_, tf_name.str()));
+
+            // publish a marker for each object
+            visualization_msgs::Marker marker;
+            marker.header.frame_id = received_frame_id_;// "/" + frame_id;//"tf_name.str()";
+            marker.header.stamp = received_timestamp_;
+            marker.ns = "fiducials";
+            marker.id =  id_start_idx + i;
+            marker.type = 0;// 0 - Arrow
+            marker.action = visualization_msgs::Marker::ADD;
+
+            //geometry_msgs::PoseStamped obj_pose_new;
+            //marker.pose = fiducial_pose.pose;
+            marker.pose.position.x = fiducial_pose.pose.position.x;
+            marker.pose.position.y = fiducial_pose.pose.position.y;
+            marker.pose.position.z = fiducial_pose.pose.position.z;
+            marker.pose.orientation.x = fiducial_pose.pose.orientation.x;
+            marker.pose.orientation.y = fiducial_pose.pose.orientation.y;
+            marker.pose.orientation.z = fiducial_pose.pose.orientation.z;
+            marker.pose.orientation.w = fiducial_pose.pose.orientation.w;
+            marker.scale.x = 0.05;
+            marker.scale.y = 0.05;
+            marker.scale.z = 0.05;
+            marker.color.a = 0.85;
+            marker.color.r = 255;
+            marker.color.g = 255;
+            marker.color.b = 255;
+
+            fiducials_marker_publisher_.publish(marker);
+        }
+
         return true;
     }
 
@@ -554,75 +564,87 @@ public:
     }
 
 // Function copied from cob_vision_ipa_utils/MathUtils.h to avoid dependency
-inline float SIGN(float x) {return (x >= 0.0f) ? +1.0f : -1.0f;}
-std::vector<double> FrameToVec7(const cv::Mat frame)
-{
-	// [0]-[2]: translation xyz
-	// [3]-[6]: quaternion wxyz
-	std::vector<double> pose(7, 0.0);
+    inline float SIGN(float x)
+    {
+        return (x >= 0.0f) ? +1.0f : -1.0f;
+    }
+    std::vector<double> FrameToVec7(const cv::Mat frame)
+    {
+        // [0]-[2]: translation xyz
+        // [3]-[6]: quaternion wxyz
+        std::vector<double> pose(7, 0.0);
 
-	double r11 = frame.at<double>(0,0);
-	double r12 = frame.at<double>(0,1);
-	double r13 = frame.at<double>(0,2);
-	double r21 = frame.at<double>(1,0);
-	double r22 = frame.at<double>(1,1);
-	double r23 = frame.at<double>(1,2);
-	double r31 = frame.at<double>(2,0);
-	double r32 = frame.at<double>(2,1);
-	double r33 = frame.at<double>(2,2);
+        double r11 = frame.at<double>(0,0);
+        double r12 = frame.at<double>(0,1);
+        double r13 = frame.at<double>(0,2);
+        double r21 = frame.at<double>(1,0);
+        double r22 = frame.at<double>(1,1);
+        double r23 = frame.at<double>(1,2);
+        double r31 = frame.at<double>(2,0);
+        double r32 = frame.at<double>(2,1);
+        double r33 = frame.at<double>(2,2);
 
-	double qw = ( r11 + r22 + r33 + 1.0) / 4.0;
-	double qx = ( r11 - r22 - r33 + 1.0) / 4.0;
-	double qy = (-r11 + r22 - r33 + 1.0) / 4.0;
-	double qz = (-r11 - r22 + r33 + 1.0) / 4.0;
-	if(qw < 0.0f) qw = 0.0;
-	if(qx < 0.0f) qx = 0.0;
-	if(qy < 0.0f) qy = 0.0;
-	if(qz < 0.0f) qz = 0.0;
-	qw = std::sqrt(qw);
-	qx = std::sqrt(qx);
-	qy = std::sqrt(qy);
-	qz = std::sqrt(qz);
-	if(qw >= qx && qw >= qy && qw >= qz) {
-		qw *= +1.0;
-		qx *= SIGN(r32 - r23);
-		qy *= SIGN(r13 - r31);
-		qz *= SIGN(r21 - r12);
-	} else if(qx >= qw && qx >= qy && qx >= qz) {
-		qw *= SIGN(r32 - r23);
-		qx *= +1.0;
-		qy *= SIGN(r21 + r12);
-		qz *= SIGN(r13 + r31);
-	} else if(qy >= qw && qy >= qx && qy >= qz) {
-		qw *= SIGN(r13 - r31);
-		qx *= SIGN(r21 + r12);
-		qy *= +1.0;
-		qz *= SIGN(r32 + r23);
-	} else if(qz >= qw && qz >= qx && qz >= qy) {
-		qw *= SIGN(r21 - r12);
-		qx *= SIGN(r31 + r13);
-		qy *= SIGN(r32 + r23);
-		qz *= +1.0;
-	} else {
-		printf("coding error\n");
-	}
-	double r = std::sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
-	qw /= r;
-	qx /= r;
-	qy /= r;
-	qz /= r;
+        double qw = ( r11 + r22 + r33 + 1.0) / 4.0;
+        double qx = ( r11 - r22 - r33 + 1.0) / 4.0;
+        double qy = (-r11 + r22 - r33 + 1.0) / 4.0;
+        double qz = (-r11 - r22 + r33 + 1.0) / 4.0;
+        if(qw < 0.0f) qw = 0.0;
+        if(qx < 0.0f) qx = 0.0;
+        if(qy < 0.0f) qy = 0.0;
+        if(qz < 0.0f) qz = 0.0;
+        qw = std::sqrt(qw);
+        qx = std::sqrt(qx);
+        qy = std::sqrt(qy);
+        qz = std::sqrt(qz);
+        if(qw >= qx && qw >= qy && qw >= qz)
+        {
+            qw *= +1.0;
+            qx *= SIGN(r32 - r23);
+            qy *= SIGN(r13 - r31);
+            qz *= SIGN(r21 - r12);
+        }
+        else if(qx >= qw && qx >= qy && qx >= qz)
+        {
+            qw *= SIGN(r32 - r23);
+            qx *= +1.0;
+            qy *= SIGN(r21 + r12);
+            qz *= SIGN(r13 + r31);
+        }
+        else if(qy >= qw && qy >= qx && qy >= qz)
+        {
+            qw *= SIGN(r13 - r31);
+            qx *= SIGN(r21 + r12);
+            qy *= +1.0;
+            qz *= SIGN(r32 + r23);
+        }
+        else if(qz >= qw && qz >= qx && qz >= qy)
+        {
+            qw *= SIGN(r21 - r12);
+            qx *= SIGN(r31 + r13);
+            qy *= SIGN(r32 + r23);
+            qz *= +1.0;
+        }
+        else
+        {
+            printf("coding error\n");
+        }
+        double r = std::sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
+        qw /= r;
+        qx /= r;
+        qy /= r;
+        qz /= r;
 
-	pose[3] = qw;
-	pose[4] = qx;
-	pose[5] = qy;
-	pose[6] = qz;
+        pose[3] = qw;
+        pose[4] = qx;
+        pose[5] = qy;
+        pose[6] = qz;
 
-	// Translation
-	pose[0] = frame.at<double>(0,3);
-	pose[1] = frame.at<double>(1,3);
-	pose[2] = frame.at<double>(2,3);
-	return pose;
-}
+        // Translation
+        pose[0] = frame.at<double>(0,3);
+        pose[1] = frame.at<double>(1,3);
+        pose[2] = frame.at<double>(2,3);
+        return pose;
+    }
 
     unsigned long loadParameters()
     {
@@ -655,6 +677,20 @@ std::vector<double> FrameToVec7(const cv::Mat frame)
 
         ROS_INFO("ROS node mode: %s", tmp_string.c_str());
 
+	// Parameters are set within the launch file
+	if (node_handle_.getParam("model_directory", model_directory_) == false)
+	{
+		ROS_ERROR("[fiducials] Path to model files not specified");
+		return false;
+	}
+	ROS_INFO("[fiducials] Working directory: %s", model_directory_.c_str());
+	if (node_handle_.getParam("model_filename", model_filename_) == false)
+	{
+		ROS_ERROR("[fiducials] Model file not specified");
+		return false;
+	}
+	ROS_INFO("[fiducials] Working directory: %s", model_filename_.c_str());
+
         //if (node_handle_.getParam("StereoPreFilterCap", StereoPreFilterCap_) == false)
         //{
         //	ROS_ERROR("[sensor_fusion] StereoPreFilterCap for sensor fusion node not specified");
@@ -666,7 +702,7 @@ std::vector<double> FrameToVec7(const cv::Mat frame)
     }
 };
 
-std::string CobFiducialsNode::color_image_encoding_ = "rgb8";
+std::string CobFiducialsNode::color_image_encoding_ = "bgr8";
 }; // END namepsace
 //1: The namespace in which the Triangle plugin will live. Typically, we use the name of the package
 // that contains the library that Triangle is a part of. In this case, that's pluginlib_tutorials

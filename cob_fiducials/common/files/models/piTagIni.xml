@@ -1,0 +1,54 @@
+<FiducialDetector>
+	<Fiducial>
+		<ID value="0" />
+		<!-- Tag size in [mm] -->
+		<LineWidthHeight value="0.100" />
+		
+		<!-- Cross ratios line 0 and 1-->
+		<CrossRatioLine0 AB="0.040" AC="0.060" />
+		<CrossRatioLine1 AB="0.020" AC="0.080" />
+				
+		<!-- Offset for native tag corrdinates -->
+		<!-- e.g. position of tag in object centric ccordinate system -->
+		<Offset x="-0.125" y="0.175" />
+	</Fiducial>
+	<Fiducial>
+		<ID value="1" />
+		<!-- Tag size in [mm] -->
+		<LineWidthHeight value="0.100" />
+		
+		<!-- Cross ratios line 0 and 1-->
+		<CrossRatioLine0 AB="0.030" AC="0.055" />
+		<CrossRatioLine1 AB="0.025" AC="0.070" />
+				
+		<!-- Offset for native tag corrdinates -->
+		<!-- e.g. position of tag in object centric ccordinate system -->
+		<Offset x="0.025" y="-0.075" />
+	</Fiducial>
+	<Fiducial>
+		<ID value="2" />
+		<!-- Tag size in [mm] -->
+		<LineWidthHeight value="0.100" />
+		
+		<!-- Cross ratios line 0 and 1-->
+		<CrossRatioLine0 AB="0.025" AC="0.052" />
+		<CrossRatioLine1 AB="0.025" AC="0.062" />
+				
+		<!-- Offset for native tag corrdinates -->
+		<!-- e.g. position of tag in object centric ccordinate system -->
+		<Offset x="-0.109" y="-0.090" />
+	</Fiducial>
+	<Fiducial>
+		<ID value="3" />
+		<!-- Tag size in [mm] -->
+		<LineWidthHeight value="0.100" />
+		
+		<!-- Cross ratios line 0 and 1-->
+		<CrossRatioLine0 AB="0.045" AC="0.075" />
+		<CrossRatioLine1 AB="0.040" AC="0.074" />
+				
+		<!-- Offset for native tag corrdinates -->
+		<!-- e.g. position of tag in object centric ccordinate system -->
+		<Offset x="0.009" y="0.190" />
+	</Fiducial>
+</FiducialDetector>
