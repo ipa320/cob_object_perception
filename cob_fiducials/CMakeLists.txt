@@ -33,10 +33,11 @@ rosbuild_add_library(cob_fiducials common/src/FiducialModelPi.cpp
 # add include search paths
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/common/include)
 
-##rosbuild_add_executable(fiducials ros/src/fiducials.cpp)
+rosbuild_add_executable(fiducials ros/src/fiducials.cpp)
 
 # add compile flag
 rosbuild_add_compile_flags(cob_fiducials -D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2)
+rosbuild_add_compile_flags(fiducials -D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2)
 
 # initialize boost directory search
 rosbuild_add_boost_directories()
@@ -44,4 +45,4 @@ rosbuild_add_boost_directories()
 target_link_libraries(cob_fiducials tinyxml)
 rosbuild_link_boost(${PROJECT_NAME} filesystem)
 
-##target_link_libraries(fiducials cob_fiducials)
+target_link_libraries(fiducials cob_fiducials)

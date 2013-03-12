@@ -5,13 +5,14 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_object_perception</url>
   <depend stack="cob_perception_data" /> <!-- cob_read_text_data, cob_tesseract_data -->
+  <depend stack="cob_perception_common" /> <!-- cob_fiducials -->
+  <depend stack="cob_object_perception" /> <!-- cob_fiducials -->
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, sensor_msgs -->
   <depend stack="geometry" /> <!-- tf, tf_conversions -->
   <depend stack="image_common" /> <!-- image_transport -->
   <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
   <depend stack="pr2_controllers" /> <!-- pr2_mechanism_controllers -->
   <depend stack="ros" />
-  <depend stack="cob_perception_common" />
   <depend stack="ros_comm" /> <!-- std_msgs, rospy, roscpp, message_filters -->
   <depend stack="simulator_gazebo" /> <!-- gazebo -->
   <depend stack="vision_opencv" /> <!-- opencv2, image_geometry, cv_bridge -->
