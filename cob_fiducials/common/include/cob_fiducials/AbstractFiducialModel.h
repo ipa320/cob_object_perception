@@ -1,15 +1,21 @@
 #ifndef __IPA_ABSTRACT_FIDUCIAL_MODEL_H__
 #define __IPA_ABSTRACT_FIDUCIAL_MODEL_H__
 
-#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_vision_utils/VisionUtils.h"
 	#include "cob_fiducials/FiducialDefines.h"
+
+	#include "tinyxml.h"
 #else
 	#include "cob_perception_common/cob_vision_utils/common/include/cob_vision_utils/VisionUtils.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
+
+	#include "cob_object_perception_intern/windows/src/extern/TinyXml/tinyxml.h"	
 #endif
 
+#include <boost/shared_ptr.hpp>
+#include <opencv/cv.h>
 
 namespace ipa_Fiducials
 {
@@ -29,7 +35,7 @@ public:
 	//*******************************************************************************
 	virtual ~AbstractFiducialModel(){};
 
-	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, cv::Mat& extrinsic_matrix = cv::Mat())
+	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, cv::Mat extrinsic_matrix = cv::Mat())
 	{
 		if (camera_matrix.empty())
 		{

@@ -1,7 +1,7 @@
 #ifndef __IPA_FIDUCIAL_TESTING_ENVIRONMENT_H__
 #define __IPA_FIDUCIAL_TESTING_ENVIRONMENT_H__
 
-#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_vision_utils/GlobalDefines.h"
 	#include "cob_fiducials/FiducialDefines.h"

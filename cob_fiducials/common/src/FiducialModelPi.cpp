@@ -1,9 +1,10 @@
-#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+//#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_fiducials/FiducialModelPi.h"
 #else
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
 #endif
+#include <opencv/highgui.h>
 
 using namespace ipa_Fiducials;
 
@@ -98,7 +99,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 // ------------ Ellipse extraction --------------------------------------
 	int min_ellipse_size = 12; // Min ellipse size at 70cm distance is 20x20 pixels
-	int min_contour_points = int(1.5 * min_ellipse_size); 
+	//int min_contour_points = int(1.5 * min_ellipse_size); 
 	int max_ellipse_aspect_ratio = 5;
 	std::vector<cv::RotatedRect> ellipses;
 	for(size_t i = 0; i < contours.size(); i++)
@@ -129,7 +130,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		//cv::Mat ellipse_image = cv::Mat::zeros(src_mat_8U1.size(), CV_8UC3);
 		cv::Mat ellipse_image = m_debug_img;
 
-		for(int i = 0; i < ellipses.size(); i++)
+		for(unsigned int i = 0; i < ellipses.size(); i++)
 		{
 			cv::ellipse(ellipse_image, ellipses[i], cv::Scalar(0,255,0), 1, CV_AA);
 			cv::ellipse(ellipse_image, ellipses[i].center, ellipses[i].size*0.5f, ellipses[i].angle, 0, 360, cv::Scalar(0,255,255), 1, CV_AA);
@@ -144,12 +145,12 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	int max_ellipse_difference = 11; //[px]
 	// Compute area
 	std::vector<double> ref_A;
-	for(int i = 0; i < ellipses.size(); i++)
+	for(unsigned int i = 0; i < ellipses.size(); i++)
 		ref_A.push_back(std::max(ellipses[i].size.width, ellipses[i].size.height));
 
-	for(int i = 0; i < ellipses.size(); i++)
+	for(unsigned int i = 0; i < ellipses.size(); i++)
 	{
-		for(int j = i+1; j < ellipses.size(); j++)
+		for(unsigned int j = i+1; j < ellipses.size(); j++)
 		{
 			// Check area
 			if (std::abs(ref_A[i] - ref_A[j]) >  max_ellipse_difference)
@@ -165,7 +166,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			std::vector<cv::Point2f> line_candidate;
 			int nLine_Candidates = 0;
 
-			for(int k = 0; k < ellipses.size() && nLine_Candidates < 2; k++)
+			for(unsigned int k = 0; k < ellipses.size() && nLine_Candidates < 2; k++)
 			{
 				// Check area
 				if (std::abs(ref_A[j] - ref_A[k]) >  max_ellipse_difference)
@@ -188,7 +189,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 				if (d_k_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 					continue;
 
-				for(int l = k+1; l < ellipses.size() && nLine_Candidates < 2; l++)
+				for(unsigned int l = k+1; l < ellipses.size() && nLine_Candidates < 2; l++)
 				{
 					// Check area
 					if (std::abs(ref_A[k] - ref_A[l]) >  max_ellipse_difference)
@@ -237,7 +238,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	{
 		//cv::Mat line_image = cv::Mat::zeros(src_mat_8U1.size(), CV_8UC3);
 		cv::Mat line_image = m_debug_img.clone();
-		for(int i = 0; i < marker_lines.size(); i++)
+		for(unsigned int i = 0; i < marker_lines.size(); i++)
 		{
 			cv::line(line_image, marker_lines[i][0], marker_lines[i][3], cv::Scalar(0, 255, 255), 1, 8);
 		}
@@ -247,16 +248,15 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 // ------------ Fiducial line association --------------------------------------
 	double cross_ratio_max_dist = 0.02;
-	double var_pi=3.14159265359;
 	std::vector<t_pi> final_tag_vec;
 
-	for (int i = 0; i < m_ref_tag_vec.size(); i++)
+	for (unsigned int i = 0; i < m_ref_tag_vec.size(); i++)
 	{
 		m_ref_tag_vec[i].fitting_image_lines_0.clear();
 		m_ref_tag_vec[i].fitting_image_lines_1.clear();
 	}
 
-	for(int i = 0; i < marker_lines.size(); i++)
+	for(unsigned int i = 0; i < marker_lines.size(); i++)
 	{
 		// Cross ratio i
 		cv::Point2f i_AB = marker_lines[i][1] - marker_lines[i][0];
@@ -270,7 +270,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		double cross_ratio_i = (l_AB/l_BD)/(l_AC/l_CD);
 
 		// Associate lines to markers based on their cross ratio
-		for (int j = 0; j < m_ref_tag_vec.size(); j++)
+		for (unsigned int j = 0; j < m_ref_tag_vec.size(); j++)
 		{
 			if (std::abs(cross_ratio_i - m_ref_tag_vec[j].cross_ration_0) < cross_ratio_max_dist)
 				m_ref_tag_vec[j].fitting_image_lines_0.push_back(marker_lines[i]);
@@ -280,7 +280,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 
 	// Search for all tag types independently
-	for(int i = 0; i < m_ref_tag_vec.size(); i++)
+	for(unsigned int i = 0; i < m_ref_tag_vec.size(); i++)
 	{
 		std::vector<t_pi> ul_tag_vec;
 		std::vector<t_pi> lr_tag_vec;
@@ -294,9 +294,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 // -----------------------UPPER LEFT ------------------------------------------------------
 		// Check for a common upper left corner
 		// cross_ratio = largest
-		for(int j = 0; j < m_ref_tag_vec[i].fitting_image_lines_0.size(); j++)
+		for(unsigned int j = 0; j < m_ref_tag_vec[i].fitting_image_lines_0.size(); j++)
 		{
-			for(int k = j+1; k < m_ref_tag_vec[i].fitting_image_lines_0.size(); k++)
+			for(unsigned int k = j+1; k < m_ref_tag_vec[i].fitting_image_lines_0.size(); k++)
 			{
 				bool corners_are_matching = false;
 				bool reorder_j = false;
@@ -390,9 +390,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 // -----------------------LOWER RIGHT ------------------------------------------------------
 		// Check for a common lower right corner
 		// cross_ratio = lowest
-		for(int j = 0; j < m_ref_tag_vec[i].fitting_image_lines_1.size(); j++)
+		for(unsigned int j = 0; j < m_ref_tag_vec[i].fitting_image_lines_1.size(); j++)
 		{
-			for(int k = j+1; k < m_ref_tag_vec[i].fitting_image_lines_1.size(); k++)
+			for(unsigned int k = j+1; k < m_ref_tag_vec[i].fitting_image_lines_1.size(); k++)
 			{
 				bool corners_are_matching = false;
 				bool reorder_j = false;
@@ -490,9 +490,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		// Check for a common lower left or upper right corner
 		// Now, lines could already participate in matchings of ul and lr corners
 		// cross_ratio = different
-		for(int j = 0; j < m_ref_tag_vec[i].fitting_image_lines_0.size(); j++)
+		for(unsigned int j = 0; j < m_ref_tag_vec[i].fitting_image_lines_0.size(); j++)
 		{
-			for(int k = 0; k < m_ref_tag_vec[i].fitting_image_lines_1.size(); k++)
+			for(unsigned int k = 0; k < m_ref_tag_vec[i].fitting_image_lines_1.size(); k++)
 			{
 				bool corners_are_matching = false;
 				bool reorder_j = false;
@@ -590,7 +590,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					}
 					else if (!ul_idx_lines_0[j].empty() && lr_idx_lines_1[k].empty())
 					{
-						for (int l=0; l<ul_idx_lines_0[j].size(); l++)
+						for (unsigned int l=0; l<ul_idx_lines_0[j].size(); l++)
 						{
 							t_pi final_tag;
 							final_tag.image_points = tag.image_points;
@@ -610,7 +610,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					}
 					else if (ul_idx_lines_0[j].empty() && !lr_idx_lines_1[k].empty())
 					{
-						for (int l=0; l<lr_idx_lines_1[k].size(); l++)
+						for (unsigned int l=0; l<lr_idx_lines_1[k].size(); l++)
 						{
 							t_pi final_tag;
 							final_tag.image_points = tag.image_points;
@@ -631,9 +631,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					else if (!ul_idx_lines_0[j].empty() && !lr_idx_lines_1[k].empty())
 					{
 						// YEAH buddy. You've got a complete matching
-						for (int l=0; l<ul_idx_lines_0[j].size(); l++)
+						for (unsigned int l=0; l<ul_idx_lines_0[j].size(); l++)
 						{
-							for (int m=0; m<lr_idx_lines_1[k].size(); m++)
+							for (unsigned int m=0; m<lr_idx_lines_1[k].size(); m++)
 							{
 								t_pi final_tag;
 								final_tag.image_points = tag.image_points;
@@ -686,7 +686,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					}
 					else if (!ul_idx_lines_0[j].empty() && lr_idx_lines_1[k].empty())
 					{
-						for (int l=0; l<ul_idx_lines_0[j].size(); l++)
+						for (unsigned int l=0; l<ul_idx_lines_0[j].size(); l++)
 						{
 							t_pi final_tag;
 							final_tag.image_points = tag.image_points;
@@ -706,7 +706,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					}
 					else if (ul_idx_lines_0[j].empty() && !lr_idx_lines_1[k].empty())
 					{
-						for (int l=0; l<lr_idx_lines_1[k].size(); l++)
+						for (unsigned int l=0; l<lr_idx_lines_1[k].size(); l++)
 						{
 							t_pi final_tag;
 							final_tag.image_points = tag.image_points;
@@ -727,9 +727,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					else if (!ul_idx_lines_0[j].empty() && !lr_idx_lines_1[k].empty())
 					{
 						// YEAH buddy. You've got a complete matching
-						for (int l=0; l<ul_idx_lines_0[j].size(); l++)
+						for (unsigned int l=0; l<ul_idx_lines_0[j].size(); l++)
 						{
-							for (int m=0; m<lr_idx_lines_1[k].size(); m++)
+							for (unsigned int m=0; m<lr_idx_lines_1[k].size(); m++)
 							{
 								t_pi final_tag;
 								final_tag.image_points = tag.image_points;
@@ -767,13 +767,13 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		cv::Mat tag_image = m_debug_img;
 		cv::Vec3b rgbValVec[] = {cv::Vec3b(0,0,0), cv::Vec3b(255,255,255), 
 				cv::Vec3b(255,0,0), cv::Vec3b(0,255,255), cv::Vec3b(0,255,0)};
-		for (int i=0; i<final_tag_vec.size(); i++)
+		for (unsigned int i=0; i<final_tag_vec.size(); i++)
 		{
 			if (final_tag_vec[i].no_matching_lines != 4)
 				continue;
 
 			bool connect_points = false;
-			for (int j=0; j<final_tag_vec[i].image_points.size(); j++)
+			for (unsigned int j=0; j<final_tag_vec[i].image_points.size(); j++)
 			{
 				cv::Vec3b rgbVal = rgbValVec[final_tag_vec[i].no_matching_lines];
 				if (final_tag_vec[i].image_points[j].x != 0)
@@ -794,13 +794,13 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 // ------------ Compute pose --------------------------------------
 	int min_matching_lines = 4;
-	for (int i=0; i<final_tag_vec.size(); i++)
+	for (unsigned int i=0; i<final_tag_vec.size(); i++)
 	{
 		if (final_tag_vec[i].no_matching_lines < min_matching_lines)
 			continue;
 
 		int nPoints = 0;
-		for (int j=0; j<final_tag_vec[i].image_points.size(); j++)
+		for (unsigned int j=0; j<final_tag_vec[i].image_points.size(); j++)
 			if (final_tag_vec[i].image_points[j].x != 0)
 				nPoints++;
 		
@@ -810,7 +810,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		float* p_pattern_coords = 0;
 		float* p_image_coords = 0;
 		int idx = 0;
-		for (int j=0; j<final_tag_vec[i].image_points.size(); j++)
+		for (unsigned int j=0; j<final_tag_vec[i].image_points.size(); j++)
 		{
 			if (final_tag_vec[i].image_points[j].x != 0)
 			{
@@ -857,7 +857,7 @@ bool FiducialModelPi::TagUnique(std::vector<t_pi>& tag_vec, t_pi& newTag)
 {
 	// Insert if not already existing
 	bool duplicate = true;	
-	for (int i=0; i<tag_vec.size(); i++)
+	for (unsigned int i=0; i<tag_vec.size(); i++)
 	{
 		duplicate = true;
 		for (int j=0; j<12; j++)
@@ -878,7 +878,7 @@ bool FiducialModelPi::TagUnique(std::vector<t_pi>& tag_vec, t_pi& newTag)
 unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> pi_tags)
 {
 	m_ref_tag_vec.clear();
-	for(int i=0; i<pi_tags.size(); i++)
+	for(unsigned int i=0; i<pi_tags.size(); i++)
 	{
 		t_pi ref_tag;
 		double tag_size = pi_tags[i].line_width_height;
@@ -914,7 +914,7 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		ref_tag.marker_points.push_back(cv::Point2f(0, -float(d_line0_AB)));
 
 		// Offset
-		for(int j=0; j<ref_tag.marker_points.size(); j++)
+		for(unsigned int j=0; j<ref_tag.marker_points.size(); j++)
 		{
 			ref_tag.marker_points[j].x += pi_tags[i].offset.x;
 			ref_tag.marker_points[j].y += pi_tags[i].offset.y;
@@ -982,7 +982,6 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 //	BEGIN FiducialDetector->Fiducial
 //************************************************************************************
 			// Tag element "ObjectDetectorParameters" of Xml Inifile
-			TiXmlElement *p_xmlElement_Root_FI = NULL;
 
 			for(TiXmlElement* p_xmlElement_Root_FI = p_xmlElement_Root->FirstChildElement("Fiducial"); 
 				p_xmlElement_Root_FI != NULL; 
