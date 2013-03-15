@@ -5514,20 +5514,33 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 	std::string breakingWordsDisplayName = "breaking words";
 
 //del	std::vector<cv::Rect> letters;
-//	if (firstPass_)
-//	{
-//		letters = brightLetters_;
-//		breakingWordsDisplayName = "breaking bright words";
-//	}
-//		for (unsigned int i = 0; i < brightLetters_.size(); i++)
-//			letters.push_back(brightLetters_[i]);
-//	else
-//	{
-//		letters = darkLetters_;
-//		breakingWordsDisplayName = "breaking dark words";
-//	}
-//		for (unsigned int i = 0; i < darkLetters_.size(); i++)
-//			letters.push_back(darkLetters_[i]);
+//	std::vector<Letter> letters;
+	if (firstPass_)
+	{
+//		for (int i=0; i<(int)brightLetters_.size(); i++)
+//		{
+//			Letter l;
+//			l.boundingBox = brightLetters_[i];
+//			l.centerPoint = cv::Point2d(brightLetters_[i].x + 0.5*brightLetters_[i].width, brightLetters_[i].y + 0.5*brightLetters_[i].height);
+//			l.fontColor = BRIGHT;
+//			letters.push_back(l);
+//		}
+
+		breakingWordsDisplayName = "breaking bright words";
+	}
+	else
+	{
+//		for (int i=0; i<(int)darkLetters_.size(); i++)
+//		{
+//			Letter l;
+//			l.boundingBox = darkLetters_[i];
+//			l.centerPoint = cv::Point2d(darkLetters_[i].x + 0.5*darkLetters_[i].width, darkLetters_[i].y + 0.5*darkLetters_[i].height);
+//			l.fontColor = DARK;
+//			letters.push_back(l);
+//		}
+
+		breakingWordsDisplayName = "breaking dark words";
+	}
 
 	//For every boundingBox:
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
