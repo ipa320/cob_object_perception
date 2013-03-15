@@ -448,9 +448,10 @@ void DetectText::pipeline()
 	std::cout << "[" << time_in_seconds << " s] in groupLetters: " << letterGroups_.size() << " groups found" << std::endl;
 
 	start_time = clock();
-	std::vector<cv::Rect> boundingBoxes = chainPairs();
+	//std::vector<TextRegion> textRegions; //replace or fuse connectedComponents
+	chainPairs(textRegions_);
 	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
-	std::cout << "[" << time_in_seconds << " s] in chainPairs: " << boundingBoxes.size() << " chains found" << std::endl;
+	std::cout << "[" << time_in_seconds << " s] in chainPairs: " << textRegions_.size() << " chains found" << std::endl;
 
 	//  start_time = clock();
 	//  combineNeighborBoxes(boundingBoxes);
@@ -472,26 +473,25 @@ void DetectText::pipeline()
 //		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
 
 		// separating several lines of text
-		std::vector<cv::RotatedRect> lineEquations;
 		start_time = clock();
-		breakLines(boundingBoxes, lineEquations);
+		breakLines(textRegions_);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-		std::cout << "[" << time_in_seconds << " s] in breakLines: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
+		std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
 		// after this block the indices between boundingBoxes and connectedComponents_ do not correspond anymore!
 
 		// separate words on a single line
 		start_time = clock();
 		std::vector<double> qualityScore;
-		breakLinesIntoWords(boundingBoxes, lineEquations, qualityScore);
+		breakLinesIntoWords(textRegions_, qualityScore);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << boundingBoxes.size() << " boundingBoxes after breaking blocks into lines" << std::endl << std::endl;
+		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
 
 		// write found bounding boxes into the respective structures
-		for (unsigned int i=0; i<boundingBoxes.size(); i++)
+		for (unsigned int i=0; i<textRegions_.size(); i++)
 		{
-			finalBoundingBoxes_.push_back(boundingBoxes[i]);
-			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(boundingBoxes[i].x+0.5*boundingBoxes[i].width, boundingBoxes[i].y+0.5*boundingBoxes[i].height),
-					cv::Size2f(boundingBoxes[i].width, boundingBoxes[i].height), 0.f));
+			finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
+			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
+					cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
 			finalBoundingBoxesQualityScore_.push_back(qualityScore[i]);
 		}
 
@@ -516,7 +516,7 @@ void DetectText::pipeline()
 	else
 	{
 		start_time = clock();
-		ransacPipeline(boundingBoxes);
+		ransacPipeline(textRegions_);
 		time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
 
 		if (firstPass_)
@@ -1479,7 +1479,8 @@ float DetectText::getMedianStrokeWidth(const cv::Mat& ccmap, const cv::Mat& swtm
 	return SwtValues[SwtValues.size() / 2];
 }
 
-std::vector<cv::Rect> DetectText::chainPairs()
+// merges letterGroups_ to chains of letters, finds bounding box of these chains and creates the textRegions data structure
+void DetectText::chainPairs(std::vector<TextRegion>& textRegions)
 {
 	if (debug["showPairs"])
 	{
@@ -1514,39 +1515,37 @@ std::vector<cv::Rect> DetectText::chainPairs()
 		}
 	}
 
-	std::vector<std::vector<int> > chains_;
-	mergePairs(letterGroups_, chains_);
+	std::vector<std::vector<int> > chains;		// contains letters that belong to the same region, outer index=region index, inner index=letter index (refers to index of labeledRegions)
+	mergePairs(letterGroups_, chains);		// put letters of same regions into one group, yields several of those groups
 
-	std::vector<cv::Rect> initialBoxes;
-	chainToBox(chains_, initialBoxes); //initialHorizontalBoxes contains rects for every chain component with more than two components(letters)
+	//std::vector<cv::Rect> initialBoxes;
+	chainToBox(chains, /*initialBoxes,*/ textRegions); //initialHorizontalBoxes contains rects for every chain component with more than two components(letters)
 
 	if (debug["showChains"])
 	{
 		cv::Mat output = originalImage_.clone();
 		std::cout << "Initial Boxes: " << std::endl;
-		for (unsigned int ii = 0; ii < initialBoxes.size(); ii++)
+		for (unsigned int ii = 0; ii < textRegions.size(); ii++)
 		{
-			std::cout << "   " << initialBoxes[ii].x << "\t" << initialBoxes[ii].y << "\t" << initialBoxes[ii].width << "\t" << initialBoxes[ii].height << "\t" << std::endl;
-			for (unsigned int i = 0; i < connectedComponents_[ii].size(); i++)
+			std::cout << "   " << textRegions[ii].boundingBox.x << "\t" << textRegions[ii].boundingBox.y << "\t" << textRegions[ii].boundingBox.width << "\t" << textRegions[ii].boundingBox.height << "\t" << std::endl;
+			for (unsigned int i = 0; i < textRegions[ii].letters.size(); i++)
 			{
-				cv::rectangle(output, connectedComponents_[ii][i].r, cv::Scalar(255, 255, 255), 1, 1, 0);
-				cv::rectangle(output, connectedComponents_[ii][i].middlePoint, connectedComponents_[ii][i].middlePoint, cv::Scalar(255, 255, 255), 2, 1, 0);
+				cv::rectangle(output, textRegions[ii].letters[i].boundingBox, cv::Scalar(255, 255, 255), 1, 1, 0);
+				cv::rectangle(output, textRegions[ii].letters[i].centerPoint, textRegions[ii].letters[i].centerPoint, cv::Scalar(255, 255, 255), 2, 1, 0);
 			}
-			cv::rectangle(output, cv::Point(initialBoxes[ii].x, initialBoxes[ii].y), cv::Point(initialBoxes[ii].x+initialBoxes[ii].width, initialBoxes[ii].y+initialBoxes[ii].height), cv::Scalar(0,255,0), 2, 1, 0);
+			cv::rectangle(output, cv::Point(textRegions[ii].boundingBox.x, textRegions[ii].boundingBox.y), cv::Point(textRegions[ii].boundingBox.x+textRegions[ii].boundingBox.width, textRegions[ii].boundingBox.y+textRegions[ii].boundingBox.height), cv::Scalar(0,255,0), 2, 1, 0);
 			cv::imshow("chains", output);
 			cvMoveWindow("chains", 0, 0);
 			cv::waitKey(0);
 		}
 	}
-
-	return initialBoxes;
 }
 
-void DetectText::chainToBox(std::vector<std::vector<int> >& chain, std::vector<cv::Rect>& boundingBox)
+void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions)
 {
-	for (size_t i = 0; i < chain.size(); i++)
+	for (size_t i = 0; i < chains.size(); i++)
 	{
-		if (chain[i].size() < 3) //Only words with more than 2 letters	// todo: param
+		if (chains[i].size() < 3) //Only words with more than 2 letters	// todo: param
 		{
 			continue;
 		}
@@ -1555,33 +1554,35 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chain, std::vector<c
 		int letterAreaSum = 0;
 		int padding = 0;		// todo: param
 
-		std::vector<connectedComponent> lettersInBox;
+		//std::vector<connectedComponent> lettersInBox;
+		TextRegion textRegion;
 
-		for (size_t j = 0; j < chain[i].size(); j++)
+		for (size_t j = 0; j < chains[i].size(); j++)
 		{
-			cv::Rect itr = labeledRegions_[chain[i][j]];
+			cv::Rect itr = labeledRegions_[chains[i][j]];
 			letterAreaSum += itr.width * itr.height;
 			minX = std::min(minX, itr.x);
 			minY = std::min(minY, itr.y);
 			maxX = std::max(maxX, itr.x + itr.width);
 			maxY = std::max(maxY, itr.y + itr.height);
 
-			connectedComponent letterBox;
-			letterBox.r = itr;
-			letterBox.middlePoint = cv::Point(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
+			//connectedComponent letterBox;
+			Letter letter;
+			letter.boundingBox = itr;
+			letter.centerPoint = cv::Point2d(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
 
 			if (firstPass_)
 			{
 				brightLetters_.push_back(itr);
-				letterBox.clr = BRIGHT;
+				letter.fontColor = BRIGHT;
 			}
 			else
 			{
 				darkLetters_.push_back(itr);
-				letterBox.clr = DARK;
+				letter.fontColor = DARK;
 			}
 
-			lettersInBox.push_back(letterBox);
+			textRegion.letters.push_back(letter);
 		}
 
 		// add padding around each box
@@ -1590,12 +1591,14 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chain, std::vector<c
 		maxX = std::min(grayImage_.cols, maxX + padding);
 		maxY = std::min(grayImage_.rows, maxY + padding);
 
-		boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
-		connectedComponents_.push_back(lettersInBox);
+		//boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
+		textRegion.boundingBox = cv::Rect(minX, minY, maxX - minX, maxY - minY);
+		textRegions.push_back(textRegion);
+		//connectedComponents_.push_back(lettersInBox);
 	}
 }
 
-void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector<std::vector<int> >& chains)
+void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::vector<int> >& chains)
 {
 	/* groups looks like this:
 	 *  4 5
@@ -1626,7 +1629,7 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector<std::ve
 	}
 }
 
-bool DetectText::mergePairs(const std::vector<std::vector<int> >& initialChains, std::vector<std::vector<int> >& chains)
+bool DetectText::mergePairs(const std::vector< std::vector<int> >& initialChains, std::vector< std::vector<int> >& chains)
 {
 	chains.clear();
 
@@ -1652,7 +1655,7 @@ bool DetectText::mergePairs(const std::vector<std::vector<int> >& initialChains,
 						// j already merged with others
 						if (mergedToChainBitMap[j] != -1)
 						{
-							merge(initialChains[i], chains[mergedToChainBitMap[j]]);
+							merge(initialChains[i], chains[mergedToChainBitMap[j]]);	// add new letters to existing chain
 
 							mergedToChainBitMap[i] = mergedToChainBitMap[j];
 						}
@@ -1947,44 +1950,45 @@ double DetectText::pointLineDistance2D(cv::Point2d linePoint, cv::Point2d lineNo
 }
 
 
-void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::RotatedRect>& lineEquations)
+void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 {
 	// this function splits up bounding boxes of potentially multiline text into boxes around single line text
 
 	if (debug["showBreakLines"])
 		std::cout << "Breaking boxes into single-line boxes." << std::endl;
 
-	std::vector<cv::Rect> letters;
-
-	if (firstPass_)
-		letters = brightLetters_;
+//	std::vector<cv::Rect> letters;
+//	if (firstPass_)
+//		letters = brightLetters_;
 //		for (unsigned int i = 0; i < brightLetters_.size(); i++)
 //			letters.push_back(brightLetters_[i]);
-	else
-		letters = darkLetters_;
+//	else
+//		letters = darkLetters_;
 //		for (unsigned int i = 0; i < darkLetters_.size(); i++)
 //			letters.push_back(darkLetters_[i]);
 
 	//For every boundingBox:
-	std::vector<cv::Rect> splitUpBoxes;
-	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
+	//std::vector<cv::Rect> splitUpBoxes;
+	std::vector<TextRegion> splitUpTextRegions;
+	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
 		//which Letters belong to the current boundingBox
 		// save bounding boxes and mid points of the currently active letters
-		std::vector<cv::Rect> currentLetterBoxes;
-		std::vector<cv::Point2d> currentPoints;
+		std::vector<cv::Rect> currentLetterBoxes(textRegions[textRegionIndex].letters.size());
+		std::vector<cv::Point2d> currentPoints(textRegions[textRegionIndex].letters.size());
 //		for (unsigned int i = 0; i < letters.size(); i++)
 //			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
 //				currentLetterBoxes.push_back(letters[i]);
-		for (unsigned int i=0; i<connectedComponents_[boxIndex].size(); i++)
-			currentLetterBoxes.push_back(connectedComponents_[boxIndex][i].r);
+		for (unsigned int i=0; i<textRegions[textRegionIndex].letters.size(); i++)
+		{
+			currentLetterBoxes[i] = textRegions[textRegionIndex].letters[i].boundingBox;
+			currentPoints[i] = textRegions[textRegionIndex].letters[i].centerPoint;
+		}
 
+		// average letter size measure
 		double averageLetterSize = 0;
 		for (unsigned int i = 0; i < currentLetterBoxes.size(); i++)
-		{
-			currentPoints.push_back(cv::Point2d(currentLetterBoxes[i].x + 0.5 * currentLetterBoxes[i].width, currentLetterBoxes[i].y + 0.5 * currentLetterBoxes[i].height));
 			averageLetterSize += sqrt(currentLetterBoxes[i].width*currentLetterBoxes[i].width + currentLetterBoxes[i].height*currentLetterBoxes[i].height);
-		}
 		averageLetterSize /= (double)currentLetterBoxes.size();
 
 		// use RANSAC to fit letters to straight lines
@@ -2046,7 +2050,7 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 				for (unsigned int i=0; i<currentPoints.size(); i++)
 				{
 					cv::Point2d diff = p1-currentPoints[i];
-					double dist = fabs(diff.x*normal.x + diff.y*normal.y);
+					double dist = fabs(diff.x*normal.x + diff.y*normal.y);		// todo: this score also considers the outliers in the ranking!
 					score += exp(log(0.1) * dist/inlierDistanceThreshold);		// todo: what is the reason for this way of computing the score? (but works well)
 				}
 
@@ -2238,6 +2242,8 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 					}
 
 					// retrieve bounding box of inlier set
+					TextRegion textRegion;
+					textRegion.letters.resize(currentInlierSet.size());
 					cv::Point minPoint(100000, 100000), maxPoint(0, 0);
 					for (unsigned int i=0; i<currentInlierSet.size(); i++)
 					{
@@ -2249,9 +2255,17 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 							maxPoint.x = currentLetterBoxes[currentInlierSet[i]].x+currentLetterBoxes[currentInlierSet[i]].width;
 						if (maxPoint.y < currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height)
 							maxPoint.y = currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height;
+
+						// store letters
+						textRegion.letters[i].boundingBox = currentLetterBoxes[currentInlierSet[i]];
+						textRegion.letters[i].centerPoint = currentPoints[currentInlierSet[i]];
+						textRegion.letters[i].fontColor = textRegions[textRegionIndex].letters[0].fontColor;
 					}
-					splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
-					lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
+					//splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
+					//lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
+					textRegion.boundingBox = cv::Rect(minPoint, maxPoint);
+					textRegion.lineEquation = cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore);
+					splitUpTextRegions.push_back(textRegion);
 
 					// debug
 					if (debug["showBreakLines"])
@@ -2278,528 +2292,8 @@ void DetectText::breakLines(std::vector<cv::Rect>& boxes, std::vector<cv::Rotate
 	}
 
 	// return the set of divided boxes
-	boxes = splitUpBoxes;
-
-
-
-// Robert's code
-/*
-	// break text into separate lines without destroying letter boxes
-	cv::Mat output = originalImage_.clone();		// todo: make this a debug parameter
-
-	std::vector<cv::Rect> letters;
-
-	if (firstPass_)
-		letters = brightLetters_;
-//		for (unsigned int i = 0; i < brightLetters_.size(); i++)
-//			letters.push_back(brightLetters_[i]);
-	else
-		letters = darkLetters_;
-//		for (unsigned int i = 0; i < darkLetters_.size(); i++)
-//			letters.push_back(darkLetters_[i]);
-
-	//For every boundingBox:
-	std::vector<cv::Rect> dummyBoxes;
-	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
-	{
-		std::vector<int> currentLetters; // which ones of all found letters on the image belong to the current boundingBox
-
-		//which Letters belong to the current boundingBox
-		for (unsigned int i = 0; i < letters.size(); i++)
-			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
-				currentLetters.push_back(i);
-
-		std::vector<cv::Rect> currentLetterBoxes;
-		std::vector<cv::Point> currentPoints;
-
-		for (unsigned int i = 0; i < currentLetters.size(); i++)
-			currentLetterBoxes.push_back(letters[currentLetters[i]]);
-
-		sort(currentLetterBoxes.begin(), currentLetterBoxes.end(), DetectText::spatialOrderX);
-
-		for (unsigned int i = 0; i < currentLetterBoxes.size(); i++)
-			currentPoints.push_back(cv::Point(currentLetterBoxes[i].x + 0.5 * currentLetterBoxes[i].width, currentLetterBoxes[i].y + 0.5 * currentLetterBoxes[i].height));
-
-		// Save all points on the edge of all boxes
-		std::vector<cv::Point> allEdgePoints;
-		for (unsigned int i = 0; i < currentLetterBoxes.size(); i++)
-		{
-			int xDir = currentLetterBoxes[i].x, yDir = currentLetterBoxes[i].y;
-			while (xDir < currentLetterBoxes[i].x + currentLetterBoxes[i].width - 1)
-			{
-				allEdgePoints.push_back(cv::Point(xDir, currentLetterBoxes[i].y));
-				xDir++;
-			}
-			while (yDir < currentLetterBoxes[i].y + currentLetterBoxes[i].height)
-			{
-				allEdgePoints.push_back(cv::Point(currentLetterBoxes[i].x + currentLetterBoxes[i].width - 1, yDir));
-				yDir++;
-			}
-			xDir = currentLetterBoxes[i].x;
-			yDir = currentLetterBoxes[i].y;
-			while (yDir < currentLetterBoxes[i].y + currentLetterBoxes[i].height - 1)
-			{
-				allEdgePoints.push_back(cv::Point(currentLetterBoxes[i].x, yDir));
-				yDir++;
-			}
-			while (xDir < currentLetterBoxes[i].x + currentLetterBoxes[i].width)
-			{
-				allEdgePoints.push_back(cv::Point(xDir, currentLetterBoxes[i].y + currentLetterBoxes[i].height - 1));
-				xDir++;
-			}
-			cv::rectangle(output, currentLetterBoxes[i], cv::Scalar(200, 200, 200), 1, 1, 0);
-		}
-
-		// cv::imshow("breaking lines apart", output);
-		// cv::waitKey(0);
-
-		// first run: horizontal direction
-		// find startPoint on left side of boundingBox
-		// and find endPoint on right side, so that a line can be drawn between
-		// the two points that doesn't cross any letterbox -> there could be a line space
-		cv::Point startPoint, endPoint;
-		startPoint.x = boxes[boxIndex].x;
-		endPoint.x = boxes[boxIndex].x + boxes[boxIndex].width;
-
-		std::vector<cv::Point> correctStartPoint, correctEndPoint;
-
-		for (int i = 0; i < boxes[boxIndex].height; i++)
-		{
-			for (int j = 0; j < boxes[boxIndex].height; j++)
-			{
-				// f(x) = m*x+j;
-
-				bool isNegative = false;
-				float m; // slope
-				if (j >= i)
-				{
-					isNegative = true;
-					m = (j - i) / (float) (boxes[boxIndex].width);
-				}
-				else
-				{
-					m = (i - j) / (float) (boxes[boxIndex].width);
-				}
-
-				bool breakSoon = false;
-
-				for (unsigned int k = 0; k < allEdgePoints.size(); k++)
-				{
-					if (!isNegative)
-					{
-						if (j + (int) (m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y) // check if any border point of letterboxes lies on straight line described by startPoint and EndPoint
-						{
-							breakSoon = true; // if a letterbox-point is crossed along the line, this line is rejected
-							break;
-						}
-					}
-					else
-					{
-						if ((float) j > m * (allEdgePoints[k].x - boxes[boxIndex].x))
-							if (j - (int) (m * (allEdgePoints[k].x - boxes[boxIndex].x)) == allEdgePoints[k].y - boxes[boxIndex].y)
-							{
-								breakSoon = true;
-								break;
-							}
-					}
-				}
-				if (!breakSoon) // no letterbox-point was crossed -> remember this line
-				{
-					correctStartPoint.push_back(cv::Point(boxes[boxIndex].x, j + boxes[boxIndex].y));
-					correctEndPoint.push_back(cv::Point(boxes[boxIndex].x + boxes[boxIndex].width, boxes[boxIndex].y + i));
-				}
-			}
-		}
-
-		std::vector<cv::Point> CorrectAppropriateStartPoint, CorrectAppropriateEndPoint; // found lines are only appropriate if there are letters above and below the line
-		std::vector<std::pair<int, int> > pointsOverUnder;
-		std::vector<std::pair<int, int> > uniquePointsOverUnder;
-		bgr clr;
-		clr.r = 0;
-		clr.b = 0;
-		clr.g = 0;
-
-		for (size_t i = 0; i < correctStartPoint.size(); i++)
-		{
-			// y = m*x+b , on which side lies the point? => y - m*x > or < b
-
-			float m = (correctEndPoint[i].y - correctStartPoint[i].y) / (float) (correctEndPoint[i].x - correctStartPoint[i].x);
-			float b = correctStartPoint[i].y - m * correctStartPoint[i].x;
-
-			unsigned int pointsOver = 0, pointsUnder = 0;
-
-			for (size_t j = 0; j < currentPoints.size(); j++)
-			{
-				if (currentPoints[j].y - m * currentPoints[j].x > b)
-					pointsOver++;
-				if (currentPoints[j].y - m * currentPoints[j].x < b)
-					pointsUnder++;
-			}
-
-			if (pointsOver > 2 && pointsUnder > 2) // there need to be more than two letters above and more than two letters below the line
-			{
-				CorrectAppropriateStartPoint.push_back(correctStartPoint[i]);
-				CorrectAppropriateEndPoint.push_back(correctEndPoint[i]);
-				std::pair<int, int> p;
-				p.first = pointsOver;
-				p.second = pointsUnder;
-				pointsOverUnder.push_back(p);
-				if (!(std::find(uniquePointsOverUnder.begin(), uniquePointsOverUnder.end(), p) != uniquePointsOverUnder.end()))
-				{
-					uniquePointsOverUnder.push_back(p);
-					clr.r += 50;
-					clr.g += 50;
-					clr.b += 50;
-				}
-				cv::line(output, correctStartPoint[i], correctEndPoint[i], cv::Scalar(clr.b, clr.g, clr.r), 1, 1, 0);
-			}
-		}
-
-		if (CorrectAppropriateStartPoint.size() == 0) // no good lines found? add whole box, just as it was
-			dummyBoxes.push_back(boxes[boxIndex]);
-		else
-		{
-			std::cout << "different regions:" << uniquePointsOverUnder.size() << std::endl;
-			std::cout << "clr.r: " << (int) clr.r << std::endl;
-			// cv::imshow("breaking lines apart", output);
-			// cv::waitKey(0);
-
-			// uniquePointsOverUnder separated the text segments into regions with different number of boxes above and below the lines
-			// now find middle line in every set of lines for each region
-
-			int smallestY = boxes[boxIndex].y + boxes[boxIndex].height, smallestI = 0;
-			int biggestY = 0;
-			int biggestI = 0;
-
-			std::vector<std::pair<cv::Point, cv::Point> > finalLines;
-
-			for (size_t i = 0; i < uniquePointsOverUnder.size(); i++)
-			{
-				std::pair<int, int> p = uniquePointsOverUnder[i]; // 4,8
-				std::cout << "p: " << p.first << "|" << p.second << std::endl;
-				static std::pair<int, int> lastP;
-				if (i == 0)
-					lastP = uniquePointsOverUnder[i];
-				else if (abs(p.first - lastP.first) < 2 || abs(p.second - lastP.second) < 2)
-					continue;
-				lastP = uniquePointsOverUnder[i];
-
-				std::vector<cv::Point> actualRegionStartPoints, actualRegionEndPoints;
-				for (size_t j = 0; j < pointsOverUnder.size(); j++)
-				{
-					if (uniquePointsOverUnder[i] == pointsOverUnder[j])
-					{
-						actualRegionStartPoints.push_back(CorrectAppropriateStartPoint[j]);
-						actualRegionEndPoints.push_back(CorrectAppropriateEndPoint[j]);
-					}
-				}
-				// find middle line of actual points in this region
-				sort(actualRegionStartPoints.begin(), actualRegionStartPoints.end(), DetectText::pointYOrder);
-				sort(actualRegionEndPoints.begin(), actualRegionEndPoints.end(), DetectText::pointYOrder);
-
-				float alpha = atan2(
-						std::abs(actualRegionStartPoints[actualRegionStartPoints.size() / 2].y - actualRegionEndPoints[actualRegionEndPoints.size() / 2].y),
-						std::abs(actualRegionStartPoints[actualRegionStartPoints.size() / 2].x - actualRegionEndPoints[actualRegionEndPoints.size() / 2].x));
-				alpha *= (180.0 / 3.14159);
-				alpha = 180 - alpha;
-
-				finalLines.push_back(
-						std::pair<cv::Point, cv::Point>(actualRegionStartPoints[actualRegionStartPoints.size() / 2],
-								actualRegionEndPoints[actualRegionEndPoints.size() / 2]));
-
-				cv::line(output, actualRegionStartPoints[actualRegionStartPoints.size() / 2], actualRegionEndPoints[actualRegionEndPoints.size() / 2],
-						cv::Scalar(0, 200, 50), 1, 1, 0);
-				std::cout << "alpha: " << alpha << std::endl;
-
-				// cv::imshow("breaking lines apart", output);
-				//  cv::waitKey(0);
-			}
-
-			// Now separate the regions based on the found lines
-
-			for (size_t i = 0; i < CorrectAppropriateStartPoint.size(); i++)
-			{
-				if (CorrectAppropriateStartPoint[i].y < smallestY)
-				{
-					smallestY = CorrectAppropriateStartPoint[i].y;
-					smallestI = i;
-				}
-				if (CorrectAppropriateStartPoint[i].y > biggestY)
-				{
-					biggestY = CorrectAppropriateStartPoint[i].y;
-					biggestI = i;
-				}
-			}
-			cv::line(output, CorrectAppropriateStartPoint[smallestI], CorrectAppropriateEndPoint[smallestI], cv::Scalar(255, 255, 255), 1, 1, 0);
-			cv::line(output, CorrectAppropriateStartPoint[biggestI], CorrectAppropriateEndPoint[biggestI], cv::Scalar(255, 255, 255), 1, 1, 0);
-			//    cv::imshow("biggestSmallestLine", output);
-			//    cv::waitKey(0);
-
-			if (CorrectAppropriateStartPoint[smallestI].y > CorrectAppropriateEndPoint[smallestI].y)
-			{
-				cv::Rect r1(boxes[boxIndex].x, boxes[boxIndex].y, boxes[boxIndex].width, CorrectAppropriateStartPoint[smallestI].y - boxes[boxIndex].y);
-				dummyBoxes.push_back(r1);
-				//cv::rectangle(output, r1, cv::Scalar(200, 100, 50), 2, 0, 0);
-				//cv::imshow("test123", output);
-				//cv::waitKey(0);
-			}
-			else
-			{
-				cv::Rect r1(boxes[boxIndex].x, boxes[boxIndex].y, boxes[boxIndex].width, CorrectAppropriateEndPoint[smallestI].y - boxes[boxIndex].y);
-				dummyBoxes.push_back(r1);
-				cv::rectangle(output, r1, cv::Scalar(200, 100, 50), 2, 0, 0);
-				//  cv::imshow("test123", output);
-				//    cv::waitKey(0);
-			}
-
-			if (CorrectAppropriateStartPoint[biggestI].y > CorrectAppropriateEndPoint[biggestI].y)
-			{
-				cv::Rect r2(boxes[boxIndex].x, CorrectAppropriateEndPoint[biggestI].y, boxes[boxIndex].width,
-						boxes[boxIndex].y + boxes[boxIndex].height - CorrectAppropriateEndPoint[biggestI].y);
-				dummyBoxes.push_back(r2);
-				cv::rectangle(output, r2, cv::Scalar(200, 100, 50), 2, 0, 0);
-				//   cv::imshow("test123", output);
-				//  cv::waitKey(0);
-			}
-			else
-			{
-				cv::Rect r2(boxes[boxIndex].x, CorrectAppropriateStartPoint[biggestI].y, boxes[boxIndex].width,
-						boxes[boxIndex].y + boxes[boxIndex].height - CorrectAppropriateStartPoint[biggestI].y);
-				dummyBoxes.push_back(r2);
-				cv::rectangle(output, r2, cv::Scalar(200, 100, 50), 2, 0, 0);
-				//   cv::imshow("test123", output);
-				//   cv::waitKey(0);
-			}
-		}
-
-		// VERTICAL
-		/*
-		 rightStartPoint.clear();
-		 rightEndPoint.clear();
-		 std::cout << "(boxes[boxIndex].height): " << (boxes[boxIndex].height) << std::endl;
-		 for (int i = 0; i < boxes[boxIndex].width; i++)
-		 {
-		 for (int j = 0; j < boxes[boxIndex].width; j++)
-		 {
-		 cv::Mat output2 = output.clone();
-		 bool isNeg = false;
-		 bool infM = false;
-		 float m;
-		 if (j > i)
-		 {
-		 isNeg = true;
-		 m = (j - i) / (float)(boxes[boxIndex].height);
-		 }
-		 if (j < i)
-		 {
-		 m = (i - j) / (float)(boxes[boxIndex].height);
-		 }
-		 else
-		 {
-		 infM = true;
-		 }
-		 bool breakSoon = false;
-		 // f(x) = m*x+j;
-		 int kk = 0;
-		 for (unsigned int k = 0; k < allEdgePoints.size(); k++) //allEdgePoints.size()
-		 {
-		 std::cout << "allEdgePoints[" << k << "]: " << allEdgePoints[k].x << "|" << allEdgePoints[k].y << " , box: "
-		 << boxes[boxIndex].x << "|" << boxes[boxIndex].y << std::endl;
-		 if (!infM)
-		 {
-		 if (!isNeg)
-		 {
-		 if (j + (int)(m * (allEdgePoints[k].y - boxes[boxIndex].y)) == allEdgePoints[k].x - boxes[boxIndex].x)
-		 {
-		 breakSoon = true;
-		 kk = k;
-		 break;
-		 }
-		 }
-		 else
-		 {
-		 if ((float)j >= m * (allEdgePoints[k].y - boxes[boxIndex].y))
-		 if (j - (int)(m * (allEdgePoints[k].y - boxes[boxIndex].y)) == allEdgePoints[k].x - boxes[boxIndex].x)
-		 {
-		 breakSoon = true;
-		 kk = k;
-		 break;
-		 }
-		 }
-		 }
-		 else
-		 {
-		 if (allEdgePoints[k].x - boxes[boxIndex].x== i)
-		 {
-		 breakSoon = true;
-		 kk = k;
-		 break;
-		 }
-		 }
-		 }
-		 if (breakSoon)
-		 {
-		 ;
-		 }
-		 else
-		 {
-		 rightStartPoint.push_back(cv::Point(boxes[boxIndex].x + j, boxes[boxIndex].y));
-		 rightEndPoint.push_back(cv::Point(boxes[boxIndex].x + i, boxes[boxIndex].y + boxes[boxIndex].height));
-		 cv::line(output, cv::Point(boxes[boxIndex].x + j, boxes[boxIndex].y),
-		 cv::Point(boxes[boxIndex].x + i, boxes[boxIndex].y + boxes[boxIndex].height), cv::Scalar(255, 255,
-		 255), 1, 1,
-		 0);
-		 cv::imshow("BLAH", output);
-		 std::cout << "i: " << i << ", j: " << j << ", m: " << m << ", y:" << allEdgePoints[kk].y - boxes[boxIndex].y
-		 << ", x: " << allEdgePoints[kk].x - boxes[boxIndex].x << std::endl;
-		 cv::waitKey(0);
-		 }
-
-		 }
-		 }
-
-		 goodRightStartPoint.clear();
-		 goodRightEndPoint.clear();
-		 for (size_t i = 0; i < rightStartPoint.size(); i++)
-		 {
-		 unsigned int pointsOver = 0, pointsUnder = 0;
-		 if (rightEndPoint[i].x - rightStartPoint[i].x == 0)
-		 {
-		 for (size_t j = 0; j < currentPoints.size(); j++)
-		 {
-		 if (currentPoints[j].x > rightEndPoint[i].x)
-		 pointsOver++;
-		 else
-		 pointsUnder++;
-		 }
-		 }
-		 else
-		 {
-		 float m = (rightEndPoint[i].y - rightStartPoint[i].y) / (float)(rightEndPoint[i].x - rightStartPoint[i].x);
-		 float b = rightStartPoint[i].y - m * rightStartPoint[i].x;
-		 // y = m*x+b , on which side lies the point? => y - m*x > or < b
-		 for (size_t j = 0; j < currentPoints.size(); j++)
-		 {
-		 if (currentPoints[j].y - m * currentPoints[j].x > b)
-		 pointsOver++;
-		 if (currentPoints[j].y - m * currentPoints[j].x < b)
-		 pointsUnder++;
-		 }
-		 }
-		 if (pointsOver > 3 && pointsUnder > 3)
-		 {
-		 goodRightStartPoint.push_back(rightStartPoint[i]);
-		 goodRightEndPoint.push_back(rightEndPoint[i]);
-		 }
-		 }
-
-		 if (goodRightStartPoint.size() == 0)
-		 dummyBoxes.push_back(boxes[boxIndex]);
-		 else
-		 {
-		 int smallestY = boxes[boxIndex].y + boxes[boxIndex].height, smallestI = 0;
-		 int biggestY = 0;
-		 int biggestI = 0;
-		 for (size_t i = 0; i < goodRightStartPoint.size(); i++)
-		 {
-		 if (goodRightStartPoint[i].y < smallestY)
-		 {
-		 smallestY = goodRightStartPoint[i].y;
-		 smallestI = i;
-		 }
-		 if (goodRightStartPoint[i].y > biggestY)
-		 {
-		 biggestY = goodRightStartPoint[i].y;
-		 biggestI = i;
-		 }
-		 }
-		 cv::line(output, goodRightStartPoint[smallestI], goodRightEndPoint[smallestI], cv::Scalar(255, 255, 255), 1, 1, 0);
-		 cv::line(output, goodRightStartPoint[biggestI], goodRightEndPoint[biggestI], cv::Scalar(255, 255, 255), 1, 1, 0);
-		 cv::imshow("test123", output);
-		 cv::waitKey(0);
-
-		 if (goodRightStartPoint[smallestI].y > goodRightEndPoint[smallestI].y)
-		 {
-		 cv::Rect r1(boxes[boxIndex].x, boxes[boxIndex].y, boxes[boxIndex].width, goodRightStartPoint[smallestI].y
-		 - boxes[boxIndex].y);
-		 dummyBoxes.push_back(r1);
-		 cv::rectangle(output, r1, cv::Scalar(200, 100, 50), 2, 0, 0);
-		 cv::imshow("test123", output);
-		 cv::waitKey(0);
-		 }
-		 else
-		 {
-		 cv::Rect r1(boxes[boxIndex].x, boxes[boxIndex].y, boxes[boxIndex].width, goodRightEndPoint[smallestI].y
-		 - boxes[boxIndex].y);
-		 dummyBoxes.push_back(r1);
-		 cv::rectangle(output, r1, cv::Scalar(200, 100, 50), 2, 0, 0);
-		 cv::imshow("test123", output);
-		 cv::waitKey(0);
-		 }
-
-		 if (goodRightStartPoint[biggestI].y > goodRightEndPoint[biggestI].y)
-		 {
-		 cv::Rect r2(boxes[boxIndex].x, goodRightEndPoint[biggestI].y, boxes[boxIndex].width, boxes[boxIndex].y
-		 + boxes[boxIndex].height - goodRightEndPoint[biggestI].y);
-		 dummyBoxes.push_back(r2);
-		 cv::rectangle(output, r2, cv::Scalar(200, 100, 50), 2, 0, 0);
-		 cv::imshow("test123", output);
-		 cv::waitKey(0);
-		 }
-		 else
-		 {
-		 cv::Rect r2(boxes[boxIndex].x, goodRightStartPoint[biggestI].y, boxes[boxIndex].width, boxes[boxIndex].y
-		 + boxes[boxIndex].height - goodRightStartPoint[biggestI].y);
-		 dummyBoxes.push_back(r2);
-		 cv::rectangle(output, r2, cv::Scalar(200, 100, 50), 2, 0, 0);
-		 cv::imshow("test123", output);
-		 cv::waitKey(0);
-		 }
-		 }
-		 */
-/*	}
-
-	boxes.clear();
-	for (unsigned int boxIndex = 0; boxIndex < dummyBoxes.size(); boxIndex++)
-		boxes.push_back(dummyBoxes[boxIndex]);
-
-	//For every boundingBox:
-	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
-	{
-		cv::Rect re = boxes[boxIndex];
-		std::vector<cv::Rect> currentLetters;
-		for (unsigned int letterIndex = 0; letterIndex < letters.size(); letterIndex++)
-		{
-			cv::Rect p(letters[letterIndex].x + 0.5 * letters[letterIndex].width, letters[letterIndex].y + 0.5 * letters[letterIndex].height, 1, 1);
-			if ((p & boxes[boxIndex]).area() == 1.0)
-			{
-				currentLetters.push_back(letters[letterIndex]); //Index < letters.size(); letterIndex++)
-			}
-		}
-
-		int smallestX = boxes[boxIndex].x + boxes[boxIndex].width, smallestY = boxes[boxIndex].y + boxes[boxIndex].height, smallestWidth = boxes[boxIndex].x,
-				smallestHeight = boxes[boxIndex].y;
-		for (unsigned int letterIndex = 0; letterIndex < currentLetters.size(); letterIndex++)
-		{
-			if (currentLetters[letterIndex].x < smallestX)
-				smallestX = currentLetters[letterIndex].x;
-			if (currentLetters[letterIndex].y < smallestY)
-				smallestY = currentLetters[letterIndex].y;
-			if (currentLetters[letterIndex].x + currentLetters[letterIndex].width > smallestWidth)
-				smallestWidth = currentLetters[letterIndex].x + currentLetters[letterIndex].width;
-			if (currentLetters[letterIndex].y + currentLetters[letterIndex].height > smallestHeight)
-				smallestHeight = currentLetters[letterIndex].y + currentLetters[letterIndex].height;
-		}
-
-		boxes[boxIndex].x = smallestX;
-		boxes[boxIndex].y = smallestY;
-		boxes[boxIndex].width = smallestWidth - smallestX;
-		boxes[boxIndex].height = smallestHeight - smallestY;
-		cv::rectangle(output, boxes[boxIndex], cv::Scalar(50, 100, 250), 2, 0, 0);
-		cv::imshow("breaking apart", output);
-		cv::waitKey(0);
-	}
-*/
+	//boxes = splitUpBoxes;
+	textRegions = splitUpTextRegions;
 }
 
 bool DetectText::spatialOrderX(cv::Rect a, cv::Rect b)
@@ -2814,7 +2308,8 @@ void DetectText::disposal()
 	meanRGB_.clear();
 	meanBgRGB_.clear();
 	letterGroups_.clear();
-	connectedComponents_.clear();
+	textRegions_.clear();
+	//connectedComponents_.clear();
 }
 
 void DetectText::deleteDoubleBrokenWords(std::vector<cv::Rect>& boundingBoxes)
@@ -4180,19 +3675,19 @@ void DetectText::writeTxtsForEval()
 	file3.close();
 }
 
-void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
+void DetectText::ransacPipeline(std::vector<TextRegion>& textRegions)
 {
 	std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSet;
 
 	std::vector<cv::Rect> ransacBoxes;
 
-	for (unsigned int boxIndex = 0; boxIndex < boundingBoxes.size(); boxIndex++)
+	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
 		//    cv::Mat output = originalImage_.clone();
 
-		cv::Rect r = boundingBoxes[boxIndex];
+		cv::Rect r = textRegions[textRegionIndex].boundingBox;
 
-		ransacSet = ransac(connectedComponents_[boxIndex]);
+		ransacSet = ransac(textRegions[textRegionIndex].letters);
 
 		// transform text based on bezier line
 		// calculate height and width of transformed image
@@ -4207,17 +3702,17 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 
 			for (unsigned int j = 0; j < ransacSet[i].first.size(); j++)
 			{
-				for (unsigned int k = 0; k < connectedComponents_[boxIndex].size(); k++)
+				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
 				{
-					if ((ransacSet[i].first[j]).inside(connectedComponents_[boxIndex][k].r))
+					if ((ransacSet[i].first[j]).inside(textRegions[textRegionIndex].letters[k].boundingBox))
 					{
 						// todo: wouldn't it be sufficient to check the 4 corner points of the bounding box?
 						// probably not because curve is bent
 
 						// get max distance from curve
 						// calculate distance of all border pixels of components to the curve
-						for (int y = connectedComponents_[boxIndex][k].r.y, x = connectedComponents_[boxIndex][k].r.x; y
-								< connectedComponents_[boxIndex][k].r.y + connectedComponents_[boxIndex][k].r.height; y++) // todo: y += height
+						for (int y = textRegions[textRegionIndex].letters[k].boundingBox.y, x = textRegions[textRegionIndex].letters[k].boundingBox.x;
+								y < textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height; y++) // todo: y += height
 						{
 							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
 							if (biggestDistance < distanceT.first)
@@ -4240,9 +3735,9 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 								}
 						}
 
-						for (int y = connectedComponents_[boxIndex][k].r.y, x = connectedComponents_[boxIndex][k].r.x
-								+ connectedComponents_[boxIndex][k].r.width; y < connectedComponents_[boxIndex][k].r.y
-								+ connectedComponents_[boxIndex][k].r.height; y++)
+						for (int y = textRegions[textRegionIndex].letters[k].boundingBox.y, x = textRegions[textRegionIndex].letters[k].boundingBox.x
+								+ textRegions[textRegionIndex].letters[k].boundingBox.width; y < textRegions[textRegionIndex].letters[k].boundingBox.y
+								+ textRegions[textRegionIndex].letters[k].boundingBox.height; y++)
 						{
 							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
 							if (biggestDistance < distanceT.first)
@@ -4261,8 +3756,8 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 									maxT = distanceT.second;
 								}
 						}
-						for (int x = connectedComponents_[boxIndex][k].r.x, y = connectedComponents_[boxIndex][k].r.y; x
-								< connectedComponents_[boxIndex][k].r.x + connectedComponents_[boxIndex][k].r.width; x++)
+						for (int x = textRegions[textRegionIndex].letters[k].boundingBox.x, y = textRegions[textRegionIndex].letters[k].boundingBox.y;
+								x < textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width; x++)
 						{
 							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
 							if (biggestDistance < distanceT.first)
@@ -4281,9 +3776,9 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 									maxT = distanceT.second;
 								}
 						}
-						for (int x = connectedComponents_[boxIndex][k].r.x, y = connectedComponents_[boxIndex][k].r.y
-								+ connectedComponents_[boxIndex][k].r.height; x < connectedComponents_[boxIndex][k].r.x
-								+ connectedComponents_[boxIndex][k].r.width; x++)
+						for (int x = textRegions[textRegionIndex].letters[k].boundingBox.x, y = textRegions[textRegionIndex].letters[k].boundingBox.y
+								+ textRegions[textRegionIndex].letters[k].boundingBox.height; x < textRegions[textRegionIndex].letters[k].boundingBox.x
+								+ textRegions[textRegionIndex].letters[k].boundingBox.width; x++)
 						{
 							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
 							if (biggestDistance < distanceT.first)
@@ -4316,18 +3811,18 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 
 			for (unsigned int letterIndex = 0; letterIndex < ransacSet[i].first.size(); letterIndex++)
 			{
-				for (unsigned int k = 0; k < connectedComponents_[boxIndex].size(); k++)
+				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
 				{
-					if ((ransacSet[i].first[letterIndex]).inside(connectedComponents_[boxIndex][k].r))
+					if ((ransacSet[i].first[letterIndex]).inside(textRegions[textRegionIndex].letters[k].boundingBox))
 					{
-						if (connectedComponents_[boxIndex][k].r.x < minX)
-							minX = connectedComponents_[boxIndex][k].r.x;
-						if (connectedComponents_[boxIndex][k].r.y < minY)
-							minY = connectedComponents_[boxIndex][k].r.y;
-						if (connectedComponents_[boxIndex][k].r.x + connectedComponents_[boxIndex][k].r.width > maxX)
-							maxX = connectedComponents_[boxIndex][k].r.x + connectedComponents_[boxIndex][k].r.width;
-						if (connectedComponents_[boxIndex][k].r.y + connectedComponents_[boxIndex][k].r.height > maxY)
-							maxY = connectedComponents_[boxIndex][k].r.y + connectedComponents_[boxIndex][k].r.height;
+						if (textRegions[textRegionIndex].letters[k].boundingBox.x < minX)
+							minX = textRegions[textRegionIndex].letters[k].boundingBox.x;
+						if (textRegions[textRegionIndex].letters[k].boundingBox.y < minY)
+							minY = textRegions[textRegionIndex].letters[k].boundingBox.y;
+						if (textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width > maxX)
+							maxX = textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width;
+						if (textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height > maxY)
+							maxY = textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height;
 					}
 				}
 			}
@@ -4400,7 +3895,7 @@ void DetectText::ransacPipeline(std::vector<cv::Rect> & boundingBoxes)
 	}
 }
 
-std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectText::ransac(std::vector<connectedComponent> dataset)
+std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > DetectText::ransac(std::vector<Letter> dataset)
 {
 	// calculates best quadratic Bézier Curves out of all points in dataset
 	// returns 1 or more models, each returned vector-element includes all points that support the model and as second pair-element the 3 model-describing points
@@ -4422,8 +3917,8 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 		cv::Mat pcaData(dataset.size(), 2, CV_32FC1);
 		for (unsigned int i = 0; i < dataset.size(); i++)
 		{
-			pcaData.at<float> (i, 0) = dataset[i].middlePoint.x;
-			pcaData.at<float> (i, 1) = dataset[i].middlePoint.y;
+			pcaData.at<float> (i, 0) = dataset[i].centerPoint.x;
+			pcaData.at<float> (i, 1) = dataset[i].centerPoint.y;
 		}
 		cv::PCA pca(pcaData, cv::noArray(), CV_PCA_DATA_AS_ROW, 2);
 		cv::Mat eigenVal = pca.eigenvalues;
@@ -4447,13 +3942,14 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 			for (unsigned int i = 0; i < dataset.size(); i++)
 			{
 				output = originalImage_.clone();
-				cv::rectangle(output, cv::Rect(dataset[i].middlePoint.x, dataset[i].middlePoint.y, 1, 1), cv::Scalar(255, 255, 255), 2, 1, 0);
-				//std::cout << "p" << i << ": " << dataset[i].middlePoint.x << "|" << dataset[i].middlePoint.y << std::endl;
+				cv::rectangle(output, cv::Rect(dataset[i].centerPoint.x, dataset[i].centerPoint.y, 1, 1), cv::Scalar(255, 255, 255), 2, 1, 0);
+				//std::cout << "p" << i << ": " << dataset[i].centerPoint.x << "|" << dataset[i].centerPoint.y << std::endl;
 			}
 			std::cout << std::endl << n << " iterations.." << std::endl;
 		}
 
-		std::vector<cv::Point> modelset(bezierDegree);
+		//std::vector<cv::Point> modelset(bezierDegree);
+		// todo: change to cv::Point2d
 		std::vector<cv::Point> finalModel; // 3 points describing best supported model
 		std::vector<cv::Point> finalGoodPoints; // all points of best supported model after all iterations
 		std::vector<float> finalTs; // t's, describing position on bezier model of all final points
@@ -4481,13 +3977,13 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 				if (std::find(actualRandomSet.begin(), actualRandomSet.end(), nn) == actualRandomSet.end())
 				{
 					actualRandomSet.push_back(nn);
-					actualRandomPointSet.push_back(dataset[nn].middlePoint);
+					actualRandomPointSet.push_back(dataset[nn].centerPoint);
 				}
 			}
 
 			// calculate maxDistance for every pointset anew, maxDistance = max. distance between point and curve so that point still supports model
 			for (unsigned int distanceParameterIndex = 0; distanceParameterIndex < actualRandomSet.size(); distanceParameterIndex++)
-				rectsArea.push_back(std::sqrt(dataset[distanceParameterIndex].r.area()));
+				rectsArea.push_back(std::sqrt(dataset[distanceParameterIndex].boundingBox.area()));
 
 			float maxDistance = 0;
 			for (unsigned int k = 0; k < rectsArea.size(); k++)
@@ -4540,7 +4036,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 				//        std::cout << "angleA: " << angleA << ", angleB: " << angleB << std::endl;
 				std::cout << "|angleA-angleB| = " << angleDifference << std::endl;
 				for (unsigned int j = 0; j < actualRandomSet.size(); j++)
-					cv::rectangle(output2, cv::Rect(dataset[actualRandomSet[j]].middlePoint.x, dataset[actualRandomSet[j]].middlePoint.y, 1, 1),
+					cv::rectangle(output2, cv::Rect(dataset[actualRandomSet[j]].centerPoint.x, dataset[actualRandomSet[j]].centerPoint.y, 1, 1),
 							cv::Scalar(255, 0, 0), 2, 1, 0);
 				cv::imshow("ransac", output2);
 				std::cout << "------------" << std::endl;
@@ -4550,7 +4046,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 			std::vector<unsigned int> heights;
 			for (unsigned int actualSetIndex = 0; actualSetIndex < actualRandomSet.size(); actualSetIndex++)
 			{
-				std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[actualSetIndex].middlePoint);
+				std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[actualSetIndex].centerPoint);
 				// C'(t) = 2At+B
 				int t = distanceTs.second;
 				cv::Point2f normal(
@@ -4560,7 +4056,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 										curve.at<float> (1, 1)).x));
 
 				normal = normal * (float) (1 / (std::sqrt(normal.x * normal.x + normal.y * normal.y)));
-				heights.push_back(calculateRealLetterHeight(dataset[actualSetIndex].middlePoint, dataset[actualSetIndex].r, normal));
+				heights.push_back(calculateRealLetterHeight(dataset[actualSetIndex].centerPoint, dataset[actualSetIndex].boundingBox, normal));
 			}
 			float meanHeight = 0;
 			float heightVariance = 0;
@@ -4581,17 +4077,17 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 
 			for (unsigned int datasetIndex = 0; datasetIndex < dataset.size(); datasetIndex++)
 			{
-				std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[datasetIndex].middlePoint);
+				std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[datasetIndex].centerPoint);
 				// todo: why count distance of all points, not just inliers?
 				//        distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
 				if (distanceTs.first < maxDistance) // is the point near enough?
 				{
 					distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
-					goodPoints.push_back(dataset[datasetIndex].middlePoint);
+					goodPoints.push_back(dataset[datasetIndex].centerPoint);
 					ts.push_back(distanceTs.second);
 					if (debug["showBezier"])
 					{
-						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].middlePoint.x, dataset[datasetIndex].middlePoint.y, 1, 1), cv::Scalar(0, 255, 0),
+						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 255, 0),
 								2, 1, 0);
 						if (distanceTs.first < 1e-4)
 							std::cout << "distance: " << 0 << " [x]" << std::endl;
@@ -4606,7 +4102,7 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 				{
 					if (debug["showBezier"])
 					{
-						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].middlePoint.x, dataset[datasetIndex].middlePoint.y, 1, 1), cv::Scalar(0, 0, 255),
+						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 0, 255),
 								2, 1, 0);
 						std::cout << "distance: " << distanceTs.first << " [ ]" << std::endl;
 						cv::imshow("ransac", output2);
@@ -4741,10 +4237,10 @@ std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > DetectT
 		ransacSubset.push_back(pointsAndCurve);
 
 		// build new sub dataset with remaining points and loop
-		std::vector<connectedComponent> subDataset;
+		std::vector<Letter> subDataset;
 		for (unsigned int i = 0; i < dataset.size(); i++)
 		{
-			if (std::find(finalGoodPoints.begin(), finalGoodPoints.end(), dataset[i].middlePoint) == finalGoodPoints.end())
+			if (std::find(finalGoodPoints.begin(), finalGoodPoints.end(), cv::Point(dataset[i].centerPoint.x, dataset[i].centerPoint.y)) == finalGoodPoints.end())
 				subDataset.push_back(dataset[i]);
 		}
 		dataset = subDataset;
@@ -6001,7 +5497,7 @@ cv::Mat DetectText::filterPatch(const cv::Mat& patch)
 	return result;
 }
 
-void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<cv::RotatedRect>& lineEquations, std::vector<double>& qualityScore)
+void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::vector<double>& qualityScore)
 {
 	// break text into separate lines without destroying letter boxes
 	cv::Mat output;
@@ -6009,43 +5505,46 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		output = originalImage_.clone();		// todo: make this a debug parameter
 
 	qualityScore.clear();
-	qualityScore.resize(boxes.size(), 0.);
+	qualityScore.resize(textRegions.size(), 0.);
 	std::vector<double> brokenWordsQualityScore;
 
-	std::vector<cv::Rect> letters;
-	std::vector<cv::Rect> brokenWords;
+//del	std::vector<cv::Rect> brokenWords;
+	std::vector<TextRegion> wordRegions;
 
 	std::string breakingWordsDisplayName = "breaking words";
 
-	if (firstPass_)
-	{
-		letters = brightLetters_;
-		breakingWordsDisplayName = "breaking bright words";
-	}
+//del	std::vector<cv::Rect> letters;
+//	if (firstPass_)
+//	{
+//		letters = brightLetters_;
+//		breakingWordsDisplayName = "breaking bright words";
+//	}
 //		for (unsigned int i = 0; i < brightLetters_.size(); i++)
 //			letters.push_back(brightLetters_[i]);
-	else
-	{
-		letters = darkLetters_;
-		breakingWordsDisplayName = "breaking dark words";
-	}
+//	else
+//	{
+//		letters = darkLetters_;
+//		breakingWordsDisplayName = "breaking dark words";
+//	}
 //		for (unsigned int i = 0; i < darkLetters_.size(); i++)
 //			letters.push_back(darkLetters_[i]);
 
 	//For every boundingBox:
-	for (unsigned int boxIndex = 0; boxIndex < boxes.size(); boxIndex++)
+	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
+		std::vector<Letter>& letters = textRegions[textRegionIndex].letters;
+
 		//which Letters belong to the current boundingBox
 		std::vector<int> innerLetters, currentLetters; // which ones of all found letters on the image belong to the current boundingBox
 		double averageLetterSize = 0.;
 		for (unsigned int i = 0; i < letters.size(); i++)
 		{
-			if ((boxes[boxIndex] & letters[i]).area() == 1.0 * letters[i].area())
-			{
+//			if ((textRegions[textRegionIndex].boundingBox & letters[i].boundingBox).area() == 1.0 * letters[i].boundingBox.area())	// provided by new data structure
+//			{
 				currentLetters.push_back(i);	// todo: exact method was not better, is it now?
 				//innerLetters.push_back(i);
-				averageLetterSize += sqrt(letters[i].width*letters[i].width + letters[i].height*letters[i].height);
-			}
+				averageLetterSize += sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width + letters[i].boundingBox.height*letters[i].boundingBox.height);
+//			}
 		}
 		averageLetterSize /= (double)currentLetters.size();
 //		averageLetterSize /= (double)innerLetters.size();
@@ -6071,8 +5570,8 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 			{
 				float distanceEdge = 100000;
 
-				if (letters[currentLetters[j]].x > letters[currentLetters[i]].x)
-					distanceEdge = letters[currentLetters[j]].x - letters[currentLetters[i]].x - letters[currentLetters[i]].width;
+				if (letters[currentLetters[j]].boundingBox.x > letters[currentLetters[i]].boundingBox.x)
+					distanceEdge = letters[currentLetters[j]].boundingBox.x - letters[currentLetters[i]].boundingBox.x - letters[currentLetters[i]].boundingBox.width;
 
 				if (distanceEdge < smallestDistanceEdge)
 				{
@@ -6082,21 +5581,21 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 			}
 
 			if (smallestDistanceEdge != 100000) //100000 distance means there is no other letter on the right, its the last letter of a line
-				wordBreaks.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].x, smallestDistanceEdge));
+				wordBreaks.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x, smallestDistanceEdge));
 
 			if (debug["showWords"])
 			{
 				if (firstPass_ == true)
 				{
-					cv::rectangle(output, letters[currentLetters[i]], cv::Scalar((255), (255), (255)), 1);
-					cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]], cv::Scalar((255), (255), (255)), 1);
+					cv::rectangle(output, letters[currentLetters[i]].boundingBox, cv::Scalar((255), (255), (255)), 1);
+					cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox, cv::Scalar((255), (255), (255)), 1);
 				}
 				else
 				{
-					cv::rectangle(output, letters[currentLetters[i]], cv::Scalar((0), (0), (0)), 1);
-					cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]], cv::Scalar((0), (0), (0)), 1);
+					cv::rectangle(output, letters[currentLetters[i]].boundingBox, cv::Scalar((0), (0), (0)), 1);
+					cv::rectangle(output, letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox, cv::Scalar((0), (0), (0)), 1);
 				}
-				cv::rectangle(output, boxes[boxIndex], cv::Scalar((155), (155), (155)), 2);
+				cv::rectangle(output, textRegions[textRegionIndex].boundingBox, cv::Scalar((155), (155), (155)), 2);
 				cv::imshow(breakingWordsDisplayName.c_str(), output);
 				cvMoveWindow(breakingWordsDisplayName.c_str(), 0, 0);
 			}
@@ -6314,13 +5813,13 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		std::vector<double> distanceToBaseline(currentLetters.size());
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
 		{
-			if (letters[currentLetters[j]].y < minY)
-				minY = letters[currentLetters[j]].y;
-			if (letters[currentLetters[j]].y > maxY)
-				maxY = letters[currentLetters[j]].y;
-			cv::Point2f centralBasePoint(letters[currentLetters[j]].x+0.5*letters[currentLetters[j]].width, letters[currentLetters[j]].y+letters[currentLetters[j]].height);
-			cv::Point2f diff = lineEquations[boxIndex].center - centralBasePoint;
-			distanceToBaseline[j] = fabs(diff.x*lineEquations[boxIndex].size.width + diff.y*lineEquations[boxIndex].size.height);
+			if (letters[currentLetters[j]].boundingBox.y < minY)
+				minY = letters[currentLetters[j]].boundingBox.y;
+			if (letters[currentLetters[j]].boundingBox.y > maxY)
+				maxY = letters[currentLetters[j]].boundingBox.y;
+			cv::Point2f centralBasePoint(letters[currentLetters[j]].boundingBox.x+0.5*letters[currentLetters[j]].boundingBox.width, letters[currentLetters[j]].boundingBox.y+letters[currentLetters[j]].boundingBox.height);
+			cv::Point2f diff = textRegions[textRegionIndex].lineEquation.center - centralBasePoint;
+			distanceToBaseline[j] = fabs(diff.x*textRegions[textRegionIndex].lineEquation.size.width + diff.y*textRegions[textRegionIndex].lineEquation.size.height);
 			meanBaseline += distanceToBaseline[j];
 			//meanBaseline += letters[currentLetters[j]].height + letters[currentLetters[j]].y;
 		}
@@ -6337,15 +5836,15 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		// given to the whole text line
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
 		{
-			double letterSize = sqrt(letters[currentLetters[j]].width*letters[currentLetters[j]].width + letters[currentLetters[j]].height*letters[currentLetters[j]].height);
+			double letterSize = sqrt(letters[currentLetters[j]].boundingBox.width*letters[currentLetters[j]].boundingBox.width + letters[currentLetters[j]].boundingBox.height*letters[currentLetters[j]].boundingBox.height);
 			if (std::abs(letterSize-averageLetterSize) < 0.2*averageLetterSize)
 				if (std::abs(distanceToBaseline[j]-meanBaseline) < 0.1*meanBaseline)
-					qualityScore[boxIndex] += 1.;
+					qualityScore[textRegionIndex] += 1.;
 		}
 		if (debug["showCriterions"])
-			std::cout << "Box quality score: " << qualityScore[boxIndex] << std::endl;
+			std::cout << "Box quality score: " << qualityScore[textRegionIndex] << std::endl;
 
-		relativeY = (maxY - minY) / (float)boxes[boxIndex].height;
+		relativeY = (maxY - minY) / (float)textRegions[textRegionIndex].boundingBox.height;
 
 		unsigned int numberBinsNotZero = 0;
 
@@ -6355,7 +5854,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 
 		float lettersArea = 0;
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
-			lettersArea += letters[currentLetters[j]].area();
+			lettersArea += letters[currentLetters[j]].boundingBox.area();
 
 		// is text probably rotated?
 		bool textIsRotated = false;
@@ -6366,7 +5865,7 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 
 		std::vector<cv::Rect> dummyRects;
 		for (unsigned int j = 0; j < currentLetters.size(); j++)
-			dummyRects.push_back(letters[currentLetters[j]]);
+			dummyRects.push_back(letters[currentLetters[j]].boundingBox);
 
 		sort(dummyRects.begin(), dummyRects.end(), DetectText::spatialOrderX);
 		for (unsigned int j = 1; j < dummyRects.size(); j++)
@@ -6391,12 +5890,13 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		// same area
 		float sameArea = 1.0;
 		if (currentLetters.size() == 2)
-			sameArea = letters[currentLetters[0]].area() / (float)letters[currentLetters[1]].area();
+			sameArea = letters[currentLetters[0]].boundingBox.area() / (float)letters[currentLetters[1]].boundingBox.area();
 
 		//---------------------------------------------------------------------------------------
 		// Criterions
 		int crit = decideWhichBreaks(negPosRatio, max / bin, baselineStddev, howManyNegative, shift, maxPeakDistance, secondMaxPeakDistance, maxPeakNumbers, secondMaxPeakNumbers,
-				boxes[boxIndex].width, boxes[boxIndex].height, numberBinsNotZero, wordBreaks, boxes[boxIndex], textIsRotated, relativeY, steadyStructure, sameArea);
+				textRegions[textRegionIndex].boundingBox.width, textRegions[textRegionIndex].boundingBox.height, numberBinsNotZero, wordBreaks, textRegions[textRegionIndex].boundingBox,
+				textIsRotated, relativeY, steadyStructure, sameArea);
 
 		bool breakBox = true; // shall box be broken into separate boxes?
 
@@ -6405,16 +5905,16 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 
 		if (debug["showWords"])
 		{
-			//std::cout << "line equation: p1=(" << lineEquations[boxIndex].center.x << ", " << lineEquations[boxIndex].center.y << ")  normal=(" << lineEquations[boxIndex].size.width << ", " << lineEquations[boxIndex].size.height << ")" << std::endl;
-			cv::line(output, cv::Point(lineEquations[boxIndex].center.x, lineEquations[boxIndex].center.y), cv::Point(lineEquations[boxIndex].center.x+5000*lineEquations[boxIndex].size.height, lineEquations[boxIndex].center.y-5000*lineEquations[boxIndex].size.width), cv::Scalar(255, 0, 0), 2);
-			cv::line(output, cv::Point(lineEquations[boxIndex].center.x, lineEquations[boxIndex].center.y), cv::Point(lineEquations[boxIndex].center.x-5000*lineEquations[boxIndex].size.height, lineEquations[boxIndex].center.y+5000*lineEquations[boxIndex].size.width), cv::Scalar(255, 0, 0), 2);
+			//std::cout << "line equation: p1=(" << textRegions[textRegionIndex].lineEquation.center.x << ", " << lineEquations[boxIndex].center.y << ")  normal=(" << lineEquations[boxIndex].size.width << ", " << lineEquations[boxIndex].size.height << ")" << std::endl;
+			cv::line(output, cv::Point(textRegions[textRegionIndex].lineEquation.center.x, textRegions[textRegionIndex].lineEquation.center.y), cv::Point(textRegions[textRegionIndex].lineEquation.center.x+5000*textRegions[textRegionIndex].lineEquation.size.height, textRegions[textRegionIndex].lineEquation.center.y-5000*textRegions[textRegionIndex].lineEquation.size.width), cv::Scalar(255, 0, 0), 2);
+			cv::line(output, cv::Point(textRegions[textRegionIndex].lineEquation.center.x, textRegions[textRegionIndex].lineEquation.center.y), cv::Point(textRegions[textRegionIndex].lineEquation.center.x-5000*textRegions[textRegionIndex].lineEquation.size.height, textRegions[textRegionIndex].lineEquation.center.y+5000*textRegions[textRegionIndex].lineEquation.size.width), cv::Scalar(255, 0, 0), 2);
 		}
 
 		if (crit == -1)
 		{
 			if (debug["showWords"])
 			{
-				cv::rectangle(output, boxes[boxIndex], cv::Scalar((0), (0), (255)), 2);
+				cv::rectangle(output, textRegions[textRegionIndex].boundingBox, cv::Scalar((0), (0), (255)), 2);
 				cv::imshow(breakingWordsDisplayName.c_str(), output);
 				cv::waitKey(0);
 			}
@@ -6423,10 +5923,11 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		else if (crit == 1)
 			breakBox = false;
 
-		int start = boxes[boxIndex].x;
+		int start = textRegions[textRegionIndex].boundingBox.x;
 		int wordBreakAt = start;
 
-		int brokenWordsSize = brokenWords.size();
+//del		int brokenWordsSize = brokenWords.size();
+		int numberWordRegions = wordRegions.size();
 
 		// Merging letterboxes that are on top of each other (e.g. 's' is separated into upper and lower semi circle after cc)
 		// In this case merging means deleting one of the letterboxes, as the words are going to be broken based on the x-coordinate
@@ -6462,46 +5963,59 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 				if (letter == false)
 				{
 					wordBreakAt = wordBreaks[r].left - wordBreaks[r].right + shift;
-					cv::Rect re(start, boxes[boxIndex].y, abs(wordBreakAt - start), boxes[boxIndex].height);
+					cv::Rect re(start, textRegions[textRegionIndex].boundingBox.y, abs(wordBreakAt - start), textRegions[textRegionIndex].boundingBox.height);
 					start = wordBreaks[r].left;
-					brokenWords.push_back(re);
-					brokenWordsQualityScore.push_back(qualityScore[boxIndex]);
+					//brokenWords.push_back(re);
+					TextRegion word;
+					word.boundingBox = re;
+					word.lineEquation = textRegions[textRegionIndex].lineEquation;
+					// word.letters = ; --> see below
+					wordRegions.push_back(word);
+					brokenWordsQualityScore.push_back(qualityScore[textRegionIndex]);
 				}
 				// reaching the end
 				if (r == wordBreaks.size() - 1)
 				{
-					cv::Rect re(start, boxes[boxIndex].y, abs((boxes[boxIndex].x + boxes[boxIndex].width) - start), boxes[boxIndex].height);
-					brokenWords.push_back(re);
-					brokenWordsQualityScore.push_back(qualityScore[boxIndex]);
+					cv::Rect re(start, textRegions[textRegionIndex].boundingBox.y, abs((textRegions[textRegionIndex].boundingBox.x + textRegions[textRegionIndex].boundingBox.width) - start), textRegions[textRegionIndex].boundingBox.height);
+					//brokenWords.push_back(re);
+					TextRegion word;
+					word.boundingBox = re;
+					word.lineEquation = textRegions[textRegionIndex].lineEquation;
+					// word.letters = ; --> see below
+					wordRegions.push_back(word);
+					brokenWordsQualityScore.push_back(qualityScore[textRegionIndex]);
 				}
 			}
 		}
 		else
 		{
-			brokenWords.push_back(boxes[boxIndex]);
-			brokenWordsQualityScore.push_back(qualityScore[boxIndex]);
+			//brokenWords.push_back(textRegions[textRegionIndex].boundingBox);
+			wordRegions.push_back(textRegions[textRegionIndex]);
+			brokenWordsQualityScore.push_back(qualityScore[textRegionIndex]);
 		}
 
 		// Make Boxes smaller to increase precision and recall
 //		std::vector<cv::Rect> smallerBrokenWords;
-		unsigned int newBrokenWordsSize = brokenWords.size();
-//		for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < (newBrokenWordsSize - brokenWordsSize); makeSmallerIndex++)
-		for (unsigned int makeSmallerIndex = brokenWordsSize; makeSmallerIndex < newBrokenWordsSize; makeSmallerIndex++)
+//del		unsigned int newBrokenWordsSize = brokenWords.size();
+		unsigned int newNumberWordRegions = wordRegions.size();
+//		for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < (newBrokenWordsSize - numberWordRegions); makeSmallerIndex++)
+		for (unsigned int makeSmallerIndex = numberWordRegions; makeSmallerIndex < newNumberWordRegions; makeSmallerIndex++)
 		{
 			unsigned int smallestX = 10000, smallestY = 10000, biggestX = 0, biggestY = 0;
-			cv::Rect re = brokenWords[makeSmallerIndex];
+//del			cv::Rect re = brokenWords[makeSmallerIndex];
 
 			for (unsigned int letterIndex = 0; letterIndex < currentLetters.size(); letterIndex++)
-				if ((re & letters[currentLetters[letterIndex]]).area() / letters[currentLetters[letterIndex]].area() > 0.5)
+				if ((wordRegions[makeSmallerIndex].boundingBox & letters[currentLetters[letterIndex]].boundingBox).area() / letters[currentLetters[letterIndex]].boundingBox.area() > 0.5)		// todo: might cause problems?
 				{
-					if ((unsigned int)letters[currentLetters[letterIndex]].x < smallestX)
-						smallestX = letters[currentLetters[letterIndex]].x;
-					if ((unsigned int)letters[currentLetters[letterIndex]].y < smallestY)
-						smallestY = letters[currentLetters[letterIndex]].y;
-					if ((unsigned int)letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width > biggestX)
-						biggestX = letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width;
-					if ((unsigned int)letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height > biggestY)
-						biggestY = letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height;
+					if ((unsigned int)letters[currentLetters[letterIndex]].boundingBox.x < smallestX)
+						smallestX = letters[currentLetters[letterIndex]].boundingBox.x;
+					if ((unsigned int)letters[currentLetters[letterIndex]].boundingBox.y < smallestY)
+						smallestY = letters[currentLetters[letterIndex]].boundingBox.y;
+					if ((unsigned int)letters[currentLetters[letterIndex]].boundingBox.x + letters[currentLetters[letterIndex]].boundingBox.width > biggestX)
+						biggestX = letters[currentLetters[letterIndex]].boundingBox.x + letters[currentLetters[letterIndex]].boundingBox.width;
+					if ((unsigned int)letters[currentLetters[letterIndex]].boundingBox.y + letters[currentLetters[letterIndex]].boundingBox.height > biggestY)
+						biggestY = letters[currentLetters[letterIndex]].boundingBox.y + letters[currentLetters[letterIndex]].boundingBox.height;
+					wordRegions[makeSmallerIndex].letters.push_back(letters[currentLetters[letterIndex]]);
 				}
 			if (smallestX == 10000)
 				continue;
@@ -6514,7 +6028,8 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 				cv::imshow(breakingWordsDisplayName.c_str(), output);
 				cv::waitKey(0);
 			}
-			brokenWords[makeSmallerIndex] = smallerRe;
+			wordRegions[makeSmallerIndex].boundingBox = smallerRe;
+//del			brokenWords[makeSmallerIndex] = smallerRe;
 //			smallerBrokenWords.push_back(smallerRe);
 //			brokenWords.pop_back();
 //			cv::Mat cut = originalImage_(smallerRe);
@@ -6522,29 +6037,9 @@ void DetectText::breakLinesIntoWords(std::vector<cv::Rect>& boxes, std::vector<c
 		}
 	}
 
-	boxes = brokenWords;
+//del	boxes = brokenWords;
+	textRegions = wordRegions;
 	qualityScore = brokenWordsQualityScore;
-
-	// Save all words into brokenWords_
-//	for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < boxes.size(); makeSmallerIndex++)
-
-
-		// Make Boxes smaller to increase precision and recall
-// if ((unsigned int)letters[currentLetters[letterIndex]].x < smallestX)
-//   smallestX = letters[currentLetters[letterIndex]].x;
-// if ((unsigned int)letters[currentLetters[letterIndex]].y < smallestY)
-//   smallestY = letters[currentLetters[letterIndex]].y;
-// if ((unsigned int)letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width
-//     > biggestX)
-//   biggestX = letters[currentLetters[letterIndex]].x + letters[currentLetters[letterIndex]].width;
-// if ((unsigned int)letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height
-//     > biggestY)
-//   biggestY = letters[currentLetters[letterIndex]].y + letters[currentLetters[letterIndex]].height;
-
-// if (smallestX == 10000)
-//   continue;
-
-// cv::Rect smallerRe(smallestX, smallestY, biggestX - smallestX, biggestY - smallestY);
 }
 
 void DetectText::showEdgeMap()
