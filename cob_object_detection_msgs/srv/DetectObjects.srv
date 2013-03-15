@@ -1,4 +1,0 @@
-std_msgs/String object_name
-sensor_msgs/RegionOfInterest roi
----
-cob_object_detection_msgs/DetectionArray object_list

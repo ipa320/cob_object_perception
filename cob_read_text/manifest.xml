@@ -1,19 +1,19 @@
 <package>
   <description brief="cob_read_text">
 
-	bases on literate_pr2 package from Menglong Zhu: menglong(at)seas.upenn.edu
+Detects and recognizes text in natural images. 
+The system was trained for indoors household environment with Care-O-bot's stereo vision colour cameras.
+Text localisation and OCR occur separately and can be evaluated using precision, recall.
 
   </description>
   <author>Robert Heinze, Richard Bormann</author>
-  <license>LGPL</license>
+  <license>LGPL, Fraunhofer IPA</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/cob_read_text</url>
 
   <depend package="opencv2"/>
   <depend package="roscpp"/>
   <depend package="sensor_msgs"/>
-  <!--depend package="geometry_msgs"/-->
-  <!--depend package="pr2_controllers_msgs"/-->
   <depend package="pr2_mechanism_controllers"/>
   <depend package="cv_bridge"/>
   <depend package="std_msgs"/>
@@ -23,8 +23,10 @@
   <depend package="pcl_ros"/> 
   <depend package="geometry_msgs"/>
   <depend package="sensor_msgs"/>
+  <depend package="cob_read_text_data"/>
+  <depend package="cob_tesseract_data"/>
   
-  <export>
+<export>
       <cpp cflags="-I${prefix}/ros/include -I${prefix}/common/include" lflags="-L${prefix}/lib -Wl,-rpath,-L${prefix}/lib -lread_text"/>
   </export>
 </package>

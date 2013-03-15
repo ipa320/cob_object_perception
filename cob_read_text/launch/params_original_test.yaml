@@ -1,0 +1,244 @@
+# general
+# -------
+
+# defines the method for finding texts in the image
+# enum ProcessingMethod {ORIGINAL_EPSHTEIN=0, BORMANN=1};
+processing_method: 0
+
+#showransform
+# ----------
+
+# default: true, use bezier-transformed images or normal rectangles around bezier lines
+# bool
+transformImages:  false
+
+
+#preprocess
+# ----------
+
+# default: false, smoothing sometimes leads to merging of letters within small texts
+# bool
+smoothImage: true 
+
+#default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
+# int
+# important: this parameter is not specified in the original paper
+maxStrokeWidthParameter: 75
+
+
+#strokeWidthTransform
+# ----------
+
+# use rgb channels to compute edgeMap, false = only gray image is used
+# bool
+useColorEdge: false 
+
+
+#computeEdgeMap
+# ----------
+
+# edgemap threshold #default: 120  #90  #160
+# int
+cannyThreshold1: 214
+
+# cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
+# int
+cannyThreshold2: 78  
+
+
+#updateStrokeWidth
+# ----------
+
+# parameter when comparing gradients of opposing edges # default: 3.14 / 2 = 1.52 , in paper: 3.14 / 6 = 0.523 -> unrealistic
+# double
+# important: this parameter is not as specified in the paper
+compareGradientParameter: 1.25
+
+
+#connectComponentAnalysis
+# ----------
+
+# parameter when comparing strokewidths between pixels, default: 3.0
+# double
+# important: 5.0 might yield better results for whole letters
+swCompareParameter: 5.0  
+
+# parameter when comparing color between pixels, default: 100, set to 255 to deactivate
+# int
+colorCompareParameter: 50
+
+
+#identifyLetter
+# ----------
+
+# maximum height of component in pixels, default: 600
+# int
+maxLetterHeight_: 300
+
+# maximum variance of strokewidth inside component, default: 1.5
+# double
+varianceParameter: 0.5 
+
+# diagonal of rect must be smaller than x*medianStrokeWidth, default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
+# int
+diagonalParameter: 20
+
+# pixelCount has to be bigger than maxStrokeWidth * x (belonging to possible letter, not all component pixels), default: 5
+# int
+pixelCountParameter: 5 
+
+# maximum number of foreign components inside component, default: 5 , paper: 2
+# int
+innerLetterCandidatesParameter: 4
+
+# width has to be smaller than x * height (x>1), default: 2.5 - turned off
+# double
+heightParameter: 2.5 
+
+# maximum color value difference, default: 20
+# int
+clrComponentParameter: 20
+
+
+#groupLetters
+#-----------
+
+# maximum pythagorean distance between components, default: 2.0
+# double
+distanceRatioParameter: 2.5
+
+# comparison between median sw of components, default: 2.5
+# double
+medianSwParameter: 2.0
+
+# maximum diagonal ratio, default 2.0
+# double
+diagonalRatioParamter: 2.0 
+
+# maximum gray color value difference between components, default: 10.0
+# double
+grayClrParameter: 10.0
+
+# maximum single color valur difference between components, default: 35.0
+# double
+clrSingleParameter: 35.0 
+
+# maximum area ratio between components, default: 5
+# double
+areaParameter: 1.5 
+
+# maximum pixel ratio (pixels belonging to letter), default: 0.3 - turned off
+# double
+pixelParameter: 0.3 
+
+
+# breaking text into linear lines 
+# --------------------------------
+
+# factor for the threshold of inliers during linear RANSAC
+# double
+inlierDistanceThresholdFactor: 0.6
+
+
+# ransac
+# ----------
+
+# probability p, default: 0.99
+# double
+p: 0.99 
+
+# maximum percentage of outliers in dataset, default: 0.7
+# double
+maxE: 0.7
+
+# minimum percentage of outliers in dataset, default: 0.4
+# double 
+minE: 0.4
+
+# maximum angle of bezier curve, default: 30
+# int 
+bendParameter: 30 
+
+# parameter, with which maximum distance between curve and point is calculated, default: 0.8
+# double
+distanceParameter: 0.8   
+
+
+# ocr preprocess
+# ----------
+
+# how strong is blur when sharpening with unsharp mask, default: 1.0
+# double
+sigma_sharp: 1.0  
+
+# sets minimum brightness change that will be sharpened, default: 3.0
+# double
+threshold_sharp: 3.0 
+
+# magnitude, how much contrast is added at the edges when sharpening, default: 1.0
+# double
+amount_sharp: 1.5
+
+
+# ocr
+# ----------
+
+# which spellcheck method is used, default: 2.0 
+# int
+result_: 2
+
+
+# debug
+# ----------
+
+# show gray colored edgemap image
+# bool
+showEdge: false
+
+# show swt map
+# bool
+showSWT: false
+
+# show connected components
+# bool
+showLetterCandidates: false
+
+# show connected components recognized as letters
+# bool
+showLetters: false
+
+# show pairs (2 letters belonging together)
+# bool
+showPairs: false
+
+# show all words/text segments after pairs were fused together
+# bool
+showChains: false
+
+# breaks text block into several lines
+# bool
+showBreakLines: false
+
+showWords: false
+
+showCriterions: false
+
+# show all bezier models that are created within ransac
+# bool
+showBezier: false
+
+# show Ransac result -> best model only
+# bool
+showRansac: false
+
+# show how neighbor texts are merged if they fit together and were accidently separated before
+# bool
+showNeighborMerging: false 
+
+# show results with ocr
+# bool
+showResult: false
+
+# when showing results show all image regions that probably contain text, even if ocr didn't find text
+# bool
+showAllBoxes: false

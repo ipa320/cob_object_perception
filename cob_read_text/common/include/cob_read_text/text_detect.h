@@ -1,64 +1,43 @@
 #ifndef _LITERATE_PR2_TEXT_DETECT_
 #define _LITERATE_PR2_TEXT_DETECT_
 
+// ROS includes
+#include <ros/ros.h>
+#include <ros/package.h>
+
+// OpenCV includes
 #include "opencv2/core/core.hpp"
 #include "cv.h"
 #include "highgui.h"
 
-using namespace cv;
-using namespace std;
-
-class Rotated
-{
-public:
-  Rotated(Mat m, Rect c)
-  {
-    rotated_img = m;
-    coords = c;
-  }
-  ~Rotated()
-  {
-  }
-  Mat rotated_img;
-  Rect coords;
-};
+// Different includes
+#include <set>
+#include <iostream>
+#include <fstream>
 
 class DetectText
 {
 public:
   DetectText();
+  DetectText(bool eval, bool enableOCR);
   ~DetectText();
 
-  std::vector<Rotated> rotated;
+  // API
+  void detect(std::string filename);
+  void detect(cv::Mat& image);
 
-  /* API */
-  void detect(string filename);
-  void detect(Mat& image);
-
-  /* read useful files  */
+  // read correlation, dictionary and params.yaml
   void readLetterCorrelation(const char* filename);
-
   void readWordList(const char* filename);
+  void setParams(ros::NodeHandle & nh);
 
-  /* getters */
-  Mat& getDetection();
-
-  vector<string>& getWords();
-
-  vector<Rect>& getBoxesBothSides();
-
-  /* tests */
-
-  void testMergePairs();
-
-  void testEditDistance();
-
-  void testGetCorrelationIndex();
-
-  void testInsertToList();
+  // getters
+  cv::Mat& getDetection();
+  std::vector<std::string>& getWords();
+  std::vector<cv::RotatedRect>& getBoxes();
 
 private:
-  /* internal structures */
+  // internal structures
   enum Mode
   {
     IMAGE = 1, STREAM = 2
@@ -69,14 +48,9 @@ private:
     BRIGHT = 1, DARK = 2
   };
 
-  enum Purpose
+  enum Purpose // for SWT
   {
     UPDATE = 1, REFINE = 2
-  };
-
-  enum Result
-  {
-    COARSE = 1, FINE = 2
   };
 
   struct Pair
@@ -95,165 +69,306 @@ private:
       word(), score(1000)
     {
     }
-    Word(string word, float score) :
+    Word(std::string word, float score) :
       word(word), score(score)
     {
     }
-    string word;
+    std::string word;
     float score;
   };
 
-  /* pipeline for detecting black/white words*/
+  struct bgr
+  {
+    uchar b; // blue channel value
+    uchar g; // green channel value
+    uchar r; // red channel value
+
+    bgr()
+    {
+      b = 255;
+      g = 255;
+      r = 255;
+    }
+
+    bgr(uchar blue, uchar green, uchar red) :
+    	b(blue), g(green), r(red)
+    {
+    }
+  };
+
+  struct connectedComponent
+  {
+    cv::Rect r;
+    cv::Point middlePoint;
+    FontColor clr;
+  };
+
+  // main method
   void detect();
+  void detect_original_epshtein();
+  void detect_bormann();
 
-  void preprocess(Mat &image);
+  void preprocess();
 
-  void pipeline(int blackWhite);
+  void pipeline();
+
+  void strokeWidthTransform(const cv::Mat &image, cv::Mat &swtmap, int searchDirection);
+
+  cv::Mat computeEdgeMap(bool rgbCanny);
+
+  void updateStrokeWidth(cv::Mat &swtmap, std::vector<cv::Point> &startPoints, std::vector<cv::Point> &strokePoints,
+                         int searchDirection, Purpose purpose);
+
+  void closeOutline(cv::Mat& edgemap);
+
+  int connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap);
+
+  void identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap);
+
+  int countInnerLetterCandidates(std::vector<bool> & array);
+
+  std::vector<float> getMeanIntensity(const cv::Mat& ccmap, const cv::Rect& rect, int element, bool background);
+
+  void groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap);
+
+  float getMedianStrokeWidth(const cv::Mat& ccmap, const cv::Mat& swtmap, const cv::Rect& rect, int element);
+
+  std::vector<cv::Rect> chainPairs();
+
+  void chainToBox(std::vector<std::vector<int> >& chain, std::vector<cv::Rect>& boundingBox);
+
+  void mergePairs(const std::vector<Pair>& groups, std::vector<std::vector<int> >& chains);
+
+  bool mergePairs(const std::vector<std::vector<int> >& initialChains, std::vector<std::vector<int> >& chains);
+
+  void merge(const std::vector<int>& token, std::vector<int>& chain);
+
+  void combineNeighborBoxes(std::vector<cv::Rect> & boundingBoxes);
+
+  void breakLines(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations);
+
+  static bool spatialOrderX(cv::Rect a, cv::Rect b);
 
   void disposal();
 
-  void strokeWidthTransform(const Mat &image, Mat &swtmap, int searchDirection);
+  void deleteDoubleBrokenWords(std::vector<cv::Rect>& brokenWords_);
 
-  /* for each edge point, search along gradient
-   * direction compute stroke width
-   * searchDirection: 1 for along gradient, -1 for opposite
-   * purpose: 1 for compute, 2 for refine
-   */
-  void updateStrokeWidth(Mat &swtmap, vector<Point> &startPoints, vector<Point> &strokePoints, int searchDirection,
-                         Purpose purpose);
+  void ocrPreprocess(std::vector<cv::Mat> &images);
 
-  int connectComponentAnalysis(const Mat& swtmap, Mat& ccmap);
+  void rotate();
 
-  void identifyLetters(const Mat& swtmap, const Mat& ccmap);
+  cv::Mat colorBackgroundBinary(cv::Mat & m, FontColor f, cv::Mat cc);
 
-  void groupLetters(const Mat& swtmap, const Mat& ccmap);
+  cv::Mat sharpenImage(cv::Mat input);
 
-  void chainPairs(Mat& ccmap);
+  void addBorder(cv::Mat & image, cv::Rect r, FontColor f);
 
-  void findRotationangles(int blackWhite);
+  cv::Mat binarizeViaContrast(cv::Mat input);
 
-  void filterBoundingBoxes(vector<Rect>& boundingBoxes, Mat& ccmap, int rejectRatio);
+  bgr findBorderColor(cv::Rect r, FontColor f);
 
-  void chainToBox(vector<vector<int> >& chain, vector<Rect>& boundingBox);
+  void ocrRead(std::vector<cv::Mat> textImages);
 
-  void overlapBoundingBoxes(vector<Rect>& boundingBoxes);
+  float ocrRead(const cv::Mat& imagePatch, std::string& output);
 
-  void overlayText(vector<Rect>& box, vector<string>& text);
+  float spellCheck(std::string& str, std::string& output, int method);
 
-  void ocrRead(vector<Rect>& boundingBoxes);
+  std::string& trim(std::string& str);
 
-  float ocrRead(const Mat& imagePatch, string& output, int actual);
+  void getTopkWords(const std::string& str, const int k, std::vector<Word>& words);
 
-  float spellCheck(string& str, string& output, int method);
+  static int editDistance(const std::string& s, const std::string& t);
 
-  Mat filterPatch(const Mat& patch);
+  float editDistanceFont(const std::string& s, const std::string& t);
 
-  // helper functions
-  int ImageAdjust(IplImage* src, IplImage* dst, double low, double high, double bottom, double top, double gamma);
+  int getCorrelationIndex(std::string letter);
 
-  int countInnerLetterCandidates(bool* array);
+  float insertToList(std::vector<Word>& words, Word& word);
 
-  float getMeanIntensity(const Mat& ccmap, const Rect& rect, int element);
+  void showBoundingBoxes(std::vector<cv::RotatedRect>& boxes, std::vector<std::string>& text);
 
-  float getMedianStrokeWidth(const Mat& ccmap, const Mat& swtmap, const Rect& rect, int element);
+  void overlayText(std::vector<cv::RotatedRect>& box, std::vector<std::string>& text);
 
-  void mergePairs(const vector<Pair>& groups, vector<vector<int> >& chains);
+  void writeTxtsForEval();
 
-  bool mergePairs(const vector<vector<int> >& initialChains, vector<vector<int> >& chains);
+  void ransacPipeline(std::vector<cv::Rect> & boundingBoxes);
 
-  void merge(const vector<int>& token, vector<int>& chain);
+  std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > >
+  ransac(std::vector<connectedComponent> dataset);
 
-  static int editDistance(const string& s, const string& t);
+  cv::Mat createBezierCurve(std::vector<cv::Point> & points, bool p);
 
-  float editDistanceFont(const string& s, const string& t);
+  std::pair<float, float> getBezierDistance(cv::Mat curve, cv::Point q);
 
-  int getCorrelationIndex(char letter);
+  float getBezierLength(cv::Mat curve, float mint, float maxt);
 
-  void getNearestWord(const string& str, string& nearestWord);
+  void transformBezier(cv::Rect newR, cv::Mat curve, cv::Mat & transformedImage, float mint, float maxt);
 
-  void getTopkWords(const string& str, const int k, vector<Word>& words);
+  unsigned int calculateRealLetterHeight(cv::Point2f p, cv::Rect r, cv::Point2f alpha);
 
-  float insertToList(vector<Word>& words, Word& word);
+  void postRansacCriterions();
 
-  string& trim(string& str);
+  void Cramer();
 
-  static bool spaticalOrder(Rect a, Rect b);
+  // Methods not used at the moment:
+  //------------------------------------------
 
-  // display intermidate results
+  void filterBoundingBoxes(std::vector<cv::Rect>& boundingBoxes, cv::Mat& ccmap, int rejectRatio);
+
+  static bool spatialOrder(cv::Rect a, cv::Rect b);
+
+  static bool pairOrder(Pair i, Pair j);
+
+  static bool pointYOrder(cv::Point a, cv::Point b);
+
+  void overlapBoundingBoxes(std::vector<cv::Rect>& boundingBoxes);
+
+  int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative,
+                        unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance, int maxPeakNumbers,
+                        int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight,
+                        unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks, cv::Rect box,
+                        bool textIsRotated, float relativeY, bool SteadyStructure, float sameArea);
+
+  void DFT(cv::Mat& input);
+
+  cv::Mat filterPatch(const cv::Mat& patch);
+
+  void breakLinesIntoWords(std::vector<cv::Rect> & boundingBoxes, std::vector<cv::RotatedRect>& lineEquations, std::vector<double>& qualityScore);
+
+  // Methods for debugging only
+  //------------------------------------------
+
   void showEdgeMap();
-
-  void showCcmap(Mat& ccmap);
-
-  void showSwtmap(Mat& swtmap);
-
+  void showCcmap(cv::Mat& ccmap);
+  void showSwtmap(cv::Mat& swtmap);
   void showLetterDetection();
-
   void showLetterGroup();
+  void testGetCorrelationIndex();
+  void testEditDistance();
+  void testInsertToList();
+  void testMergePairs();
+  void testEdgePoints(std::vector<cv::Point> &edgepoints);
 
-  void showBoundingBoxes(vector<Rect>& boxes);
+  // Variables
+  //------------------------------------------
 
-  void showBoundingBoxes(vector<Rect>& boxes, vector<bool>& text);
-  // tests
-  void testEdgePoints(vector<Point> &edgepoints);
+  // I/O
+  std::string filename_;
+  std::string outputPrefix_;
+  cv::Mat correlation_; // read from argv[1]
+  std::vector<std::string> wordList_; // read from argv[2]
 
-  /***** variables *******/
+  // important images
+  cv::Mat originalImage_;
+  cv::Mat grayImage_;
+  cv::Mat resultImage_;
 
-  struct bgr
-  {
-  uchar b; /**< Blue channel value. */
-  uchar g; /**< Green channel value. */
-  uchar r; /**< Red channel value. */
-  };
-  bool eval; //true=evaluation false=standard
+  // general
+  bool firstPass_; //  white font: true, black font: false
 
-  // these variables stays for the same image
-  Mat originalImage_;
-  Mat image_; // gray scale to be processed
-  Mat detection_;
-  float maxStrokeWidth_;
+  // SWT
+  int maxStrokeWidth_;
   float initialStrokeWidth_;
-  Mat edgemap_;
-  Mat theta_;
-  bool firstPass_; //  white: 1, black : 0
-  vector<Point> edgepoints_;
+  cv::Mat edgemap_; // edges detected at gray image
+  cv::Mat theta_; // gradient map, arctan(dy,dx)
+  cv::Mat dx_;
+  cv::Mat dy_;
+  std::vector<cv::Point> edgepoints_; // all points where an edge is
 
-  Mat correlation_; // read from arg[1]
-  vector<string> wordList_; // read from arg[2]
-  Mode mode_; // streaming or images
+  // Connect Component
+  std::vector<cv::Rect> labeledRegions_; // all regions (with label) that could be a letter
+  std::size_t nComponent_; // =labeledRegions_.size()
+  cv::Mat ccmapBright_, ccmapDark_; // copy of whole cc map
+  std::vector<std::vector<connectedComponent> > connectedComponents_;
 
-  vector<Rect> boxesBothSides_;
-  vector<string> wordsBothSides_;
-  vector<float> boxesScores_;
+  // Identify Letters
+  std::vector<bool> isLetterRegion_; // which region is letter
+  std::vector<double> medianStrokeWidth_;	// median stroke width for each letter region
+  std::vector<std::vector<float> > meanRGB_; // mean R,G,B and Gray value of foreground pixels of every region
+  std::vector<std::vector<float> > meanBgRGB_; // same with background pixels
+  unsigned int nLetter_; // how many regions are letters
 
-  vector<bool> boxInbox_;
+  // Group Letters
+  std::vector<Pair> letterGroups_; // 2 int values, correspond to indexes at isLetterComponects_, for letters that belong together
 
-  FontColor fontColor_;
-  Result result_;
-  // these variables should be cleaned between calculations
-  vector<Rect> componentsRoi_;
-  bool *isLetterComponects_;
-  bool *isGrouped_;
-  vector<bool*> innerComponents_;
+  // Chain to Box
+  std::vector<cv::Rect> boundingBoxes_; // all boundingBoxes, black and white font combined
+  std::vector<cv::Rect> brightBoxes_, darkBoxes_; // separate b/w font
+  std::vector<cv::Rect> brightLetters_, darkLetters_; // b/w font letter boxes
+  std::vector<FontColor> boxFontColor_; //remember which boundingBox had which font color
 
-  vector<Pair> horizontalLetterGroups_;
-  vector<Pair> verticalLetterGroups_;
-  vector<vector<int> > horizontalChains_;
-  vector<vector<int> > verticalChains_;
+  // OCR Preprocess
+  unsigned int fontColorIndex_;
+  std::vector<cv::Mat> transformedImage_; // all boundingBoxes, rotated and transformed based on found bezier curve
+  std::vector<cv::Mat> transformedFlippedImage_;
+  std::vector<cv::Mat> notTransformedImage_;
 
-  vector<Rect> boundingBoxes_;
+  std::vector<cv::Rect> finalBoundingBoxes_;
+  std::vector<cv::RotatedRect> finalRotatedBoundingBoxes_;
+  std::vector<double> finalBoundingBoxesQualityScore_;
 
-  float *componentsMeanIntensity_;
-  float *componentsMedianStrokeWidth_;
+  double sigma_sharp, threshold_sharp, amount_sharp;
 
-  size_t nComponent_;
-  float maxLetterHeight_;
-  float minLetterHeight_;
+  // OCR
+  bool enableOCR_;
+  int result_;
+  std::vector<cv::Mat> textImages_;
+  std::vector<cv::RotatedRect> finalBoxes_;
+  std::vector<std::string> finalTexts_;
+  std::vector<float> finalScores_;
 
-  string filename_;
-  string outputPrefix_;
+  // Debug etc.
+  std::map<std::string, bool> debug;
+  bool eval_; //true=evaluation (read_evaluation) false=standard
 
-  int textDisplayOffset_;
+  // Not used but useful variables:
+  //Mode mode_; // streaming from topic or reading image file
 
+  // Parameters given by yaml
+  // --- general ---
+  enum ProcessingMethod {ORIGINAL_EPSHTEIN=0, BORMANN};
+  ProcessingMethod processing_method_;				// defines the method for finding texts in the image
+
+  // --- transform ---
+  bool transformImages;
+
+  // --- preprocess ---
+  bool smoothImage; // default: false, smoothing leads to merging of letters within small texts (that is bad)
+  int maxStrokeWidthParameter; // default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
+  // --- strokeWidthTransform ---
+  bool useColorEdge; // true = use rgb channels to compute edgeMap, false = only gray image is used
+  // --- computeEdgeMap ---
+  int cannyThreshold1; // default: 120
+  int cannyThreshold2; // default: 50 , cannyThreshold1 > cannyThreshold2
+  // --- updateStrokeWidth ---
+  double compareGradientParameter_; // default: 3.14 / 2, in paper: 3.14 / 6 -> unrealistic
+  // --- connectComponentAnalysis ---
+  double swCompareParameter; // default: 3.0
+  int colorCompareParameter; // default: 100, set to 255 to deactivate
+  // --- identifyLetter ---
+  int maxLetterHeight_; // default: 600
+  int minLetterHeight_; //default: 10
+  double varianceParameter; // default: 1.5 , also good: 3.5
+  int diagonalParameter; // default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
+  int pixelCountParameter; // default: 5
+  int innerLetterCandidatesParameter; // default: 5 , paper: 2
+  double clrComponentParameter; // default: 20
+  // ---  groupLetters ---
+  double distanceRatioParameter; // default: 2.0
+  double medianSwParameter; // default: 2.5
+  double diagonalRatioParamter; // default 2.0
+  double grayClrParameter; //default: 10.0
+  double clrSingleParameter; // better 15 default: 35
+  double areaParameter; // better: 1.5 ; default: 5
+  double pixelParameter; // default 0.3
+  // --- linear ransac (original implementation) ---
+  double inlierDistanceThresholdFactor_;
+  // --- ransac ---
+  double p; // probability p, default: 0.99
+  double maxE;
+  double minE; // linear based on pca, default: [0.4,0.7]
+  int bendParameter; // default: 30
+  double distanceParameter; // maxDistance = distanceParameter * (Σ[i_n](sqrt(letterArea(i))) / n), default: 0.8
 };
 
 #endif

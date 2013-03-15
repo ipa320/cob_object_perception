@@ -1,0 +1,31 @@
+<package>
+	<description brief="cob_fiducials">
+
+		Fiducial recognition. Implementation of different 2D tags like PI-tag from Bergamasco et al. for recognition with a single 2D camera.
+
+	</description>
+	<author>Jan Fischer</author>
+	<license>LGPL</license>
+	<review status="unreviewed" notes=""/>
+	<url>http://ros.org/wiki/cob_fiducials</url>
+
+	<depend package="roscpp"/>
+	<depend package="sensor_msgs"/>
+	<depend package="tf"/>
+	<depend package="image_transport"/>
+	<depend package="opencv2"/>
+	<depend package="cv_bridge"/>
+	<depend package="visualization_msgs"/>
+	<depend package="cob_vision_utils"/>
+	<depend package="cob_object_detection_msgs"/>
+
+	<rosdep name="boost"/>
+	<rosdep name="tinyxml"/>
+
+	<export>
+	    <cpp cflags="-I${prefix}/ros/include -I${prefix}/common/include" lflags="-Wl,-rpath,${prefix}/common/lib -L${prefix}/common/lib -lcob_fiducials"/>
+	<!--    <nodelet plugin="${prefix}/nodelet_plugins.xml" /> -->
+	</export>
+</package>
+
+

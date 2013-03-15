@@ -1,5 +1,5 @@
 <launch>
-	<env name="TESSDATA_PREFIX" value="~/git/care-o-bot/cob_object_perception_data/cob_tesseract_data" />
+	<env name="TESSDATA_PREFIX" value="$(find cob_tesseract_data)/" />
 
 	<!--node name="image_proc" pkg="image_proc" type="image_proc"
 		ns="prosilica" /-->
@@ -13,10 +13,12 @@
 	</node>
 
 		<!-- args="$(find read_text)/fonts/correlation.txt 
-		$(find read_text)/dictionary/full-dictionary"> -->
+		$(find read_text)/dictionary/full-dictionary_ger"> -->
+
+	<rosparam command="load" file="$(find cob_read_text)/launch/params.yaml" />
+
 	<node name="cob_read_text" pkg="cob_read_text" type="cob_read_text" output="screen"
-		args="/home/rmb-rh/git/care-o-bot/cob_object_perception_data/cob_read_text_data/fonts/correlation.txt 
-		/home/rmb-rh/git/care-o-bot/cob_object_perception_data/cob_read_text_data/dictionary/full-dictionary">
+		args="$(find cob_read_text_data)/fonts/new_correlation.txt $(find cob_read_text_data)/dictionary/full-dictionary_ger">
 		<remap from="text_detect" to="/read_text/text_detect"/>
 		<remap from="image_color" to="/camera/rgb/image_color"/>
 	</node>
