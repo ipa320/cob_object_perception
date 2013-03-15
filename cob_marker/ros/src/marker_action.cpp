@@ -229,10 +229,10 @@ public:
       {
         gm_ = new Marker_DMTX();
 
-        int dmtx_timeout_;
-        n->param<int>("dmtx_timeout",dmtx_timeout_,500);
-        dynamic_cast<Marker_DMTX*>(gm_)->setTimeout(dmtx_timeout_);
-        ROS_INFO("using dmtx algorithm with %i ms timeout",dmtx_timeout_);
+        double dmtx_timeout_;
+        n->param<double>("dmtx_timeout",dmtx_timeout_,0.5);
+        dynamic_cast<Marker_DMTX*>(gm_)->setTimeout((int)(dmtx_timeout_ * 1000));
+        ROS_INFO("using dmtx algorithm with %i s timeout",dmtx_timeout_);
       }
     }
 
