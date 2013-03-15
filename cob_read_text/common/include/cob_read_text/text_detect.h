@@ -97,13 +97,6 @@ private:
 		}
 	};
 
-	struct connectedComponent
-	{
-		cv::Rect r;
-		cv::Point middlePoint;
-		FontColor clr;
-	};
-
 	struct Letter
 	{
 		cv::Rect boundingBox;		// bounding box around letter region
@@ -297,7 +290,6 @@ private:
 	std::vector<cv::Rect> labeledRegions_; // all regions (with label) that could be a letter
 	std::size_t nComponent_; // =labeledRegions_.size()
 	cv::Mat ccmapBright_, ccmapDark_; // copy of whole cc map
-	std::vector< std::vector<connectedComponent> > connectedComponents_;
 	std::vector<TextRegion> textRegions_; // contains several region of letters that putatively belong to the same word or word group
 
 	// Identify Letters
@@ -313,7 +305,6 @@ private:
 	// Chain to Box
 	std::vector<cv::Rect> boundingBoxes_; // all boundingBoxes, black and white font combined
 	std::vector<cv::Rect> brightBoxes_, darkBoxes_; // separate b/w font
-	std::vector<cv::Rect> brightLetters_, darkLetters_; // b/w font letter boxes
 	std::vector<FontColor> boxFontColor_; //remember which boundingBox had which font color
 
 	// OCR Preprocess

@@ -16,5 +16,6 @@
   <depend stack="ros_comm" /> <!-- std_msgs, rospy, roscpp, message_filters -->
   <depend stack="simulator_gazebo" /> <!-- gazebo -->
   <depend stack="vision_opencv" /> <!-- opencv2, image_geometry, cv_bridge -->
+  <depend stack="image_pipeline" /> <!-- image_view -->
 
 </stack>

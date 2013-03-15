@@ -477,7 +477,6 @@ void DetectText::pipeline()
 		breakLines(textRegions_);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
-		// after this block the indices between boundingBoxes and connectedComponents_ do not correspond anymore!
 
 		// separate words on a single line
 		start_time = clock();
@@ -1554,9 +1553,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 		int letterAreaSum = 0;
 		int padding = 0;		// todo: param
 
-		//std::vector<connectedComponent> lettersInBox;
 		TextRegion textRegion;
-
 		for (size_t j = 0; j < chains[i].size(); j++)
 		{
 			cv::Rect itr = labeledRegions_[chains[i][j]];
@@ -1566,22 +1563,13 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 			maxX = std::max(maxX, itr.x + itr.width);
 			maxY = std::max(maxY, itr.y + itr.height);
 
-			//connectedComponent letterBox;
 			Letter letter;
 			letter.boundingBox = itr;
 			letter.centerPoint = cv::Point2d(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
-
 			if (firstPass_)
-			{
-				brightLetters_.push_back(itr);
 				letter.fontColor = BRIGHT;
-			}
 			else
-			{
-				darkLetters_.push_back(itr);
 				letter.fontColor = DARK;
-			}
-
 			textRegion.letters.push_back(letter);
 		}
 
@@ -1594,7 +1582,6 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 		//boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 		textRegion.boundingBox = cv::Rect(minX, minY, maxX - minX, maxY - minY);
 		textRegions.push_back(textRegion);
-		//connectedComponents_.push_back(lettersInBox);
 	}
 }
 
@@ -1957,18 +1944,7 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 	if (debug["showBreakLines"])
 		std::cout << "Breaking boxes into single-line boxes." << std::endl;
 
-//	std::vector<cv::Rect> letters;
-//	if (firstPass_)
-//		letters = brightLetters_;
-//		for (unsigned int i = 0; i < brightLetters_.size(); i++)
-//			letters.push_back(brightLetters_[i]);
-//	else
-//		letters = darkLetters_;
-//		for (unsigned int i = 0; i < darkLetters_.size(); i++)
-//			letters.push_back(darkLetters_[i]);
-
 	//For every boundingBox:
-	//std::vector<cv::Rect> splitUpBoxes;
 	std::vector<TextRegion> splitUpTextRegions;
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
@@ -2261,8 +2237,6 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 						textRegion.letters[i].centerPoint = currentPoints[currentInlierSet[i]];
 						textRegion.letters[i].fontColor = textRegions[textRegionIndex].letters[0].fontColor;
 					}
-					//splitUpBoxes.push_back(cv::Rect(minPoint, maxPoint));
-					//lineEquations.push_back(cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore));
 					textRegion.boundingBox = cv::Rect(minPoint, maxPoint);
 					textRegion.lineEquation = cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore);
 					splitUpTextRegions.push_back(textRegion);
@@ -2292,7 +2266,6 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 	}
 
 	// return the set of divided boxes
-	//boxes = splitUpBoxes;
 	textRegions = splitUpTextRegions;
 }
 
@@ -2309,7 +2282,6 @@ void DetectText::disposal()
 	meanBgRGB_.clear();
 	letterGroups_.clear();
 	textRegions_.clear();
-	//connectedComponents_.clear();
 }
 
 void DetectText::deleteDoubleBrokenWords(std::vector<cv::Rect>& boundingBoxes)
@@ -5508,39 +5480,13 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 	qualityScore.resize(textRegions.size(), 0.);
 	std::vector<double> brokenWordsQualityScore;
 
-//del	std::vector<cv::Rect> brokenWords;
 	std::vector<TextRegion> wordRegions;
 
 	std::string breakingWordsDisplayName = "breaking words";
-
-//del	std::vector<cv::Rect> letters;
-//	std::vector<Letter> letters;
 	if (firstPass_)
-	{
-//		for (int i=0; i<(int)brightLetters_.size(); i++)
-//		{
-//			Letter l;
-//			l.boundingBox = brightLetters_[i];
-//			l.centerPoint = cv::Point2d(brightLetters_[i].x + 0.5*brightLetters_[i].width, brightLetters_[i].y + 0.5*brightLetters_[i].height);
-//			l.fontColor = BRIGHT;
-//			letters.push_back(l);
-//		}
-
 		breakingWordsDisplayName = "breaking bright words";
-	}
 	else
-	{
-//		for (int i=0; i<(int)darkLetters_.size(); i++)
-//		{
-//			Letter l;
-//			l.boundingBox = darkLetters_[i];
-//			l.centerPoint = cv::Point2d(darkLetters_[i].x + 0.5*darkLetters_[i].width, darkLetters_[i].y + 0.5*darkLetters_[i].height);
-//			l.fontColor = DARK;
-//			letters.push_back(l);
-//		}
-
 		breakingWordsDisplayName = "breaking dark words";
-	}
 
 	//For every boundingBox:
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
@@ -5939,7 +5885,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		int start = textRegions[textRegionIndex].boundingBox.x;
 		int wordBreakAt = start;
 
-//del		int brokenWordsSize = brokenWords.size();
 		int numberWordRegions = wordRegions.size();
 
 		// Merging letterboxes that are on top of each other (e.g. 's' is separated into upper and lower semi circle after cc)
@@ -5978,7 +5923,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 					wordBreakAt = wordBreaks[r].left - wordBreaks[r].right + shift;
 					cv::Rect re(start, textRegions[textRegionIndex].boundingBox.y, abs(wordBreakAt - start), textRegions[textRegionIndex].boundingBox.height);
 					start = wordBreaks[r].left;
-					//brokenWords.push_back(re);
 					TextRegion word;
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
@@ -5990,7 +5934,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 				if (r == wordBreaks.size() - 1)
 				{
 					cv::Rect re(start, textRegions[textRegionIndex].boundingBox.y, abs((textRegions[textRegionIndex].boundingBox.x + textRegions[textRegionIndex].boundingBox.width) - start), textRegions[textRegionIndex].boundingBox.height);
-					//brokenWords.push_back(re);
 					TextRegion word;
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
@@ -6002,21 +5945,15 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		}
 		else
 		{
-			//brokenWords.push_back(textRegions[textRegionIndex].boundingBox);
 			wordRegions.push_back(textRegions[textRegionIndex]);
 			brokenWordsQualityScore.push_back(qualityScore[textRegionIndex]);
 		}
 
 		// Make Boxes smaller to increase precision and recall
-//		std::vector<cv::Rect> smallerBrokenWords;
-//del		unsigned int newBrokenWordsSize = brokenWords.size();
 		unsigned int newNumberWordRegions = wordRegions.size();
-//		for (unsigned int makeSmallerIndex = 0; makeSmallerIndex < (newBrokenWordsSize - numberWordRegions); makeSmallerIndex++)
 		for (unsigned int makeSmallerIndex = numberWordRegions; makeSmallerIndex < newNumberWordRegions; makeSmallerIndex++)
 		{
 			unsigned int smallestX = 10000, smallestY = 10000, biggestX = 0, biggestY = 0;
-//del			cv::Rect re = brokenWords[makeSmallerIndex];
-
 			for (unsigned int letterIndex = 0; letterIndex < currentLetters.size(); letterIndex++)
 				if ((wordRegions[makeSmallerIndex].boundingBox & letters[currentLetters[letterIndex]].boundingBox).area() / letters[currentLetters[letterIndex]].boundingBox.area() > 0.5)		// todo: might cause problems?
 				{
@@ -6042,15 +5979,9 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 				cv::waitKey(0);
 			}
 			wordRegions[makeSmallerIndex].boundingBox = smallerRe;
-//del			brokenWords[makeSmallerIndex] = smallerRe;
-//			smallerBrokenWords.push_back(smallerRe);
-//			brokenWords.pop_back();
-//			cv::Mat cut = originalImage_(smallerRe);
-//			DFT(cut);
 		}
 	}
 
-//del	boxes = brokenWords;
 	textRegions = wordRegions;
 	qualityScore = brokenWordsQualityScore;
 }
