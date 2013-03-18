@@ -15,6 +15,61 @@
 #include <iostream>
 #include <fstream>
 
+class MeanShiftSegmentation1D
+{
+public:
+	MeanShiftSegmentation1D(const std::vector<double>& data, std::vector<double>& convergencePoints, std::vector< std::vector<int> >& convergenceSets, double bandwidth, int maximumIterations=100)
+	{
+		// clear output structures
+		convergencePoints.clear();
+		convergenceSets.clear();
+
+		//  prepare mean shift set
+		std::vector<double> meanShiftSet = data, meanShiftSet2(data.size());
+
+		//  mean shift iteration
+		for (int iter=0; iter<maximumIterations; iter++)
+		{
+			for (int i=0; i<(int)meanShiftSet.size(); i++)
+			{
+				double nominator = 0., denominator = 0.;
+				for (int j=0; j<(int)meanShiftSet.size(); j++)
+				{
+					double weight = exp(bandwidth * (meanShiftSet[j]-meanShiftSet[i]) * (meanShiftSet[j]-meanShiftSet[i]));
+					nominator += weight*meanShiftSet[j];
+					denominator += weight;
+				}
+				meanShiftSet2[i] = nominator/denominator;
+			}
+			meanShiftSet = meanShiftSet2;
+		}
+		for (int i=0; i<(int)meanShiftSet.size(); i++)
+			std::cout << "  meanshift[" << i << "]=" << meanShiftSet[i] << std::endl;
+
+		//  cluster data according to convergence points
+		convergenceSets.resize(1, std::vector<int>(1, 0));
+		convergencePoints.resize(1, meanShiftSet[0]);
+		for (int i=1; i<(int)meanShiftSet.size(); i++)
+		{
+			bool createNewSet = true;
+			for (int j=0; j<(int)convergencePoints.size(); j++)
+			{
+				if (abs(meanShiftSet[i]-convergencePoints[j]) < bandwidth*0.01)
+				{
+					convergenceSets[j].push_back(i);
+					convergencePoints[j] = (convergencePoints[j]*(convergenceSets[j].size()-1.) + meanShiftSet[i]) / (double)convergenceSets[j].size();	// update mean of convergence point
+					createNewSet = false;
+				}
+			}
+			if (createNewSet == true)
+			{
+				convergenceSets.push_back(std::vector<int>(1, i));
+				convergencePoints.push_back(meanShiftSet[i]);
+			}
+		}
+	};
+};
+
 
 class DetectText
 {
@@ -163,6 +218,10 @@ private:
 
 	void breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::vector<double>& qualityScore);
 
+	int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative, unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance,
+			int maxPeakNumbers, int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight, unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks,
+			cv::Rect box, bool textIsRotated, float relativeY, bool SteadyStructure, float sameArea);
+
 	static bool spatialOrderX(cv::Rect a, cv::Rect b);
 
 	void disposal();
@@ -237,10 +296,6 @@ private:
 	static bool pointYOrder(cv::Point a, cv::Point b);
 
 	void overlapBoundingBoxes(std::vector<cv::Rect>& boundingBoxes);
-
-	int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative, unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance,
-			int maxPeakNumbers, int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight, unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks,
-			cv::Rect box, bool textIsRotated, float relativeY, bool SteadyStructure, float sameArea);
 
 	void DFT(cv::Mat& input);
 
