@@ -7,6 +7,8 @@
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialTestingEnvironment.h"
 #endif
 
+#include <opencv/highgui.h>
+
 using namespace ipa_Fiducials;
 
 FiducialTestingEnvironment::FiducialTestingEnvironment(cv::Mat& camera_matrix)
