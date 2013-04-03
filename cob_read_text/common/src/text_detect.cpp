@@ -5071,6 +5071,11 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 	else
 		breakingWordsDisplayName = "breaking dark words";
 
+	// used later for a parametric function
+	double p = 0.8;
+	double a1=-1/(p*p), b1=2/p, c1=0;
+	double a2=1/(-p*p+2*p-1), b2=-2*p/(-p*p+2*p-1), c2=(2*p-1)/(-p*p+2*p-1);
+
 	//For every boundingBox:
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
@@ -5184,7 +5189,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		std::multiset<double>::iterator it = orderedLetterSizes.begin();
 		for (int i=0; i<(int)orderedLetterSizes.size()/2; i++, it++);
 		medianLetterSize = *it;
-		double meanShiftBandwidth = 0.5 * 40./medianLetterSize*40./medianLetterSize;
+		double meanShiftBandwidth = 0.5 * 35./medianLetterSize*35./medianLetterSize;
 		std::cout << "bandwidth = " << meanShiftBandwidth << std::endl;
 		//	compute mean shift segmentation
 		std::vector< std::vector<int> > convergenceSets;
@@ -5198,17 +5203,17 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		// compute threshold and break line into words
 		bool breakBox = true; // shall box be broken into separate boxes?
 		double thresholdDistance = -1e10;
+		std::vector<double> bestThresholds;
 		if (convergencePoints.size() < 2)
 			breakBox = false;
 		else
 		{
 			// create data structure of convergence points and number of points that converged to them
-			std::map<double, unsigned int> convergencePointsAndSupporters;	// contains the convergence points (double) and the number of points that converged to that point (int)
+			std::map<double, unsigned int > convergencePointsAndSupporters;	// contains the convergence points (double) and the number of points that converged to that point (int)
 			for (unsigned int i=0; i<convergencePoints.size(); i++)
 				convergencePointsAndSupporters[convergencePoints[i]] = convergenceSets[i].size();
 
 			// compute appropriate distance threshold for line breaks
-	//		unsigned int breakSetSize = 0;
 			std::map<double, unsigned int>::iterator it=convergencePointsAndSupporters.end();
 			it--;
 			if (it->second > 0.5*letterDistances.size())
@@ -5222,6 +5227,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 				{
 					double w1 = 0., w2 = 0.;
 					double mu1 = 0., mu2 = 0.;
+					double normalizer = 0.;
 					for (it = convergencePointsAndSupporters.begin(); it != convergencePointsAndSupporters.end(); it++)
 					{
 						if (it->first < t)
@@ -5234,21 +5240,44 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 							w2 += (double)it->second;
 							mu2 += (double)it->second*it->first;
 						}
+						normalizer += (double)it->second;
 					}
-					mu1 /= w1;
+					if (w1==0 || w2==0)
+						continue;
+					mu1 /= w1;	// normalizing w1 afterwards avoids normalizing mu1 here explicitly (this way mu1 is normalized by division through unnormalized w1)
 					mu2 /= w2;
+					w1 /= normalizer;
+					w2 /= normalizer;
 					// sigma_b
-					double sigma_b = w1*w2*(mu1-mu2)*(mu1-mu2);
-					if (sigma_b >= bestSigma)
+					double sigma_b = (w1<=p ? a1*w1*w1 + b1*w1 + c1 : a2*w1*w1 + b2*w1 + c2)*/*w1*w2*/(mu1-mu2)*(mu1-mu2); //+ 0.5*w1*(mu1-mu2)*(mu1-mu2); // the term after the + is not original Otsu and cares for a sufficiently small mass of the second peak
+					std::cout << " t=" << t << "\t sigma_b=" << sigma_b << "\t w1=" << w1 << "\t w2=" << w2 << "\t mu1=" << mu1 << "\t mu2=" << mu2 << std::endl;
+					if (sigma_b > bestSigma)
 					{
 						bestSigma = sigma_b;
-						thresholdDistance = t;
+						bestThresholds.clear();
+						bestThresholds.push_back(t);
+					}
+					else if (sigma_b == bestSigma)
+					{
+						bestThresholds.push_back(t);
 					}
 				}
 			}
 
+			thresholdDistance = 0.;
+			for (unsigned int i=0; i<bestThresholds.size(); i++)
+				thresholdDistance += bestThresholds[i];
+			thresholdDistance /= (double)bestThresholds.size();
 			std::cout << "thresholdDistance: " << thresholdDistance << std::endl;
 
+
+//			// create data structure of convergence points and number of points that converged to them
+//			std::map<double, std::vector<int> > convergencePointsAndSupporters;	// contains the convergence points (double) and the number of points that converged to that point (int)
+//			for (unsigned int i=0; i<convergencePoints.size(); i++)
+//				convergencePointsAndSupporters[convergencePoints[i]] = convergenceSets[i];
+//
+//			// compute appropriate distance threshold for line breaks
+//			unsigned int breakSetSize = 0;
 //			std::map<double, std::vector<int> >::iterator it=convergencePointsAndSupporters.end();
 //			it--;
 //			if (it->second.size() > 0.5*letterDistances.size())
@@ -5272,10 +5301,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 //				}
 //			}
 
-//			std::vector<double> temp = convergencePoints;
-//			std::sort(temp.begin(), temp.end());
-//			for (int i=temp.size()-1; i>1; i--)
-//				thresholdDistance = (temp[i-1]+temp[i])/2.0;
 		}
 
 /*		if (debug["showWords"])
