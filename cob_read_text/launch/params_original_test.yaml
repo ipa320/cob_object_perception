@@ -219,7 +219,7 @@ showChains: false
 # bool
 showBreakLines: false
 
-showWords: false
+showWords: true
 
 showCriterions: false
 

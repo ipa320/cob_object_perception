@@ -35,7 +35,7 @@ public:
 				double nominator = 0., denominator = 0.;
 				for (int j=0; j<(int)meanShiftSet.size(); j++)
 				{
-					double weight = exp(bandwidth * (meanShiftSet[j]-meanShiftSet[i]) * (meanShiftSet[j]-meanShiftSet[i]));
+					double weight = exp(-bandwidth * (meanShiftSet[j]-meanShiftSet[i]) * (meanShiftSet[j]-meanShiftSet[i]));
 					nominator += weight*meanShiftSet[j];
 					denominator += weight;
 				}
@@ -218,9 +218,9 @@ private:
 
 	void breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::vector<double>& qualityScore);
 
-	int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative, unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance,
-			int maxPeakNumbers, int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight, unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks,
-			cv::Rect box, bool textIsRotated, float relativeY, bool SteadyStructure, float sameArea);
+//	int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative, unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance,
+//			int maxPeakNumbers, int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight, unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks,
+//			cv::Rect box, bool textIsRotated, float relativeY, bool SteadyStructure, float sameArea);
 
 	static bool spatialOrderX(cv::Rect a, cv::Rect b);
 
