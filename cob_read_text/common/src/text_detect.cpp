@@ -5208,7 +5208,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 				convergencePointsAndSupporters[convergencePoints[i]] = convergenceSets[i].size();
 
 			// compute appropriate distance threshold for line breaks
-			unsigned int breakSetSize = 0;
+	//		unsigned int breakSetSize = 0;
 			std::map<double, unsigned int>::iterator it=convergencePointsAndSupporters.end();
 			it--;
 			if (it->second > 0.5*letterDistances.size())
@@ -5217,10 +5217,8 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 			{
 				// divide histogram into two subsets using Otsu algorithm: letter distances and word distances
 				double bestSigma = 0.;
-				double bestThreshold = 0.;
-
 				// i. compute initial w(t), and mu(t)
-				for (double t = convergencePointsAndSupporters.begin()->first; t<convergencePointsAndSupporters.begin()+convergencePointsAndSupporters.size(); t += 1.0)
+				for (double t = smallestWordBreak-0.5; t<biggestWordBreak; t += 1.0)
 				{
 					double w1 = 0., w2 = 0.;
 					double mu1 = 0., mu2 = 0.;
@@ -5241,9 +5239,10 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 					mu2 /= w2;
 					// sigma_b
 					double sigma_b = w1*w2*(mu1-mu2)*(mu1-mu2);
-					if (sigma_b > )
+					if (sigma_b > bestSigma)
 					{
-
+						bestSigma = sigma_b;
+						thresholdDistance = t;
 					}
 				}
 			}
