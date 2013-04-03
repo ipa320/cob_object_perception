@@ -5220,13 +5220,12 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 				breakBox = false;	// not too many word breaks possible
 			else
 			{
-				// divide histogram into two subsets using Otsu algorithm: letter distances and word distances
+				// divide histogram into two subsets, letter distances and word distances, using Otsu algorithm
 				double bestSigma = 0.;
-				// i. compute initial w(t), and mu(t)
 				for (double t = smallestWordBreak-0.5; t<biggestWordBreak; t += 1.0)
 				{
-					double w1 = 0., w2 = 0.;
-					double mu1 = 0., mu2 = 0.;
+					double w1 = 0., w2 = 0.;	// weights
+					double mu1 = 0., mu2 = 0.;	// means
 					double normalizer = 0.;
 					for (it = convergencePointsAndSupporters.begin(); it != convergencePointsAndSupporters.end(); it++)
 					{
@@ -5249,7 +5248,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 					w1 /= normalizer;
 					w2 /= normalizer;
 					// sigma_b
-					double sigma_b = (w1<=p ? a1*w1*w1 + b1*w1 + c1 : a2*w1*w1 + b2*w1 + c2)*/*w1*w2*/(mu1-mu2)*(mu1-mu2); //+ 0.5*w1*(mu1-mu2)*(mu1-mu2); // the term after the + is not original Otsu and cares for a sufficiently small mass of the second peak
+					double sigma_b = (w1<=p ? a1*w1*w1 + b1*w1 + c1 : a2*w1*w1 + b2*w1 + c2)*/*w1*w2*/(mu1-mu2)*(mu1-mu2); // the term w1*w2 term is replaced as we do not aspire to reward similarly sized subsets but require set 2 to be smaller (as there are less word breaks than letters), the peak of the new weight reward function is p=(0..1) (see above), typically p=0.8 makes sense, i.e. every 5th transition is a word separation
 					std::cout << " t=" << t << "\t sigma_b=" << sigma_b << "\t w1=" << w1 << "\t w2=" << w2 << "\t mu1=" << mu1 << "\t mu2=" << mu2 << std::endl;
 					if (sigma_b > bestSigma)
 					{
@@ -5269,38 +5268,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 				thresholdDistance += bestThresholds[i];
 			thresholdDistance /= (double)bestThresholds.size();
 			std::cout << "thresholdDistance: " << thresholdDistance << std::endl;
-
-
-//			// create data structure of convergence points and number of points that converged to them
-//			std::map<double, std::vector<int> > convergencePointsAndSupporters;	// contains the convergence points (double) and the number of points that converged to that point (int)
-//			for (unsigned int i=0; i<convergencePoints.size(); i++)
-//				convergencePointsAndSupporters[convergencePoints[i]] = convergenceSets[i];
-//
-//			// compute appropriate distance threshold for line breaks
-//			unsigned int breakSetSize = 0;
-//			std::map<double, std::vector<int> >::iterator it=convergencePointsAndSupporters.end();
-//			it--;
-//			if (it->second.size() > 0.5*letterDistances.size())
-//				breakBox = false;	// not too many word breaks possible
-//			else
-//			{
-//				while (it!=convergencePointsAndSupporters.begin())
-//				{
-//					breakSetSize += it->second.size();		// number of breaks implied by this division
-//					double convergencePoint2 = it->first;
-//					double minOriginConvergencePoint2 = meanShiftSet[*std::min_element(it->second.begin(), it->second.end())];
-//					it--;
-//					double convergencePoint1 = it->first;
-//					double maxOriginConvergencePoint1 = meanShiftSet[*std::max_element(it->second.begin(), it->second.end())];
-//
-//					std::cout << "  convergencePoint1: " << convergencePoint1 << "   maxOriginConvergencePoint1: " << maxOriginConvergencePoint1 << "   minOriginConvergencePoint2: " << minOriginConvergencePoint2 << "   convergencePoint2: " << convergencePoint2 << std::endl;
-//
-//					if ((4*breakSetSize < letterDistances.size() && 20*convergencePoint2 > medianLetterSize)  || thresholdDistance==-1e10)
-//						//thresholdDistance = (convergencePoint1+convergencePoint2)*0.5;
-//						thresholdDistance = (maxOriginConvergencePoint1+minOriginConvergencePoint2)*0.5;
-//				}
-//			}
-
 		}
 
 /*		if (debug["showWords"])
@@ -5335,16 +5302,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 				bool letter = false;
 				if (letterDistances[r].right < thresholdDistance)
 					letter = true;
-				/*
-				if (maxPeakDistance < 0)
-				{
-					if (letterDistances[r].right - shift < abs((((max / bin) * maxPeakDistance) - shift) + (max / bin)))
-						letter = true;
-				}
-				else if (letterDistances[r].right - shift <= ((((max / bin) * maxPeakDistance) - shift) + (max / bin)))
-				{
-					letter = true;
-				}*/
 
 				// reaching a break between two words:
 				if (letter == false)
