@@ -5203,34 +5203,73 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		else
 		{
 			// create data structure of convergence points and number of points that converged to them
-			std::map< double, std::vector<int> > convergencePointsAndSupporters;	// contains the convergence points (double) and the number of points that converged to that point (int)
+			std::map<double, unsigned int> convergencePointsAndSupporters;	// contains the convergence points (double) and the number of points that converged to that point (int)
 			for (unsigned int i=0; i<convergencePoints.size(); i++)
-				convergencePointsAndSupporters[convergencePoints[i]] = convergenceSets[i];
+				convergencePointsAndSupporters[convergencePoints[i]] = convergenceSets[i].size();
 
 			// compute appropriate distance threshold for line breaks
 			unsigned int breakSetSize = 0;
-			std::map<double, std::vector<int> >::iterator it=convergencePointsAndSupporters.end();
+			std::map<double, unsigned int>::iterator it=convergencePointsAndSupporters.end();
 			it--;
-			if (it->second.size() > 0.5*letterDistances.size())
+			if (it->second > 0.5*letterDistances.size())
 				breakBox = false;	// not too many word breaks possible
 			else
 			{
-				while (it!=convergencePointsAndSupporters.begin())
+				// divide histogram into two subsets using Otsu algorithm: letter distances and word distances
+				double bestSigma = 0.;
+				double bestThreshold = 0.;
+
+				// i. compute initial w(t), and mu(t)
+				for (double t = convergencePointsAndSupporters.begin()->first; t<convergencePointsAndSupporters.begin()+convergencePointsAndSupporters.size(); t += 1.0)
 				{
-					breakSetSize += it->second.size();		// number of breaks implied by this division
-					double convergencePoint2 = it->first;
-					double minOriginConvergencePoint2 = meanShiftSet[*std::min_element(it->second.begin(), it->second.end())];
-					it--;
-					double convergencePoint1 = it->first;
-					double maxOriginConvergencePoint1 = meanShiftSet[*std::max_element(it->second.begin(), it->second.end())];
+					double w1 = 0., w2 = 0.;
+					double mu1 = 0., mu2 = 0.;
+					for (it = convergencePointsAndSupporters.begin(); it != convergencePointsAndSupporters.end(); it++)
+					{
+						if (it->first < t)
+						{
+							w1 += (double)it->second;
+							mu1 += (double)it->second*it->first;
+						}
+						else
+						{
+							w2 += (double)it->second;
+							mu2 += (double)it->second*it->first;
+						}
+					}
+					mu1 /= w1;
+					mu2 /= w2;
+					// sigma_b
+					double sigma_b = w1*w2*(mu1-mu2)*(mu1-mu2);
+					if (sigma_b > )
+					{
 
-					std::cout << "  convergencePoint1: " << convergencePoint1 << "   maxOriginConvergencePoint1: " << maxOriginConvergencePoint1 << "   minOriginConvergencePoint2: " << minOriginConvergencePoint2 << "   convergencePoint2: " << convergencePoint2 << std::endl;
-
-					if ((4*breakSetSize < letterDistances.size() && 20*convergencePoint2 > medianLetterSize)  || thresholdDistance==-1e10)
-						//thresholdDistance = (convergencePoint1+convergencePoint2)*0.5;
-						thresholdDistance = (maxOriginConvergencePoint1+minOriginConvergencePoint2)*0.5;
+					}
 				}
 			}
+
+//			std::map<double, std::vector<int> >::iterator it=convergencePointsAndSupporters.end();
+//			it--;
+//			if (it->second.size() > 0.5*letterDistances.size())
+//				breakBox = false;	// not too many word breaks possible
+//			else
+//			{
+//				while (it!=convergencePointsAndSupporters.begin())
+//				{
+//					breakSetSize += it->second.size();		// number of breaks implied by this division
+//					double convergencePoint2 = it->first;
+//					double minOriginConvergencePoint2 = meanShiftSet[*std::min_element(it->second.begin(), it->second.end())];
+//					it--;
+//					double convergencePoint1 = it->first;
+//					double maxOriginConvergencePoint1 = meanShiftSet[*std::max_element(it->second.begin(), it->second.end())];
+//
+//					std::cout << "  convergencePoint1: " << convergencePoint1 << "   maxOriginConvergencePoint1: " << maxOriginConvergencePoint1 << "   minOriginConvergencePoint2: " << minOriginConvergencePoint2 << "   convergencePoint2: " << convergencePoint2 << std::endl;
+//
+//					if ((4*breakSetSize < letterDistances.size() && 20*convergencePoint2 > medianLetterSize)  || thresholdDistance==-1e10)
+//						//thresholdDistance = (convergencePoint1+convergencePoint2)*0.5;
+//						thresholdDistance = (maxOriginConvergencePoint1+minOriginConvergencePoint2)*0.5;
+//				}
+//			}
 
 //			std::vector<double> temp = convergencePoints;
 //			std::sort(temp.begin(), temp.end());
