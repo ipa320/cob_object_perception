@@ -5239,13 +5239,15 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 					mu2 /= w2;
 					// sigma_b
 					double sigma_b = w1*w2*(mu1-mu2)*(mu1-mu2);
-					if (sigma_b > bestSigma)
+					if (sigma_b >= bestSigma)
 					{
 						bestSigma = sigma_b;
 						thresholdDistance = t;
 					}
 				}
 			}
+
+			std::cout << "thresholdDistance: " << thresholdDistance << std::endl;
 
 //			std::map<double, std::vector<int> >::iterator it=convergencePointsAndSupporters.end();
 //			it--;
