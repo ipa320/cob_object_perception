@@ -155,6 +155,7 @@ private:
 	struct Letter
 	{
 		cv::Rect boundingBox;		// bounding box around letter region
+		double diameter;			// the length of the diagonal of the bounding box
 		cv::Point2d centerPoint;		// center of bounding box (stored explicitly because used very often directly --> saves computational effort)
 		FontColor fontColor;		// brightness level of letter font: bright or dark
 	};

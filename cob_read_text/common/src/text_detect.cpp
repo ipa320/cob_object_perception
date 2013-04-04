@@ -1565,6 +1565,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 
 			Letter letter;
 			letter.boundingBox = itr;
+			letter.diameter = sqrt(itr.width*itr.width + itr.height*itr.height);
 			letter.centerPoint = cv::Point2d(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
 			if (firstPass_)
 				letter.fontColor = BRIGHT;
@@ -1952,20 +1953,19 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 		// save bounding boxes and mid points of the currently active letters
 		std::vector<cv::Rect> currentLetterBoxes(textRegions[textRegionIndex].letters.size());
 		std::vector<cv::Point2d> currentPoints(textRegions[textRegionIndex].letters.size());
+		std::vector<double> currentDiameters(textRegions[textRegionIndex].letters.size());
 //		for (unsigned int i = 0; i < letters.size(); i++)
 //			if ((boxes[boxIndex] & letters[i]).area() / (letters[i].area()) == 1.0)
 //				currentLetterBoxes.push_back(letters[i]);
+		double averageLetterSize = 0;
 		for (unsigned int i=0; i<textRegions[textRegionIndex].letters.size(); i++)
 		{
 			currentLetterBoxes[i] = textRegions[textRegionIndex].letters[i].boundingBox;
 			currentPoints[i] = textRegions[textRegionIndex].letters[i].centerPoint;
+			currentDiameters[i] = textRegions[textRegionIndex].letters[i].diameter;
+			averageLetterSize += textRegions[textRegionIndex].letters[i].diameter;
 		}
-
-		// average letter size measure
-		double averageLetterSize = 0;
-		for (unsigned int i = 0; i < currentLetterBoxes.size(); i++)
-			averageLetterSize += sqrt(currentLetterBoxes[i].width*currentLetterBoxes[i].width + currentLetterBoxes[i].height*currentLetterBoxes[i].height);
-		averageLetterSize /= (double)currentLetterBoxes.size();
+		averageLetterSize /= (double)textRegions[textRegionIndex].letters.size();
 
 		// use RANSAC to fit letters to straight lines
 		// -------------------------------------------
@@ -2072,7 +2072,8 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 			//  prepare mean shift set
 			std::vector<double> meanShiftSet(inlierSet.size());		// contains the letter sizes
 			for (unsigned int i = 0; i < inlierSet.size(); i++)
-				meanShiftSet[i] = sqrt(currentLetterBoxes[inlierSet[i]].width*currentLetterBoxes[inlierSet[i]].width + currentLetterBoxes[inlierSet[i]].height*currentLetterBoxes[inlierSet[i]].height);
+				meanShiftSet[i] = currentDiameters[inlierSet[i]];
+				//meanShiftSet[i] = sqrt(currentLetterBoxes[inlierSet[i]].width*currentLetterBoxes[inlierSet[i]].width + currentLetterBoxes[inlierSet[i]].height*currentLetterBoxes[inlierSet[i]].height);
 			//  compute median of letter sizes
 			double medianLetterSizeInlierSet = 0;
 			std::multiset<double> orderedLetterSizes;
@@ -2108,14 +2109,16 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 				double medianLetterSizeInlierSubSet = 0;
 				std::multiset<double> orderedLetterSizesSub;
 				for (unsigned int i = 0; i < currentInlierSet.size(); i++)
-					orderedLetterSizesSub.insert(sqrt(currentLetterBoxes[currentInlierSet[i]].width*currentLetterBoxes[currentInlierSet[i]].width + currentLetterBoxes[currentInlierSet[i]].height*currentLetterBoxes[currentInlierSet[i]].height));
+					orderedLetterSizesSub.insert(currentDiameters[currentInlierSet[i]]);
+					//orderedLetterSizesSub.insert(sqrt(currentLetterBoxes[currentInlierSet[i]].width*currentLetterBoxes[currentInlierSet[i]].width + currentLetterBoxes[currentInlierSet[i]].height*currentLetterBoxes[currentInlierSet[i]].height));
 				std::multiset<double>::iterator it = orderedLetterSizesSub.begin();
 				for (int i=0; i<(int)orderedLetterSizesSub.size()/2; i++, it++);
 				medianLetterSizeInlierSubSet = *it;
 				double stddevLetterSize = 0.;
 				for (unsigned int i = 0; i < currentInlierSet.size(); i++)
 				{
-					double letterSize = sqrt(currentLetterBoxes[currentInlierSet[i]].width*currentLetterBoxes[currentInlierSet[i]].width + currentLetterBoxes[currentInlierSet[i]].height*currentLetterBoxes[currentInlierSet[i]].height);
+					double letterSize = currentDiameters[currentInlierSet[i]];
+					//	double letterSize = sqrt(currentLetterBoxes[currentInlierSet[i]].width*currentLetterBoxes[currentInlierSet[i]].width + currentLetterBoxes[currentInlierSet[i]].height*currentLetterBoxes[currentInlierSet[i]].height);
 					stddevLetterSize += (letterSize - medianLetterSizeInlierSubSet) * (letterSize - medianLetterSizeInlierSubSet);
 				}
 				stddevLetterSize = sqrt(stddevLetterSize/(double)currentInlierSet.size());
@@ -2203,6 +2206,7 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 
 						// store letters
 						textRegion.letters[i].boundingBox = currentLetterBoxes[currentInlierSet[i]];
+						textRegion.letters[i].diameter = currentDiameters[currentInlierSet[i]];
 						textRegion.letters[i].centerPoint = currentPoints[currentInlierSet[i]];
 						textRegion.letters[i].fontColor = textRegions[textRegionIndex].letters[0].fontColor;
 					}
@@ -2222,14 +2226,19 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 						cv::waitKey(0);
 					}
 				}
+			}
 
-				// remove inlier set from currentPoints and currentLetterBoxes
-				std::sort(currentInlierSet.begin(), currentInlierSet.end(), std::greater<int>());
-				for (unsigned int i=0; i<currentInlierSet.size(); i++)
-				{
-					currentPoints.erase(currentPoints.begin()+currentInlierSet[i]);
-					currentLetterBoxes.erase(currentLetterBoxes.begin()+currentInlierSet[i]);
-				}
+			// remove inlier set from currentPoints and currentLetterBoxes
+			std::vector<int> deleteList;
+			for (unsigned int subSetIndex=0; subSetIndex<inlierSubSets.size(); subSetIndex++)
+				for (unsigned int i=0; i<inlierSubSets[subSetIndex].size(); i++)
+					deleteList.push_back(inlierSubSets[subSetIndex][i]);
+			std::sort(deleteList.begin(), deleteList.end(), std::greater<int>());
+			for (unsigned int i=0; i<deleteList.size(); i++)
+			{
+				currentPoints.erase(currentPoints.begin()+deleteList[i]);
+				currentLetterBoxes.erase(currentLetterBoxes.begin()+deleteList[i]);
+				currentDiameters.erase(currentDiameters.begin()+deleteList[i]);
 			}
 		}
 	}
@@ -5072,7 +5081,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		breakingWordsDisplayName = "breaking dark words";
 
 	// used later for a parametric function
-	double p = 0.8;
+	double p = 0.75;
 	double a1=-1/(p*p), b1=2/p, c1=0;
 	double a2=1/(-p*p+2*p-1), b2=-2*p/(-p*p+2*p-1), c2=(2*p-1)/(-p*p+2*p-1);
 
@@ -5081,15 +5090,31 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 	{
 		std::vector<Letter>& letters = textRegions[textRegionIndex].letters;
 
-		//which Letters belong to the current boundingBox
+		//which Letters belong to the current boundingBox, average letter size, stddev letter size
 		std::vector<int> currentLetters; // which ones of all found letters in the text region belong to the current boundingBox
 		double averageLetterSize = 0.;
 		for (unsigned int i = 0; i < letters.size(); i++)
 		{
-				currentLetters.push_back(i);
-				averageLetterSize += sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width + letters[i].boundingBox.height*letters[i].boundingBox.height);
+			currentLetters.push_back(i);
+			averageLetterSize += letters[i].diameter;
+
+			if (letters[i].diameter != sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width+letters[i].boundingBox.height*letters[i].boundingBox.height))
+				std::cout << "                            ERROR: Wrong diameter: letters[i].diameter=" << letters[i].diameter << "   computed=" << sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width+letters[i].boundingBox.height*letters[i].boundingBox.height) << std::endl;
 		}
-		averageLetterSize /= (double)currentLetters.size();
+		averageLetterSize /= (double)letters.size();
+		double stddevLetterSize = 0.;
+		for (unsigned int i = 0; i < letters.size(); i++)
+			stddevLetterSize += (letters[i].diameter-averageLetterSize)*(letters[i].diameter-averageLetterSize);
+		stddevLetterSize = sqrt(stddevLetterSize/(double)letters.size());
+
+		// Check 1: the size variance of letters should not be too large
+		double textBoxDiameter = sqrt(textRegions[textRegionIndex].boundingBox.width*textRegions[textRegionIndex].boundingBox.width + textRegions[textRegionIndex].boundingBox.height*textRegions[textRegionIndex].boundingBox.height);
+		std::cout << "Size variance check: averageLetterSize=" << averageLetterSize << "   stddevLetterSize=" << stddevLetterSize << "   textBoxDiameter=" << textBoxDiameter << std::endl;
+		if (stddevLetterSize > 0.25*averageLetterSize)
+			continue;
+
+		// Check 2:
+		//if (textRegions[textRegionIndex].boundingBox.width < 1.7 * textRegions[textRegionIndex].letters.size() * textRegions[textRegionIndex].boundingBox.height)
 
 		// Determine distance to nearest neighbor letter
 		std::vector<Pair> letterDistances;
@@ -5160,21 +5185,29 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		}
 
 		// draw histogram
-		if (letterDistances.size() > 0)
+		if (false)
 		{
-			std::vector<double> histogram(biggestWordBreak-smallestWordBreak+1, 0.);
-			for (unsigned int i = 0; i < letterDistances.size(); i++)
-				histogram[letterDistances[i].right-smallestWordBreak]++;
-			int displayWidth = 400, displayHeight = 100;
-			cv::Mat display = cv::Mat::zeros(displayHeight, displayWidth, CV_8UC3);
-			for (unsigned int i=0; i<histogram.size(); i++)
+			if (letterDistances.size() > 0)
 			{
-				std::cout << "   " << histogram[i] << std::endl;
-				cv::rectangle(display, cv::Point(i*(double)displayWidth/(double)histogram.size(), displayHeight-5*histogram[i]), cv::Point((i+1)*(double)displayWidth/(double)histogram.size(), displayHeight), cv::Scalar(255,128,0), -1);
+				std::vector<double> histogram(biggestWordBreak-smallestWordBreak+1, 0.);
+				for (unsigned int i = 0; i < letterDistances.size(); i++)
+					histogram[letterDistances[i].right-smallestWordBreak]++;
+				int displayWidth = 400, displayHeight = 100;
+				cv::Mat display = cv::Mat::zeros(displayHeight, displayWidth, CV_8UC3);
+				for (unsigned int i=0; i<histogram.size(); i++)
+				{
+					std::cout << "   " << histogram[i] << std::endl;
+					cv::rectangle(display, cv::Point(i*(double)displayWidth/(double)histogram.size(), displayHeight-5*histogram[i]), cv::Point((i+1)*(double)displayWidth/(double)histogram.size(), displayHeight), cv::Scalar(255,128,0), -1);
+				}
+				cv::imshow("histogram", display);
+				cv::waitKey();
 			}
-			cv::imshow("histogram", display);
-			cv::waitKey();
 		}
+
+		// add some feasibility checks
+		// todo
+		// 1. the height variance of letters should not be too large
+
 
 		// break line with respect to letter distances using non-parametric mode seeking with mean shift
 		//  prepare mean shift set
@@ -5196,9 +5229,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		std::vector<double> convergencePoints;
 		if (meanShiftSet.size() > 0)
 			MeanShiftSegmentation1D(meanShiftSet, convergencePoints, convergenceSets, meanShiftBandwidth, 100);
-
-		// add some feasibility checks
-		// todo
 
 		// compute threshold and break line into words
 		bool breakBox = true; // shall box be broken into separate boxes?
