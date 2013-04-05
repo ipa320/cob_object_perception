@@ -90,6 +90,8 @@ void DetectText::detect(std::string filename)
 	filename_ = filename;
 	originalImage_ = cv::imread(filename_);
 
+//	cv::resize(originalImage_, originalImage_, cv::Size(), 0.25, 0.25);
+
 	if (!originalImage_.data)
 	{
 		ROS_ERROR("Cannot read image input.");
@@ -562,10 +564,43 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 
 	// todo: reactivate
 //	cv::Mat temp;
-//	cv::dilate(swtmap, temp, cv::Mat());
+//	cv::dilate(swtmap, temp, cv::Mat(), cv::Point(-1, -1), 1);
 //	cv::erode(temp, swtmap, cv::Mat(), cv::Point(-1, -1), 2);
 //	cv::dilate(swtmap, temp, cv::Mat());
 //	swtmap = temp;
+
+	if (debug["showSWT"])
+	{
+		cv::Mat output(originalImage_.size(), CV_8UC3);
+		for (int y = 0; y < swtmap.rows; y++)
+			for (int x = 0; x < swtmap.cols; x++)
+			{
+				double val = (swtmap.at<float>(y, x)==0.f ? 255. : 1*swtmap.at<float>(y, x));
+				cv::rectangle(output, cv::Rect(x, y, 1, 1), cv::Scalar(val, val, val), 1, 1, 0);
+			}
+
+		if (searchDirection == 1)
+		{
+			cv::imshow("SWT-map for bright font", output);
+			cvMoveWindow("SWT-map for bright font", 0, 0);
+			cv::waitKey(0);
+			//cv::erode(output, output, cv::Mat());
+			//cv::dilate(output, output, cv::Mat());
+			//cv::imshow("eroded bright swt", output);
+			//cvMoveWindow("eroded bright swt", 0, 0);
+			//swtmap = output;
+		}
+		else
+		{
+			cv::imshow("SWT-map for dark font", output);
+			cvMoveWindow("SWT-map for dark font", 0, 0);
+			cv::waitKey(0);
+			// cv::erode(output, output, cv::Mat());
+			// cv::dilate(output, output, cv::Mat());
+			// cv::imshow("eroded dark swt", output);
+			// cvMoveWindow("eroded dark swt", 0, 0);
+		}
+	}
 }
 
 cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
@@ -674,6 +709,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 	int offsetY9[] = {0, 0, 0, -1, -1, -1, 1, 1, 1};
 
 	// Loop through all edgepoints, compute stroke width
+//	cv::Mat outputtemp = originalImage_.clone();
 	for (std::vector<cv::Point>::iterator itr = startPoints.begin(); itr != startPoints.end(); ++itr)
 	{
 		pointStack.clear();
@@ -690,6 +726,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 
 		pointStack.push_back(cv::Point(currX, currY));
 		SwtValues.push_back(swtmap.at<float>(currY, currX));
+
 		while (step < maxStrokeWidth_)
 		{
 			//going one pixel in the direction of the gradient to check if next pixel is also an edge
@@ -712,11 +749,13 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 
 			bool foundEdgePoint = false;
 			// search in 5-neighborhood for suitable counter edge points
+			// todo: only use 3 neighborhood perpendicular to search direction
 			if (fabs(currX-ix)>=2.f || fabs(currY-iy)>=2.f)
 			{
 				for (int k=0; k<5; k++)
 				{
 					if (edgemap_.at<unsigned char>(currY+offsetY5[k], currX+offsetX5[k]) == 255)
+					//if (edgemap_.at<unsigned char>(currY, currX) == 255)
 					{
 						foundEdgePoint = true;
 						break;
@@ -754,9 +793,12 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 		// ... then calculate newSwtVal for all cv::Points between the two stroke points
 		if (isStroke)
 		{
+//			for (int i = 0; i < pointStack.size(); i++)
+//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 255, 0), 1, 1, 0);
+
 			float newSwtVal;
 			if (purpose == UPDATE)// update swt based on dist between edges
-				newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix)) + 0.5);
+				newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix))/* + 0.5*/);
 			else if (purpose == REFINE) // refine swt based on median
 			{
 				nth_element(SwtValues.begin(), SwtValues.begin() + SwtValues.size() / 2, SwtValues.end());
@@ -767,46 +809,19 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 			for (size_t i = 0; i < pointStack.size(); i++)
 				swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
 		}
+//		else
+//		{
+//			for (int i = 0; i < pointStack.size(); i++)
+//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 0, 255), 1, 1, 0);
+//		}
 	} // end loop through edge points
+//	cv::imshow("active stroke", outputtemp);
 
 	// set initial upchanged value back to 0
 	for (int y = 0; y < swtmap.rows; y++)
 		for (int x = 0; x < swtmap.cols; x++)
 			if (swtmap.at<float> (y, x) == initialStrokeWidth_)
 				swtmap.at<float> (y, x) = 0;						// todo: check whether this may cause problems when grouping
-
-	if (debug["showSWT"] && purpose == REFINE)
-	{
-		cv::Mat output(originalImage_.size(), CV_8UC3);
-		for (int y = 0; y < swtmap.rows; y++)
-			for (int x = 0; x < swtmap.cols; x++)
-			{
-				double val = (swtmap.at<float>(y, x)==0.f ? 255. : 5*swtmap.at<float>(y, x));
-				cv::rectangle(output, cv::Rect(x, y, 1, 1), cv::Scalar(val, val, val), 1, 1, 0);
-			}
-
-		if (searchDirection == 1)
-		{
-			cv::imshow("SWT-map for bright font", output);
-			cvMoveWindow("SWT-map for bright font", 0, 0);
-			cv::waitKey(0);
-			//cv::erode(output, output, cv::Mat());
-			//cv::dilate(output, output, cv::Mat());
-			//cv::imshow("eroded bright swt", output);
-			//cvMoveWindow("eroded bright swt", 0, 0);
-			//swtmap = output;
-		}
-		else
-		{
-			cv::imshow("SWT-map for dark font", output);
-			cvMoveWindow("SWT-map for dark font", 0, 0);
-			cv::waitKey(0);
-			// cv::erode(output, output, cv::Mat());
-			// cv::dilate(output, output, cv::Mat());
-			// cv::imshow("eroded dark swt", output);
-			// cvMoveWindow("eroded dark swt", 0, 0);
-		}
-	}
 }
 
 void DetectText::closeOutline(cv::Mat& edgemap)
@@ -1106,7 +1121,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		//isLetter = isLetter && (sqrt(((itr.width) * (itr.width) + (itr.height) * (itr.height))) < maxStrokeWidth * diagonalParameter);
 		std::nth_element(iComponentStrokeWidth.begin(), iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2, iComponentStrokeWidth.end());
 		medianStrokeWidth_[i] = *(iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2);
-//		isLetter = isLetter && (sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) < medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
+	//	isLetter = isLetter && (sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) < medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
 
 		// rule #4: pixelCount has to be bigger than maxStrokeWidth * x:
 		if (processing_method_==BORMANN)
@@ -1374,11 +1389,15 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j]))
 				negativeScore++;
 
+			// rule 3: diagonal ratio
+			if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParamter)
+				negativeScore++;
+
 			if (processing_method_==BORMANN)
 			{
-				// rule 3: diagonal ratio
-				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParamter)
-					negativeScore++;
+//				// rule 3: diagonal ratio
+//				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParamter)
+//					negativeScore++;
 
 				// rule 4: average gray color of letters
 				if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
@@ -1969,7 +1988,7 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 
 		// use RANSAC to fit letters to straight lines
 		// -------------------------------------------
-		double confidenceLevel = 0.99;
+		double confidenceLevel = 0.995;
 		double problemDimension = 2;
 
 		// calculate percent outliers based on pca
@@ -2019,7 +2038,7 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 				// compute line model
 				cv::Point2d p1 = currentPoints[randomPointSet[0]];
 				double normVal = sqrt((currentPoints[randomPointSet[1]].x-currentPoints[randomPointSet[0]].x)*(currentPoints[randomPointSet[1]].x-currentPoints[randomPointSet[0]].x)+(currentPoints[randomPointSet[1]].y-currentPoints[randomPointSet[0]].y)*(currentPoints[randomPointSet[1]].y-currentPoints[randomPointSet[0]].y));
-				cv::Point2d normal((currentPoints[randomPointSet[1]].y-currentPoints[randomPointSet[0]].y)/normVal, (currentPoints[randomPointSet[1]].x-currentPoints[randomPointSet[0]].x)/normVal);
+				cv::Point2d normal((currentPoints[randomPointSet[1]].y-currentPoints[randomPointSet[0]].y)/normVal, -(currentPoints[randomPointSet[1]].x-currentPoints[randomPointSet[0]].x)/normVal);
 
 				// compute distance related score for the current model
 				double score = 0.;
@@ -5097,9 +5116,8 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		{
 			currentLetters.push_back(i);
 			averageLetterSize += letters[i].diameter;
-
-			if (letters[i].diameter != sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width+letters[i].boundingBox.height*letters[i].boundingBox.height))
-				std::cout << "                            ERROR: Wrong diameter: letters[i].diameter=" << letters[i].diameter << "   computed=" << sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width+letters[i].boundingBox.height*letters[i].boundingBox.height) << std::endl;
+//			if (letters[i].diameter != sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width+letters[i].boundingBox.height*letters[i].boundingBox.height))
+//				std::cout << "                            ERROR: Wrong diameter: letters[i].diameter=" << letters[i].diameter << "   computed=" << sqrt(letters[i].boundingBox.width*letters[i].boundingBox.width+letters[i].boundingBox.height*letters[i].boundingBox.height) << std::endl;
 		}
 		averageLetterSize /= (double)letters.size();
 		double stddevLetterSize = 0.;
@@ -5109,8 +5127,8 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 
 		// Check 1: the size variance of letters should not be too large
 		double textBoxDiameter = sqrt(textRegions[textRegionIndex].boundingBox.width*textRegions[textRegionIndex].boundingBox.width + textRegions[textRegionIndex].boundingBox.height*textRegions[textRegionIndex].boundingBox.height);
-		std::cout << "Size variance check: averageLetterSize=" << averageLetterSize << "   stddevLetterSize=" << stddevLetterSize << "   textBoxDiameter=" << textBoxDiameter << std::endl;
-		if (stddevLetterSize > 0.25*averageLetterSize)
+		//std::cout << "Size variance check: averageLetterSize=" << averageLetterSize << "   stddevLetterSize=" << stddevLetterSize << "   textBoxDiameter=" << textBoxDiameter << std::endl;
+		if (stddevLetterSize > 0.33*averageLetterSize)
 			continue;
 
 		// Check 2:
@@ -5160,8 +5178,8 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		// sort letterDistances according to their order of occurence from left to right
 		sort(letterDistances.begin(), letterDistances.end(), DetectText::pairOrder);
 		if (debug["showWords"])
-					for (unsigned int a = 0; a < letterDistances.size(); a++)
-						std::cout << "X-Coord: " << letterDistances[a].left << "     Distance: " << letterDistances[a].right << std::endl;
+			for (unsigned int a = 0; a < letterDistances.size(); a++)
+				std::cout << "X-Coord: " << letterDistances[a].left << "     Distance: " << letterDistances[a].right << std::endl;
 
 		// cluster distances
 //		// tolerate negative distances down to -2, compute mean distance
@@ -5223,7 +5241,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 		for (int i=0; i<(int)orderedLetterSizes.size()/2; i++, it++);
 		medianLetterSize = *it;
 		double meanShiftBandwidth = 0.5 * 35./medianLetterSize*35./medianLetterSize;
-		std::cout << "bandwidth = " << meanShiftBandwidth << std::endl;
+		//std::cout << "bandwidth = " << meanShiftBandwidth << std::endl;
 		//	compute mean shift segmentation
 		std::vector< std::vector<int> > convergenceSets;
 		std::vector<double> convergencePoints;
@@ -5279,7 +5297,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 					w2 /= normalizer;
 					// sigma_b
 					double sigma_b = (w1<=p ? a1*w1*w1 + b1*w1 + c1 : a2*w1*w1 + b2*w1 + c2)*/*w1*w2*/(mu1-mu2)*(mu1-mu2); // the term w1*w2 term is replaced as we do not aspire to reward similarly sized subsets but require set 2 to be smaller (as there are less word breaks than letters), the peak of the new weight reward function is p=(0..1) (see above), typically p=0.8 makes sense, i.e. every 5th transition is a word separation
-					std::cout << " t=" << t << "\t sigma_b=" << sigma_b << "\t w1=" << w1 << "\t w2=" << w2 << "\t mu1=" << mu1 << "\t mu2=" << mu2 << std::endl;
+					//std::cout << " t=" << t << "\t sigma_b=" << sigma_b << "\t w1=" << w1 << "\t w2=" << w2 << "\t mu1=" << mu1 << "\t mu2=" << mu2 << std::endl;
 					if (sigma_b > bestSigma)
 					{
 						bestSigma = sigma_b;
@@ -5297,7 +5315,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 			for (unsigned int i=0; i<bestThresholds.size(); i++)
 				thresholdDistance += bestThresholds[i];
 			thresholdDistance /= (double)bestThresholds.size();
-			std::cout << "thresholdDistance: " << thresholdDistance << std::endl;
+			//std::cout << "thresholdDistance: " << thresholdDistance << std::endl;
 		}
 
 /*		if (debug["showWords"])

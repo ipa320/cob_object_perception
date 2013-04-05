@@ -43,8 +43,8 @@ public:
 			}
 			meanShiftSet = meanShiftSet2;
 		}
-		for (int i=0; i<(int)meanShiftSet.size(); i++)
-			std::cout << "  meanshift[" << i << "]=" << meanShiftSet[i] << std::endl;
+//		for (int i=0; i<(int)meanShiftSet.size(); i++)
+//			std::cout << "  meanshift[" << i << "]=" << meanShiftSet[i] << std::endl;
 
 		//  cluster data according to convergence points
 		convergenceSets.resize(1, std::vector<int>(1, 0));

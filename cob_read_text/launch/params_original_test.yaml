@@ -23,7 +23,7 @@ smoothImage: true
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
 # important: this parameter is not specified in the original paper
-maxStrokeWidthParameter: 75
+maxStrokeWidthParameter: 180 #75 #180
 
 
 #strokeWidthTransform
@@ -52,7 +52,7 @@ cannyThreshold2: 78
 # parameter when comparing gradients of opposing edges # default: 3.14 / 2 = 1.52 , in paper: 3.14 / 6 = 0.523 -> unrealistic
 # double
 # important: this parameter is not as specified in the paper
-compareGradientParameter: 1.25
+compareGradientParameter: 1.25 #1.25 #1.53
 
 
 #connectComponentAnalysis
@@ -61,11 +61,11 @@ compareGradientParameter: 1.25
 # parameter when comparing strokewidths between pixels, default: 3.0
 # double
 # important: 5.0 might yield better results for whole letters
-swCompareParameter: 5.0  
+swCompareParameter: 3.0  
 
 # parameter when comparing color between pixels, default: 100, set to 255 to deactivate
 # int
-colorCompareParameter: 50
+colorCompareParameter: 50 #50
 
 
 #identifyLetter
@@ -121,7 +121,7 @@ grayClrParameter: 10.0
 
 # maximum single color valur difference between components, default: 35.0
 # double
-clrSingleParameter: 35.0 
+clrSingleParameter: 45.0 
 
 # maximum area ratio between components, default: 5
 # double
@@ -219,7 +219,7 @@ showChains: false
 # bool
 showBreakLines: false
 
-showWords: true
+showWords: false
 
 showCriterions: false
 
