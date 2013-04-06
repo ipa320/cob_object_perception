@@ -39,11 +39,11 @@ useColorEdge: false
 
 # edgemap threshold #default: 120  #90  #160
 # int
-cannyThreshold1: 214
+cannyThreshold1: 214 #214
 
 # cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
-cannyThreshold2: 78  
+cannyThreshold2: 78  #78
 
 
 #updateStrokeWidth

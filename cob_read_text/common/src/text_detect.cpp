@@ -67,6 +67,7 @@
  */
 
 #include <cob_read_text/text_detect.h>
+#include <map>
 
 DetectText::DetectText()
 {
@@ -414,7 +415,6 @@ void DetectText::pipeline()
 	double time_in_seconds;
 
 	start_time = clock();
-	cv::Mat swtmap(grayImage_.size(), CV_32FC1, cv::Scalar(initialStrokeWidth_));
 
 	int searchDirection = 0;
 	if (firstPass_)
@@ -428,6 +428,21 @@ void DetectText::pipeline()
 		searchDirection = -1;
 	}
 
+//	for (cannyThreshold1 = 10; cannyThreshold1<250; cannyThreshold1+=10)
+//	{
+//		for (cannyThreshold2 = cannyThreshold1; cannyThreshold2<250; cannyThreshold2+=10)
+//		{
+//			searchDirection = -1;
+//			std::cout << " Canny1=" << cannyThreshold1 << "    Canny2=" << cannyThreshold2 << std::endl;
+//			cv::Mat swtmap(grayImage_.size(), CV_32FC1, cv::Scalar(initialStrokeWidth_));
+//			strokeWidthTransform(grayImage_, swtmap, searchDirection);
+//			time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
+//			std::cout << "[" << time_in_seconds << " s] in strokeWidthTransform" << std::endl;
+//		}
+//	}
+//	getchar();
+
+	cv::Mat swtmap(grayImage_.size(), CV_32FC1, cv::Scalar(initialStrokeWidth_));
 	strokeWidthTransform(grayImage_, swtmap, searchDirection);
 	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
 	std::cout << "[" << time_in_seconds << " s] in strokeWidthTransform" << std::endl;
@@ -538,6 +553,10 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 		// compute edge map
 		edgemap_ = computeEdgeMap(useColorEdge);
 		//closeOutline(edgemap_);
+//		if (debug["showEdge"] == true)
+//		{
+//			cv::imshow("gray color edgemap closed", edgemap_);
+//		}
 
 		// compute partial derivatives
 		Sobel(grayImage_, dx_, CV_32FC1, 1, 0, 3);
@@ -572,10 +591,12 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 	if (debug["showSWT"])
 	{
 		cv::Mat output(originalImage_.size(), CV_8UC3);
+		cv::Mat swtmapNormalized;
+		cv::normalize(swtmap, swtmapNormalized, 0, 255, cv::NORM_MINMAX);
 		for (int y = 0; y < swtmap.rows; y++)
 			for (int x = 0; x < swtmap.cols; x++)
 			{
-				double val = (swtmap.at<float>(y, x)==0.f ? 255. : 1*swtmap.at<float>(y, x));
+				double val = (swtmap.at<float>(y, x)==0.f ? 255. : swtmapNormalized.at<float>(y, x));
 				cv::rectangle(output, cv::Rect(x, y, 1, 1), cv::Scalar(val, val, val), 1, 1, 0);
 			}
 
@@ -702,6 +723,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 {
 	std::vector<cv::Point> pointStack;
 	std::vector<float> SwtValues;
+	std::multimap<double, cv::Point> strokePointsOrderedByLength;
 
 	int offsetX5[] = {0, -1, 1, 0, 0};
 	int offsetY5[] = {0, 0, 0, -1, 1};
@@ -712,110 +734,133 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 //	cv::Mat outputtemp = originalImage_.clone();
 	for (std::vector<cv::Point>::iterator itr = startPoints.begin(); itr != startPoints.end(); ++itr)
 	{
-		pointStack.clear();
-		SwtValues.clear();
-		float step = 1;
-		float ix = (*itr).x;
-		float iy = (*itr).y;
-		float currX = ix;
-		float currY = iy;
-		bool isStroke = false;
-		float iTheta = theta_.at<float>(*itr);
-		double ciTheta = cos(iTheta);
-		double siTheta = sin(iTheta);
-
-		pointStack.push_back(cv::Point(currX, currY));
-		SwtValues.push_back(swtmap.at<float>(currY, currX));
-
-		while (step < maxStrokeWidth_)
+		for (int mode=0; mode<1; mode++)
 		{
-			//going one pixel in the direction of the gradient to check if next pixel is also an edge
-			float nextX = round(ix + ciTheta * searchDirection * step);
-			float nextY = round(iy + siTheta * searchDirection * step);
-
-			if (nextX < 0 || nextY < 0 || nextX >= edgemap_.cols || nextY >= edgemap_.rows)
-				break;
-
-			step++;
-
-			if (currX == nextX && currY == nextY)
-				continue;
-
-			currX = nextX;
-			currY = nextY;
+			pointStack.clear();
+			SwtValues.clear();
+			float step = 1;
+			float ix = (*itr).x;
+			float iy = (*itr).y;
+			float currX = ix;
+			float currY = iy;
+			bool isStroke = false;
+			float iTheta = theta_.at<float>(*itr);
+			double ciTheta = cos(iTheta);
+			double siTheta = sin(iTheta);
+			if (mode==1)
+			{
+				ciTheta = cos(iTheta) - sin(iTheta);
+				siTheta = cos(iTheta) + sin(iTheta);
+			}
+			else if (mode==2)
+			{
+				ciTheta = cos(iTheta) + sin(iTheta);
+				siTheta = -cos(iTheta) + sin(iTheta);
+			}
 
 			pointStack.push_back(cv::Point(currX, currY));
 			SwtValues.push_back(swtmap.at<float>(currY, currX));
 
-			bool foundEdgePoint = false;
-			// search in 5-neighborhood for suitable counter edge points
-			// todo: only use 3 neighborhood perpendicular to search direction
-			if (fabs(currX-ix)>=2.f || fabs(currY-iy)>=2.f)
+			while (step < maxStrokeWidth_)
 			{
-				for (int k=0; k<5; k++)
+				//going one pixel in the direction of the gradient to check if next pixel is also an edge
+				float nextX = round(ix + ciTheta * searchDirection * step);
+				float nextY = round(iy + siTheta * searchDirection * step);
+
+				if (nextX < 1 || nextY < 1 || nextX >= edgemap_.cols-1 || nextY >= edgemap_.rows-1)
+					break;
+
+				step++;
+
+				if (currX == nextX && currY == nextY)
+					continue;
+
+				currX = nextX;
+				currY = nextY;
+
+				pointStack.push_back(cv::Point(currX, currY));
+				SwtValues.push_back(swtmap.at<float>(currY, currX));
+
+				bool foundEdgePoint = false;
+				// search in 5-neighborhood for suitable counter edge points
+				// todo: only use 3 neighborhood perpendicular to search direction
+				if (fabs(currX-ix)>=2.f || fabs(currY-iy)>=2.f)
 				{
-					if (edgemap_.at<unsigned char>(currY+offsetY5[k], currX+offsetX5[k]) == 255)
-					//if (edgemap_.at<unsigned char>(currY, currX) == 255)
+					for (int k=0; k<5; k++)
 					{
-						foundEdgePoint = true;
+						if (edgemap_.at<unsigned char>(currY+offsetY5[k], currX+offsetX5[k]) == 255)
+						//if (edgemap_.at<unsigned char>(currY, currX) == 255)
+						{
+							foundEdgePoint = true;
+							break;
+						}
+					}
+				}
+
+				if (foundEdgePoint == true)
+				{
+					for (int k=0; k<9; k++)
+					{
+					//	float jTheta = theta_.at<float>(currY+offsetY9[k], currX+offsetX9[k]);
+						//if opposite point of stroke with roughly opposite gradient is found...
+						//double dTheta = abs(iTheta - jTheta);std::min(dTheta, 3.14159265359-dTheta)
+						//std::cout << iTheta << " " << jTheta << " " << fmod(jTheta+M_PI,2*M_PI) << " " << fabs(iTheta-fmod(jTheta+M_PI,2*M_PI)) << std::endl;
+						//getchar();
+						//if (fabs(iTheta-fmod(jTheta+M_PI,2*M_PI)) < compareGradientParameter_) // paper: abs(abs(iTheta - jTheta) - 3.14) < 3.14 / 6
+	//					double t = tan(iTheta-jTheta);
+	//					if (-1 / sqrt(3) < t && t < 1 / sqrt(3))
+						double tn = dy_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) - dx_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
+						double td = dx_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) + dy_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
+						if (tn < -td*tan(compareGradientParameter_) && tn > td*tan(compareGradientParameter_))
+						{
+							isStroke = true;
+	//						if (purpose == UPDATE)
+	//							strokePoints.push_back(cv::Point(ix, iy));
+						}
 						break;
 					}
 				}
-			}
-
-			if (foundEdgePoint == true)
-			{
-				for (int k=0; k<9; k++)
-				{
-				//	float jTheta = theta_.at<float>(currY+offsetY9[k], currX+offsetX9[k]);
-					//if opposite point of stroke with roughly opposite gradient is found...
-					//double dTheta = abs(iTheta - jTheta);std::min(dTheta, 3.14159265359-dTheta)
-					//std::cout << iTheta << " " << jTheta << " " << fmod(jTheta+M_PI,2*M_PI) << " " << fabs(iTheta-fmod(jTheta+M_PI,2*M_PI)) << std::endl;
-					//getchar();
-					//if (fabs(iTheta-fmod(jTheta+M_PI,2*M_PI)) < compareGradientParameter_) // paper: abs(abs(iTheta - jTheta) - 3.14) < 3.14 / 6
-//					double t = tan(iTheta-jTheta);
-//					if (-1 / sqrt(3) < t && t < 1 / sqrt(3))
-					double tn = dy_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) - dx_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
-					double td = dx_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) + dy_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
-					if (tn < -td*tan(compareGradientParameter_) && tn > td*tan(compareGradientParameter_))
-					{
-						isStroke = true;
-						if (purpose == UPDATE)
-							strokePoints.push_back(cv::Point(ix, iy));
-					}
+				if (foundEdgePoint == true)
 					break;
-				}
 			}
-			if (foundEdgePoint == true)
-				break;
-		}
 
-		// ... then calculate newSwtVal for all cv::Points between the two stroke points
-		if (isStroke)
-		{
-//			for (int i = 0; i < pointStack.size(); i++)
-//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 255, 0), 1, 1, 0);
-
-			float newSwtVal;
-			if (purpose == UPDATE)// update swt based on dist between edges
-				newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix))/* + 0.5*/);
-			else if (purpose == REFINE) // refine swt based on median
+			// ... then calculate newSwtVal for all cv::Points between the two stroke points
+			if (isStroke)
 			{
-				nth_element(SwtValues.begin(), SwtValues.begin() + SwtValues.size() / 2, SwtValues.end());
-				newSwtVal = SwtValues[SwtValues.size() / 2];
-			}
+	//			for (int i = 0; i < pointStack.size(); i++)
+	//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 255, 0), 1, 1, 0);
 
-			// set all cv::Points between to the newSwtVal except they are smaller because of another stroke
-			for (size_t i = 0; i < pointStack.size(); i++)
-				swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
+				float newSwtVal;
+				if (purpose == UPDATE)// update swt based on dist between edges
+				{
+					newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix))/* + 0.5*/);
+					strokePointsOrderedByLength.insert(std::pair<double, cv::Point>(newSwtVal, cv::Point(ix, iy)));
+				}
+				else if (purpose == REFINE) // refine swt based on median
+				{
+					nth_element(SwtValues.begin(), SwtValues.begin() + SwtValues.size() / 2, SwtValues.end());
+					newSwtVal = SwtValues[SwtValues.size() / 2];
+				}
+
+				// set all cv::Points between to the newSwtVal except they are smaller because of another stroke
+				for (size_t i = 0; i < pointStack.size(); i++)
+					swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
+			}
+	//		else
+	//		{
+	//			for (int i = 0; i < pointStack.size(); i++)
+	//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 0, 255), 1, 1, 0);
+	//		}
 		}
-//		else
-//		{
-//			for (int i = 0; i < pointStack.size(); i++)
-//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 0, 255), 1, 1, 0);
-//		}
 	} // end loop through edge points
 //	cv::imshow("active stroke", outputtemp);
+
+	// write the edge points for the refinement step ordered from short to long strokes
+	if (purpose == UPDATE)
+	{
+		for (std::multimap<double, cv::Point>::iterator it = strokePointsOrderedByLength.begin(); it != strokePointsOrderedByLength.end(); it++)
+			strokePoints.push_back(it->second);
+	}
 
 	// set initial upchanged value back to 0
 	for (int y = 0; y < swtmap.rows; y++)
@@ -1065,15 +1110,17 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		cv::Rect itr = labeledRegions_[i];
 
 		// rule #1: height of component [not used atm]
-		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high..
+		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high.
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
-		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 50))
+		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 50/*50*/))
 			continue;
 
 		float maxY = itr.y + itr.height;
 		float minY = itr.y;
 		float maxX = itr.x + itr.width;
 		float minX = itr.x;
+
+//		double m10=0., m01=0., m20=0., m11=0., m02=0.;
 
 		// compute mean and variance of stroke width
 		std::vector<float> iComponentStrokeWidth;
@@ -1084,6 +1131,11 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				int component = static_cast<int>(ccmap.at<float>(y, x)); //ccmap-Label = -2 in case no Region; 0,1,2,3... for every region
 				if (component == static_cast<int>(i))
 				{
+//					m10 += x;
+//					m01 += y;
+//					m20 += x*x;
+//					m11 += x*y;
+//					m02 += y*y;
 					currentStrokeWidth = swtmap.at<float>(y, x);
 					iComponentStrokeWidth.push_back(currentStrokeWidth);
 					maxStrokeWidth = std::max(maxStrokeWidth, currentStrokeWidth);
@@ -1094,6 +1146,16 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			}
 		}
 		double pixelCount = static_cast<double>(iComponentStrokeWidth.size());
+
+//		double xc = m10/pixelCount;
+//		double yc = m01/pixelCount;
+//		double af = m20/pixelCount - xc*xc;
+//		double bf = 2*m11/pixelCount - xc*yc;
+//		double cf = m02/pixelCount - yc*yc;
+//		double delta = sqrt(bf * bf + (af - cf) * (af - cf));
+//		double momentsRatio = sqrt(std::max(af + cf + delta, af + cf - delta) / std::min(af + cf + delta, af + cf - delta));
+//		if (momentsRatio > 8.0)
+//			continue;
 
 		// rule #2: remove components that are too small/thin		// todo: reactivate
 		if (pixelCount < 0.1*itr.area())
@@ -1111,8 +1173,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #3: aspect ratio has to be within 0.1 and 10
 		if (processing_method_ == ORIGINAL_EPSHTEIN)
 		{
-			double ratio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
-			isLetter = isLetter && (ratio <= 10.0);
+			double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
+			isLetter = isLetter && (aspectRatio <= 8.0);
 		}
 
 		// rule #3: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
