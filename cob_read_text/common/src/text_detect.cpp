@@ -1455,6 +1455,10 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParamter)
 				negativeScore++;
 
+			// rule 4: average gray color of letters
+			if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
+				negativeScore++;
+
 			if (processing_method_==BORMANN)
 			{
 //				// rule 3: diagonal ratio
@@ -1465,13 +1469,12 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
 					negativeScore++;
 
+				// rule 5: rgb of letters
+				// foreground color difference between letters
+				if (std::abs(meanRGB_[i][0] - meanRGB_[j][0]) > clrSingleParameter || std::abs(meanRGB_[i][1] - meanRGB_[j][1]) > clrSingleParameter
+						|| std::abs(meanRGB_[i][2] - meanRGB_[j][2]) > clrSingleParameter)
+					negativeScore += 2;
 			}
-
-			// rule 5: rgb of letters
-			// foreground color difference between letters
-			if (std::abs(meanRGB_[i][0] - meanRGB_[j][0]) > clrSingleParameter || std::abs(meanRGB_[i][1] - meanRGB_[j][1]) > clrSingleParameter
-					|| std::abs(meanRGB_[i][2] - meanRGB_[j][2]) > clrSingleParameter)
-				negativeScore += 2;
 
 			// background color difference between letters
 			// if (std::abs(meanBgRGB_[i][0] - meanBgRGB_[j][0]) > clrSingleParameter || std::abs(meanBgRGB_[i][1]

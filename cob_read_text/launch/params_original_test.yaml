@@ -117,7 +117,7 @@ diagonalRatioParamter: 2.0
 
 # maximum gray color value difference between components, default: 10.0
 # double
-grayClrParameter: 10.0
+grayClrParameter: 31.0 #10.0
 
 # maximum single color valur difference between components, default: 35.0
 # double
