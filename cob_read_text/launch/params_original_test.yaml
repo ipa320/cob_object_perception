@@ -105,7 +105,7 @@ clrComponentParameter: 20
 
 # maximum pythagorean distance between components, default: 2.0
 # double
-distanceRatioParameter: 2.5 #2.5
+distanceRatioParameter: 2.9 #2.5
 
 # comparison between median sw of components, default: 2.5
 # double
