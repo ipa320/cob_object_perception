@@ -1401,7 +1401,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 	double largeLetterCountFactor = 1.0;
 	if (nLetter_ > 200)
-		largeLetterCountFactor = 0.4;
+		largeLetterCountFactor = 0.4;	//0.4
 
 	// for all possible letter candidate rects
 	for (size_t i = 0; i < nComponent_; i++)
@@ -1430,6 +1430,8 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			{
 				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
 					continue;
+//				if ((iRect.x+iRect.width/2 - jRect.x-jRect.width/2) > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
+//					continue;
 			}
 			else
 			{
@@ -1441,6 +1443,11 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if (processing_method_==ORIGINAL_EPSHTEIN)
 				if ((double)std::max(iRect.height, jRect.height) > 1.7/*2.0*/ * (double)std::min(iRect.height, jRect.height))
 					continue;
+
+			// rule 1c: vertical overlap should be large
+			int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
+			if (verticalOverlap * 1.3 < std::min(iRect.height, jRect.height))
+				continue;
 
 			//medianSw[i] = getMedianStrokeWidth(ccmap, swtmap, iRect, static_cast<int>(i));
 			//medianSw[j] = getMedianStrokeWidth(ccmap, swtmap, jRect, static_cast<int>(j));
@@ -1465,9 +1472,9 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 //				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParamter)
 //					negativeScore++;
 
-				// rule 4: average gray color of letters
-				if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
-					negativeScore++;
+//				// rule 4: average gray color of letters
+//				if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
+//					negativeScore++;
 
 				// rule 5: rgb of letters
 				// foreground color difference between letters
