@@ -1115,6 +1115,13 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 50/*50*/))
 			continue;
 
+		// rule #2: aspect ratio has to be within 0.1 and 10
+		if (processing_method_ == ORIGINAL_EPSHTEIN)
+		{
+			double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
+			isLetter = isLetter && (aspectRatio <= 8.0);
+		}
+
 		float maxY = itr.y + itr.height;
 		float minY = itr.y;
 		float maxX = itr.x + itr.width;
@@ -1170,13 +1177,6 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #2: variance of stroke width of pixels in region that are part of component
 		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
 
-		// rule #3: aspect ratio has to be within 0.1 and 10
-		if (processing_method_ == ORIGINAL_EPSHTEIN)
-		{
-			double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
-			isLetter = isLetter && (aspectRatio <= 8.0);
-		}
-
 		// rule #3: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
 		// std::sort(iComponentStrokeWidth.begin(), iComponentStrokeWidth.end());
 		// unsigned int medianStrokeWidth = iComponentStrokeWidth[iComponentStrokeWidth.size() / 2];
@@ -1227,8 +1227,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		if (isLetterRegion_[i] == false)
 			continue;
 
-		// option a: comparison at pixel level
-//		std::vector<bool> innerComponents(nComponent_, false);
+		std::vector<bool> innerComponents(nComponent_, false);
+//		// option a: comparison at pixel level
 //		int minX = labeledRegions_[i].x;
 //		int maxX = labeledRegions_[i].x+labeledRegions_[i].width;
 //		int minY = labeledRegions_[i].y;
@@ -1243,7 +1243,6 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 //			}
 //		}
 		// option b: comparison with bounding box intersection
-		std::vector<bool> innerComponents(nComponent_, false);
 		for (unsigned int j=0; j<nComponent_; j++)
 		{
 			if (i==j || isLetterRegion_[j]==false)
@@ -1251,6 +1250,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if ((labeledRegions_[i] & labeledRegions_[j]).area() != 0)
 				innerComponents[j] = true;
 		}
+
 		if (countInnerLetterCandidates(innerComponents) > innerLetterCandidatesParameter)
 		{
 			isLetterRegion_[i] = false;
@@ -1439,7 +1439,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 			// rule 1b: height ratio between two letters must be small enough
 			if (processing_method_==ORIGINAL_EPSHTEIN)
-				if ((double)std::max(iRect.height, jRect.height) > 2.0 * (double)std::min(iRect.height, jRect.height))
+				if ((double)std::max(iRect.height, jRect.height) > 1.7/*2.0*/ * (double)std::min(iRect.height, jRect.height))
 					continue;
 
 			//medianSw[i] = getMedianStrokeWidth(ccmap, swtmap, iRect, static_cast<int>(i));

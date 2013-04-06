@@ -77,11 +77,11 @@ maxLetterHeight_: 300
 
 # maximum variance of strokewidth inside component, default: 1.5
 # double
-varianceParameter: 0.5 
+varianceParameter: 0.5 #0.5 #0.83 
 
 # diagonal of rect must be smaller than x*medianStrokeWidth, default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
 # int
-diagonalParameter: 20
+diagonalParameter: 10 #20
 
 # pixelCount has to be bigger than maxStrokeWidth * x (belonging to possible letter, not all component pixels), default: 5
 # int
@@ -89,7 +89,7 @@ pixelCountParameter: 5
 
 # maximum number of foreign components inside component, default: 5 , paper: 2
 # int
-innerLetterCandidatesParameter: 4
+innerLetterCandidatesParameter: 4 #4
 
 # width has to be smaller than x * height (x>1), default: 2.5 - turned off
 # double
@@ -109,7 +109,7 @@ distanceRatioParameter: 2.5
 
 # comparison between median sw of components, default: 2.5
 # double
-medianSwParameter: 2.0
+medianSwParameter: 2.0 #2.0
 
 # maximum diagonal ratio, default 2.0
 # double
