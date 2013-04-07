@@ -531,11 +531,13 @@ void showRects(std::vector<img> &images, std::string path)
 		}
 		cv::destroyAllWindows();
 		cv::waitKey(10);
-		cv::imwrite(imgpath + images[imageIndex].img_name, Image_);
-		std::string winName = "Evaluation: " + images[imageIndex].img_name;
-		cv::imshow(winName, Image_);
-		cvMoveWindow(winName.c_str(), 0, 0);
-		cv::waitKey(0);
+		std::string resultStoragePath = imgpath + images[imageIndex].img_name.substr(0,images[imageIndex].img_name.find_last_of("/")) + "-" + images[imageIndex].img_name.substr(images[imageIndex].img_name.find_last_of("/")+1, images[imageIndex].img_name.npos);
+		std::cout << "saving: " << resultStoragePath << std::endl;
+		cv::imwrite(resultStoragePath, Image_);
+//		std::string winName = "Evaluation: " + images[imageIndex].img_name;
+//		cv::imshow(winName, Image_);
+//		cvMoveWindow(winName.c_str(), 0, 0);
+//		cv::waitKey(0);
 	}
 }
 
@@ -1067,7 +1069,7 @@ int main(int argc, char **argv)
 	calculateWordResults(images);
 
 	//show everything
-//	showRects(images, argv[1]);
+	showRects(images, argv[1]);
 
 	//print everything to stdout and show final result image for all images
 	std::vector<double> results = printAverageResults(images, argv[1]);

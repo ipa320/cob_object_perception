@@ -81,7 +81,7 @@ varianceParameter: 0.5 #0.5 #0.83
 
 # diagonal of rect must be smaller than x*medianStrokeWidth, default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
 # int
-diagonalParameter: 10 #20
+diagonalParameter: 2 #20
 
 # pixelCount has to be bigger than maxStrokeWidth * x (belonging to possible letter, not all component pixels), default: 5
 # int
