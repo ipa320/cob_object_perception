@@ -1445,13 +1445,13 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				if ((double)std::max(iRect.height, jRect.height) > 1.7/*2.0*/ * (double)std::min(iRect.height, jRect.height))
 					continue;
 
-			// rule 1c: vertical overlap should be large
-			if (processing_method_==ORIGINAL_EPSHTEIN)
-			{
-				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
-				if (verticalOverlap * 1.3 < std::min(iRect.height, jRect.height))
-					continue;
-			}
+//			// rule 1c: vertical overlap should be large
+//			if (processing_method_==ORIGINAL_EPSHTEIN)
+//			{
+//				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
+//				if (verticalOverlap * 1.3 < std::min(iRect.height, jRect.height))
+//					continue;
+//			}
 
 			//medianSw[i] = getMedianStrokeWidth(ccmap, swtmap, iRect, static_cast<int>(i));
 			//medianSw[j] = getMedianStrokeWidth(ccmap, swtmap, jRect, static_cast<int>(j));
