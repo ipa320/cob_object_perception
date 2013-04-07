@@ -111,12 +111,14 @@ private:
 
 	struct Pair
 	{
-		Pair(int left, int right) :
-			left(left), right(right)
+		Pair(int left, int right, double dx, double dy) :
+			left(left), right(right), dx(dx), dy(dy)
 		{
 		}
 		int left;
 		int right;
+		double dx;
+		double dy;
 	};
 
 	struct Word
@@ -150,6 +152,13 @@ private:
 			b(blue), g(green), r(red)
 		{
 		}
+	};
+
+	struct TreeNode
+	{
+		int parent;
+		int element;
+		int rank;
 	};
 
 	struct Letter
@@ -202,6 +211,8 @@ private:
 
 	// finds bounding box of a chain
 	void chainToBox(std::vector< std::vector<int> >& chain, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions);
+
+	bool pairsInLine(const Pair& a, const Pair& b);
 
 	void mergePairs(const std::vector<Pair>& groups, std::vector< std::vector<int> >& chains);
 

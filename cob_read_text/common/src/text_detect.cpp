@@ -1419,18 +1419,19 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			cv::Rect jRect = labeledRegions_[j];
 
 			// rule 1: distance between components
-			float distance = sqrt((iRect.x+iRect.width/2 - jRect.x-jRect.width/2) * (iRect.x+iRect.width/2 - jRect.x-jRect.width/2)
-							+ (iRect.y+iRect.height/2 - jRect.y-jRect.height/2) * (iRect.y+iRect.height/2 - jRect.y-jRect.height/2));
+			double dx = (iRect.x+iRect.width/2 - jRect.x-jRect.width/2);
+			double dy = (iRect.y+iRect.height/2 - jRect.y-jRect.height/2);
+			double distance = sqrt(dx*dx + dy*dy);
 
-			float iDiagonal = sqrt(iRect.height * iRect.height + iRect.width * iRect.width);
-			float jDiagonal = sqrt(jRect.height * jRect.height + jRect.width * jRect.width);
+			double iDiagonal = sqrt(iRect.height * iRect.height + iRect.width * iRect.width);
+			double jDiagonal = sqrt(jRect.height * jRect.height + jRect.width * jRect.width);
 
 			// rule 1a: distance of two letters must be small enough
 			if (processing_method_==ORIGINAL_EPSHTEIN)
 			{
 				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
 					continue;
-//				if (abs(iRect.x+iRect.width/2 - jRect.x-jRect.width/2) > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
+//				if (abs(dx) > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
 //					continue;
 			}
 			else
@@ -1544,7 +1545,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 
 			if (isGroup==true)
-				letterGroups_.push_back(Pair(i, j));
+				letterGroups_.push_back(Pair(i, j, dx, dy));
 
 		}// end for loop j
 	}// end for loop i
@@ -1639,9 +1640,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 	for (size_t i = 0; i < chains.size(); i++)
 	{
 		if (chains[i].size() < 3) //Only words with more than 2 letters	// todo: param
-		{
 			continue;
-		}
 
 		int minX = grayImage_.cols, minY = grayImage_.rows, maxX = 0, maxY = 0;
 		int letterAreaSum = 0;
@@ -1676,39 +1675,151 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 
 		//boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 		textRegion.boundingBox = cv::Rect(minX, minY, maxX - minX, maxY - minY);
-		textRegions.push_back(textRegion);
+
+		if (textRegion.boundingBox.width > 1.9 * textRegion.boundingBox.height)
+			textRegions.push_back(textRegion);
 	}
+}
+
+bool DetectText::pairsInLine(const Pair& a, const Pair& b)
+{
+	if (a.left==b.left || a.right==b.right)		// todo: use arbitrary angles
+	{
+		int tn = a.dy * b.dx - a.dx * b.dy;
+		int td = a.dx * b.dx + a.dy * b.dy;
+		// share the same end, opposite direction
+		if (tn * 7 < -td * 4 && tn * 7 > td * 4)
+			return true;
+	}
+	else if (a.left==b.right || a.right==b.left)
+	{
+		int tn = a.dy * b.dx - a.dx * b.dy;
+		int td = a.dx * b.dx + a.dy * b.dy;
+		// share the other end, same direction
+		if (tn * 7 < td * 4 && tn * 7 > -td * 4)
+			return true;
+	}
+	return false;
 }
 
 void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::vector<int> >& chains)
 {
-	/* groups looks like this:
-	 *  4 5
-	 *  12 14
-	 *  44 45
-	 *   ...
-	 */
-	std::vector<std::vector<int> > initialChains;
-	initialChains.resize(groups.size());
-	for (size_t i = 0; i < groups.size(); i++)
+	chains.clear();
+
+	std::vector<TreeNode> nodes(groups.size());
+	for (unsigned int i=0; i<groups.size(); i++)
 	{
-		std::vector<int> temp;
-		temp.push_back(groups[i].left);
-		temp.push_back(groups[i].right);
-		initialChains[i] = temp;
+		nodes[i].parent = -1;
+		nodes[i].rank = 0;
+		nodes[i].element = i;
 	}
 
-	/* initialChains looks like this:
-	 * [0]  [1]  [2]
-	 *  4    12   44   ...
-	 *  5    14   45
-	 */
-
-	while (mergePairs(initialChains, chains))
+	for (unsigned int i=0; i<groups.size(); i++)
 	{
-		initialChains = chains;
-		chains.clear();
+		int root = i;
+		while (nodes[root].parent != -1)
+			root = nodes[root].parent;
+		for (unsigned int j=0; j<groups.size(); j++)
+		{
+			if (i!=j && pairsInLine(groups[nodes[i].element], groups[nodes[j].element])==true)
+			{
+				int root2 = j;
+				while (nodes[root2].parent != -1)
+					root2 = nodes[root2].parent;
+				if (root != root2)
+				{
+					if(nodes[root].rank > nodes[root2].rank)
+						nodes[root2].parent = root;
+					else
+					{
+						nodes[root].parent = root2;
+						nodes[root2].rank += (nodes[root].rank==nodes[root2].rank ? 1 : 0);
+						root = root2;
+					}
+
+					// collapse a branch to direct children of root
+					int node = j;
+					while(nodes[node].parent != -1)
+					{
+						int temp = nodes[node].parent;
+						nodes[node].parent = root;
+						node = temp;
+					}
+					node = i;
+					while(nodes[node].parent != -1)
+					{
+						int temp = nodes[node].parent;
+						nodes[node].parent = root;
+						node = temp;
+					}
+				}
+			}
+		}
 	}
+
+	// insert pairs into chains
+	int classIndex = 0;
+	for (unsigned int i=0; i<groups.size(); i++)
+	{
+		int root = i;
+		while (nodes[root].parent != -1)
+			root = nodes[root].parent;
+		if (nodes[root].rank >= 0)
+			nodes[root].rank = ~classIndex++;
+
+		int insertIndex = ~nodes[root].rank;
+		if (insertIndex+1 < (int)chains.size())
+		{
+			// add new letters to chain (do not add if the letter is already in the list)
+			for (int letterNumber=0; letterNumber<2; letterNumber++)
+			{
+				int letterIndex = (letterNumber==0 ? groups[i].left : groups[i].right);
+				bool inList = false;
+				for (unsigned int j=0; (inList==false && j<chains[insertIndex].size()); j++)
+					if (chains[insertIndex][j] == letterIndex)
+						inList = true;
+				if (inList == false)
+					chains[insertIndex].push_back(letterIndex);
+			}
+		}
+		else
+		{
+			// create new chain
+			chains.push_back(std::vector<int>());
+			chains[insertIndex].push_back(groups[i].left);
+			chains[insertIndex].push_back(groups[i].right);
+		}
+	}
+
+//	// ------------ old code (does not obey direction of merged pairs) --------------
+//
+//	/* groups looks like this:
+//	 *  4 5
+//	 *  12 14
+//	 *  44 45
+//	 *   ...
+//	 */
+//	std::vector<std::vector<int> > initialChains;
+//	initialChains.resize(groups.size());
+//	for (size_t i = 0; i < groups.size(); i++)
+//	{
+//		std::vector<int> temp;
+//		temp.push_back(groups[i].left);
+//		temp.push_back(groups[i].right);
+//		initialChains[i] = temp;
+//	}
+//
+//	/* initialChains looks like this:
+//	 * [0]  [1]  [2]
+//	 *  4    12   44   ...
+//	 *  5    14   45
+//	 */
+//
+//	while (mergePairs(initialChains, chains))
+//	{
+//		initialChains = chains;
+//		chains.clear();
+//	}
 }
 
 bool DetectText::mergePairs(const std::vector< std::vector<int> >& initialChains, std::vector< std::vector<int> >& chains)
@@ -5230,7 +5341,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 			}
 
 			if (smallestDistanceEdge != 100000) //100000 distance means there is no other letter on the right, its the last letter of a line
-				letterDistances.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x, smallestDistanceEdge));
+				letterDistances.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x, smallestDistanceEdge, 0., 0.));
 
 			if (debug["showWords"])
 			{
