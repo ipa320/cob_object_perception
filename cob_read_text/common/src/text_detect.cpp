@@ -1228,28 +1228,28 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			continue;
 
 		std::vector<bool> innerComponents(nComponent_, false);
-//		// option a: comparison at pixel level
-//		int minX = labeledRegions_[i].x;
-//		int maxX = labeledRegions_[i].x+labeledRegions_[i].width;
-//		int minY = labeledRegions_[i].y;
-//		int maxY = labeledRegions_[i].y+labeledRegions_[i].height;
-//		for (int y = minY; y < maxY; y++)
-//		{
-//			for (int x = minX; x < maxX; x++)
-//			{
-//				int component = static_cast<int>(ccmap.at<float>(y, x)); //ccmap-Label = -2 in case no Region; 0,1,2,3... for every region
-//				if (component != -2 && component != (int)(i))
-//					innerComponents[component] = true;
-//			}
-//		}
-		// option b: comparison with bounding box intersection
-		for (unsigned int j=0; j<nComponent_; j++)
+		// option a: comparison at pixel level
+		int minX = labeledRegions_[i].x;
+		int maxX = labeledRegions_[i].x+labeledRegions_[i].width;
+		int minY = labeledRegions_[i].y;
+		int maxY = labeledRegions_[i].y+labeledRegions_[i].height;
+		for (int y = minY; y < maxY; y++)
 		{
-			if (i==j || isLetterRegion_[j]==false)
-				continue;
-			if ((labeledRegions_[i] & labeledRegions_[j]).area() != 0)
-				innerComponents[j] = true;
+			for (int x = minX; x < maxX; x++)
+			{
+				int component = static_cast<int>(ccmap.at<float>(y, x)); //ccmap-Label = -2 in case no Region; 0,1,2,3... for every region
+				if (component != -2 && component != (int)(i) && isLetterRegion_[component]==true)
+					innerComponents[component] = true;
+			}
 		}
+//		// option b: comparison with bounding box intersection
+//		for (unsigned int j=0; j<nComponent_; j++)
+//		{
+//			if (i==j || isLetterRegion_[j]==false)
+//				continue;
+//			if ((labeledRegions_[i] & labeledRegions_[j]).area() != 0)
+//				innerComponents[j] = true;
+//		}
 
 		if (countInnerLetterCandidates(innerComponents) > innerLetterCandidatesParameter)
 		{
