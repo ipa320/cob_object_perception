@@ -52,7 +52,7 @@ cannyThreshold2: 78  #78
 # parameter when comparing gradients of opposing edges # default: 3.14 / 2 = 1.52 , in paper: 3.14 / 6 = 0.523 -> unrealistic
 # double
 # important: this parameter is not as specified in the paper
-compareGradientParameter: 1.25 #1.25 #1.53
+compareGradientParameter: 0.58 #1.25 #1.53
 
 
 #connectComponentAnalysis
