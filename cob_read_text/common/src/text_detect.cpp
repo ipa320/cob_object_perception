@@ -212,6 +212,36 @@ void DetectText::detect_original_epshtein()
 	pipeline();
 	disposal();		// todo: check whether this harms any of the following processing
 
+	// filter boxes that lie completely inside others
+	for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
+	{
+		for (int j=0; j<(int)finalBoundingBoxes_.size(); j++)
+		{
+			if (j==i)
+				continue;
+			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()) && (finalBoundingBoxes_[i].area()<finalBoundingBoxes_[j].area()))
+//			if (((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[i].area() && finalBoundingBoxesQualityScore_[i]<=finalBoundingBoxesQualityScore_[j]) ||
+//					((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[j].area() && finalBoundingBoxesQualityScore_[i]<finalBoundingBoxesQualityScore_[j]))
+			{
+				finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
+				finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
+				finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
+				break;
+			}
+//			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()))
+//			{
+//				finalBoundingBoxes_[j].x = std::min(finalBoundingBoxes_[i].x, finalBoundingBoxes_[j].x);
+//				finalBoundingBoxes_[j].width = std::max(finalBoundingBoxes_[i].x+finalBoundingBoxes_[i].width, finalBoundingBoxes_[j].x+finalBoundingBoxes_[j].width) - finalBoundingBoxes_[j].x;
+//				finalBoundingBoxes_[j].y = std::min(finalBoundingBoxes_[i].y, finalBoundingBoxes_[j].y);
+//				finalBoundingBoxes_[j].height = std::max(finalBoundingBoxes_[i].y+finalBoundingBoxes_[i].height, finalBoundingBoxes_[j].y+finalBoundingBoxes_[j].height) - finalBoundingBoxes_[j].y;
+//				finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
+//				finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
+//				finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
+//				break;
+//			}
+		}
+	}
+
 	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
 	// OCR
@@ -385,7 +415,7 @@ void DetectText::detect_bormann()
 void DetectText::preprocess()
 {
 	if (processing_method_==ORIGINAL_EPSHTEIN)
-		maxStrokeWidth_ = maxStrokeWidthParameter * 640./(double)std::max(grayImage_.cols, grayImage_.rows);
+		maxStrokeWidth_ = maxStrokeWidthParameter; // * 640./(double)std::max(grayImage_.cols, grayImage_.rows);
 	else
 		maxStrokeWidth_ = round((std::max(grayImage_.cols, grayImage_.rows)) / (float) maxStrokeWidthParameter);
 	initialStrokeWidth_ = maxStrokeWidth_ * 2;
@@ -497,8 +527,7 @@ void DetectText::pipeline()
 
 		// separate words on a single line
 		start_time = clock();
-		std::vector<double> qualityScore;
-		breakLinesIntoWords(textRegions_, qualityScore);
+		breakLinesIntoWords(textRegions_);
 		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
 
@@ -508,25 +537,7 @@ void DetectText::pipeline()
 			finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
 			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
 					cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
-			finalBoundingBoxesQualityScore_.push_back(qualityScore[i]);
-		}
-
-		// filter boxes that lie completely inside others
-		for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
-		{
-			for (int j=0; j<(int)finalBoundingBoxes_.size(); j++)
-			{
-				if (j==i)
-					continue;
-				if (((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[i].area() && finalBoundingBoxesQualityScore_[i]<=finalBoundingBoxesQualityScore_[j]) ||
-						((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[j].area() && finalBoundingBoxesQualityScore_[i]<finalBoundingBoxesQualityScore_[j]))
-				{
-					finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
-					finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
-					finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
-					break;
-				}
-			}
+			finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
 		}
 	}
 	else
@@ -729,6 +740,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 	int offsetY5[] = {0, 0, 0, -1, 1};
 	int offsetX9[] = {0, -1, 1, -1, 0, 1, -1, 0, 1};
 	int offsetY9[] = {0, 0, 0, -1, -1, -1, 1, 1, 1};
+	double tanCompareGradientParameter = tan(compareGradientParameter_);
 
 	// Loop through all edgepoints, compute stroke width
 //	cv::Mat outputtemp = originalImage_.clone();
@@ -767,7 +779,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 				float nextX = round(ix + ciTheta * searchDirection * step);
 				float nextY = round(iy + siTheta * searchDirection * step);
 
-				if (nextX < 1 || nextY < 1 || nextX >= edgemap_.cols-1 || nextY >= edgemap_.rows-1)
+				if (nextX < 2 || nextY < 2 || nextX >= edgemap_.cols-2 || nextY >= edgemap_.rows-2)
 					break;
 
 				step++;
@@ -811,13 +823,14 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 	//					if (-1 / sqrt(3) < t && t < 1 / sqrt(3))
 						double tn = dy_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) - dx_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
 						double td = dx_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) + dy_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
-						if (tn < -td*tan(compareGradientParameter_) && tn > td*tan(compareGradientParameter_))
+//						if (tn*7 < -td*4/*tan(compareGradientParameter_)*/ && tn*7 > td*4/*tan(compareGradientParameter_)*/)
+						if (tn < -td*tanCompareGradientParameter && tn > td*tanCompareGradientParameter)
 						{
 							isStroke = true;
 	//						if (purpose == UPDATE)
 	//							strokePoints.push_back(cv::Point(ix, iy));
+							break;
 						}
-						break;
 					}
 				}
 				if (foundEdgePoint == true)
@@ -994,9 +1007,9 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 							}
 
 							// do the pixels have similar strokewidth?
-							if (std::max(sw1, sw2) <= swCompareParameter * std::min(sw1, sw2) ||		// todo: ratio between a mean value over the component and sw1 better?
-									(std::max(sw1, sw2) <= 1.5*swCompareParameter * std::min(sw1, sw2) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
-									(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
+							if (std::max(sw1, sw2) <= swCompareParameter * std::min(sw1, sw2)) // ||		// todo: ratio between a mean value over the component and sw1 better?
+								//	(std::max(sw1, sw2) <= 1.5*swCompareParameter * std::min(sw1, sw2) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
+								//	(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
 							{
 //								if (processing_method_ == ORIGINAL_EPSHTEIN)
 //								{
@@ -1469,6 +1482,9 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			// rule 4: average gray color of letters
 			if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
 				negativeScore++;
+
+//			if ((iRect & jRect).area() > 0.25 * std::min(iRect.area(), jRect.area()))
+//				negativeScore++;
 
 			if (processing_method_==BORMANN)
 			{
@@ -2398,25 +2414,34 @@ void DetectText::breakLines(std::vector<TextRegion>& textRegions)
 					TextRegion textRegion;
 					textRegion.letters.resize(currentInlierSet.size());
 					cv::Point minPoint(100000, 100000), maxPoint(0, 0);
+					double qualityScore = 0.;
 					for (unsigned int i=0; i<currentInlierSet.size(); i++)
 					{
-						if (minPoint.x > currentLetterBoxes[currentInlierSet[i]].x)
-							minPoint.x = currentLetterBoxes[currentInlierSet[i]].x;
-						if (minPoint.y > currentLetterBoxes[currentInlierSet[i]].y)
-							minPoint.y = currentLetterBoxes[currentInlierSet[i]].y;
-						if (maxPoint.x < currentLetterBoxes[currentInlierSet[i]].x+currentLetterBoxes[currentInlierSet[i]].width)
-							maxPoint.x = currentLetterBoxes[currentInlierSet[i]].x+currentLetterBoxes[currentInlierSet[i]].width;
-						if (maxPoint.y < currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height)
-							maxPoint.y = currentLetterBoxes[currentInlierSet[i]].y+currentLetterBoxes[currentInlierSet[i]].height;
+						const cv::Rect& letterBox = currentLetterBoxes[currentInlierSet[i]];
+						if (minPoint.x > letterBox.x)
+							minPoint.x = letterBox.x;
+						if (minPoint.y > letterBox.y)
+							minPoint.y = letterBox.y;
+						if (maxPoint.x < letterBox.x+letterBox.width)
+							maxPoint.x = letterBox.x+letterBox.width;
+						if (maxPoint.y < letterBox.y+letterBox.height)
+							maxPoint.y = letterBox.y+letterBox.height;
 
 						// store letters
-						textRegion.letters[i].boundingBox = currentLetterBoxes[currentInlierSet[i]];
+						textRegion.letters[i].boundingBox = letterBox;
 						textRegion.letters[i].diameter = currentDiameters[currentInlierSet[i]];
 						textRegion.letters[i].centerPoint = currentPoints[currentInlierSet[i]];
 						textRegion.letters[i].fontColor = textRegions[textRegionIndex].letters[0].fontColor;
+
+						// quality score
+						qualityScore += std::max(0., std::min(1., (currentDiameters[currentInlierSet[i]]-4*pointLineDistance2D(cv::Point2d(bestP1.x, bestP1.y), cv::Point2d(bestNormal.x, bestNormal.y), cv::Point2d(letterBox.x+0.5*letterBox.width, letterBox.y+0.5*letterBox.height))/currentDiameters[currentInlierSet[i]])));
+						//sumLetterSize += currentDiameters[currentInlierSet[i]];
 					}
+					//qualityScore = std::min(10., 10.*qualityScore/sumLetterSize);	// qualityScore and sumLetterSize need to be normalized by letter count but both cancel here
+					qualityScore += 0.5*textRegion.letters.size();
 					textRegion.boundingBox = cv::Rect(minPoint, maxPoint);
-					textRegion.lineEquation = cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), bestScore);
+					textRegion.lineEquation = cv::RotatedRect(cv::Point2f(bestP1.x, bestP1.y), cv::Size2f(bestNormal.x, bestNormal.y), qualityScore);
+					textRegion.qualityScore = textRegion.boundingBox.width;//qualityScore;
 					splitUpTextRegions.push_back(textRegion);
 
 					// debug
@@ -5266,16 +5291,12 @@ cv::Mat DetectText::filterPatch(const cv::Mat& patch)
 }
 
 
-void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::vector<double>& qualityScore)
+void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 {
 	// break text into separate lines without destroying letter boxes
 	cv::Mat output;
 	if (debug["showWords"])
 		output = originalImage_.clone();		// todo: make this a debug parameter
-
-	qualityScore.clear();
-	qualityScore.resize(textRegions.size(), 0.);
-	std::vector<double> brokenWordsQualityScore;
 
 	std::vector<TextRegion> wordRegions;
 
@@ -5546,9 +5567,9 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 					TextRegion word;
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
+					word.qualityScore = textRegions[textRegionIndex].qualityScore;
 					// word.letters = ; --> see below
 					wordRegions.push_back(word);
-					brokenWordsQualityScore.push_back(qualityScore[textRegionIndex]);
 				}
 				// reaching the end
 				if (r == letterDistances.size() - 1)
@@ -5557,16 +5578,15 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 					TextRegion word;
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
+					word.qualityScore = textRegions[textRegionIndex].qualityScore;
 					// word.letters = ; --> see below
 					wordRegions.push_back(word);
-					brokenWordsQualityScore.push_back(qualityScore[textRegionIndex]);
 				}
 			}
 		}
 		else
 		{
 			wordRegions.push_back(textRegions[textRegionIndex]);
-			brokenWordsQualityScore.push_back(qualityScore[textRegionIndex]);
 		}
 
 		// Make Boxes smaller to increase precision and recall
@@ -5603,7 +5623,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::
 	}
 
 	textRegions = wordRegions;
-	qualityScore = brokenWordsQualityScore;
 }
 
 

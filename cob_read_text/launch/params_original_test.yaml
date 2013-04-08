@@ -18,12 +18,12 @@ transformImages:  false
 
 # default: false, smoothing sometimes leads to merging of letters within small texts
 # bool
-smoothImage: true 
+smoothImage: 
 
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
 # important: this parameter is not specified in the original paper
-maxStrokeWidthParameter: 180 #75 #180
+maxStrokeWidthParameter: 70 #75 #180
 
 
 #strokeWidthTransform
@@ -39,11 +39,11 @@ useColorEdge: false
 
 # edgemap threshold #default: 120  #90  #160
 # int
-cannyThreshold1: 214 #214
+cannyThreshold1: 204 #214 #204
 
 # cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
-cannyThreshold2: 78  #78
+cannyThreshold2: 124  #78 #124
 
 
 #updateStrokeWidth
@@ -52,7 +52,7 @@ cannyThreshold2: 78  #78
 # parameter when comparing gradients of opposing edges # default: 3.14 / 2 = 1.52 , in paper: 3.14 / 6 = 0.523 -> unrealistic
 # double
 # important: this parameter is not as specified in the paper
-compareGradientParameter: 0.58 #1.25 #1.53
+compareGradientParameter: 0.524 #0.58 #1.25 #1.53
 
 
 #connectComponentAnalysis

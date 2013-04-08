@@ -173,6 +173,7 @@ private:
 	{
 		cv::Rect boundingBox;				// bounding box of the whole text region, including all bounding boxes of the assigned letters
 		cv::RotatedRect lineEquation;		// equation for the fitted line through the letters (center is a point on the line, size is the normal, angle is the letter fitting score)
+		double qualityScore;				// e.g. quality of line approximation
 		std::vector<Letter> letters;		// the letters that are contained in the text region
 	};
 
@@ -228,7 +229,7 @@ private:
 	// this function splits up bounding boxes of potentially multiline text into boxes around single line text
 	void breakLines(std::vector<TextRegion>& textRegions);
 
-	void breakLinesIntoWords(std::vector<TextRegion>& textRegions, std::vector<double>& qualityScore);
+	void breakLinesIntoWords(std::vector<TextRegion>& textRegions);
 
 //	int decideWhichBreaks(float negPosRatio, float max_Bin, float baselineStddev, unsigned int howManyNegative, unsigned int shift, int maxPeakDistance, int secondMaxPeakDistance,
 //			int maxPeakNumbers, int secondMaxPeakNumbers, unsigned int boxWidth, unsigned int boxHeight, unsigned int numberBinsNotZero, std::vector<DetectText::Pair> wordBreaks,
