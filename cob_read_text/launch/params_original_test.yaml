@@ -23,7 +23,7 @@ smoothImage: true
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
 # important: this parameter is not specified in the original paper
-maxStrokeWidthParameter: 180 #75 #180
+maxStrokeWidthParameter: 70 #75 #180
 
 
 #strokeWidthTransform
