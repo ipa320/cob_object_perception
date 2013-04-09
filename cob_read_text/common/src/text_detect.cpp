@@ -1334,7 +1334,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		{
 			for (int x = minX; x < maxX; x++)
 			{
-				int component = static_cast<int>(ccmap.at<float>(y, x)); //ccmap-Label = -2 in case no Region; 0,1,2,3... for every region
+				int component = static_cast<int>(ccmap.at<float>(y, x)); // ccmap-Label = -2 in case no Region; 0,1,2,3... for every region
 				if (component == static_cast<int>(i))
 				{
 					m10 += x;
