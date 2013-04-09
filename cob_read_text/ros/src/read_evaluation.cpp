@@ -109,6 +109,10 @@ double cutout(std::string label, std::string output)
 
 int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectangleFormat evaluationRectangleFormat, bool evaluateOCR)
 {
+	std::string annotationFilename = ros::package::getPath("cob_read_text")+"/"+"annotation_2003_test.txt";
+	std::ofstream annotationFile;
+	annotationFile.open(annotationFilename.c_str(), std::ios::out);
+
 	for (unsigned int imageIndex = 0; imageIndex < images.size(); imageIndex++)
 	{
 		// Show progress (for large image sets)
@@ -128,15 +132,19 @@ int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectan
 		imgpath.append(images[imageIndex].img_name);
 		std::string cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " " + ros::package::getPath("cob_read_text_data")
 				+ "/fonts/new_correlation.txt " + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
-
 		cmd_.append(" eval");
 		if (evaluateOCR == false)
 			cmd_.append(" OCRoff");
-
+//		std::string cmd_ = "/home/rbormann/git/ccv/ccv/bin/swtdetect " + imgpath;
 		std::cout << "cmd_: " << cmd_ << std::endl;
-
 		if (system(cmd_.c_str()) != 0)
 			std::cout << "Error occurred while running text_detect" << std::endl;
+
+		annotationFile << imgpath << std::endl;
+		for (unsigned int i=0; i<images[imageIndex].correctRects.size(); i++)
+		{
+			annotationFile << int(images[imageIndex].correctRects[i].center.x-images[imageIndex].correctRects[i].size.width/2) << " " << int(images[imageIndex].correctRects[i].center.y-images[imageIndex].correctRects[i].size.height/2) << " " << int(images[imageIndex].correctRects[i].size.width) << " " << int(images[imageIndex].correctRects[i].size.height) << std::endl;
+		}
 
 		// get read_text results
 		std::ifstream ocrfile;
@@ -259,6 +267,9 @@ int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectan
 //		abc.push_back(cv::Point(0, 10));
 //		std::cout << "contour: " << cv::contourArea(abc) << std::endl;
 	}
+
+	annotationFile.close();
+
 	return 0;
 }
 
@@ -1008,26 +1019,26 @@ void writeAllResultsInTxt(std::vector<double> results, std::vector<img> &images,
 int main(int argc, char **argv)
 {
 	// rectangle intersection test
-	if (false)
-	{
-		char key = 0;
-		while (key != 'q')
-		{
-			for (int angle = 0; angle < 361; angle += 30)
-			{
-				for (int width = 20; width < 150; width += 40)
-				{
-					cv::RotatedRect rect1 = cv::RotatedRect(cv::Point2f(100, 100), cv::Size2f(100, 50), 0);
-					cv::RotatedRect rect2 = cv::RotatedRect(cv::Point2f(100, 100), cv::Size2f(width, 50), angle);
-
-					rotatedRectangleIntersection(rect1, rect2);
-					rotatedRectangleMinBox(rect1, rect2);
-
-					key = cv::waitKey();
-				}
-			}
-		}
-	}
+//	if (false)
+//	{
+//		char key = 0;
+//		while (key != 'q')
+//		{
+//			for (int angle = 0; angle < 361; angle += 30)
+//			{
+//				for (int width = 20; width < 150; width += 40)
+//				{
+//					cv::RotatedRect rect1 = cv::RotatedRect(cv::Point2f(100, 100), cv::Size2f(100, 50), 0);
+//					cv::RotatedRect rect2 = cv::RotatedRect(cv::Point2f(100, 100), cv::Size2f(width, 50), angle);
+//
+//					rotatedRectangleIntersection(rect1, rect2);
+//					rotatedRectangleMinBox(rect1, rect2);
+//
+//					key = cv::waitKey();
+//				}
+//			}
+//		}
+//	}
 
 	// todo: make parameter for database to use, whether rotated detections are used, what to evaluate (e.g. use OCR?), etc.
 	DatabaseFormat databaseFormat = ICDAR2003;
@@ -1068,7 +1079,7 @@ int main(int argc, char **argv)
 	//calculate how many words got recognized
 	calculateWordResults(images);
 
-	//show everything
+	//show and save everything
 	showRects(images, argv[1]);
 
 	//print everything to stdout and show final result image for all images

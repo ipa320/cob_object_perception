@@ -213,6 +213,8 @@ private:
 	// finds bounding box of a chain
 	void chainToBox(std::vector< std::vector<int> >& chain, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions);
 
+	bool sameTextline(const TextRegion& a, const TextRegion& b);
+
 	bool pairsInLine(const Pair& a, const Pair& b);
 
 	void mergePairs(const std::vector<Pair>& groups, std::vector< std::vector<int> >& chains);

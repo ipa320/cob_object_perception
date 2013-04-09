@@ -18,7 +18,7 @@ transformImages:  false
 
 # default: false, smoothing sometimes leads to merging of letters within small texts
 # bool
-smoothImage: 
+smoothImage: true
 
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
@@ -39,11 +39,11 @@ useColorEdge: false
 
 # edgemap threshold #default: 120  #90  #160
 # int
-cannyThreshold1: 204 #214 #204
+cannyThreshold1: 208 #214 #204
 
 # cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
-cannyThreshold2: 124  #78 #124
+cannyThreshold2: 132  #78 #124
 
 
 #updateStrokeWidth
@@ -77,7 +77,7 @@ maxLetterHeight_: 300
 
 # maximum variance of strokewidth inside component, default: 1.5
 # double
-varianceParameter: 0.5 #0.5 #0.83 
+varianceParameter: 0.83 #0.5 #0.83 
 
 # diagonal of rect must be smaller than x*medianStrokeWidth, default 10 - but with maxStrokeWidth in code, medianStrokeWidth in paper
 # int
@@ -89,7 +89,7 @@ pixelCountParameter: 5
 
 # maximum number of foreign components inside component, default: 5 , paper: 2
 # int
-innerLetterCandidatesParameter: 4 #4
+innerLetterCandidatesParameter: 3 #4
 
 # width has to be smaller than x * height (x>1), default: 2.5 - turned off
 # double
@@ -105,11 +105,11 @@ clrComponentParameter: 20
 
 # maximum pythagorean distance between components, default: 2.0
 # double
-distanceRatioParameter: 3.0  #2.9 #2.5
+distanceRatioParameter: 3.1 #2.9 #3.0  #2.9 #2.5
 
 # comparison between median sw of components, default: 2.5
 # double
-medianSwParameter: 2.0 #2.0
+medianSwParameter: 1.5 #2.0
 
 # maximum diagonal ratio, default 2.0
 # double

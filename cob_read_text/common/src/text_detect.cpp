@@ -212,8 +212,155 @@ void DetectText::detect_original_epshtein()
 	pipeline();
 	disposal();		// todo: check whether this harms any of the following processing
 
+
+
+	if (processing_method_==ORIGINAL_EPSHTEIN)
+	{
+		// some feasibility checks
+//		start_time = clock();
+//		filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
+//		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
+
+
+		// merge bright and dark text lines
+		std::vector<TreeNode> nodes(textRegions_.size());
+		for (unsigned int i=0; i<textRegions_.size(); i++)
+		{
+			nodes[i].parent = -1;
+			nodes[i].rank = 0;
+			nodes[i].element = i;
+		}
+
+		for (unsigned int i=0; i<textRegions_.size(); i++)
+		{
+			int root = i;
+			while (nodes[root].parent != -1)
+				root = nodes[root].parent;
+			for (unsigned int j=0; j<textRegions_.size(); j++)
+			{
+				if (i!=j && sameTextline(textRegions_[nodes[i].element], textRegions_[nodes[j].element])==true)
+				{
+//					cv::Mat mergeImage1 = originalImage_.clone();
+//					cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[i].element].boundingBox.x,textRegions_[nodes[i].element].boundingBox.y), cv::Point(textRegions_[nodes[i].element].boundingBox.x+textRegions_[nodes[i].element].boundingBox.width,textRegions_[nodes[i].element].boundingBox.y+textRegions_[nodes[i].element].boundingBox.height), cv::Scalar(255,0,255));
+//					cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[j].element].boundingBox.x,textRegions_[nodes[j].element].boundingBox.y), cv::Point(textRegions_[nodes[j].element].boundingBox.x+textRegions_[nodes[j].element].boundingBox.width,textRegions_[nodes[j].element].boundingBox.y+textRegions_[nodes[j].element].boundingBox.height), cv::Scalar(255,0,255));
+//					cv::imshow("merged lines pre", mergeImage1);
+//					cv::waitKey();
+
+					int root2 = j;
+					while (nodes[root2].parent != -1)
+						root2 = nodes[root2].parent;
+
+					if (root != root2)
+					{
+						if(nodes[root].rank > nodes[root2].rank)
+							nodes[root2].parent = root;
+						else
+						{
+							nodes[root].parent = root2;
+							nodes[root2].rank += (nodes[root].rank==nodes[root2].rank ? 1 : 0);
+							root = root2;
+						}
+
+						// collapse a branch to direct children of root
+						int node = j;
+						while(nodes[node].parent != -1)
+						{
+							int temp = nodes[node].parent;
+							nodes[node].parent = root;
+							node = temp;
+						}
+						node = i;
+						while(nodes[node].parent != -1)
+						{
+							int temp = nodes[node].parent;
+							nodes[node].parent = root;
+							node = temp;
+						}
+					}
+				}
+			}
+		}
+
+		// merge textline pairs
+//		cv::Mat mergeImage = originalImage_.clone();
+		std::vector<TextRegion> mergedTextRegions;
+		int classIndex = 0;
+		for (unsigned int i=0; i<textRegions_.size(); i++)
+		{
+			int root = i;
+			while (nodes[root].parent != -1)
+				root = nodes[root].parent;
+			if (nodes[root].rank >= 0)
+				nodes[root].rank = ~classIndex++;
+
+			int insertIndex = ~nodes[root].rank;
+
+//			std::cout << "i=" << i << "  root=" << root << "   insertIndex=" << insertIndex << "   mergedTextRegions=" << mergedTextRegions.size() << std::endl;
+
+			if (insertIndex < mergedTextRegions.size())
+			{
+				// check whether to keep or replace the existing text region
+//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,255));
+//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(255,0,255));
+//				cv::imshow("merged lines", mergeImage);
+//				cv::waitKey();
+				if (mergedTextRegions[insertIndex].boundingBox.width < textRegions_[i].boundingBox.width)
+				{
+//					cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,255,0));
+//					cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,0,255));
+//					cv::imshow("merged lines", mergeImage);
+//					std::cout<< "replace\n";
+//					cv::waitKey();
+					mergedTextRegions[insertIndex] = textRegions_[i];
+				}
+//				else
+//				{
+//					cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,0,255));
+//					cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,255,0));
+//					cv::imshow("merged lines", mergeImage);
+//					std::cout<< "keep\n";
+//					cv::waitKey();
+//				}
+			}
+			else
+			{
+				// create text region
+//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,0));
+//				cv::imshow("merged lines", mergeImage);
+//				cv::waitKey();
+				mergedTextRegions.push_back(textRegions_[i]);
+			}
+		}
+		textRegions_ = mergedTextRegions;
+
+
+		// separating several lines of text
+//		start_time = clock();
+//		breakLines(textRegions_);
+//		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//		std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+
+		// separate words on a single line
+		start_time = clock();
+		breakLinesIntoWords(textRegions_);
+		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+
+		// write found bounding boxes into the respective structures
+		for (unsigned int i=0; i<textRegions_.size(); i++)
+		{
+			finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
+			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
+					cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
+			finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
+		}
+	}
+
+
+
 	// filter boxes that lie completely inside others
-	for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
+/*	for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
 	{
 		for (int j=0; j<(int)finalBoundingBoxes_.size(); j++)
 		{
@@ -240,7 +387,7 @@ void DetectText::detect_original_epshtein()
 //				break;
 //			}
 		}
-	}
+	}*/
 
 	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
@@ -511,49 +658,49 @@ void DetectText::pipeline()
 	else
 		ccmapDark_ = ccmap.clone();
 
-	if (processing_method_==ORIGINAL_EPSHTEIN)
-	{
-		// some feasibility checks
+//	if (processing_method_==ORIGINAL_EPSHTEIN)
+//	{
+//		// some feasibility checks
+////		start_time = clock();
+////		filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
+////		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+////		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
+//
+//		// separating several lines of text
 //		start_time = clock();
-//		filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
+//		breakLines(textRegions_);
 //		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-//		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
-
-		// separating several lines of text
-		start_time = clock();
-		breakLines(textRegions_);
-		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-		std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
-
-		// separate words on a single line
-		start_time = clock();
-		breakLinesIntoWords(textRegions_);
-		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
-
-		// write found bounding boxes into the respective structures
-		for (unsigned int i=0; i<textRegions_.size(); i++)
-		{
-			finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
-			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
-					cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
-			finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
-		}
-	}
-	else
-	{
-		start_time = clock();
-		ransacPipeline(textRegions_);
-		time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
-
-		if (firstPass_)
-		{
-			std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() << " boundingBoxes remain" << std::endl;
-			fontColorIndex_ = transformedImage_.size();
-		}
-		else
-			std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() - fontColorIndex_ << " boundingBoxes remain" << std::endl;
-	}
+//		std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+//
+//		// separate words on a single line
+//		start_time = clock();
+//		breakLinesIntoWords(textRegions_);
+//		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+//
+//		// write found bounding boxes into the respective structures
+//		for (unsigned int i=0; i<textRegions_.size(); i++)
+//		{
+//			finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
+//			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
+//					cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
+//			finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
+//		}
+//	}
+//	else
+//	{
+//		start_time = clock();
+//		ransacPipeline(textRegions_);
+//		time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
+//
+//		if (firstPass_)
+//		{
+//			std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() << " boundingBoxes remain" << std::endl;
+//			fontColorIndex_ = transformedImage_.size();
+//		}
+//		else
+//			std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() - fontColorIndex_ << " boundingBoxes remain" << std::endl;
+//	}
 }
 
 void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int searchDirection)
@@ -563,7 +710,7 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 	{
 		// compute edge map
 		edgemap_ = computeEdgeMap(useColorEdge);
-		//closeOutline(edgemap_);
+		closeOutline(edgemap_);
 //		if (debug["showEdge"] == true)
 //		{
 //			cv::imshow("gray color edgemap closed", edgemap_);
@@ -769,6 +916,11 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 				ciTheta = cos(iTheta) + sin(iTheta);
 				siTheta = -cos(iTheta) + sin(iTheta);
 			}
+			double adx = std::abs(ciTheta);
+			double ady = std::abs(siTheta);
+			double sx = ciTheta > 0 ? -searchDirection : searchDirection;
+			double sy = siTheta > 0 ? -searchDirection : searchDirection;
+			double err = adx - ady, e2 = 0.;
 
 			pointStack.push_back(cv::Point(currX, currY));
 			SwtValues.push_back(swtmap.at<float>(currY, currX));
@@ -776,10 +928,25 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 			while (step < maxStrokeWidth_)
 			{
 				//going one pixel in the direction of the gradient to check if next pixel is also an edge
-				float nextX = round(ix + ciTheta * searchDirection * step);
-				float nextY = round(iy + siTheta * searchDirection * step);
+//				float nextX = round(ix + ciTheta * searchDirection * step);
+//				float nextY = round(iy + siTheta * searchDirection * step);
+				// Bresenham
+				double nextX = currX;
+				double nextY = currY;
+				e2 = 2. * err;
+				if (e2 > -ady)
+				{
+					err -= ady;
+					nextX += sx;
+				}
+				if (e2 < adx)
+				{
+					err += adx;
+					nextY += sy;
+				}
 
-				if (nextX < 2 || nextY < 2 || nextX >= edgemap_.cols-2 || nextY >= edgemap_.rows-2)
+
+				if (nextX < 1 || nextY < 1 || nextX >= edgemap_.cols-1 || nextY >= edgemap_.rows-1)
 					break;
 
 				step++;
@@ -796,11 +963,15 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 				bool foundEdgePoint = false;
 				// search in 5-neighborhood for suitable counter edge points
 				// todo: only use 3 neighborhood perpendicular to search direction
+				int edgepointX = 0;
+				int edgepointY = 0;
 				if (fabs(currX-ix)>=2.f || fabs(currY-iy)>=2.f)
 				{
 					for (int k=0; k<5; k++)
 					{
-						if (edgemap_.at<unsigned char>(currY+offsetY5[k], currX+offsetX5[k]) == 255)
+						edgepointX = currX+offsetX5[k];
+						edgepointY = currY+offsetY5[k];
+						if (edgemap_.at<unsigned char>(edgepointY, edgepointX) == 255)
 						//if (edgemap_.at<unsigned char>(currY, currX) == 255)
 						{
 							foundEdgePoint = true;
@@ -809,7 +980,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 					}
 				}
 
-				if (foundEdgePoint == true)
+				if (foundEdgePoint == true && edgepointX>0 && edgepointY>0 && edgepointX<edgemap_.cols-1 && edgepointY<edgemap_.rows-1)
 				{
 					for (int k=0; k<9; k++)
 					{
@@ -821,8 +992,8 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 						//if (fabs(iTheta-fmod(jTheta+M_PI,2*M_PI)) < compareGradientParameter_) // paper: abs(abs(iTheta - jTheta) - 3.14) < 3.14 / 6
 	//					double t = tan(iTheta-jTheta);
 	//					if (-1 / sqrt(3) < t && t < 1 / sqrt(3))
-						double tn = dy_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) - dx_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
-						double td = dx_.at<float>(iy,ix)*dx_.at<float>(currY+offsetY9[k],currX+offsetX9[k]) + dy_.at<float>(iy,ix)*dy_.at<float>(currY+offsetY9[k],currX+offsetX9[k]);
+						double tn = dy_.at<float>(iy,ix)*dx_.at<float>(edgepointY+offsetY9[k],edgepointX+offsetX9[k]) - dx_.at<float>(iy,ix)*dy_.at<float>(edgepointY+offsetY9[k],edgepointX+offsetX9[k]);
+						double td = dx_.at<float>(iy,ix)*dx_.at<float>(edgepointY+offsetY9[k],edgepointX+offsetX9[k]) + dy_.at<float>(iy,ix)*dy_.at<float>(edgepointY+offsetY9[k],edgepointX+offsetX9[k]);
 //						if (tn*7 < -td*4/*tan(compareGradientParameter_)*/ && tn*7 > td*4/*tan(compareGradientParameter_)*/)
 						if (tn < -td*tanCompareGradientParameter && tn > td*tanCompareGradientParameter)
 						{
@@ -846,18 +1017,22 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 				float newSwtVal;
 				if (purpose == UPDATE)// update swt based on dist between edges
 				{
-					newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix))/* + 0.5*/);
+					newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix)) + 0.5);
 					strokePointsOrderedByLength.insert(std::pair<double, cv::Point>(newSwtVal, cv::Point(ix, iy)));
+					for (size_t i = 0; i < pointStack.size(); i++)
+						swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
 				}
 				else if (purpose == REFINE) // refine swt based on median
 				{
 					nth_element(SwtValues.begin(), SwtValues.begin() + SwtValues.size() / 2, SwtValues.end());
 					newSwtVal = SwtValues[SwtValues.size() / 2];
+					for (size_t i = 0; i < pointStack.size(); i++)
+						swtmap.at<float>(pointStack[i]) = newSwtVal;
 				}
 
 				// set all cv::Points between to the newSwtVal except they are smaller because of another stroke
-				for (size_t i = 0; i < pointStack.size(); i++)
-					swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
+//				for (size_t i = 0; i < pointStack.size(); i++)
+//					swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
 			}
 	//		else
 	//		{
@@ -871,15 +1046,19 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 	// write the edge points for the refinement step ordered from short to long strokes
 	if (purpose == UPDATE)
 	{
-		for (std::multimap<double, cv::Point>::iterator it = strokePointsOrderedByLength.begin(); it != strokePointsOrderedByLength.end(); it++)
+		for (std::multimap<double, cv::Point>::iterator it = strokePointsOrderedByLength.end(); it != strokePointsOrderedByLength.begin(); )//it++)
+		{
+			--it;
 			strokePoints.push_back(it->second);
+		}
+
+		// set initial values back to 0
+		for (int y = 0; y < swtmap.rows; y++)
+			for (int x = 0; x < swtmap.cols; x++)
+				if (swtmap.at<float> (y, x) == initialStrokeWidth_)
+					swtmap.at<float> (y, x) = 0;						// todo: check whether this may cause problems when grouping
 	}
 
-	// set initial upchanged value back to 0
-	for (int y = 0; y < swtmap.rows; y++)
-		for (int x = 0; x < swtmap.cols; x++)
-			if (swtmap.at<float> (y, x) == initialStrokeWidth_)
-				swtmap.at<float> (y, x) = 0;						// todo: check whether this may cause problems when grouping
 }
 
 void DetectText::closeOutline(cv::Mat& edgemap)
@@ -920,12 +1099,10 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 	// Check all 8 neighbor pixels of each pixel for similar stroke width and for similar color, then form components with enumerative labels
 
 	int ccmapInitialVal = ccmap.at<float>(0, 0);
-	int offsetY8[] =
-	//{ -2, -2, -2, -2, -2, -1, -1, -1, -1, -1,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2 };
-	{ -1, -1, -1, 0, 0, 1, 1, 1 };
-	int offsetX8[] =
+	int offsetX8[] = {-1, 1, -1, 0, 1, -1, 0, 1};
 	//{ -2, -1,  0,  1,  2, -2, -1,  0,  1,  2, -2, -1,  1,  2, -2, -1,  0,  1,  2, -2, -1,  0,  1,  2 };
-	{ -1, 0, 1, -1, 1, -1, 0, 1 };
+	int offsetY8[] = {0, 0, -1, -1, -1, 1, 1, 1};
+	//{ -2, -2, -2, -2, -2, -1, -1, -1, -1, -1,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2 };
 	int nNeighbors = 8;//24;//8;
 	int label = 0;
 
@@ -952,9 +1129,9 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 				pStack[stackPointer] = x;
 				pStack[stackPointer + 1] = y;
 
-				double componentMeanIntensity = 0.;
-				cv::Point3d componentMeanColor(0.,0.,0.);
-				int addedPixels = 0;
+//				double componentMeanIntensity = 0.;
+//				cv::Point3d componentMeanColor(0.,0.,0.);
+//				int addedPixels = 0;
 
 				while (stackPointer >= 0)
 				{
@@ -965,7 +1142,10 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 					pVector[vectorPointer] = currentPointX;
 					pVector[vectorPointer + 1] = currentPointY;
 					vectorPointer += 2;
+
 					//check which one of the neighbors have similar sw and then label the regions belonging together
+					float meanStrokeWidth = swtmap.at<float>(currentPointY, currentPointX);
+					int addedNeighbors = 1;
 					for (int i = 0; i < nNeighbors; i++)
 					{
 						int ny = currentPointY + offsetY8[i];
@@ -984,31 +1164,31 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 						if (ccmap.at<float>(ny, nx) == ccmapInitialVal)
 						{
 							float sw1 = swtmap.at<float>(ny, nx);
-							float sw2 = swtmap.at<float>(y, x);
+							//float meanStrokeWidth = swtmap.at<float>(y, x);
 
-							// compute mean color and intensity for pixel (nx,ny)
-							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
-							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
-							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
-							{
-								int my = ny + offsetY8[i];
-								int mx = nx + offsetX8[i];
-								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
-									continue;
-								intensity += (double)grayImage_.at<unsigned char>(my, mx);
-								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
-							}
-							intensity /= (nNeighbors + 1.);
-							color *= 1./(nNeighbors + 1.);
-							if (componentMeanIntensity == 0.)
-							{
-								componentMeanIntensity = intensity;
-								componentMeanColor = color;
-							}
+//							// compute mean color and intensity for pixel (nx,ny)
+//							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
+//							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
+//							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
+//							{
+//								int my = ny + offsetY8[i];
+//								int mx = nx + offsetX8[i];
+//								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
+//									continue;
+//								intensity += (double)grayImage_.at<unsigned char>(my, mx);
+//								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
+//							}
+//							intensity /= (nNeighbors + 1.);
+//							color *= 1./(nNeighbors + 1.);
+//							if (componentMeanIntensity == 0.)
+//							{
+//								componentMeanIntensity = intensity;
+//								componentMeanColor = color;
+//							}
 
-							// do the pixels have similar strokewidth?
-							if (std::max(sw1, sw2) <= swCompareParameter * std::min(sw1, sw2)) // ||		// todo: ratio between a mean value over the component and sw1 better?
-								//	(std::max(sw1, sw2) <= 1.5*swCompareParameter * std::min(sw1, sw2) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
+							// do the pixels have similar stroke width?
+							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth)) // ||		// todo: ratio between a mean value over the component and sw1 better?
+								//	(std::max(sw1, meanStrokeWidth) <= 1.5*swCompareParameter * std::min(sw1, meanStrokeWidth) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
 								//	(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
 							{
 //								if (processing_method_ == ORIGINAL_EPSHTEIN)
@@ -1019,10 +1199,15 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 									pStack[stackPointer + 1] = ny;
 									connected = true;
 
-									// update mean intensity and color
-									componentMeanIntensity = ((componentMeanIntensity*addedPixels) + intensity) / (addedPixels+1.);
-									componentMeanColor = ((componentMeanColor*addedPixels) + color) * (1./(addedPixels+1.));
-									addedPixels++;
+									// update mean stroke width
+									meanStrokeWidth = (meanStrokeWidth*addedNeighbors + sw1)/(float)(addedNeighbors+1);
+									addedNeighbors++;
+
+//									// update mean intensity and color
+//									componentMeanIntensity = ((componentMeanIntensity*addedPixels) + intensity) / (addedPixels+1.);
+//									componentMeanColor = ((componentMeanColor*addedPixels) + color) * (1./(addedPixels+1.));
+//									addedPixels++;
+
 //								}
 //								else
 //								{
@@ -1065,6 +1250,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 
 				if (connected)
 				{
+					ccmap.at<float>(y, x) = label;
 					int minY = ccmap.rows, minX = ccmap.cols, maxY = 0, maxX = 0;
 					int width, height;
 					for (int i = 0; i < vectorPointer; i += 2)
@@ -1094,7 +1280,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 {
 	// todo: parameter
 	if (processing_method_ == ORIGINAL_EPSHTEIN)
-		minLetterHeight_ = 8;
+		minLetterHeight_ = 10;//8;
 	else
 		minLetterHeight_ = std::max(10, 3 + (originalImage_.rows)/480); //default: 10
 
@@ -1125,14 +1311,14 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #1: height of component [not used atm]
 		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high.
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
-		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 50/*50*/))
+		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 75/*38/*50*/))
 			continue;
 
 		// rule #2: aspect ratio has to be within 0.1 and 10
 		if (processing_method_ == ORIGINAL_EPSHTEIN)
 		{
 			double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
-			isLetter = isLetter && (aspectRatio <= 8.0);
+			isLetter = isLetter && (aspectRatio <= 7.0);
 		}
 
 		float maxY = itr.y + itr.height;
@@ -1140,7 +1326,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		float maxX = itr.x + itr.width;
 		float minX = itr.x;
 
-//		double m10=0., m01=0., m20=0., m11=0., m02=0.;
+		double m10=0., m01=0., m20=0., m11=0., m02=0.;
 
 		// compute mean and variance of stroke width
 		std::vector<float> iComponentStrokeWidth;
@@ -1151,11 +1337,11 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				int component = static_cast<int>(ccmap.at<float>(y, x)); //ccmap-Label = -2 in case no Region; 0,1,2,3... for every region
 				if (component == static_cast<int>(i))
 				{
-//					m10 += x;
-//					m01 += y;
-//					m20 += x*x;
-//					m11 += x*y;
-//					m02 += y*y;
+					m10 += x;
+					m01 += y;
+					m20 += x*x;
+					m11 += x*y;
+					m02 += y*y;
 					currentStrokeWidth = swtmap.at<float>(y, x);
 					iComponentStrokeWidth.push_back(currentStrokeWidth);
 					maxStrokeWidth = std::max(maxStrokeWidth, currentStrokeWidth);
@@ -1167,15 +1353,15 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		}
 		double pixelCount = static_cast<double>(iComponentStrokeWidth.size());
 
-//		double xc = m10/pixelCount;
-//		double yc = m01/pixelCount;
-//		double af = m20/pixelCount - xc*xc;
-//		double bf = 2*m11/pixelCount - xc*yc;
-//		double cf = m02/pixelCount - yc*yc;
-//		double delta = sqrt(bf * bf + (af - cf) * (af - cf));
-//		double momentsRatio = sqrt(std::max(af + cf + delta, af + cf - delta) / std::min(af + cf + delta, af + cf - delta));
-//		if (momentsRatio > 8.0)
-//			continue;
+		double xc = m10/pixelCount;
+		double yc = m01/pixelCount;
+		double af = m20/pixelCount - xc*xc;
+		double bf = 2*m11/pixelCount - xc*yc;
+		double cf = m02/pixelCount - yc*yc;
+		double delta = sqrt(bf * bf + (af - cf) * (af - cf));
+		double momentsRatio = sqrt(std::max(af + cf + delta, af + cf - delta) / std::min(af + cf + delta, af + cf - delta));
+		if (momentsRatio > 8.0)
+			continue;
 
 		// rule #2: remove components that are too small/thin		// todo: reactivate
 		if (pixelCount < 0.1*itr.area())
@@ -1196,7 +1382,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		//isLetter = isLetter && (sqrt(((itr.width) * (itr.width) + (itr.height) * (itr.height))) < maxStrokeWidth * diagonalParameter);
 		std::nth_element(iComponentStrokeWidth.begin(), iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2, iComponentStrokeWidth.end());
 		medianStrokeWidth_[i] = *(iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2);
-		isLetter = isLetter && (pixelCount > 0.2*itr.area() || sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) > medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
+//		isLetter = isLetter && (pixelCount > 0.2*itr.area() || sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) > medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
 
 		// rule #4: pixelCount has to be bigger than maxStrokeWidth * x:
 		if (processing_method_==BORMANN)
@@ -1389,7 +1575,7 @@ std::vector<float> DetectText::getMeanIntensity(const cv::Mat& ccmap, const cv::
 				if (ccmap.at<float>(y, x) == felement)
 				{
 					graySum += static_cast<float>(grayImage_.at<unsigned char>(y, x));
-					count++;
+					count+=1.;
 					clr = originalImage_.at<bgr>(y, x);
 					rSum += (float) clr.r;
 					bSum += (float) clr.b;
@@ -1442,10 +1628,10 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			// rule 1a: distance of two letters must be small enough
 			if (processing_method_==ORIGINAL_EPSHTEIN)
 			{
-				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
-					continue;
-//				if (abs(dx) > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
+//				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
 //					continue;
+				if (std::abs(dx) > std::max(iRect.width, jRect.width) * distanceRatioParameter) // * largeLetterCountFactor)
+					continue;
 			}
 			else
 			{
@@ -1458,13 +1644,13 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				if ((double)std::max(iRect.height, jRect.height) > 1.7/*2.0*/ * (double)std::min(iRect.height, jRect.height))
 					continue;
 
-//			// rule 1c: vertical overlap should be large
-//			if (processing_method_==ORIGINAL_EPSHTEIN)
-//			{
-//				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
-//				if (verticalOverlap * 1.3 < std::min(iRect.height, jRect.height))
-//					continue;
-//			}
+			// rule 1c: vertical overlap should be large
+			if (processing_method_==ORIGINAL_EPSHTEIN)
+			{
+				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
+				if (verticalOverlap * 1.3 < std::min(iRect.height, jRect.height))
+					continue;
+			}
 
 			//medianSw[i] = getMedianStrokeWidth(ccmap, swtmap, iRect, static_cast<int>(i));
 			//medianSw[j] = getMedianStrokeWidth(ccmap, swtmap, jRect, static_cast<int>(j));
@@ -1475,9 +1661,9 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j]))
 				negativeScore++;
 
-			// rule 3: diagonal ratio
-			if (std::max(iDiagonal, jDiagonal) > diagonalRatioParamter * std::min(iDiagonal, jDiagonal))
-				negativeScore++;
+//			// rule 3: diagonal ratio
+//			if (std::max(iDiagonal, jDiagonal) > diagonalRatioParamter * std::min(iDiagonal, jDiagonal))
+//				negativeScore++;
 
 			// rule 4: average gray color of letters
 			if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
@@ -1695,6 +1881,16 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 		if (textRegion.boundingBox.width > 1.9 * textRegion.boundingBox.height)
 			textRegions.push_back(textRegion);
 	}
+}
+
+bool DetectText::sameTextline(const TextRegion& a, const TextRegion& b)
+{
+	int width = std::min(a.boundingBox.x + a.boundingBox.width, b.boundingBox.x + b.boundingBox.width) - std::max(a.boundingBox.x, b.boundingBox.x);
+	int height = std::min(a.boundingBox.y + a.boundingBox.height, b.boundingBox.y + b.boundingBox.height) - std::max(a.boundingBox.y, b.boundingBox.y);
+	/* overlapped 10% */
+	return (width > 0 && height > 0 &&
+			width * height > 0.1 * std::max(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height) &&
+			width * height > 0.8 * std::min(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height));
 }
 
 bool DetectText::pairsInLine(const Pair& a, const Pair& b)
@@ -2489,7 +2685,7 @@ void DetectText::disposal()
 	meanRGB_.clear();
 	meanBgRGB_.clear();
 	letterGroups_.clear();
-	textRegions_.clear();
+	//textRegions_.clear();
 }
 
 void DetectText::deleteDoubleBrokenWords(std::vector<cv::Rect>& boundingBoxes)
@@ -5335,8 +5531,8 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 		// Check 1: the size variance of letters should not be too large
 		double textBoxDiameter = sqrt(textRegions[textRegionIndex].boundingBox.width*textRegions[textRegionIndex].boundingBox.width + textRegions[textRegionIndex].boundingBox.height*textRegions[textRegionIndex].boundingBox.height);
 		//std::cout << "Size variance check: averageLetterSize=" << averageLetterSize << "   stddevLetterSize=" << stddevLetterSize << "   textBoxDiameter=" << textBoxDiameter << std::endl;
-		if (stddevLetterSize > 0.33*averageLetterSize)
-			continue;
+//xx		if (stddevLetterSize > 0.33*averageLetterSize)
+//xx			continue;
 
 		// Check 2:
 		//if (textRegions[textRegionIndex].boundingBox.width < 1.7 * textRegions[textRegionIndex].letters.size() * textRegions[textRegionIndex].boundingBox.height)
