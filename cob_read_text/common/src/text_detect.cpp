@@ -360,13 +360,14 @@ void DetectText::detect_original_epshtein()
 
 
 	// filter boxes that lie completely inside others
-/*	for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
+	for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
 	{
 		for (int j=0; j<(int)finalBoundingBoxes_.size(); j++)
 		{
 			if (j==i)
 				continue;
-			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()) && (finalBoundingBoxes_[i].area()<finalBoundingBoxes_[j].area()))
+			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.95*finalBoundingBoxes_[i].area())
+//			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()) && (finalBoundingBoxes_[i].area()<finalBoundingBoxes_[j].area()))
 //			if (((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[i].area() && finalBoundingBoxesQualityScore_[i]<=finalBoundingBoxesQualityScore_[j]) ||
 //					((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[j].area() && finalBoundingBoxesQualityScore_[i]<finalBoundingBoxesQualityScore_[j]))
 			{
@@ -387,7 +388,7 @@ void DetectText::detect_original_epshtein()
 //				break;
 //			}
 		}
-	}*/
+	}
 
 	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
