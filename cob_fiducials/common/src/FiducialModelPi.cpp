@@ -98,9 +98,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 
 // ------------ Ellipse extraction --------------------------------------
-	int min_ellipse_size = 12; // Min ellipse size at 70cm distance is 20x20 pixels
+	int min_ellipse_size = 7; // Min ellipse size at 70cm distance is 20x20 pixels
 	//int min_contour_points = int(1.5 * min_ellipse_size); 
-	int max_ellipse_aspect_ratio = 5;
+	int max_ellipse_aspect_ratio = 7;
 	std::vector<cv::RotatedRect> ellipses;
 	for(size_t i = 0; i < contours.size(); i++)
 	{
@@ -141,8 +141,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 // ------------ Fiducial corner extraction --------------------------------------
 	std::vector<std::vector<cv::Point2f> > marker_lines;
-	int max_pixel_dist_to_line = 2;
-	int max_ellipse_difference = 11; //[px]
+	int max_pixel_dist_to_line = 2; // 2  [px]
+	int max_ellipse_difference = 7; // 11 [px]
 	// Compute area
 	std::vector<double> ref_A;
 	for(unsigned int i = 0; i < ellipses.size(); i++)
@@ -651,7 +651,11 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 								if (ul_tag_vec[ul_idx_lines_0[j][l]].image_points[3] != lr_tag_vec[lr_idx_lines_1[k][m]].image_points[3] ||
 									ul_tag_vec[ul_idx_lines_0[j][l]].image_points[9] != lr_tag_vec[lr_idx_lines_1[k][m]].image_points[9])
 									continue;
-								else if (TagUnique(final_tag_vec, final_tag))
+
+								if (!TagUnique(final_tag_vec, final_tag))
+									continue;
+
+								if (AnglesValid2D(final_tag.image_points))
 								{
 									m_ref_tag_vec[i].sparse_copy_to(final_tag);
 									final_tag.no_matching_lines = 4;
@@ -747,7 +751,11 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 								if (ul_tag_vec[ul_idx_lines_0[j][l]].image_points[3] != lr_tag_vec[lr_idx_lines_1[k][m]].image_points[3] ||
 									ul_tag_vec[ul_idx_lines_0[j][l]].image_points[9] != lr_tag_vec[lr_idx_lines_1[k][m]].image_points[9])
 									continue;
-								else if (TagUnique(final_tag_vec, final_tag))
+
+								if (!TagUnique(final_tag_vec, final_tag))
+									continue;								
+
+								if (AnglesValid2D(final_tag.image_points))
 								{
 									m_ref_tag_vec[i].sparse_copy_to(final_tag);
 									final_tag.no_matching_lines = 4;
@@ -836,9 +844,12 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		// Apply transformation
 		cv::Mat rot_3x3_CfromO;
 		cv::Rodrigues(tag_pose.rot, rot_3x3_CfromO);
+
+		if (!ProjectionValid(rot_3x3_CfromO, tag_pose.trans, GetCameraMatrix(), pattern_coords, image_coords))
+			continue;
+
 		ApplyExtrinsics(rot_3x3_CfromO, tag_pose.trans);
 		rot_3x3_CfromO.copyTo(tag_pose.rot);
-
 		vec_pose.push_back(tag_pose);
 	}
 // ------------ END --------------------------------------
@@ -851,6 +862,113 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		return ipa_Utils::RET_FAILED;
 
 	return ipa_Utils::RET_OK;
+}
+
+bool FiducialModelPi::AnglesValid2D(std::vector<cv::Point2f>& image_points)
+{
+	// Check angles
+	//double max_symtry_deg_diff = 40;
+	double min_deg_angle = 20;
+	cv::Point2f vec_03 = image_points[3] - image_points[0];
+	cv::Point2f vec_36 = image_points[6] - image_points[3];
+	cv::Point2f vec_69 = image_points[9] - image_points[6];
+	cv::Point2f vec_90 = image_points[0] - image_points[9];
+
+	double size_vec_03 = std::sqrt(vec_03.x*vec_03.x + vec_03.y*vec_03.y);
+	double size_vec_36 = std::sqrt(vec_36.x*vec_36.x + vec_36.y*vec_36.y);
+	double size_vec_69 = std::sqrt(vec_69.x*vec_69.x + vec_69.y*vec_69.y);
+	double size_vec_90 = std::sqrt(vec_90.x*vec_90.x + vec_90.y*vec_90.y);
+
+	vec_03.x /= size_vec_03;
+	vec_03.y /= size_vec_03;
+	vec_36.x /= size_vec_36;
+	vec_36.y /= size_vec_36;
+	vec_69.x /= size_vec_69;
+	vec_69.y /= size_vec_69;
+	vec_90.x /= size_vec_90;
+	vec_90.y /= size_vec_90;
+
+	double pi = 3.14159265359;
+	double angle_ur = std::acos((-vec_03.x)*vec_36.x+(-vec_03.y)*vec_36.y)*180.0/pi;
+	double angle_lr = std::acos((-vec_36.x)*vec_69.x+(-vec_36.y)*vec_69.y)*180.0/pi;
+	double angle_ll = std::acos((-vec_69.x)*vec_90.x+(-vec_69.y)*vec_90.y)*180.0/pi;
+	double angle_ul = std::acos((-vec_90.x)*vec_03.x+(-vec_90.y)*vec_03.y)*180.0/pi;
+
+	//if (std::abs(angle_ur-angle_ll) > max_symtry_deg_diff ||
+	//	std::abs(angle_ul-angle_lr) > max_symtry_deg_diff)
+	//	return false;
+
+	if (std::abs(angle_ur) < min_deg_angle ||
+		std::abs(angle_lr) < min_deg_angle ||
+		std::abs(angle_ll) < min_deg_angle ||
+		std::abs(angle_ul) < min_deg_angle)
+		return false;
+
+	return true;
+}
+
+bool FiducialModelPi::ProjectionValid(cv::Mat& rot_CfromO, cv::Mat& trans_CfromO, 
+	cv::Mat& camera_matrix, cv::Mat& pts_in_O, cv::Mat& image_coords)
+{
+	double max_avg_pixel_error = 5;
+
+	// Check angles
+	float* p_pts_in_O = 0;
+	double* p_pt_in_O = 0;
+	double* p_pt_4x1_in_C = 0;
+	double* p_pt_3x1_in_C = 0;
+	double* p_pt_3x1_2D = 0;
+	float* p_image_coords;
+
+	cv::Mat pt_in_O(4, 1, CV_64FC1);
+	p_pt_in_O = pt_in_O.ptr<double>(0);
+	cv::Mat pt_4x1_in_C;
+	cv::Mat pt_3x1_in_C(3, 1, CV_64FC1);
+	p_pt_3x1_in_C = pt_3x1_in_C.ptr<double>(0);
+	cv::Mat pt_3x1_2D(3, 1, CV_64FC1);
+	p_pt_3x1_2D = pt_3x1_2D.ptr<double>(0);
+
+	// Create 4x4 frame CfromO
+	cv::Mat frame_CfromO = cv::Mat::zeros(4, 4, CV_64FC1);
+	for (int i=0; i<3; i++)
+	{
+		frame_CfromO.at<double>(i, 3) = trans_CfromO.at<double>(i,0);
+		for (int j=0; j<3; j++)
+		{
+			frame_CfromO.at<double>(i,j) = rot_CfromO.at<double>(i,j);
+		}
+	}
+	frame_CfromO.at<double>(3,3) = 1.0;
+
+	// Check reprojection error
+	double dist = 0;
+	for (unsigned int i=0; i<pts_in_O.rows; i++)
+	{
+		p_image_coords = image_coords.ptr<float>(i);
+		p_pts_in_O = pts_in_O.ptr<float>(i);
+
+		p_pt_in_O[0] = p_pts_in_O[0];
+		p_pt_in_O[1] = p_pts_in_O[1];
+		p_pt_in_O[2] = p_pts_in_O[2];
+		p_pt_in_O[3] = 1;
+
+		cv::Mat pt_4x1_in_C = frame_CfromO * pt_in_O;
+		p_pt_4x1_in_C = pt_4x1_in_C.ptr<double>(0);
+		p_pt_3x1_in_C[0] = p_pt_4x1_in_C[0]/p_pt_4x1_in_C[3];
+		p_pt_3x1_in_C[1] = p_pt_4x1_in_C[1]/p_pt_4x1_in_C[3];
+		p_pt_3x1_in_C[2] = p_pt_4x1_in_C[2]/p_pt_4x1_in_C[3];
+
+		pt_3x1_2D = camera_matrix * pt_3x1_in_C;
+		pt_3x1_2D /= p_pt_3x1_2D[2];
+
+		dist = std::sqrt((p_pt_3x1_2D[0] - p_image_coords[0])*(p_pt_3x1_2D[0] - p_image_coords[0])
+		+ (p_pt_3x1_2D[1] - p_image_coords[1])*(p_pt_3x1_2D[1] - p_image_coords[1]));
+
+		if (dist > max_avg_pixel_error)
+			return false;
+	}
+
+	return true;
 }
 
 bool FiducialModelPi::TagUnique(std::vector<t_pi>& tag_vec, t_pi& newTag)
