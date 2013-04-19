@@ -73,6 +73,9 @@ public:
 private:
 
 	bool TagUnique(std::vector<t_pi>& tag_vec, t_pi& newTag);
+	bool AnglesValid2D(std::vector<cv::Point2f>& image_points);
+	bool ProjectionValid(cv::Mat& rot_CfromO, cv::Mat& trans_CfromO, cv::Mat& camera_matrix,
+		cv::Mat& pattern_coords, cv::Mat& image_coords);
 
 	std::vector<t_pi> m_ref_tag_vec; ///< reference tags to be recognized
 	cv::Mat m_debug_img; ///< image that holds debugging output
