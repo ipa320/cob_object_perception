@@ -1,0 +1,23 @@
+<package>
+  <description brief="cob_surface_classification">
+
+     cob_surface_classification
+
+  </description>
+  <author>Carolin Eckard</author>
+  <license>LGPL</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/cob_surface_classification</url>
+
+  <depend package="roscpp"/>
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/>
+  <depend package="sensor_msgs"/>
+  <depend package="message_filters"/>
+  <depend package="image_transport"/>
+
+</package>
+
+
