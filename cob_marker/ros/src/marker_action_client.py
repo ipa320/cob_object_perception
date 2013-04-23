@@ -7,11 +7,11 @@ import actionlib
 import cob_object_detection_msgs.msg
 
 def marker_client():
-    client = actionlib.SimpleActionClient('object_detection', cob_object_detection_msgs.msg.DetectObjectsAction)
+    client = actionlib.SimpleActionClient('/cob_marker/object_detection', cob_object_detection_msgs.msg.DetectObjectsAction)
     client.wait_for_server()
 
-    goal = DetectObjectsGoal()
-	goal.object_name.data = "KFP"
+    goal = cob_object_detection_msgs.msg.DetectObjectsGoal()
+    goal.object_name.data = "KFP"
 
     client.send_goal(goal)
 
