@@ -152,17 +152,16 @@ class Qr_Node : public Parent
   }
 
   bool compPCA(pcl::PCA<PointCloud::PointType> &pca, const PointCloud &pc, const float w, const Eigen::Vector2i &o, const Eigen::Vector2f &d) {
-    PointCloud tmp;
+    size_t s=0;
     for(int x=0; x<w; x++) {
       Eigen::Vector2i p = o + (d*x).cast<int>();
       if(pcl_isfinite(pc(p(0),p(1)).getVector3fMap().sum()))
-        tmp.push_back( pc(p(0),p(1)) );
+        {++s;pca.update( pc(p(0),p(1)) );}
     }
-    if(tmp.size()<2) {
+    if(s<2) {
       ROS_WARN("no valid points");
       return false;
     }
-    pca.compute(tmp);
     return true;
   }
 
@@ -232,7 +231,7 @@ public:
         double dmtx_timeout_;
         n->param<double>("dmtx_timeout",dmtx_timeout_,0.5);
         dynamic_cast<Marker_DMTX*>(gm_)->setTimeout((int)(dmtx_timeout_ * 1000));
-        ROS_INFO("using dmtx algorithm with %i s timeout",dmtx_timeout_);
+        ROS_INFO("using dmtx algorithm with %f s timeout",dmtx_timeout_);
       }
     }
 
