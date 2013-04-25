@@ -142,6 +142,8 @@ class Qr_Node : public Parent
   double f_; //focal length
   double marker_size_; // in metre
 
+  std::string tf_frame;
+
   void subscribe() {
     visual_sub_.subscribe();
     point_cloud_sub_.subscribe();
@@ -152,20 +154,19 @@ class Qr_Node : public Parent
   }
 
   bool compPCA(pcl::PCA<PointCloud::PointType> &pca, const PointCloud &pc, const float w, const Eigen::Vector2i &o, const Eigen::Vector2f &d) {
-    size_t s=0;
     PointCloud tmp_pc;
     for(int x=0; x<w; x++) {
       Eigen::Vector2i p = o + (d*x).cast<int>();
       if(pcl_isfinite(pc(p(0),p(1)).getVector3fMap().sum()))
-        {++s; tmp_pc.push_back( pc(p(0),p(1)) );}
+        tmp_pc.push_back( pc(p(0),p(1)) );
+    }
+    if(tmp_pc.size()<3) {
+      ROS_WARN("no valid points");
+      return false;
     }
     tmp_pc.width=1;
     tmp_pc.height=tmp_pc.size();
     pca.setInputCloud(tmp_pc.makeShared());
-    if(s<2) {
-      ROS_WARN("no valid points");
-      return false;
-    }
     return true;
   }
 
@@ -233,9 +234,15 @@ public:
         gm_ = new Marker_DMTX();
 
         double dmtx_timeout_;
+        int dmtx_max_markers_;
         n->param<double>("dmtx_timeout",dmtx_timeout_,0.5);
+        n->param<int>("dmtx_max_markers",dmtx_max_markers_,10);
+        n->param<std::string>("frame_id",tf_frame,"/head_cam3d_link");
+        
         dynamic_cast<Marker_DMTX*>(gm_)->setTimeout((int)(dmtx_timeout_ * 1000));
-        ROS_INFO("using dmtx algorithm with %i s timeout",dmtx_timeout_);
+        dynamic_cast<Marker_DMTX*>(gm_)->setMaxDetectionCount((int)(dmtx_max_markers_));
+        ROS_INFO("using dmtx algorithm with %f s timeout",dmtx_timeout_);
+        ROS_INFO("using dmtx algorithm with max %i markers to detect",dmtx_max_markers_);
       }
     }
 
@@ -400,7 +407,7 @@ public:
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
-      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "head_cam3d_link", res[i].code_.substr(0,3)));
+      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].code_.substr(0,3)));
 #else
       ROS_ASSERT(0);
 #endif
@@ -487,10 +494,12 @@ public:
       Eigen::Quaternionf q2(M);
 
       //TODO: please change to ROS_DEBUG
-      std::cout<<"E\n"<<pca1.getEigenVectors()<<"\n";
-      std::cout<<"E\n"<<pca2.getEigenVectors()<<"\n";
-      std::cout<<"E\n"<<pca1.getEigenValues()<<"\n";
-      std::cout<<"E\n"<<pca2.getEigenValues()<<"\n";
+      std::stringstream ss;
+      ss<<"E\n"<<pca1.getEigenVectors()<<"\n";
+      ss<<"E\n"<<pca2.getEigenVectors()<<"\n";
+      ss<<"E\n"<<pca1.getEigenValues()<<"\n";
+      ss<<"E\n"<<pca2.getEigenValues()<<"\n";
+      ROS_DEBUG("%s",ss.str().c_str());
 
       std::cout<<"M\n"<<M2<<"\n";
       std::cout<<"d\n"<<M.col(0).dot(M.col(1))<<"\n";
@@ -517,7 +526,7 @@ public:
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
-      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "head_cam3d_link", res[i].code_.substr(0,3)));
+      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].code_.substr(0,3)));
     }
     mutex_.unlock();
   }

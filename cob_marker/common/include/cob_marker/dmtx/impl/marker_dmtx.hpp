@@ -75,9 +75,9 @@ bool Marker_DMTX::findPattern(const sensor_msgs::Image &img, std::vector<SMarker
   dmtxDecodeSetProp(dec, DmtxPropEdgeThresh, 1);
 
   DmtxRegion *reg;
-  DmtxTime timeout = dmtxTimeAdd(dmtxTimeNow(), timeout_);
-  for(count=1; ;count++) {
-    
+  
+  for(count=1; count <= count_ ; count++) {
+    DmtxTime timeout = dmtxTimeAdd(dmtxTimeNow(), timeout_);
     reg = dmtxRegionFindNext(dec, &timeout);
     /* Finished file or ran out of time before finding another region */
     if(reg == NULL)
