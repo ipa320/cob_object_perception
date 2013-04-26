@@ -63,18 +63,27 @@
 // OpenCV
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+#include <opencv2/imgproc/imgproc.hpp>
 
 // PCL
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
+#include <pcl/pcl_base.h>
+#include <pcl/features/pfh.h>
+#include <pcl_ros/features/normal_3d.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/histogram_visualizer.h>
+#include <pcl/features/fpfh.h>
+
 
 
 class SurfaceClassification
 {
 public:
-	void testFunction(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud);
+	void testFunction(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Mat& depth_image);
 
 private:
+	void computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud);
 };
 
 #endif /* SURFACE_CLASSIFICATION_H_ */

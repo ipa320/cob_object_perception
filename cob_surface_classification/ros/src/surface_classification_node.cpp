@@ -57,6 +57,8 @@
 *
 ****************************************************************/
 
+
+
 // ROS includes
 #include <ros/ros.h>
 
@@ -138,8 +140,13 @@ public:
 		convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
 
 		// get color image from point cloud
-		pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
+		/*pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
 		pcl::fromROSMsg(*pointcloud_msg, point_cloud_src);
+		pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pc_ptr(&point_cloud_src);*/
+
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+		//Inhalt des Pointers übergeben
+		pcl::fromROSMsg(*pointcloud_msg, *cloud);
 
 //		cv::Mat color_image = cv::Mat::zeros(point_cloud_src.height, point_cloud_src.width, CV_8UC3);
 //		for (unsigned int v=0; v<point_cloud_src.height; v++)
@@ -152,7 +159,19 @@ public:
 //			}
 //		}
 
-		surface_classification_.testFunction(color_image, point_cloud_src);
+		//compute depth_image: gryevalue corresponds to depth z
+		cv::Mat depth_image = cv::Mat::zeros(cloud->height, cloud->width, CV_32FC1);
+				for (unsigned int v=0; v<cloud->height; v++)
+				{
+					for (unsigned int u=0; u<cloud->width; u++)
+					{
+						pcl::PointXYZRGB point = (*cloud)(u,v);
+						depth_image.at< float >(v,u) = point.z;
+					}
+				}
+
+		surface_classification_.testFunction(color_image, cloud, depth_image);
+
 	}
 
 private:
