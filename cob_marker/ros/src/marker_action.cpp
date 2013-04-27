@@ -111,7 +111,7 @@ public:
   }
 };
 
-#define TEST
+//#define TEST
 
 template<typename Parent>
 class Qr_Node : public Parent
@@ -131,8 +131,10 @@ class Qr_Node : public Parent
   ros::Subscriber img_sub_;
   ros::Publisher  detection_pub_;
   ros::Publisher test_pub_;
-  
+
+#ifdef TEST  
   tf::TransformBroadcaster br_;
+#endif
 
   GeneralMarker *gm_;
 
@@ -403,11 +405,14 @@ public:
       det.pose.pose.orientation.z = q2.z();
       result_.object_list.detections.push_back(det);
 
+#ifdef TEST  
       //tf broadcaster for debuggin
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
       br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].code_.substr(0,3)));
+#endif
+
 #else
       ROS_ASSERT(0);
 #endif
@@ -535,12 +540,13 @@ public:
       det.pose.pose.orientation.z = q2.z();
       result_.object_list.detections.push_back(det);
 
-
+#ifdef TEST
       //tf broadcaster for debuggin
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
       br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].code_.substr(0,3)));
+#endif
     }
     mutex_.unlock();
   }
