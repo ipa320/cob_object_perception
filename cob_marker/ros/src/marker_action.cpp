@@ -419,10 +419,20 @@ public:
   {
     if(!gm_) return;
     double time_before_find = ros::Time::now().toSec();
+    std::stringstream ss;
 
     std::vector<GeneralMarker::SMarker> res;
     gm_->findPattern(*msg_image, res);
-    ROS_DEBUG("\nfindPattern finished: runtime %f s ; %d pattern found", (ros::Time::now().toSec() - time_before_find), (int)res.size());
+    ROS_INFO("\nfindPattern finished: runtime %f s ; %d pattern found", (ros::Time::now().toSec() - time_before_find), (int)res.size());
+    if((int)res.size() > 0)
+    {
+        ROS_INFO("found %d pattern in %f s", (int)res.size(), (ros::Time::now().toSec() - time_before_find));
+	for(int k = 0; k < (int)res.size(); k++)
+        {
+            ss << res[k].code_.c_str() <<", ";
+        }
+	ROS_INFO("%s",ss.str().c_str());
+    }
 
     PointCloud pc;
     if(res.size()>0)
@@ -494,17 +504,21 @@ public:
       Eigen::Quaternionf q2(M);
 
       //TODO: please change to ROS_DEBUG
-      std::stringstream ss;
+      ss.clear();
+      ss.str("");
       ss<<"E\n"<<pca1.getEigenVectors()<<"\n";
       ss<<"E\n"<<pca2.getEigenVectors()<<"\n";
       ss<<"E\n"<<pca1.getEigenValues()<<"\n";
       ss<<"E\n"<<pca2.getEigenValues()<<"\n";
       ROS_DEBUG("%s",ss.str().c_str());
-
-      std::cout<<"M\n"<<M2<<"\n";
-      std::cout<<"d\n"<<M.col(0).dot(M.col(1))<<"\n";
-      std::cout<<"d\n"<<M.col(0).dot(M.col(2))<<"\n";
-      std::cout<<"d\n"<<M.col(1).dot(M.col(2))<<"\n";
+      
+      ss.clear();
+      ss.str("");
+      ss<<"M\n"<<M2<<"\n";
+      ss<<"d\n"<<M.col(0).dot(M.col(1))<<"\n";
+      ss<<"d\n"<<M.col(0).dot(M.col(2))<<"\n";
+      ss<<"d\n"<<M.col(1).dot(M.col(2))<<"\n";
+      ROS_DEBUG("%s",ss.str().c_str());
       //std::cout<<"m\n"<<m<<"\n";
 
       cob_object_detection_msgs::Detection det;
