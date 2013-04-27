@@ -6,7 +6,7 @@
 	<remap from="/camera/depth/points" to="/cam3d/depth/points"/>
 	<param name="algorithm" value="dmtx" />
 	<param name="frame_id" value="/cam3d_link"/>
-	<param name="dmtx_timeout" value="5.0" />
+	<param name="dmtx_timeout" value="3.0" />
 	<param name="dmtx_max_markers" value="1" />
   </node>
 

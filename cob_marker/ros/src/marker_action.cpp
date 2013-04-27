@@ -111,7 +111,7 @@ public:
   }
 };
 
-#define TEST
+//#define TEST
 
 template<typename Parent>
 class Qr_Node : public Parent
@@ -181,6 +181,9 @@ public:
     delete sync_;
     delete gm_;
   }
+<include file="$(find cob_bringup)/tools/teleop.launch" >
+                        <arg name="robot" value="$(arg robot)" />
+                </include>
 
   void onInit() {
     this->start();
@@ -422,7 +425,7 @@ public:
 
     std::vector<GeneralMarker::SMarker> res;
     gm_->findPattern(*msg_image, res);
-    ROS_DEBUG("\nfindPattern finished: runtime %f s ; %d pattern found", (ros::Time::now().toSec() - time_before_find), (int)res.size());
+    ROS_INFO("\nfindPattern finished: runtime %f s ; %d pattern found", (ros::Time::now().toSec() - time_before_find), (int)res.size());
 
     PointCloud pc;
     if(res.size()>0)
