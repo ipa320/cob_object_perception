@@ -29,6 +29,9 @@ rosbuild_add_executable(cob_marker
 	common/src/MagickBitmapSource.cpp
 )
 
+rosbuild_add_boost_directories()
+rosbuild_link_boost(cob_marker signals)
+
 target_link_libraries(cob_marker dmtx)
 
 # rostest
