@@ -70,6 +70,8 @@
 #include <pcl/ros/conversions.h>
 #include <pcl/common/pca.h>
 #include <tf/transform_broadcaster.h>
+#include <boost/functional/hash.hpp>
+#include <visualization_msgs/Marker.h>
 
 
 #include <cob_object_detection_msgs/DetectObjectsAction.h>
@@ -131,6 +133,7 @@ class Qr_Node : public Parent
   ros::Subscriber img_sub_;
   ros::Publisher  detection_pub_;
   ros::Publisher test_pub_;
+  ros::Publisher vis_marker_pub_;
   
   tf::TransformBroadcaster br_;
 
@@ -181,9 +184,6 @@ public:
     delete sync_;
     delete gm_;
   }
-<include file="$(find cob_bringup)/tools/teleop.launch" >
-                        <arg name="robot" value="$(arg robot)" />
-                </include>
 
   void onInit() {
     this->start();
@@ -211,6 +211,7 @@ public:
     else {
       img_sub_ = n->subscribe("/camera/rgb/image_color", 2, &Qr_Node::callback_img, this);
     }
+    vis_marker_pub_ = n->advertise<visualization_msgs::Marker>("vis_marker",0);
 
 #ifndef TEST
     unsubscribe();
@@ -525,11 +526,40 @@ public:
       result_.object_list.detections.push_back(det);
 
 
+
+      boost::hash<std::string> marker_hash;
+
+      visualization_msgs::Marker marker;
+      marker.header.frame_id = tf_frame;
+      marker.header.stamp = ros::Time();
+      marker.ns = "cob_marker";
+      marker.id = marker_hash(res[i].code_.substr(0,3));
+      marker.type = visualization_msgs::Marker::ARROW;
+      marker.action = visualization_msgs::Marker::ADD;
+      marker.pose.position.x = m(0);
+      marker.pose.position.y = m(1);
+      marker.pose.position.z = m(2);
+      marker.pose.orientation.x = q2.w();
+      marker.pose.orientation.y = q2.x();
+      marker.pose.orientation.z = q2.y();
+      marker.pose.orientation.w = q2.z();
+      marker.scale.x = 0.1;
+      marker.scale.y = 0.1;
+      marker.scale.z = 0.3;
+      marker.color.a = 1.0;
+      marker.color.r = 0.0;
+      marker.color.g = 0.0;
+      marker.color.b = 1.0;
+      vis_marker_pub_.publish(marker);
+
+
       //tf broadcaster for debuggin
+      #ifdef TEST
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
-      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].code_.substr(0,3)));
+      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].timeoutcode_.substr(0,3)));
+      #endif
     }
     mutex_.unlock();
   }
