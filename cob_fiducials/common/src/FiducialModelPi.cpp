@@ -853,7 +853,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		cv::Mat rot_3x3_CfromO;
 		cv::Rodrigues(tag_pose.rot, rot_3x3_CfromO);
 
-		if (!ProjectionValid(rot_3x3_CfromO, tag_pose.trans, GetCameraMatrix(), pattern_coords, image_coords))
+		cv::Mat reprojection_matrix = GetCameraMatrix();
+		if (!ProjectionValid(rot_3x3_CfromO, tag_pose.trans, reprojection_matrix, pattern_coords, image_coords))
 			continue;
 
 		ApplyExtrinsics(rot_3x3_CfromO, tag_pose.trans);

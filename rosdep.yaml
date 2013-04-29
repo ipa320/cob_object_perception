@@ -4,7 +4,7 @@ leptonica:
   ubuntu: libleptonica-dev
 libdmtx-dev:
   ubuntu: libdmtx-dev
-libmagick++-dev:
+libmagick-dev:
   ubuntu: libmagick++-dev
 ant:
   ubuntu: ant

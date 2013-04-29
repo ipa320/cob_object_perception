@@ -2,9 +2,9 @@
 <launch>
 
   <!-- topic identifying the rgb source -->
-  <!--arg name="rgb_topic" default="/cam3d/rgb/" /-->
+  <arg name="rgb_topic" default="/cam3d/rgb/" />
   <!-- arg name="rgb_topic" default="/camera/rgb/" /-->
-  <arg name="rgb_topic" default="/stereo/left/" />
+  <!--arg name="rgb_topic" default="/stereo/left/" /-->
   <!--arg name="rgb_topic" default="/stereo/right/" /-->
 
   <!-- send parameters to parameter server -->

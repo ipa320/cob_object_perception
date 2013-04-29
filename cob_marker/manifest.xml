@@ -21,6 +21,7 @@
   <depend package="visualization_msgs"/>
   <depend package="actionlib"/>
   <depend package="libzxing"/>
+  <depend package="image_transport"/>
 
   <rosdep name="libdmtx-dev"/>
 

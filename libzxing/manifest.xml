@@ -9,7 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/libzxing</url>
 
-  <rosdep name="libmagick++-dev" />
+  <rosdep name="libmagick-dev" />
   <rosdep name="ant" />
   <rosdep name="scons" />
   <rosdep name="openjdk-6-jdk" />

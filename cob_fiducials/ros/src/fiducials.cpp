@@ -59,7 +59,6 @@
 // ROS includes
 #include <ros/ros.h>
 //#include <nodelet/nodelet.h>
-#include <cv_bridge/CvBridge.h>
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
 #include <message_filters/subscriber.h>
@@ -71,6 +70,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 #include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
 
 // ROS message includes
 #include <sensor_msgs/Image.h>
@@ -138,7 +138,6 @@ private:
     image_transport::Publisher img2D_pub_; ///< Publishes 2D image data to show detection results
 
     cv::Mat color_mat_8U3_;
-    IplImage* color_image_8U3_;	///< Received color image
     cv::Mat camera_matrix_;
     bool camera_matrix_initialized_;
 
@@ -154,7 +153,6 @@ private:
     unsigned int prev_marker_array_size_; ///< Size of previously published marker array
     visualization_msgs::MarkerArray marker_array_msg_;
 
-    sensor_msgs::CvBridge cv_bridge_0_; ///< Converts ROS image messages to openCV IplImages
     static std::string color_image_encoding_; ///< Color encoding of incoming messages
     CobFiducialsNode::t_Mode ros_node_mode_;	///< Specifys if node is started as topic or service
     std::string model_directory_; ///< Working directory, from which models are loaded and saved
@@ -169,8 +167,7 @@ public:
     /// Constructor.
     CobFiducialsNode(ros::NodeHandle& nh)
         : sub_counter_(0),
-          endless_counter_(0),
-          color_image_8U3_(0)
+          endless_counter_(0)
     {
         camera_matrix_initialized_ = false;
         /// Void
@@ -306,10 +303,20 @@ public:
             }
 
             // Receive
-            color_image_8U3_ = cv_bridge_0_.imgMsgToCv(color_camera_data, "bgr8");
+            cv_bridge::CvImageConstPtr cv_ptr;
+            try
+            {
+              cv_ptr = cv_bridge::toCvShare(color_camera_data, sensor_msgs::image_encodings::BGR8);
+            }
+            catch (cv_bridge::Exception& e)
+            {
+              ROS_ERROR("cv_bridge exception: %s", e.what());
+              return;
+            }
+
             received_timestamp_ = color_camera_data->header.stamp;
             received_frame_id_ = color_camera_data->header.frame_id;
-            cv::Mat tmp = color_image_8U3_;
+            cv::Mat tmp = cv_ptr->image;
             color_mat_8U3_ = tmp.clone();
 
             if (ros_node_mode_ == MODE_TOPIC || ros_node_mode_ == MODE_TOPIC_AND_SERVICE)
