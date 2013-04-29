@@ -7,6 +7,8 @@
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialTestingEnvironment.h"
 #endif
 
+#include <opencv/highgui.h>
+
 using namespace ipa_Fiducials;
 
 FiducialTestingEnvironment::FiducialTestingEnvironment(cv::Mat& camera_matrix)
@@ -26,7 +28,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 		return ipa_Utils::RET_FAILED;
 
 	// ----------------------------------- Load images -----------------------------------------
-	std::string dataset_name = "dataset_130311";
+	std::string dataset_name = "dataset_170413";
 	std::string filename_prefix = "ConfigurationFiles/fiducials/" + dataset_name + "/";
 
 	bool load_next_image = true;

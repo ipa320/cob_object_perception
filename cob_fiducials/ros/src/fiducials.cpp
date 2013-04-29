@@ -388,7 +388,7 @@ public:
         unsigned int marker_array_size = 0;
         unsigned int pose_array_size = 0;
 
-        // Detect fiducials
+        // Detect fiducials and assign results
         std::vector<ipa_Fiducials::t_pose> tags_vec;
         std::vector<std::vector<double> >vec_vec7d;
         if (m_pi_tag->GetPose(color_image, tags_vec) & ipa_Utils::RET_OK)
