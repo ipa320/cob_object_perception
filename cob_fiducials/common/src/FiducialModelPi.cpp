@@ -141,8 +141,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 // ------------ Fiducial corner extraction --------------------------------------
 	std::vector<std::vector<cv::Point2f> > marker_lines;
-	int max_pixel_dist_to_line = 2; // 2  [px]
-	int max_ellipse_difference = 7; // 11 [px]
+	int max_pixel_dist_to_line; // Will be set automatically
+	int max_ellipse_difference; // Will be set automatically
 	// Compute area
 	std::vector<double> ref_A;
 	for(unsigned int i = 0; i < ellipses.size(); i++)
@@ -153,6 +153,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		for(unsigned int j = i+1; j < ellipses.size(); j++)
 		{
 			// Check area
+			max_ellipse_difference = 0.5 * std::min(ref_A[i], ref_A[j]);
 			if (std::abs(ref_A[i] - ref_A[j]) >  max_ellipse_difference)
 				continue;
 
@@ -169,6 +170,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			for(unsigned int k = 0; k < ellipses.size() && nLine_Candidates < 2; k++)
 			{
 				// Check area
+				max_ellipse_difference = 0.5 * std::min(ref_A[j], ref_A[k]);
 				if (std::abs(ref_A[j] - ref_A[k]) >  max_ellipse_difference)
 					continue;
 
@@ -186,12 +188,15 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 				cv::Point2f vec_KprojK = proj_k - ellipses[k].center; 
 				double d_k_sqr = (vec_KprojK.x*vec_KprojK.x) + (vec_KprojK.y*vec_KprojK.y);
 				
+				max_pixel_dist_to_line = std::sqrt(std::min(ellipses[k].size.height, ellipses[k].size.width));
+				max_pixel_dist_to_line = std::max(2, max_pixel_dist_to_line);
 				if (d_k_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 					continue;
 
 				for(unsigned int l = k+1; l < ellipses.size() && nLine_Candidates < 2; l++)
 				{
 					// Check area
+					max_ellipse_difference = 0.5 * std::min(ref_A[k], ref_A[l]);
 					if (std::abs(ref_A[k] - ref_A[l]) >  max_ellipse_difference)
 						continue;
 
@@ -208,6 +213,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					cv::Point2f proj_l = ellipses[i].center + vec_IJ * t_l;
 					cv::Point2f vec_LprojL = proj_l - ellipses[l].center; 
 					double d_l_sqr = (vec_LprojL.x*vec_LprojL.x) + (vec_LprojL.y*vec_LprojL.y);
+
+					max_pixel_dist_to_line = std::sqrt(std::min(ellipses[l].size.height, ellipses[l].size.width));
+					max_pixel_dist_to_line = std::max(2, max_pixel_dist_to_line);
 					if (d_l_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 						continue;
 
@@ -247,7 +255,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 
 // ------------ Fiducial line association --------------------------------------
-	double cross_ratio_max_dist = 0.02;
+	double cross_ratio_max_dist = 0.03;
 	std::vector<t_pi> final_tag_vec;
 
 	for (unsigned int i = 0; i < m_ref_tag_vec.size(); i++)
