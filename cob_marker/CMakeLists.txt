@@ -25,14 +25,12 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_gensrv()
 
 rosbuild_add_executable(cob_marker
-	ros/src/marker_action.cpp
+	ros/src/marker_action_new.cpp
 	common/src/MagickBitmapSource.cpp
 )
 
-rosbuild_add_boost_directories()
-rosbuild_link_boost(cob_marker signals)
-
 target_link_libraries(cob_marker dmtx)
+rosbuild_link_boost(cob_marker signals)
 
 # rostest
 rosbuild_add_roslaunch_check(ros/launch)

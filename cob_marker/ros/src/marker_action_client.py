@@ -12,7 +12,7 @@ def marker_client():
     client.wait_for_server()
 
     goal = cob_object_detection_msgs.msg.DetectObjectsGoal()
-    goal.object_name.data = "MAG"
+    goal.object_name.data = "KFP"
 
     client.send_goal(goal)
 
