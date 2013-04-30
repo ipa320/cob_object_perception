@@ -180,7 +180,7 @@ void DetectText::detect_original_epshtein()
 		if (debug["showEdge"] == true)
 			cv::imshow("original", originalImage_);
 		cv::Mat dummy = originalImage_.clone();
-		//cv::bilateralFilter(dummy, originalImage_, 7, 20, 50); // sensor noise
+//		cv::bilateralFilter(dummy, originalImage_, 7, 20, 50); // sensor noise
 		cv::bilateralFilter(dummy, originalImage_, 13, 40, 10); // sensor noise
 //		originalImage_ = sharpenImage(originalImage_);
 //		dummy = originalImage_.clone();
@@ -785,11 +785,116 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 
 cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 {
+	cv::Mat edgemap;
+
+//	// edgemap with color segmentation
+//	cv::Mat segmentation;
+//
+//	cv::Canny(segmentation, edgemap, cannyThreshold2, cannyThreshold1);
+//
+//	return edgemap;
+
+//	// edgemap with toggle-mapping
+//	int minimalContrast = 16;
+//	double p = 0.8;
+//	cv::Mat dilation, erosion, segmentation(grayImage_.rows, grayImage_.cols, CV_8UC1);
+//	cv::dilate(grayImage_, dilation, cv::Mat());
+//	cv::erode(grayImage_, erosion, cv::Mat());
+//
+//	for (int v=0; v<grayImage_.rows; v++)
+//	{
+//		for (int u=0; u<grayImage_.cols; u++)
+//		{
+//			int contrast = std::abs<int>((int)erosion.at<uchar>(v,u)-(int)dilation.at<uchar>(v,u));
+//			if (contrast < minimalContrast)
+//				segmentation.at<uchar>(v,u) = 0;
+//			else
+//			{
+//				if ((double)std::abs<int>((int)erosion.at<uchar>(v,u)-(int)grayImage_.at<uchar>(v,u)) < p*(double)std::abs<int>((int)dilation.at<uchar>(v,u)-(int)grayImage_.at<uchar>(v,u)))
+//					segmentation.at<uchar>(v,u) = 128;
+//				else
+//					segmentation.at<uchar>(v,u) = 255;
+//			}
+//		}
+//	}
+//
+//	cv::imshow("segmentation before", segmentation);
+//	cv::waitKey();
+//
+////	// fill black regions inside white regions
+////	for (int v=1; v<segmentation.rows-1; v++)
+////	{
+////		for (int u=1; u<segmentation.cols-1; u++)
+////		{
+////			if (segmentation.at<uchar>(v,u) == 0)
+////			{
+////				// check neighborhood for white pixel
+////				bool foundWhitePixel = false;
+////				for (int kv=-1; foundWhitePixel==false && kv<=1; kv++)
+////					for (int ku=-1; foundWhitePixel==false && ku<=1; ku++)
+////						if (segmentation.at<uchar>(v+kv,u+ku) == 255)
+////							foundWhitePixel = true;
+////				if (foundWhitePixel == true)
+////					segmentation.at<uchar>(v,u) = 255;
+////			}
+////		}
+////	}
+//
+//	std::vector< std::vector<cv::Point> > contours;
+//	cv::Mat segmentation_copy = segmentation.clone();
+//	for (int v=0; v<segmentation_copy.rows; v++)
+//	{
+//		for (int u=0; u<segmentation_copy.cols; u++)
+//		{
+//			if (segmentation_copy.at<uchar>(v,u) != 0)
+//				segmentation_copy.at<uchar>(v,u) = 1;
+//		}
+//	}
+//	cv::Mat segmentation_copy2 = 255*segmentation_copy.clone();
+//	cv::imshow("segmentation_copy", segmentation_copy2);
+//	cv::waitKey();
+//	cv::findContours(segmentation_copy, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+//	cv::drawContours(segmentation_copy2, contours, -1, cv::Scalar(128), 1);
+//	cv::imshow("segmentation_copy2", segmentation_copy2);
+//	cv::waitKey();
+//
+//	for (unsigned int i=0; i<contours.size(); i++)
+//	{
+//		int colorCounter128 = 0, colorCounter255 = 0;
+//		for (unsigned int j=0; j<contours[i].size(); j++)
+//		{
+//			if (segmentation.at<uchar>(contours[i][j]) == 128)
+//				colorCounter128++;
+//			else if (segmentation.at<uchar>(contours[i][j]) == 255)
+//				colorCounter255++;
+//		}
+//		if (colorCounter128 > colorCounter255)
+//			cv::drawContours(segmentation, contours, i, cv::Scalar(128), CV_FILLED);
+//		else
+//			cv::drawContours(segmentation, contours, i, cv::Scalar(255), CV_FILLED);
+//
+//		cv::imshow("segmentation", segmentation);
+//		cv::waitKey();
+//	}
+//
+//
+//	cv::Canny(segmentation, edgemap, cannyThreshold2, cannyThreshold1);
+//
+//	return edgemap;
+
+
+
+	// ====== edgemap with canny edge ======
+
 	//  cannyThreshold1 = 120; // default: 120
 	//  cannyThreshold2 = 50; // default: 50 , cannyThreshold1 > cannyThreshold2
 
-	cv::Mat edgemap;
 	// cv::blur(grayImage_, edgemap, cv::Size(3, 3));
+//	cv::Mat temp;
+//	cv::adaptiveThreshold(grayImage_, temp, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 31, 0);
+//	cv::imshow("adaptive", temp);
+//	cv::waitKey();
+//	cv::Canny(temp, edgemap, cannyThreshold2, cannyThreshold1);
 	cv::Canny(grayImage_, edgemap, cannyThreshold2, cannyThreshold1);
 
 	if (debug["showEdge"] == true)

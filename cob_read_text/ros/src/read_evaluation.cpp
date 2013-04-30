@@ -130,12 +130,17 @@ int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectan
 		// run read_text
 		std::string imgpath = path.substr(0, path.find_last_of("/") + 1);
 		imgpath.append(images[imageIndex].img_name);
-		std::string cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " " + ros::package::getPath("cob_read_text_data")
-				+ "/fonts/new_correlation.txt " + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
-		cmd_.append(" eval");
-		if (evaluateOCR == false)
-			cmd_.append(" OCRoff");
-//		std::string cmd_ = "/home/rbormann/git/ccv/ccv/bin/swtdetect " + imgpath;
+		std::string cmd_;
+		if (true)
+		{
+			cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " " + ros::package::getPath("cob_read_text_data")
+					+ "/fonts/new_correlation.txt " + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
+			cmd_.append(" eval");
+			if (evaluateOCR == false)
+				cmd_.append(" OCRoff");
+		}
+		else
+			cmd_ = "/home/rbormann/git/ccv/ccv/bin/swtdetect " + imgpath;
 		std::cout << "cmd_: " << cmd_ << std::endl;
 		if (system(cmd_.c_str()) != 0)
 			std::cout << "Error occurred while running text_detect" << std::endl;
