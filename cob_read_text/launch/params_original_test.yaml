@@ -109,7 +109,7 @@ distanceRatioParameter: 3.1 #2.9 #3.0  #2.9 #2.5
 
 # comparison between median sw of components, default: 2.5
 # double
-medianSwParameter: 1.5 #2.0
+medianSwParameter: 1.8 #1.5 #2.0
 
 # maximum diagonal ratio, default 2.0
 # double

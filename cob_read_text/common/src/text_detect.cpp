@@ -1024,8 +1024,8 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 			}
 			double adx = std::abs(ciTheta);
 			double ady = std::abs(siTheta);
-			double sx = ciTheta > 0 ? -searchDirection : searchDirection;
-			double sy = siTheta > 0 ? -searchDirection : searchDirection;
+			double sx = ciTheta > 0 ? searchDirection : -searchDirection;
+			double sy = siTheta > 0 ? searchDirection : -searchDirection;
 			double err = adx - ady, e2 = 0.;
 
 			pointStack.push_back(cv::Point(currX, currY));
@@ -1235,9 +1235,9 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 				pStack[stackPointer] = x;
 				pStack[stackPointer + 1] = y;
 
-//				double componentMeanIntensity = 0.;
-//				cv::Point3d componentMeanColor(0.,0.,0.);
-//				int addedPixels = 0;
+				double componentMeanIntensity = 0.;
+				cv::Point3d componentMeanColor(0.,0.,0.);
+				int addedPixels = 0;
 
 				while (stackPointer >= 0)
 				{
@@ -1272,30 +1272,30 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 							float sw1 = swtmap.at<float>(ny, nx);
 							//float meanStrokeWidth = swtmap.at<float>(y, x);
 
-//							// compute mean color and intensity for pixel (nx,ny)
-//							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
-//							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
-//							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
-//							{
-//								int my = ny + offsetY8[i];
-//								int mx = nx + offsetX8[i];
-//								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
-//									continue;
-//								intensity += (double)grayImage_.at<unsigned char>(my, mx);
-//								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
-//							}
-//							intensity /= (nNeighbors + 1.);
-//							color *= 1./(nNeighbors + 1.);
-//							if (componentMeanIntensity == 0.)
-//							{
-//								componentMeanIntensity = intensity;
-//								componentMeanColor = color;
-//							}
+							// compute mean color and intensity for pixel (nx,ny)
+							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
+							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
+							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
+							{
+								int my = ny + offsetY8[i];
+								int mx = nx + offsetX8[i];
+								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
+									continue;
+								intensity += (double)grayImage_.at<unsigned char>(my, mx);
+								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
+							}
+							intensity /= (nNeighbors + 1.);
+							color *= 1./(nNeighbors + 1.);
+							if (componentMeanIntensity == 0.)
+							{
+								componentMeanIntensity = intensity;
+								componentMeanColor = color;
+							}
 
 							// do the pixels have similar stroke width?
-							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth)) // ||		// todo: ratio between a mean value over the component and sw1 better?
-								//	(std::max(sw1, meanStrokeWidth) <= 1.5*swCompareParameter * std::min(sw1, meanStrokeWidth) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
-								//	(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
+							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth) ||		// todo: ratio between a mean value over the component and sw1 better?
+									(std::max(sw1, meanStrokeWidth) <= 1.5*swCompareParameter * std::min(sw1, meanStrokeWidth) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
+									(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
 							{
 //								if (processing_method_ == ORIGINAL_EPSHTEIN)
 //								{
@@ -1747,7 +1747,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 			// rule 1b: height ratio between two letters must be small enough
 			if (processing_method_==ORIGINAL_EPSHTEIN)
-				if ((double)std::max(iRect.height, jRect.height) > 1.7/*2.0*/ * (double)std::min(iRect.height, jRect.height))
+				if ((double)std::max(iRect.height, jRect.height) > /*1.7*/2.2 * (double)std::min(iRect.height, jRect.height))
 					continue;
 
 			// rule 1c: vertical overlap should be large
