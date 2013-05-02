@@ -159,16 +159,22 @@ public:
 //			}
 //		}
 
-		//compute depth_image: gryevalue corresponds to depth z
+		//compute depth_image: greyvalue corresponds to depth z
 		cv::Mat depth_image = cv::Mat::zeros(cloud->height, cloud->width, CV_32FC1);
 				for (unsigned int v=0; v<cloud->height; v++)
 				{
 					for (unsigned int u=0; u<cloud->width; u++)
 					{
 						pcl::PointXYZRGB point = (*cloud)(u,v);
-						depth_image.at< float >(v,u) = point.z;
+						if(std::isnan(point.z) == false)
+							depth_image.at< float >(v,u) = point.z;
+						//std::cout << "di: " << depth_image.at< float >(v,u )<<"\n";
+						//std::cout << "point: " << point.z <<"\n";
 					}
 				}
+
+		//std::cout << depth_image.at< float >(100,100 )<<"\n";
+
 
 		surface_classification_.testFunction(color_image, cloud, depth_image);
 

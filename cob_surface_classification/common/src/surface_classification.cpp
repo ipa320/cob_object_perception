@@ -59,6 +59,14 @@
 
 #include <cob_surface_classification/surface_classification.h>
 
+cv::Mat grad;
+
+
+static void onMouse( int event, int x,int y,int,void*)
+{
+	cv::imwrite("Sobelimage.png", grad);
+}
+
 
 void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Mat& depth_image)
 {
@@ -71,21 +79,115 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 	std::vector<int> test;
 	test.size();
 
-	// eigener code
-	cv::imshow("image", color_image);
-	cv::waitKey(10);
 
 
 
-	//computeFPFH(pointcloud);
+
+
 
 	//--------------------------------------------------------------------
 	//computations with depth_image
 	//----------------------------------------------------------------------
 
+	//compute Sobel and Laplacian
+	//derivatives(color_image,depth_image);
+
+	//draw two perpendicular lines into the image, and approximate the depth along these lines by linear regression.
+	depth_along_lines(color_image, depth_image);
+
+
+	//visualization
+	cv::imshow("image", color_image);
+	cv::waitKey(10);
+
+	cv::imshow("depth_image", depth_image);
+	cv::waitKey(10);
+
+}
+
+
+
+
+void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image)
+{
+	int lineLength = 60;
+	cv::Point2f dotLeft(color_image.cols/2 -lineLength/2, color_image.rows/2);
+	cv::Point2f dotRight(color_image.cols/2 +lineLength/2, color_image.rows/2);
+	cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
+	cv::Point2f dotUp(color_image.cols/2 , color_image.rows/2 +lineLength/2);
+	cv::Point2f dotDown(color_image.cols/2 , color_image.rows/2 -lineLength/2);
+	cv::line(color_image,dotUp,dotDown,CV_RGB(0,1,0),1);
+	cv::Point2f dotMiddle(color_image.cols/2 , color_image.rows/2 );
+
+	//write depth of points along the line into a matrix
+	//format of one line: [coordinate along the line, depth coordinate, 1]
+	cv::Mat coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
+	cv::LineIterator xIter (depth_image,dotLeft,dotRight);
+
+
+	for(int v=0; v<xIter.count; v++, ++xIter)
+	{
+		//anstatt dem Index in x-Richtung die Koordinate in x-Richtung nehmen!!!!
+		coordinates.at<float>(v,0) = xIter.pos().x;	//coordinate along the line
+		coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().x, xIter.pos().y);	//depth coordinate
+		coordinates.at<float>(v,2) = 1.0;
+	}
+
+	//std::cout << "coordinates: \n" << coordinates << "\n";
+
+	cv::Mat sv;	//singular values
+	cv::Mat u;	//left singular vectors
+	cv::Mat vt;	//right singular vectors, transposed, 3x3
+	cv::SVD::compute(coordinates,sv,u,vt);
+
+	//std::cout << "SVD: \n" << vt << "\n";
+
+	//last column of v = last row of vt is x, so that y is minimal
+	cv::Mat abc; //parameters of the approximated line: aw+bz+1 = 0
+	abc =  vt.row(2);
+
+	//std::cout << "param: \n" << abc << "\n";
+
+	//plot z over w, draw estimated lines
+	int windowX = 600;	//size of window in x-direction
+	int windowY = 600;
+	int scaleDepth = 200;
+	cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+
+	cv::Mat wCoordNorm,zCoord;
+	//scale and shift x-values for visualization
+	cv::normalize(coordinates.col(0),wCoordNorm,0,windowX,cv::NORM_MINMAX);
+
+	//compute shift and scale parameters of wCoordNorm
+	float min = color_image.cols/2 -lineLength/2; //s.o.
+	float max = color_image.cols/2 +lineLength/2;
+	float scaleX = windowX /(max-min);
+
+
+	zCoord = coordinates.col(1) ;
+	for(int v=0; v< coordinates.rows; v++)
+	{
+		//scale z-value for visualization
+		cv::circle(plotZW,cv::Point2f(wCoordNorm.at<float>(v),zCoord.at<float>(v) * scaleDepth),1,CV_RGB(255,255,255),2);
+	}
+
+
+	float x1 =( 0 - min)*scaleX;
+	float x2 = ((-abc.at<float>(2)/abc.at<float>(0))-min) *scaleX;
+	cv::line(plotZW,cv::Point2f(x1 ,(-abc.at<float>(2)/abc.at<float>(1)) *scaleDepth ), cv::Point2f(x2 ,0 ),CV_RGB(255,255,255),1);
+
+
+
+	cv::imshow("depth over coordinate on line",plotZW);
+	cv::waitKey(10);
+
+}
+
+void SurfaceClassification::derivatives(cv::Mat& color_image, cv::Mat& depth_image)
+{
 	//smooth image
-	cv::Mat depth_image_smooth;
-	cv::GaussianBlur( depth_image, depth_image_smooth, cv::Size(5,5), 0, 0);
+	cv::Mat depth_image_smooth = depth_image.clone();
+	cv::GaussianBlur( depth_image, depth_image_smooth, cv::Size(13,13), -1, -1);
 
 	//first derivatives with Sobel operator
 	//-----------------------------------------------------------------------
@@ -94,46 +196,96 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 
 	int scale = 1;
 	int delta = 0;
-	int ddepth = CV_32F;//CV_16S; //depth of output data
+	int ddepth = CV_32F;//CV_16S; //depth (format) of output data
 	//x-derivative:
-	cv::Sobel(depth_image_smooth,x_deriv,ddepth,2,0,3,scale,delta);	//order of derivative in x-direction: 2, in y-direction: 0
+	cv::Sobel(depth_image_smooth,x_deriv,ddepth,1,0,11,scale,delta);	//order of derivative in x-direction: 1, in y-direction: 0
 
 	//y-derivative
-	cv::Sobel(depth_image_smooth,y_deriv,ddepth,0,2,3,scale,delta);	//order of derivative in y-direction: 2, in x-direction: 0
-
+	cv::Sobel(depth_image_smooth,y_deriv,ddepth,0,1,11,scale,delta);	//order of derivative in y-direction: 1, in x-direction: 0
 
 	//compute gradient magnitude
-	cv::Mat grad;
-	cv::magnitude(x_deriv,y_deriv,grad);
+	cv::Mat  x_pow2, y_pow2;
+	//cv::magnitude(x_deriv,y_deriv,grad);
+	cv::pow(x_deriv,2.0, x_pow2);
+	cv::pow(y_deriv,2.0, y_pow2);
+	cv::sqrt(x_pow2 + y_pow2, grad);
 
-
-	//visualization
-/*	cv::imshow("depth_image", depth_image);
-	cv::waitKey(10);*/
 
 	cv::imshow("depth image smoothed", depth_image_smooth);
 	cv::waitKey(10);
 
-/*	cv::imshow("x gradient",x_deriv);
+	/*	cv::imshow("x gradient",x_deriv);
+		cv::waitKey(10);
+
+		cv::imshow("y gradient",y_deriv);
+		cv::waitKey(10);*/
+
+	cv::normalize(grad,grad,0,1,cv::NORM_MINMAX);
+	cv::setMouseCallback("Sobel",onMouse,0);
+	cv::imshow("Sobel", grad);
 	cv::waitKey(10);
 
-	cv::imshow("y gradient",y_deriv);
-	cv::waitKey(10);*/
 
-	cv::imshow("depth image gradient", grad);
-	cv::waitKey(10);
 
 	//second derivatives with Laplace operator
 	//------------------------------------------------------------------------
-	cv::Mat deriv_2;
-	int kernel_size = 3;
+	cv::Mat deriv_2,temp;
+	int kernel_size = 7;
 
-	cv::Laplacian( depth_image_smooth, deriv_2, ddepth, kernel_size, scale, delta );
+	//cv::Laplacian( depth_image_smooth, temp, ddepth, kernel_size, scale, delta );
+	//cv::normalize(deriv_2,deriv_2,-1,2,cv::NORM_MINMAX);
 
-	cv::imshow("second derivative", deriv_2);
+	cv::Mat kernel = (cv::Mat_<float>(5,5) <<  0,          0,          1,          0,          0,
+												0,          2,         -8,         2,          0,
+												1,         -8,         20,         -8,          1,
+												0,          2,         -8,          2,          0,
+												0,          0,          1,          0,          0);
+
+
+	/*cv::Mat kernel = (cv::Mat_< float >(7,7) << 0.1, 0.2, 0.5, 0.8, 0.5, 0.2, 0.1,
+			0.2, 1.1, 2.5, 2.7, 2.5, 1.1, 0.2,
+			0.5, 2.5, 0, -6.1, 0, 2.5, 0.5,
+			0.8, 2.7, -6.1, -20, -6.1, 2.7, 0.8,
+			0.5, 2.5, 0, -6.1, 0, 2.5, 0.5,
+			0.2, 1.1, 2.5, 2.7, 2.5, 1.1, 0.2,
+			0.1, 0.2, 0.5, 0.8, 0.5, 0.2, 0.1);*/
+	//LoG (Laplacian and Gaussian) with sigma = 1.4
+	/*cv::Mat kernel = (cv::Mat_< float >(9,9) << 0,0,3,2, 2, 2,3,0,0,
+													0,2,3,5, 5, 5,3,2,0,
+													3,3,5,3, 0, 3,5,3,3,
+													2,5,3,-12, -23, -12,3,5,2,
+													2,5,0,-23, -40, -23,0,5,2,
+													2,5,3,-12, -23, -12,3,5,2,
+													3,3,5,3, 0, 3,5,3,3,
+													0,2,3,5, 5, 5,3,2,0,
+													0,0,3,2, 2, 2,3,0,0);*/
+
+
+	cv::filter2D(depth_image_smooth, temp, ddepth, kernel);
+
+	float sat = 0.5;
+
+	//Bild immer zeilenweise durchgehen
+	for(int v=0; v<temp.rows; v++ )
+	{
+		for(int u=0; u< temp.cols; u++)
+		{
+			if(temp.at<float>(v,u) < -sat)
+			{
+				temp.at<float>(v,u) = - sat;
+			}
+			else if(temp.at<float>(v,u) > sat)
+			{
+				temp.at<float>(v,u) =  sat;
+			}
+		}
+	}
+	//normalize values to range between 0 and 1, so that all values can be depicted in an image
+	cv::normalize(temp,deriv_2,0,1,cv::NORM_MINMAX);
+
+	cv::imshow("Laplacian", deriv_2);
 	cv::waitKey(10);
 }
-
 
 
 
@@ -225,3 +377,5 @@ void SurfaceClassification::computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr p
 		}
 		viewer.removePointCloud("sample cloud");
 }
+
+

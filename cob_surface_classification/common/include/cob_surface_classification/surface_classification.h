@@ -84,6 +84,8 @@ public:
 
 private:
 	void computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud);
+	void derivatives(cv::Mat& color_image, cv::Mat& depth_image);
+	void depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image);
 };
 
 #endif /* SURFACE_CLASSIFICATION_H_ */
