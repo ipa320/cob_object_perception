@@ -162,6 +162,97 @@ void DetectText::detect()
 		std::cout << "DetectText::detect: Error: Desired processing method is not implemented." << std::endl;
 }
 
+
+void extractVChannel(cv::Mat& img, cv::Mat& V)
+{
+	cv::cvtColor(img, img, CV_BGR2HSV);
+
+	std::vector<cv::Mat> channels;
+	cv::split(img, channels);
+	channels[2].copyTo(V);
+
+	cv::cvtColor(img, img, CV_HSV2BGR);
+
+	return;
+
+}
+
+void subVChannel(cv::Mat& img, cv::Mat& V)
+{
+	cv::cvtColor(img, img, CV_BGR2HSV);
+
+	std::vector<cv::Mat> channels;
+	cv::split(img, channels);
+	channels[2] = V;
+	cv::merge(channels, img);
+
+	cv::cvtColor(img, img, CV_HSV2BGR);
+
+	return;
+}
+
+void dct(cv::Mat& input_img)
+{
+	cv::Mat img = cv::Mat(input_img.rows, input_img.cols, CV_8UC1);
+	if (input_img.channels() == 3)
+	{
+		extractVChannel(input_img, img);
+		std::cout << "extracting" << std::endl;
+	}
+	else
+	{
+		img = input_img;
+	}
+
+	// Dct conversion on logarithmic image
+	cv::resize(img, img, cv::Size(input_img.cols * 2, input_img.rows * 2));
+	//float mask_arr[]={-1, -1, -1 , -1 , 9 , -1, -1 , -1 ,-1};
+	//cv::Mat mask=cv::Mat(3,3,CV_32FC1,mask_arr);
+	//cv::filter2D(img,img,-1,mask);
+	cv::equalizeHist(img, img);
+	img.convertTo(img, CV_32FC1);
+	//cv::Scalar mu=cv::mean(img);
+	cv::Scalar mu, sigma;
+	cv::meanStdDev(img, mu, sigma);
+
+	double C_00 = log(mu.val[0]) * sqrt(img.cols * img.rows);
+
+	//img=img+1;
+	//cv::log(img,img);
+	//----------------------------
+	cv::pow(img, 0.2, img);
+	cv::dct(img, img);
+
+	//---------------------------------------
+	img.at<float>(0, 0) = C_00;
+	img.at<float>(0, 1) /= 50;
+	img.at<float>(0, 2) /= 50;
+
+	img.at<float>(1, 0) /= 50;
+	img.at<float>(1, 1) /= 50;
+
+	//img.at<float>(1,0)=0;
+	//--------------------------------------
+
+	cv::idct(img, img);
+	cv::normalize(img, img, 0, 255, cv::NORM_MINMAX);
+
+	cv::resize(img, img, cv::Size(img.cols / 2, img.rows / 2));
+
+	img.convertTo(img, CV_8UC1);
+	//cv::blur(img,img,cv::Size(3,3));
+
+	if (input_img.channels() == 3)
+	{
+		subVChannel(input_img, img);
+	}
+	else
+	{
+		input_img = img;
+	}
+}
+
+
 void DetectText::detect_original_epshtein()
 {
 	// clear data fields
@@ -179,12 +270,28 @@ void DetectText::detect_original_epshtein()
 	{
 		if (debug["showEdge"] == true)
 			cv::imshow("original", originalImage_);
+
+//		dct(originalImage_);
+//
+//		if (debug["showEdge"] == true)
+//			cv::imshow("original dct", originalImage_);
+
 		cv::Mat dummy = originalImage_.clone();
+//		cv::cvtColor(originalImage_, dummy, CV_BGR2Lab);	// BGR
+
+
 //		cv::bilateralFilter(dummy, originalImage_, 7, 20, 50); // sensor noise
 		cv::bilateralFilter(dummy, originalImage_, 13, 40, 10); // sensor noise
 //		originalImage_ = sharpenImage(originalImage_);
 //		dummy = originalImage_.clone();
 //		cv::bilateralFilter(dummy, originalImage_, 9, 30, 10); // sensor noise
+
+//		std::vector<cv::Mat> singleChannels;
+//		cv::split(originalImage_, singleChannels);
+//		for (int i=0; i<1; i++)
+//			cv::equalizeHist(singleChannels[i], singleChannels[i]);
+//		cv::merge(singleChannels, originalImage_);
+
 		if (debug["showEdge"] == true)
 		{
 			cv::imshow("original filtered", originalImage_);
@@ -298,7 +405,7 @@ void DetectText::detect_original_epshtein()
 
 //			std::cout << "i=" << i << "  root=" << root << "   insertIndex=" << insertIndex << "   mergedTextRegions=" << mergedTextRegions.size() << std::endl;
 
-			if (insertIndex < mergedTextRegions.size())
+			if (insertIndex < (int)mergedTextRegions.size())
 			{
 				// check whether to keep or replace the existing text region
 //				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,255));
@@ -788,11 +895,196 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 	cv::Mat edgemap;
 
 //	// edgemap with color segmentation
-//	cv::Mat segmentation;
+//	cv::Mat segmentation_(grayImage_.size(), CV_32FC1, cv::Scalar(-1));
+//	std::vector<cv::Point3d> meanColorOfSegment;
+//	std::vector<int> numberPixelsInSegment;
 //
-//	cv::Canny(segmentation, edgemap, cannyThreshold2, cannyThreshold1);
+//	int segmentationInitialVal = segmentation_.at<float>(0, 0);
+//	int offsetX8[] = {-1, 1, -1, 0, 1, -1, 0, 1};	//{ -2, -1,  0,  1,  2, -2, -1,  0,  1,  2, -2, -1,  1,  2, -2, -1,  0,  1,  2, -2, -1,  0,  1,  2 };
+//	int offsetY8[] = {0, 0, -1, -1, -1, 1, 1, 1};	//{ -2, -2, -2, -2, -2, -1, -1, -1, -1, -1,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2 };
+//	int nNeighbors = 8;//24;//8;
+//	int label = 0;
 //
-//	return edgemap;
+//	int vectorSize = segmentation_.rows * segmentation_.cols;
+//
+//	std::vector<int> pStack(vectorSize * 2);
+//	int stackPointer;
+////	std::vector<int> pVector(vectorSize * 2);
+////	int vectorPointer;
+//
+//	int currentPointX;
+//	int currentPointY;
+//	for (int y = 0; y < segmentation_.rows; y++)
+//	{
+//		for (int x = 0; x < segmentation_.cols; x++)
+//		{
+//			bool connected = false;
+//			if (segmentation_.at<float>(y, x) == segmentationInitialVal) // if pixel wasn't processed up to now
+//			{
+////				vectorPointer = 0;
+//				stackPointer = 0;
+//				pStack[stackPointer] = x;
+//				pStack[stackPointer + 1] = y;
+//
+//				cv::Point3d componentMeanColor(0.,0.,0.);
+//				int addedPixels = 0;
+//
+//				while (stackPointer >= 0)
+//				{
+//					currentPointX = pStack[stackPointer];
+//					currentPointY = pStack[stackPointer + 1];
+//					stackPointer -= 2;
+//
+////					pVector[vectorPointer] = currentPointX;
+////					pVector[vectorPointer + 1] = currentPointY;
+////					vectorPointer += 2;
+//
+//					cv::Point3d color_xy((double)originalImage_.at<bgr>(currentPointY, currentPointX).b, (double)originalImage_.at<bgr>(currentPointY, currentPointX).g, (double)originalImage_.at<bgr>(currentPointY, currentPointX).r);
+//
+//					//check which one of the neighbors have similar color and then label the regions belonging together
+//					for (int i = 0; i < nNeighbors; i++)
+//					{
+//						int ny = currentPointY + offsetY8[i];
+//						int nx = currentPointX + offsetX8[i];
+//
+//						if (ny < 0 || nx < 0 || ny >= segmentation_.rows || nx >= segmentation_.cols)
+//							continue;
+//
+//						if (segmentation_.at<float>(ny, nx) == segmentationInitialVal)
+//						{
+//							// compute mean color and intensity for pixel (nx,ny)
+//							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
+//							if (componentMeanColor.x == 0. && componentMeanColor.y == 0. && componentMeanColor.z == 0.)
+//								componentMeanColor = color;
+//
+//							// do the pixels have similar color?
+////							if ((fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
+////									(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter))
+//							if (((componentMeanColor.x-color.x)*(componentMeanColor.x-color.x)+(componentMeanColor.y-color.y)*(componentMeanColor.y-color.y)+
+//									(componentMeanColor.z-color.z)*(componentMeanColor.z-color.z) < colorCompareParameter*colorCompareParameter) &&
+//									((color_xy.x-color.x)*(color_xy.x-color.x)+(color_xy.y-color.y)*(color_xy.y-color.y)+
+//									(color_xy.z-color.z)*(color_xy.z-color.z) < 0.5*0.5*colorCompareParameter*colorCompareParameter))
+//							{
+//								segmentation_.at<float>(ny, nx) = label;
+//								stackPointer += 2;
+//								pStack[stackPointer] = nx;
+//								pStack[stackPointer + 1] = ny;
+//								connected = true;
+//
+//								// update mean intensity and color
+//								componentMeanColor = ((componentMeanColor*addedPixels) + color) * (1./(addedPixels+1.));
+//								addedPixels++;
+//							}
+//						}
+//					}// loop through neighbors
+//				}
+//
+//				if (connected)
+//				{
+//					segmentation_.at<float>(y, x) = label;
+//					meanColorOfSegment.push_back(componentMeanColor);
+//					numberPixelsInSegment.push_back(addedPixels);
+//					label++;
+//				}
+//				else
+//					// pixel had no neighbor with similar color
+//					segmentation_.at<float>(y, x) = -2;
+//			}
+//		}// loop through segmentation
+//	}
+//	// re-assign 1-pixel sized segments
+//	for (int v=0; v<segmentation_.rows; v++)
+//	{
+//		for (int u=0; u<segmentation_.cols; u++)
+//		{
+//			if (segmentation_.at<float>(v,u)==-2.f)
+//			{
+//				std::map<float, int> labelCount;
+//				for (int i = 0; i < nNeighbors; i++)
+//				{
+//					int nv = v + offsetY8[i];
+//					int nu = u + offsetX8[i];
+//
+//					if (nv < 0 || nu < 0 || nv >= segmentation_.rows || nu >= segmentation_.cols)
+//						continue;
+//
+//					float neighborValue = segmentation_.at<float>(nv,nu);
+//					if (neighborValue!=-2.f)
+//					{
+//						if (labelCount.find(neighborValue)==labelCount.end())
+//							labelCount[neighborValue] = 1;
+//						else
+//							labelCount[neighborValue]++;
+//					}
+//				}
+//				float maxLabel = -2;
+//				int maxCount = 0;
+//				for (std::map<float, int>::iterator it=labelCount.begin(); it!=labelCount.end(); it++)
+//				{
+//					if (it->second > maxCount)
+//					{
+//						maxCount = it->second;
+//						maxLabel = it->first;
+//					}
+//				}
+//				segmentation_.at<float>(v,u) = maxLabel;
+//			}
+//		}
+//	}
+//	if (debug["showEdge"] == true)
+//	{
+//		std::cout << "label=" << label << std::endl;
+//		cv::Mat segmentation_copy;
+//		cv::normalize(segmentation_, segmentation_copy, 0, 1, cv::NORM_MINMAX);
+//		cv::imshow("segmentation", segmentation_copy);
+//	}
+//	// find segment borders
+//	edgemap = cv::Mat(grayImage_.size(), CV_8UC1, cv::Scalar(0));
+//	for (int v=0; v<segmentation_.rows; v++)
+//	{
+//		for (int u=0; u<segmentation_.cols; u++)
+//		{
+//			for (int i = 0; i < nNeighbors; i++)
+//			{
+//				int nv = v + offsetY8[i];
+//				int nu = u + offsetX8[i];
+//
+//				if (nv < 0 || nu < 0 || nv >= segmentation_.rows || nu >= segmentation_.cols)
+//					continue;
+//
+//				if (numberPixelsInSegment[segmentation_.at<float>(v,u)]>numberPixelsInSegment[segmentation_.at<float>(nv,nu)]
+//						/*&& segmentation.at<float>(v,u)!=-2.f && segmentation.at<float>(nv,nu)!=-2.f*/)
+//					edgemap.at<uchar>(v,u) = 255;
+//			}
+//		}
+//	}
+//	if (debug["showEdge"] == true)
+//	{
+//		cv::imshow("color segmentation edgemap", edgemap);
+//		//cvMoveWindow("color segmentation edgemap", 0, 0);
+//	}
+//
+//	// compute gradients
+//	cv::Mat color_segmentation(segmentation_.size(), CV_8UC3);
+//	for (int v=0; v<segmentation_.rows; v++)
+//	{
+//		for (int u=0; u<segmentation_.cols; u++)
+//		{
+//			cv::Point3d& color = meanColorOfSegment[segmentation_.at<float>(v,u)];
+//			color_segmentation.at<cv::Vec3b>(v,u) = cv::Vec3b((uchar)color.x, (uchar)color.y, (uchar)color.z);
+//		}
+//	}
+//	cv::Mat gray_segmentation;
+//	cv::cvtColor(color_segmentation, gray_segmentation, CV_BGR2GRAY);
+//	if (debug["showEdge"] == true)
+//	{
+//		cv::imshow("segmentation gray scale", gray_segmentation);
+//		cv::imshow("segmentation original colors", color_segmentation);
+//	}
+//	Sobel(gray_segmentation, dx_, CV_32FC1, 1, 0, 3);
+//	Sobel(gray_segmentation, dy_, CV_32FC1, 0, 1, 3);
+
+
 
 //	// edgemap with toggle-mapping
 //	int minimalContrast = 16;
@@ -840,38 +1132,49 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 ////		}
 ////	}
 //
+////	std::vector< std::vector<cv::Point> > contours;
+////	cv::Mat segmentation_copy = segmentation.clone();
+////	for (int v=0; v<segmentation_copy.rows; v++)
+////	{
+////		for (int u=0; u<segmentation_copy.cols; u++)
+////		{
+////			if (segmentation_copy.at<uchar>(v,u) != 0)
+////				segmentation_copy.at<uchar>(v,u) = 1;
+////		}
+////	}
+////	cv::Mat segmentation_copy2 = 255*segmentation_copy.clone();
+////	cv::imshow("segmentation_copy", segmentation_copy2);
+////	cv::waitKey();
+////	cv::findContours(segmentation_copy, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+////	cv::drawContours(segmentation_copy2, contours, -1, cv::Scalar(128), 1);
+////	cv::imshow("segmentation_copy2", segmentation_copy2);
+////	cv::waitKey();
+//
 //	std::vector< std::vector<cv::Point> > contours;
+//	std::vector<cv::Vec4i> hierarchy;
 //	cv::Mat segmentation_copy = segmentation.clone();
-//	for (int v=0; v<segmentation_copy.rows; v++)
-//	{
-//		for (int u=0; u<segmentation_copy.cols; u++)
-//		{
-//			if (segmentation_copy.at<uchar>(v,u) != 0)
-//				segmentation_copy.at<uchar>(v,u) = 1;
-//		}
-//	}
-//	cv::Mat segmentation_copy2 = 255*segmentation_copy.clone();
-//	cv::imshow("segmentation_copy", segmentation_copy2);
-//	cv::waitKey();
-//	cv::findContours(segmentation_copy, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
-//	cv::drawContours(segmentation_copy2, contours, -1, cv::Scalar(128), 1);
-//	cv::imshow("segmentation_copy2", segmentation_copy2);
-//	cv::waitKey();
+//	cv::findContours(segmentation_copy, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 //
 //	for (unsigned int i=0; i<contours.size(); i++)
 //	{
-//		int colorCounter128 = 0, colorCounter255 = 0;
-//		for (unsigned int j=0; j<contours[i].size(); j++)
+//		// only for inner components
+//		if (hierarchy[i][3]!=-1)
 //		{
-//			if (segmentation.at<uchar>(contours[i][j]) == 128)
-//				colorCounter128++;
-//			else if (segmentation.at<uchar>(contours[i][j]) == 255)
-//				colorCounter255++;
+//			int colorCounter128 = 0, colorCounter255 = 0;
+//			for (unsigned int j=0; j<contours[i].size(); j++)
+//			{
+//				if (segmentation.at<uchar>(contours[i][j]) == 128)
+//					colorCounter128++;
+//				else if (segmentation.at<uchar>(contours[i][j]) == 255)
+//					colorCounter255++;
+//			}
+//			if (colorCounter128 > colorCounter255)
+//				cv::drawContours(segmentation, contours, i, cv::Scalar(128), CV_FILLED, 8, hierarchy, 2);
+//			else
+//				cv::drawContours(segmentation, contours, i, cv::Scalar(255), CV_FILLED, 8, hierarchy, 2);
 //		}
-//		if (colorCounter128 > colorCounter255)
-//			cv::drawContours(segmentation, contours, i, cv::Scalar(128), CV_FILLED);
-//		else
-//			cv::drawContours(segmentation, contours, i, cv::Scalar(255), CV_FILLED);
+////		if (hierarchy[i][3]!=-1)
+////			cv::drawContours(segmentation, contours, i, cv::Scalar(64), 1, 8, hierarchy);
 //
 //		cv::imshow("segmentation", segmentation);
 //		cv::waitKey();
@@ -977,9 +1280,10 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 		}
 
 	}
+
+
 	if (debug["showEdge"] == true)
 		cv::waitKey(0);
-
 	return edgemap;
 }
 
@@ -1065,6 +1369,10 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 
 				pointStack.push_back(cv::Point(currX, currY));
 				SwtValues.push_back(swtmap.at<float>(currY, currX));
+
+				// if the next neighbor of the start pixel on the search line is also an edge pixel, break to avoid connection of un-connected regions
+				if (fabs(currX-ix)<2.f && fabs(currY-iy)<2.f && edgemap_.at<unsigned char>(currY, currX)==255)
+					break;
 
 				bool foundEdgePoint = false;
 				// search in 5-neighborhood for suitable counter edge points
@@ -1764,7 +2072,8 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			int negativeScore = 0; //high score is bad
 
 			// rule 2: median of stroke width ratio
-			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j]))
+			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j]) &&
+					(std::abs(meanRGB_[i][3] - meanRGB_[j][3]) < 0.4*grayClrParameter && std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > 2.5 * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])))
 				negativeScore++;
 
 //			// rule 3: diagonal ratio

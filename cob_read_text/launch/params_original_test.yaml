@@ -39,11 +39,11 @@ useColorEdge: false
 
 # edgemap threshold #default: 120  #90  #160
 # int
-cannyThreshold1: 208 #214 #204
+cannyThreshold1: 250 #208 #214 #204
 
 # cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
-cannyThreshold2: 132  #78 #124
+cannyThreshold2: 75 #132  #78 #124
 
 
 #updateStrokeWidth
@@ -65,7 +65,7 @@ swCompareParameter: 3.0
 
 # parameter when comparing color between pixels, default: 100, set to 255 to deactivate
 # int
-colorCompareParameter: 50 #50
+colorCompareParameter: 50 #60 #50
 
 
 #identifyLetter

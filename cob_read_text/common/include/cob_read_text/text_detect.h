@@ -355,6 +355,7 @@ private:
 	cv::Mat dx_;
 	cv::Mat dy_;
 	std::vector<cv::Point> edgepoints_; // all points where an edge is
+	cv::Mat segmentation_;	// segmentation of the image (letters should be single segments)
 
 	// Connect Component
 	std::vector<cv::Rect> labeledRegions_; // all regions (with label) that could be a letter
