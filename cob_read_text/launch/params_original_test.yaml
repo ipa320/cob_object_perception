@@ -219,7 +219,7 @@ showChains: false
 # bool
 showBreakLines: false
 
-showWords: true
+showWords: false
 
 showCriterions: false
 
@@ -237,7 +237,7 @@ showNeighborMerging: false
 
 # show results with ocr
 # bool
-showResult: true
+showResult: false
 
 # when showing results show all image regions that probably contain text, even if ocr didn't find text
 # bool

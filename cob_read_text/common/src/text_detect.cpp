@@ -185,8 +185,7 @@ void DetectText::detect()
 			else
 			{
 				cv::Mat temp;
-				double resize_factor = pow(scale, k%3);
-				cv::resize(originalImage_, temp, cv::Size(0,0), 1./resize_factor, 1./resize_factor, cv::INTER_AREA);
+				cv::resize(originalImage_, temp, cv::Size(0,0), 1./scale, 1./scale, cv::INTER_AREA);
 				originalImage_ = temp;
 			}
 		}
