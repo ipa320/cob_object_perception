@@ -1,61 +1,61 @@
 /*!
-*****************************************************************
-* \file
-*
-* \note
-* Copyright (c) 2013 \n
-* Fraunhofer Institute for Manufacturing Engineering
-* and Automation (IPA) \n\n
-*
-*****************************************************************
-*
-* \note
-* Project name: Care-O-bot
-* \note
-* ROS stack name: cob_object_perception
-* \note
-* ROS package name: cob_surface_classification
-*
-* \author
-* Author: Richard Bormann
-* \author
-* Supervised by:
-*
-* \date Date of creation: 07.08.2012
-*
-* \brief
-* functions for display of people detections
-*
-*****************************************************************
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions are met:
-*
-* - Redistributions of source code must retain the above copyright
-* notice, this list of conditions and the following disclaimer. \n
-* - Redistributions in binary form must reproduce the above copyright
-* notice, this list of conditions and the following disclaimer in the
-* documentation and/or other materials provided with the distribution. \n
-* - Neither the name of the Fraunhofer Institute for Manufacturing
-* Engineering and Automation (IPA) nor the names of its
-* contributors may be used to endorse or promote products derived from
-* this software without specific prior written permission. \n
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License LGPL as
-* published by the Free Software Foundation, either version 3 of the
-* License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU Lesser General Public License LGPL for more details.
-*
-* You should have received a copy of the GNU Lesser General Public
-* License LGPL along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*
-****************************************************************/
+ *****************************************************************
+ * \file
+ *
+ * \note
+ * Copyright (c) 2013 \n
+ * Fraunhofer Institute for Manufacturing Engineering
+ * and Automation (IPA) \n\n
+ *
+ *****************************************************************
+ *
+ * \note
+ * Project name: Care-O-bot
+ * \note
+ * ROS stack name: cob_object_perception
+ * \note
+ * ROS package name: cob_surface_classification
+ *
+ * \author
+ * Author: Richard Bormann
+ * \author
+ * Supervised by:
+ *
+ * \date Date of creation: 07.08.2012
+ *
+ * \brief
+ * functions for display of people detections
+ *
+ *****************************************************************
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. \n
+ * - Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution. \n
+ * - Neither the name of the Fraunhofer Institute for Manufacturing
+ * Engineering and Automation (IPA) nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission. \n
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License LGPL as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License LGPL for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License LGPL along with this program.
+ * If not, see <http://www.gnu.org/licenses/>.
+ *
+ ****************************************************************/
 
 #include <cob_surface_classification/surface_classification.h>
 
@@ -167,11 +167,10 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 	//std::cout << "wCoordNorm: \n" << wCoordNorm << "\n";
 
 
-	//compute shift and scale parameters of wCoordNorm
+	//compute shift and scale parameters of wCoordNorm (as performed in cv::normalize)
 	float min = dotLeft.x; //s.o.
 	float max = dotRight.x;
 	//float scaleX = (rightBoundary-leftBoundary) /(max-min);
-
 
 	int scaleDepth = 200;
 	zCoord = coordinates.col(1) ;
@@ -184,9 +183,10 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 		cv::circle(plotZW,cv::Point2f(wCoordNorm.at<float>(v),zCoord.at<float>(v) * scaleDepth),1,CV_RGB(255,255,255),2);
 	}
 
+	//compute first and last point of the line
 	float x1 = leftBoundary;
 	float x2 = rightBoundary;
-	float z1 = (-abc.at<float>(2) - abc.at<float>(0) * min) / abc.at<float>(1);
+	float z1 = (-abc.at<float>(2) - abc.at<float>(0) * min) / abc.at<float>(1);	//line equation -> z-value for x1
 	float z2 = (-abc.at<float>(2) - abc.at<float>(0) * max) / abc.at<float>(1);
 	cv::line(plotZW,cv::Point2f(x1 ,z1 *scaleDepth ), cv::Point2f(x2 , z2 * scaleDepth ),CV_RGB(255,255,255),1);
 }
@@ -212,12 +212,12 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	cv::Mat scalarProducts (cv::Mat::zeros(windowX,windowY,CV_32FC1));
 	cv::Mat concaveConvex (cv::Mat::zeros(windowX,windowY,CV_8UC1)); 	//0:neither concave nor convex; 1:concave; 2:convex
 
-	int iX=color_image.cols/2;
-	int iY=color_image.rows/2;
-	/*for(int iY = lineLength/2; iY< windowY-lineLength/2; iY++)
+	/*	int iX=color_image.cols/2;
+	int iY=color_image.rows/2;*/
+	for(int iY = lineLength/2; iY< windowY-lineLength/2; iY++)
 	{
 		for(int iX = lineLength/2; iX< windowX-lineLength/2; iX++)
-		{*/
+		{
 			cv::Point2f dotLeft(iX -lineLength/2, iY);
 			cv::Point2f dotRight(iX +lineLength/2, iY);
 			//cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
@@ -226,40 +226,66 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			cv::Mat coordinates2 = cv::Mat::zeros(dotRight.x - dotMiddle.x,3,CV_32FC1);
 
 			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
-				approximateLine(depth_image,dotLeft,dotMiddle, abc1, coordinates1);
-				std::cout << "coordinates1: \n" << coordinates1 << "\n";
-				cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
-				approximateLine(depth_image,dotMiddle,dotRight, abc2, coordinates2);
-				std::cout << "coordinates2: \n" << coordinates2 << "\n";
+			approximateLine(depth_image,dotLeft,dotMiddle, abc1, coordinates1);
 
+			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
+			approximateLine(depth_image,dotMiddle,dotRight, abc2, coordinates2);
+
+			/*
 				drawLines(plotZW,coordinates1,abc1,dotLeft,dotMiddle,0);
-				drawLines(plotZW,coordinates2,abc2,dotMiddle,dotRight,1);
+				drawLines(plotZW,coordinates2,abc2,dotMiddle,dotRight,1);*/
 
-				/*
 
-				//compute scalar product
-				float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
-				cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
-				float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
-				cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
 
-				std::cout << "abc1: " <<abc1 << "\n";
-				//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
-				scalarProducts.at(iY,iX) = n1 * n2.t();
-				//std::cout << "scalarProduct: " <<scalarProduct << "\n";
+			//compute scalar product
+			float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
+			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
 
-				if(n1.at<float>(1) > 0 && n2.at<float>(1) < 0)
+
+			//in der Realität gibt es keine unendlich spitzen Kanten
+			//erstmal begrenzen
+			float maxInclination = 10;
+			if(std::isinf(b1))
+				b1 = maxInclination;
+			if(std::isinf(b2))
+				b2 = maxInclination;
+
+			//Richtungsvektoren der Geraden:
+			cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
+			cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
+
+			cv::Mat n1Norm, n2Norm;
+			cv::normalize(n1,n1Norm,1);
+			cv::normalize(n2,n2Norm,1);
+
+			std::cout << "n1: " <<n1<< "\n";
+			std::cout << "n2: " <<n2<< "\n";
+			//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
+			//Skalarprodukt muss zwischen 0 und 1 sein!
+			cv::Mat scalarProduct = n1Norm * n2Norm.t();
+			//std::cout << "scalarProduct: " <<scalarProduct << "\n";
+			scalarProducts.at<float>(iY,iX) = scalarProduct.at<float>(0,0);
+			/*
+
+				if(n1.at<float>(1) > 0.05 && n2.at<float>(1) < 0.05)
 				{
-					concaveConvex.at(iY,iX) = 2;
+					concaveConvex.at<float>(iY,iX) = 2;
 				}
-				else if (n1.at<float>(1) < 0 && n2.at<float>(1) > 0)
+				else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) > 0.05)
 				{
-					concaveConvex.at(iY,iX) = 1;
-				}
+					concaveConvex.at<float>(iY,iX) = 1;
+				}*/
 		}
-	}*/
-			cv::imshow("depth over coordinate along line", plotZW);
-			cv::waitKey(10);
+	}
+	//std::cout << "scalarProduct: " <<scalarProducts << "\n";
+	/*cv::imshow("depth over coordinate along line", plotZW);
+			cv::waitKey(10);*/
+
+
+	/*cv::Mat scalarProductsNorm;
+	cv::normalize(scalarProducts,scalarProductsNorm,0,1,cv::NORM_MINMAX);*/
+	cv::imshow("Skalarprodukt", scalarProducts);
+	cv::waitKey(10);
 
 
 
@@ -318,10 +344,10 @@ void SurfaceClassification::derivatives(cv::Mat& color_image, cv::Mat& depth_ima
 	//cv::normalize(deriv_2,deriv_2,-1,2,cv::NORM_MINMAX);
 
 	cv::Mat kernel = (cv::Mat_<float>(5,5) <<  0,          0,          1,          0,          0,
-												0,          2,         -8,         2,          0,
-												1,         -8,         20,         -8,          1,
-												0,          2,         -8,          2,          0,
-												0,          0,          1,          0,          0);
+			0,          2,         -8,         2,          0,
+			1,         -8,         20,         -8,          1,
+			0,          2,         -8,          2,          0,
+			0,          0,          1,          0,          0);
 
 
 	/*cv::Mat kernel = (cv::Mat_< float >(7,7) << 0.1, 0.2, 0.5, 0.8, 0.5, 0.2, 0.1,
@@ -374,90 +400,90 @@ void SurfaceClassification::derivatives(cv::Mat& color_image, cv::Mat& depth_ima
 void SurfaceClassification::computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud)
 {
 	// Create the normal estimation class, and pass the input dataset to it
-		pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+	pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
 
-		//Ptr in constPtr umwandeln
-		//pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud_cptr = pointcloud;
-		//pcl::PCLBase< pcl::PointXYZ >::PointCloudConstPtr cloudWithoutColor;
-		// pcl::copyPointCloud(*pointcloud, *cloudWithoutColor);
-		pcl::PCLBase< pcl::PointXYZRGB >::PointCloudConstPtr cloud_cptr = pointcloud;
-		ne.setInputCloud (cloud_cptr);
+	//Ptr in constPtr umwandeln
+	//pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud_cptr = pointcloud;
+	//pcl::PCLBase< pcl::PointXYZ >::PointCloudConstPtr cloudWithoutColor;
+	// pcl::copyPointCloud(*pointcloud, *cloudWithoutColor);
+	pcl::PCLBase< pcl::PointXYZRGB >::PointCloudConstPtr cloud_cptr = pointcloud;
+	ne.setInputCloud (cloud_cptr);
 
-		// Create an empty kdtree representation, and pass it to the normal estimation object.
-		// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+	// Create an empty kdtree representation, and pass it to the normal estimation object.
+	// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
 
-		pcl::KdTreeFLANN<pcl::PointXYZRGB>::Ptr tree (new pcl::KdTreeFLANN<pcl::PointXYZRGB>);
-		ne.setSearchMethod (tree);
+	pcl::KdTreeFLANN<pcl::PointXYZRGB>::Ptr tree (new pcl::KdTreeFLANN<pcl::PointXYZRGB>);
+	ne.setSearchMethod (tree);
 
-		// Output datasets
-		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+	// Output datasets
+	pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
 
-		// Use all neighbors in a sphere of radius 1cm
-		ne.setRadiusSearch (0.01);
+	// Use all neighbors in a sphere of radius 1cm
+	ne.setRadiusSearch (0.01);
 
-		// Compute the features
-		ne.compute (*cloud_normals);
-
-
-		// cloud_normals->points.size () should have the same size as the input cloud->points.size ()
-
-		std::cout << "normal estimation finished \n";
-
-		// visualize normals
-		pcl::visualization::PCLVisualizer viewer("PCL Viewer");
-		viewer.setBackgroundColor (0.0, 0.0, 0);
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(pointcloud);
+	// Compute the features
+	ne.compute (*cloud_normals);
 
 
-		viewer.addPointCloud<pcl::PointXYZRGB> (pointcloud, rgb, "sample cloud");
-		viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(pointcloud, cloud_normals,10,0.005,"normals");
-		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-		viewer.addCoordinateSystem (1.0);
-		viewer.initCameraParameters ();
+	// cloud_normals->points.size () should have the same size as the input cloud->points.size ()
+
+	std::cout << "normal estimation finished \n";
+
+	// visualize normals
+	pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+	viewer.setBackgroundColor (0.0, 0.0, 0);
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(pointcloud);
+
+
+	viewer.addPointCloud<pcl::PointXYZRGB> (pointcloud, rgb, "sample cloud");
+	viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(pointcloud, cloud_normals,10,0.005,"normals");
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
+	viewer.addCoordinateSystem (1.0);
+	viewer.initCameraParameters ();
 
 
 
-		//--------------------------------------------------------------------------------
-		//compute FPFH
+	//--------------------------------------------------------------------------------
+	//compute FPFH
 
-		// Create the FPFH estimation class, and pass the input dataset+normals to it
-		//one histogram = concatenation of the four features
-		//array of 33 values
-		pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh;
-		fpfh.setInputCloud (cloud_cptr);
-		fpfh.setInputNormals (cloud_normals);
+	// Create the FPFH estimation class, and pass the input dataset+normals to it
+	//one histogram = concatenation of the four features
+	//array of 33 values
+	pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh;
+	fpfh.setInputCloud (cloud_cptr);
+	fpfh.setInputNormals (cloud_normals);
 
-		// Create an empty kdtree representation, and pass it to the PFH estimation object.
-		// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
-		pcl::KdTreeFLANN<pcl::PointXYZRGB>::Ptr treeFPFH (new pcl::KdTreeFLANN<pcl::PointXYZRGB> ());
-		fpfh.setSearchMethod (treeFPFH);
+	// Create an empty kdtree representation, and pass it to the PFH estimation object.
+	// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+	pcl::KdTreeFLANN<pcl::PointXYZRGB>::Ptr treeFPFH (new pcl::KdTreeFLANN<pcl::PointXYZRGB> ());
+	fpfh.setSearchMethod (treeFPFH);
 
-		// Output datasets
-		pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
+	// Output datasets
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
 
-		// Use all neighbors in a sphere of radius 5cm
-		// IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
-		fpfh.setRadiusSearch (0.01);
+	// Use all neighbors in a sphere of radius 5cm
+	// IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
+	fpfh.setRadiusSearch (0.01);
 
-		// Compute the features
-		fpfh.compute (*fpfhs);
+	// Compute the features
+	fpfh.compute (*fpfhs);
 
-		// pfhs->points.size () should have the same size as the input cloud->points.size ()*
-
-
-		//visualise histogram
-		pcl::visualization::PCLHistogramVisualizer histogramViewer;
-		histogramViewer.setBackgroundColor(0,0,0);
-		histogramViewer.addFeatureHistogram(*fpfhs,33,"FPFH",640,200);
+	// pfhs->points.size () should have the same size as the input cloud->points.size ()*
 
 
-		//for updating, the window has to be closed manually
-		while (!viewer.wasStopped ())
-		{
-			viewer.spinOnce();
-			histogramViewer.spinOnce();
-		}
-		viewer.removePointCloud("sample cloud");
+	//visualise histogram
+	pcl::visualization::PCLHistogramVisualizer histogramViewer;
+	histogramViewer.setBackgroundColor(0,0,0);
+	histogramViewer.addFeatureHistogram(*fpfhs,33,"FPFH",640,200);
+
+
+	//for updating, the window has to be closed manually
+	while (!viewer.wasStopped ())
+	{
+		viewer.spinOnce();
+		histogramViewer.spinOnce();
+	}
+	viewer.removePointCloud("sample cloud");
 }
 
 
