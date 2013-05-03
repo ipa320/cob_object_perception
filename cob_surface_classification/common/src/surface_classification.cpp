@@ -105,19 +105,14 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 
 }
 
-void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side, cv::Mat& abc)
+void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc, cv::Mat& coordinates)
 {
 	/*linear regression via least squares minimisation (-> SVD)
 	 * ----------------------------------------------------------*/
 
-
-	int lineLength = dotRight.x - dotLeft.x;
-	int windowX = plotZW.cols;
-	int windowY = plotZW.rows;
-
 	//write depth of points along the line into a matrix
 	//format of one line: [coordinate along the line, depth coordinate, 1]
-	cv::Mat coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
+
 	cv::LineIterator xIter (depth_image,dotLeft,dotRight);
 
 
@@ -130,25 +125,25 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZ
 		coordinates.at<float>(v,2) = 1.0;
 	}
 
-	//std::cout << "coordinates: \n" << coordinates << "\n";
-
 	cv::Mat sv;	//singular values
 	cv::Mat u;	//left singular vectors
 	cv::Mat vt;	//right singular vectors, transposed, 3x3
 	cv::SVD::compute(coordinates,sv,u,vt);
 
-	//std::cout << "SVD: \n" << vt << "\n";
-
 	//last column of v = last row of vt is x, so that y is minimal
-	//cv::Mat abc; //parameters of the approximated line: aw+bz+1 = 0
+	//parameters of the approximated line: aw+bz+1 = 0
 	abc =  vt.row(2);
 
+}
 
-
-
+void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& abc, cv::Point2f dotLeft, cv::Point2f dotRight, int side)
+{
 	/* draw computed coordinates and approximates lines in plotZW
 	 * ------------------------------------------------------------*/
 	//projects coordinates on pixel range of window
+
+	int windowX = plotZW.cols;
+	int windowY = plotZW.rows;
 
 	cv::Mat wCoordNorm,zCoord;
 	//pixel range in window
@@ -196,50 +191,76 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZ
 	cv::line(plotZW,cv::Point2f(x1 ,z1 *scaleDepth ), cv::Point2f(x2 , z2 * scaleDepth ),CV_RGB(255,255,255),1);
 }
 
-
 void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image)
 {
 	int lineLength = 60;
+	/*
 	cv::Point2f dotLeft(color_image.cols/2 -lineLength/2, color_image.rows/2);
 	cv::Point2f dotRight(color_image.cols/2 +lineLength/2, color_image.rows/2);
 	cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
+	cv::Point2f dotMiddle(color_image.cols/2 , color_image.rows/2 );
 	cv::Point2f dotUp(color_image.cols/2 , color_image.rows/2 +lineLength/2);
 	cv::Point2f dotDown(color_image.cols/2 , color_image.rows/2 -lineLength/2);
-	cv::line(color_image,dotUp,dotDown,CV_RGB(0,1,0),1);
-	cv::Point2f dotMiddle(color_image.cols/2 , color_image.rows/2 );
+	cv::line(color_image,dotUp,dotDown,CV_RGB(0,1,0),1);*/
+
 
 	//plot z over w, draw estimated lines
 	int windowX = 600;	//size of window in x-direction
 	int windowY = 600;
 
 	cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+	cv::Mat scalarProducts (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+	cv::Mat concaveConvex (cv::Mat::zeros(windowX,windowY,CV_8UC1)); 	//0:neither concave nor convex; 1:concave; 2:convex
 
-	cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
-	approximateLine(depth_image, plotZW,dotLeft,dotMiddle, 0, abc1);
-	cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
-	approximateLine(depth_image, plotZW,dotMiddle,dotRight, 1, abc2);
-
-	//compute scalar product
-	float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
-	cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
-	float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
-	cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
-
-	std::cout << "abc1: " <<abc1 << "\n";
-	//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
-	cv::Mat scalarProduct = n1 * n2.t();
-	std::cout << "scalarProduct: " <<scalarProduct << "\n";
-
-	bool convex = false;
-	bool concave = false;
-	if(n1.at<float>(1) > 0 && n2.at<float>(1) < 0)
+	int iX=color_image.cols/2;
+	int iY=color_image.rows/2;
+	/*for(int iY = lineLength/2; iY< windowY-lineLength/2; iY++)
 	{
-		convex = true;
-	}
-	else if (n1.at<float>(1) < 0 && n2.at<float>(1) > 0)
-	{
-		concave = true;
-	}
+		for(int iX = lineLength/2; iX< windowX-lineLength/2; iX++)
+		{*/
+			cv::Point2f dotLeft(iX -lineLength/2, iY);
+			cv::Point2f dotRight(iX +lineLength/2, iY);
+			//cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
+			cv::Point2f dotMiddle(iX , iY );
+			cv::Mat coordinates1 = cv::Mat::zeros(dotMiddle.x - dotLeft.x,3,CV_32FC1);
+			cv::Mat coordinates2 = cv::Mat::zeros(dotRight.x - dotMiddle.x,3,CV_32FC1);
+
+			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
+				approximateLine(depth_image,dotLeft,dotMiddle, abc1, coordinates1);
+				std::cout << "coordinates1: \n" << coordinates1 << "\n";
+				cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
+				approximateLine(depth_image,dotMiddle,dotRight, abc2, coordinates2);
+				std::cout << "coordinates2: \n" << coordinates2 << "\n";
+
+				drawLines(plotZW,coordinates1,abc1,dotLeft,dotMiddle,0);
+				drawLines(plotZW,coordinates2,abc2,dotMiddle,dotRight,1);
+
+				/*
+
+				//compute scalar product
+				float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
+				cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
+				float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
+				cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
+
+				std::cout << "abc1: " <<abc1 << "\n";
+				//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
+				scalarProducts.at(iY,iX) = n1 * n2.t();
+				//std::cout << "scalarProduct: " <<scalarProduct << "\n";
+
+				if(n1.at<float>(1) > 0 && n2.at<float>(1) < 0)
+				{
+					concaveConvex.at(iY,iX) = 2;
+				}
+				else if (n1.at<float>(1) < 0 && n2.at<float>(1) > 0)
+				{
+					concaveConvex.at(iY,iX) = 1;
+				}
+		}
+	}*/
+			cv::imshow("depth over coordinate along line", plotZW);
+			cv::waitKey(10);
+
 
 
 }
