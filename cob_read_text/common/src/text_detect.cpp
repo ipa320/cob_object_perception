@@ -91,8 +91,6 @@ void DetectText::detect(std::string filename)
 	filename_ = filename;
 	originalImage_ = cv::imread(filename_);
 
-//	cv::resize(originalImage_, originalImage_, cv::Size(), 0.25, 0.25);
-
 	if (!originalImage_.data)
 	{
 		ROS_ERROR("Cannot read image input.");
@@ -154,12 +152,158 @@ std::vector<cv::RotatedRect>& DetectText::getBoxes()
 
 void DetectText::detect()
 {
-	if (processing_method_ == ORIGINAL_EPSHTEIN)
-		detect_original_epshtein();
-	else if (processing_method_ == BORMANN)
-		detect_bormann();
+	// === pre-processing ===
+
+	// clear data fields
+	finalBoundingBoxes_.clear();
+	finalRotatedBoundingBoxes_.clear();
+	finalBoundingBoxesQualityScore_.clear();
+
+	// start timer
+	double start_time;
+	double time_in_seconds;
+	start_time = std::clock();
+
+	preprocess();
+
+	// === text detection ===
+	// downscale image
+	cv::Mat original_image_copy = originalImage_.clone();
+	cv::Mat original_image_pyr = originalImage_.clone();
+	double scale = pow(2.,1./3.);
+	for (int k=0; k<9; k++)
+	{
+		if (k!=0)
+		{
+			if (k%3 == 0)
+			{
+				cv::Mat temp;
+				cv::pyrDown(original_image_pyr, temp);
+				originalImage_ = temp;
+				original_image_pyr = temp.clone();
+			}
+			else
+			{
+				cv::Mat temp;
+				double resize_factor = pow(scale, k%3);
+				cv::resize(originalImage_, temp, cv::Size(0,0), 1./resize_factor, 1./resize_factor, cv::INTER_AREA);
+				originalImage_ = temp;
+			}
+		}
+
+		if (processing_method_ == ORIGINAL_EPSHTEIN)
+			detect_original_epshtein(originalImage_, pow(scale, k));
+		else if (processing_method_ == BORMANN)
+			detect_bormann();
+		else
+			std::cout << "DetectText::detect: Error: Desired processing method is not implemented." << std::endl;
+
+		cv::destroyAllWindows();
+	}
+	originalImage_ = original_image_copy;
+
+	// === Post-processing ===
+	// filter boxes that lie completely inside others
+/*	for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
+	{
+		for (int j=0; j<(int)finalBoundingBoxes_.size(); j++)
+		{
+			if (j==i)
+				continue;
+			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.95*finalBoundingBoxes_[i].area())
+//			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()) && (finalBoundingBoxes_[i].area()<finalBoundingBoxes_[j].area()))
+//			if (((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[i].area() && finalBoundingBoxesQualityScore_[i]<=finalBoundingBoxesQualityScore_[j]) ||
+//					((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[j].area() && finalBoundingBoxesQualityScore_[i]<finalBoundingBoxesQualityScore_[j]))
+			{
+				finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
+				finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
+				finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
+				break;
+			}
+//			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()))
+//			{
+//				finalBoundingBoxes_[j].x = std::min(finalBoundingBoxes_[i].x, finalBoundingBoxes_[j].x);
+//				finalBoundingBoxes_[j].width = std::max(finalBoundingBoxes_[i].x+finalBoundingBoxes_[i].width, finalBoundingBoxes_[j].x+finalBoundingBoxes_[j].width) - finalBoundingBoxes_[j].x;
+//				finalBoundingBoxes_[j].y = std::min(finalBoundingBoxes_[i].y, finalBoundingBoxes_[j].y);
+//				finalBoundingBoxes_[j].height = std::max(finalBoundingBoxes_[i].y+finalBoundingBoxes_[i].height, finalBoundingBoxes_[j].y+finalBoundingBoxes_[j].height) - finalBoundingBoxes_[j].y;
+//				finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
+//				finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
+//				finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
+//				break;
+//			}
+		}
+	}*/
+
+	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
+
+	// OCR
+	if (enableOCR_ == true)
+	{
+		// ocrPreprocess(transformedBoundingBoxes_);
+		// ocrPreprocess(notTransformedBoundingBoxes_);
+
+		// delete boxes that are complete inside other boxes
+		// deleteDoubleBrokenWords(boundingBoxes_);
+
+
+		// fill textImages_ with either rectangles or rotated rectangles
+		for (size_t i = 0; i < transformedImage_.size(); i++)
+		{
+			if (transformImages)
+			{
+				cv::Mat rotatedFlippedBox;
+				cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
+				textImages_.push_back(sharpenImage(transformedImage_[i]));
+				textImages_.push_back(sharpenImage(rotatedFlippedBox));
+			}
+			else
+			{
+				textImages_.push_back(sharpenImage(notTransformedImage_[i]));
+			}
+
+			// sometimes tesseract likes gray images
+			//    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
+			//    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
+			// textImages_.push_back(sharpenImage(grayImage));
+
+			// binary image
+			// textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
+
+			// binary image #2
+		}
+
+		ocrRead(textImages_);
+	}
 	else
-		std::cout << "DetectText::detect: Error: Desired processing method is not implemented." << std::endl;
+	{
+		finalBoxes_ = finalRotatedBoundingBoxes_;
+		finalTexts_.resize(finalBoxes_.size(), "");
+	}
+
+
+	// === Post-processing ===
+
+	// Draw output on resultImage_
+	showBoundingBoxes(finalBoxes_, finalTexts_);
+
+	std::cout << "eval_: " << eval_ << std::endl;
+
+	// Write results
+	if (eval_)
+		writeTxtsForEval();
+	else
+		cv::imwrite(outputPrefix_ + "_detection.jpg", resultImage_);
+
+	// Show results
+	if (debug["showResult"])
+	{
+		cv::imshow("detection", resultImage_);
+		cvMoveWindow("detection", 0, 0);
+		cv::waitKey(0);
+	}
+
+	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
+	std::cout << std::endl << "[" << time_in_seconds << " s] total in process\n" << std::endl;
 }
 
 
@@ -253,61 +397,52 @@ void dct(cv::Mat& input_img)
 }
 
 
-void DetectText::detect_original_epshtein()
+void DetectText::detect_original_epshtein(cv::Mat& image, double scale_factor)
 {
-	// clear data fields
-	finalBoundingBoxes_.clear();
-	finalRotatedBoundingBoxes_.clear();
-	finalBoundingBoxesQualityScore_.clear();
-
-	// start timer
-	double start_time;
-	double time_in_seconds;
-	start_time = std::clock();
-
 	// Smooth image
 	if (smoothImage) // default: turned off
 	{
 		if (debug["showEdge"] == true)
-			cv::imshow("original", originalImage_);
+			cv::imshow("original", image);
 
 //		dct(originalImage_);
 //
 //		if (debug["showEdge"] == true)
 //			cv::imshow("original dct", originalImage_);
 
-		cv::Mat dummy = originalImage_.clone();
-//		cv::cvtColor(originalImage_, dummy, CV_BGR2Lab);	// BGR
+		cv::Mat dummy = image.clone();
+//		cv::cvtColor(image, dummy, CV_BGR2Lab);	// BGR
 
 
-//		cv::bilateralFilter(dummy, originalImage_, 7, 20, 50); // sensor noise
-		cv::bilateralFilter(dummy, originalImage_, 13, 40, 10); // sensor noise
-//		originalImage_ = sharpenImage(originalImage_);
-//		dummy = originalImage_.clone();
-//		cv::bilateralFilter(dummy, originalImage_, 9, 30, 10); // sensor noise
+//		cv::bilateralFilter(dummy, image, 7, 20, 50); // sensor noise
+		cv::bilateralFilter(dummy, image, 13, 40, 10); // sensor noise
+//		image = sharpenImage(image);
+//		dummy = image.clone();
+//		cv::bilateralFilter(dummy, image, 9, 30, 10); // sensor noise
 
 //		std::vector<cv::Mat> singleChannels;
-//		cv::split(originalImage_, singleChannels);
+//		cv::split(image, singleChannels);
 //		for (int i=0; i<1; i++)
 //			cv::equalizeHist(singleChannels[i], singleChannels[i]);
-//		cv::merge(singleChannels, originalImage_);
+//		cv::merge(singleChannels, image);
 
 		if (debug["showEdge"] == true)
 		{
-			cv::imshow("original filtered", originalImage_);
+			cv::imshow("original filtered", image);
 			cv::waitKey();
 		}
 	}
 
 	// grayImage for SWT
-	grayImage_ = cv::Mat(originalImage_.size(), CV_8UC1, cv::Scalar(0));
-	cv::cvtColor(originalImage_, grayImage_, CV_BGR2GRAY);
+	grayImage_ = cv::Mat(image.size(), CV_8UC1, cv::Scalar(0));
+	cv::cvtColor(image, grayImage_, CV_BGR2GRAY);
 
 	// Show image information
 	std::cout << std::endl;
 	std::cout << "Image: " << filename_ << std::endl;
 	std::cout << "Size:" << grayImage_.cols << " x " << grayImage_.rows << std::endl << std::endl;
-	preprocess();
+//	preprocess();
+	textRegions_.clear();
 
 	// bright font
 	firstPass_ = true;
@@ -320,250 +455,149 @@ void DetectText::detect_original_epshtein()
 	disposal();		// todo: check whether this harms any of the following processing
 
 
+	// some feasibility checks
+//	start_time = clock();
+//	filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
+//	time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//	std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
 
-	if (processing_method_==ORIGINAL_EPSHTEIN)
+
+	// merge bright and dark text lines
+	std::vector<TreeNode> nodes(textRegions_.size());
+	for (unsigned int i=0; i<textRegions_.size(); i++)
 	{
-		// some feasibility checks
-//		start_time = clock();
-//		filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
-//		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-//		std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
-
-
-		// merge bright and dark text lines
-		std::vector<TreeNode> nodes(textRegions_.size());
-		for (unsigned int i=0; i<textRegions_.size(); i++)
+		nodes[i].parent = -1;
+		nodes[i].rank = 0;
+		nodes[i].element = i;
+	}
+	for (unsigned int i=0; i<textRegions_.size(); i++)
+	{
+		int root = i;
+		while (nodes[root].parent != -1)
+			root = nodes[root].parent;
+		for (unsigned int j=0; j<textRegions_.size(); j++)
 		{
-			nodes[i].parent = -1;
-			nodes[i].rank = 0;
-			nodes[i].element = i;
-		}
-
-		for (unsigned int i=0; i<textRegions_.size(); i++)
-		{
-			int root = i;
-			while (nodes[root].parent != -1)
-				root = nodes[root].parent;
-			for (unsigned int j=0; j<textRegions_.size(); j++)
+			if (i!=j && sameTextline(textRegions_[nodes[i].element], textRegions_[nodes[j].element])==true)
 			{
-				if (i!=j && sameTextline(textRegions_[nodes[i].element], textRegions_[nodes[j].element])==true)
+//				cv::Mat mergeImage1 = image.clone();
+//				cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[i].element].boundingBox.x,textRegions_[nodes[i].element].boundingBox.y), cv::Point(textRegions_[nodes[i].element].boundingBox.x+textRegions_[nodes[i].element].boundingBox.width,textRegions_[nodes[i].element].boundingBox.y+textRegions_[nodes[i].element].boundingBox.height), cv::Scalar(255,0,255));
+//				cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[j].element].boundingBox.x,textRegions_[nodes[j].element].boundingBox.y), cv::Point(textRegions_[nodes[j].element].boundingBox.x+textRegions_[nodes[j].element].boundingBox.width,textRegions_[nodes[j].element].boundingBox.y+textRegions_[nodes[j].element].boundingBox.height), cv::Scalar(255,0,255));
+//				cv::imshow("merged lines pre", mergeImage1);
+//				cv::waitKey();
+
+				int root2 = j;
+				while (nodes[root2].parent != -1)
+					root2 = nodes[root2].parent;
+
+				if (root != root2)
 				{
-//					cv::Mat mergeImage1 = originalImage_.clone();
-//					cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[i].element].boundingBox.x,textRegions_[nodes[i].element].boundingBox.y), cv::Point(textRegions_[nodes[i].element].boundingBox.x+textRegions_[nodes[i].element].boundingBox.width,textRegions_[nodes[i].element].boundingBox.y+textRegions_[nodes[i].element].boundingBox.height), cv::Scalar(255,0,255));
-//					cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[j].element].boundingBox.x,textRegions_[nodes[j].element].boundingBox.y), cv::Point(textRegions_[nodes[j].element].boundingBox.x+textRegions_[nodes[j].element].boundingBox.width,textRegions_[nodes[j].element].boundingBox.y+textRegions_[nodes[j].element].boundingBox.height), cv::Scalar(255,0,255));
-//					cv::imshow("merged lines pre", mergeImage1);
-//					cv::waitKey();
-
-					int root2 = j;
-					while (nodes[root2].parent != -1)
-						root2 = nodes[root2].parent;
-
-					if (root != root2)
+					if(nodes[root].rank > nodes[root2].rank)
+						nodes[root2].parent = root;
+					else
 					{
-						if(nodes[root].rank > nodes[root2].rank)
-							nodes[root2].parent = root;
-						else
-						{
-							nodes[root].parent = root2;
-							nodes[root2].rank += (nodes[root].rank==nodes[root2].rank ? 1 : 0);
-							root = root2;
-						}
+						nodes[root].parent = root2;
+						nodes[root2].rank += (nodes[root].rank==nodes[root2].rank ? 1 : 0);
+						root = root2;
+					}
 
-						// collapse a branch to direct children of root
-						int node = j;
-						while(nodes[node].parent != -1)
-						{
-							int temp = nodes[node].parent;
-							nodes[node].parent = root;
-							node = temp;
-						}
-						node = i;
-						while(nodes[node].parent != -1)
-						{
-							int temp = nodes[node].parent;
-							nodes[node].parent = root;
-							node = temp;
-						}
+					// collapse a branch to direct children of root
+					int node = j;
+					while(nodes[node].parent != -1)
+					{
+						int temp = nodes[node].parent;
+						nodes[node].parent = root;
+						node = temp;
+					}
+					node = i;
+					while(nodes[node].parent != -1)
+					{
+						int temp = nodes[node].parent;
+						nodes[node].parent = root;
+						node = temp;
 					}
 				}
 			}
 		}
-
-		// merge textline pairs
-//		cv::Mat mergeImage = originalImage_.clone();
-		std::vector<TextRegion> mergedTextRegions;
-		int classIndex = 0;
-		for (unsigned int i=0; i<textRegions_.size(); i++)
-		{
-			int root = i;
-			while (nodes[root].parent != -1)
-				root = nodes[root].parent;
-			if (nodes[root].rank >= 0)
-				nodes[root].rank = ~classIndex++;
-
-			int insertIndex = ~nodes[root].rank;
-
-//			std::cout << "i=" << i << "  root=" << root << "   insertIndex=" << insertIndex << "   mergedTextRegions=" << mergedTextRegions.size() << std::endl;
-
-			if (insertIndex < (int)mergedTextRegions.size())
-			{
-				// check whether to keep or replace the existing text region
-//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,255));
-//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(255,0,255));
-//				cv::imshow("merged lines", mergeImage);
-//				cv::waitKey();
-				if (mergedTextRegions[insertIndex].boundingBox.width < textRegions_[i].boundingBox.width)
-				{
-//					cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,255,0));
-//					cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,0,255));
-//					cv::imshow("merged lines", mergeImage);
-//					std::cout<< "replace\n";
-//					cv::waitKey();
-					mergedTextRegions[insertIndex] = textRegions_[i];
-				}
-//				else
-//				{
-//					cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,0,255));
-//					cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,255,0));
-//					cv::imshow("merged lines", mergeImage);
-//					std::cout<< "keep\n";
-//					cv::waitKey();
-//				}
-			}
-			else
-			{
-				// create text region
-//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,0));
-//				cv::imshow("merged lines", mergeImage);
-//				cv::waitKey();
-				mergedTextRegions.push_back(textRegions_[i]);
-			}
-		}
-		textRegions_ = mergedTextRegions;
-
-
-		// separating several lines of text
-//		start_time = clock();
-//		breakLines(textRegions_);
-//		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-//		std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
-
-		// separate words on a single line
-		start_time = clock();
-		breakLinesIntoWords(textRegions_);
-		time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-		std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
-
-		// write found bounding boxes into the respective structures
-		for (unsigned int i=0; i<textRegions_.size(); i++)
-		{
-			finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
-			finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
-					cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
-			finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
-		}
 	}
 
-
-
-	// filter boxes that lie completely inside others
-	for (int i=(int)finalBoundingBoxes_.size()-1; i>=0; i--)
+	// merge textline pairs
+//	cv::Mat mergeImage = image.clone();
+	std::vector<TextRegion> mergedTextRegions;
+	int classIndex = 0;
+	for (unsigned int i=0; i<textRegions_.size(); i++)
 	{
-		for (int j=0; j<(int)finalBoundingBoxes_.size(); j++)
+		int root = i;
+		while (nodes[root].parent != -1)
+			root = nodes[root].parent;
+		if (nodes[root].rank >= 0)
+			nodes[root].rank = ~classIndex++;
+
+		int insertIndex = ~nodes[root].rank;
+
+//		std::cout << "i=" << i << "  root=" << root << "   insertIndex=" << insertIndex << "   mergedTextRegions=" << mergedTextRegions.size() << std::endl;
+
+		if (insertIndex < (int)mergedTextRegions.size())
 		{
-			if (j==i)
-				continue;
-			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.95*finalBoundingBoxes_[i].area())
-//			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()) && (finalBoundingBoxes_[i].area()<finalBoundingBoxes_[j].area()))
-//			if (((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[i].area() && finalBoundingBoxesQualityScore_[i]<=finalBoundingBoxesQualityScore_[j]) ||
-//					((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*finalBoundingBoxes_[j].area() && finalBoundingBoxesQualityScore_[i]<finalBoundingBoxesQualityScore_[j]))
+			// check whether to keep or replace the existing text region
+//			cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,255));
+//			cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(255,0,255));
+//			cv::imshow("merged lines", mergeImage);
+//			cv::waitKey();
+			if (mergedTextRegions[insertIndex].boundingBox.width < textRegions_[i].boundingBox.width)
 			{
-				finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
-				finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
-				finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
-				break;
+//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,255,0));
+//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,0,255));
+//				cv::imshow("merged lines", mergeImage);
+//				std::cout<< "replace\n";
+//				cv::waitKey();
+				mergedTextRegions[insertIndex] = textRegions_[i];
 			}
-//			if ((finalBoundingBoxes_[i] & finalBoundingBoxes_[j]).area()>0.85*std::min(finalBoundingBoxes_[i].area(), finalBoundingBoxes_[j].area()))
+//			else
 //			{
-//				finalBoundingBoxes_[j].x = std::min(finalBoundingBoxes_[i].x, finalBoundingBoxes_[j].x);
-//				finalBoundingBoxes_[j].width = std::max(finalBoundingBoxes_[i].x+finalBoundingBoxes_[i].width, finalBoundingBoxes_[j].x+finalBoundingBoxes_[j].width) - finalBoundingBoxes_[j].x;
-//				finalBoundingBoxes_[j].y = std::min(finalBoundingBoxes_[i].y, finalBoundingBoxes_[j].y);
-//				finalBoundingBoxes_[j].height = std::max(finalBoundingBoxes_[i].y+finalBoundingBoxes_[i].height, finalBoundingBoxes_[j].y+finalBoundingBoxes_[j].height) - finalBoundingBoxes_[j].y;
-//				finalBoundingBoxes_.erase(finalBoundingBoxes_.begin()+i);
-//				finalRotatedBoundingBoxes_.erase(finalRotatedBoundingBoxes_.begin()+i);
-//				finalBoundingBoxesQualityScore_.erase(finalBoundingBoxesQualityScore_.begin()+i);
-//				break;
+//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,0,255));
+//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,255,0));
+//				cv::imshow("merged lines", mergeImage);
+//				std::cout<< "keep\n";
+//				cv::waitKey();
 //			}
 		}
-	}
-
-	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
-
-	// OCR
-	if (enableOCR_ == true)
-	{
-		//  ocrPreprocess(transformedBoundingBoxes_);
-		//  ocrPreprocess(notTransformedBoundingBoxes_);
-
-		// delete boxes that are complete inside other boxes
-		//deleteDoubleBrokenWords(boundingBoxes_);
-
-
-		// fill textImages_ with either rectangles or rotated rectangles
-		for (size_t i = 0; i < transformedImage_.size(); i++)
+		else
 		{
-			if (transformImages)
-			{
-				cv::Mat rotatedFlippedBox;
-				cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
-				textImages_.push_back(sharpenImage(transformedImage_[i]));
-				textImages_.push_back(sharpenImage(rotatedFlippedBox));
-			}
-			else
-			{
-				textImages_.push_back(sharpenImage(notTransformedImage_[i]));
-			}
-
-			// sometimes tesseract likes gray images
-			//    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
-			//    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
-			// textImages_.push_back(sharpenImage(grayImage));
-
-			// binary image
-			// textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
-
-			// binary image #2
+			// create text region
+//			cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,0));
+//			cv::imshow("merged lines", mergeImage);
+//			cv::waitKey();
+			mergedTextRegions.push_back(textRegions_[i]);
 		}
-
-		ocrRead(textImages_);
 	}
-	else
+	textRegions_ = mergedTextRegions;
+
+
+	// separating several lines of text
+//	start_time = clock();
+//	breakLines(textRegions_);
+//	time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//	std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+
+	// separate words on a single line
+	double start_time = clock();
+	breakLinesIntoWords(textRegions_);
+	double time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+	std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+
+	// write found bounding boxes into the respective structures
+	for (unsigned int i=0; i<textRegions_.size(); i++)
 	{
-		finalBoxes_ = finalRotatedBoundingBoxes_;
-		finalTexts_.resize(finalBoxes_.size(), "");
+		// compute coordinates on original image size
+		textRegions_[i].boundingBox.x *= scale_factor;
+		textRegions_[i].boundingBox.y *= scale_factor;
+		textRegions_[i].boundingBox.width *= scale_factor;
+		textRegions_[i].boundingBox.height *= scale_factor;
+		finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
+		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
+				cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
+		finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
 	}
-
-	// Draw output on resultImage_
-	showBoundingBoxes(finalBoxes_, finalTexts_);
-
-	std::cout << "eval_: " << eval_ << std::endl;
-
-	// Write results
-	if (eval_)
-		writeTxtsForEval();
-	else
-		cv::imwrite(outputPrefix_ + "_detection.jpg", resultImage_);
-
-	// Show results
-	if (debug["showResult"])
-	{
-		cv::imshow("detection", resultImage_);
-		cvMoveWindow("detection", 0, 0);
-		cv::waitKey(0);
-	}
-
-	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
-	std::cout << std::endl << "[" << time_in_seconds << " s] total in process\n" << std::endl;
 }
 
 void DetectText::detect_bormann()
@@ -1370,9 +1404,9 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 				pointStack.push_back(cv::Point(currX, currY));
 				SwtValues.push_back(swtmap.at<float>(currY, currX));
 
-				// if the next neighbor of the start pixel on the search line is also an edge pixel, break to avoid connection of un-connected regions
-				if (fabs(currX-ix)<2.f && fabs(currY-iy)<2.f && edgemap_.at<unsigned char>(currY, currX)==255)
-					break;
+//				// if the next neighbor of the start pixel on the search line is also an edge pixel, break to avoid connection of un-connected regions
+//				if (fabs(currX-ix)<2.f && fabs(currY-iy)<2.f && edgemap_.at<unsigned char>(currY, currX)==255)
+//					break;
 
 				bool foundEdgePoint = false;
 				// search in 5-neighborhood for suitable counter edge points
@@ -1545,7 +1579,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 
 				double componentMeanIntensity = 0.;
 				cv::Point3d componentMeanColor(0.,0.,0.);
-				int addedPixels = 0;
+//				int addedPixels = 0;
 
 				while (stackPointer >= 0)
 				{
@@ -1601,9 +1635,9 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 							}
 
 							// do the pixels have similar stroke width?
-							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth) ||		// todo: ratio between a mean value over the component and sw1 better?
-									(std::max(sw1, meanStrokeWidth) <= 1.5*swCompareParameter * std::min(sw1, meanStrokeWidth) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
-									(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
+							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth)) // ||		// todo: ratio between a mean value over the component and sw1 better?
+								//	(std::max(sw1, meanStrokeWidth) <= 1.5*swCompareParameter * std::min(sw1, meanStrokeWidth) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
+								//	(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
 							{
 //								if (processing_method_ == ORIGINAL_EPSHTEIN)
 //								{
@@ -1694,7 +1728,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 {
 	// todo: parameter
 	if (processing_method_ == ORIGINAL_EPSHTEIN)
-		minLetterHeight_ = 10;//8;
+		minLetterHeight_ = 14; //10;//8;
 	else
 		minLetterHeight_ = std::max(10, 3 + (originalImage_.rows)/480); //default: 10
 
@@ -1732,7 +1766,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		if (processing_method_ == ORIGINAL_EPSHTEIN)
 		{
 			double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
-			isLetter = isLetter && (aspectRatio <= 7.0);
+			isLetter = isLetter && (aspectRatio <= 10.0/*7.0*/);
 		}
 
 		float maxY = itr.y + itr.height;
@@ -1774,12 +1808,12 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		double cf = m02/pixelCount - yc*yc;
 		double delta = sqrt(bf * bf + (af - cf) * (af - cf));
 		double momentsRatio = sqrt(std::max(af + cf + delta, af + cf - delta) / std::min(af + cf + delta, af + cf - delta));
-		if (momentsRatio > 8.0)
+		if (momentsRatio > 10.0/*8.0*/)
 			continue;
 
 		// rule #2: remove components that are too small/thin		// todo: reactivate
-		if (pixelCount < 0.1*itr.area())
-			continue;
+//		if (pixelCount < 0.1*itr.area())
+//			continue;
 
 		double meanStrokeWidth = sumStrokeWidth / pixelCount;
 		double varianceStrokeWidth = 0;
@@ -1788,7 +1822,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		varianceStrokeWidth = varianceStrokeWidth / pixelCount;
 
 		// rule #2: variance of stroke width of pixels in region that are part of component
-		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
+//		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
 
 		// rule #3: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
 		// std::sort(iComponentStrokeWidth.begin(), iComponentStrokeWidth.end());
@@ -1796,7 +1830,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		//isLetter = isLetter && (sqrt(((itr.width) * (itr.width) + (itr.height) * (itr.height))) < maxStrokeWidth * diagonalParameter);
 		std::nth_element(iComponentStrokeWidth.begin(), iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2, iComponentStrokeWidth.end());
 		medianStrokeWidth_[i] = *(iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2);
-		isLetter = isLetter && (pixelCount > 0.2*itr.area() || sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) > medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
+//		isLetter = isLetter && (pixelCount > 0.2*itr.area() || sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) > medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
 
 		// rule #4: pixelCount has to be bigger than maxStrokeWidth * x:
 		if (processing_method_==BORMANN)
@@ -2055,14 +2089,14 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 			// rule 1b: height ratio between two letters must be small enough
 			if (processing_method_==ORIGINAL_EPSHTEIN)
-				if ((double)std::max(iRect.height, jRect.height) > /*1.7*/2.2 * (double)std::min(iRect.height, jRect.height))
+				if ((double)std::max(iRect.height, jRect.height) > /*1.7*//*2.2*/2.0 * (double)std::min(iRect.height, jRect.height))
 					continue;
 
 			// rule 1c: vertical overlap should be large
 			if (processing_method_==ORIGINAL_EPSHTEIN)
 			{
 				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
-				if (verticalOverlap * 1.3 < std::min(iRect.height, jRect.height))
+				if (verticalOverlap * /*1.3*/1.5 < std::min(iRect.height, jRect.height))
 					continue;
 			}
 
@@ -2072,8 +2106,8 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			int negativeScore = 0; //high score is bad
 
 			// rule 2: median of stroke width ratio
-			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j]) &&
-					(std::abs(meanRGB_[i][3] - meanRGB_[j][3]) < 0.4*grayClrParameter && std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > 2.5 * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])))
+			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])) // &&
+					//(std::abs(meanRGB_[i][3] - meanRGB_[j][3]) < 0.4*grayClrParameter && std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > 2.5 * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])))
 				negativeScore++;
 
 //			// rule 3: diagonal ratio
@@ -2293,7 +2327,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 		//boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 		textRegion.boundingBox = cv::Rect(minX, minY, maxX - minX, maxY - minY);
 
-		if (textRegion.boundingBox.width > 1.9 * textRegion.boundingBox.height)
+		if (textRegion.boundingBox.width > 2.0/*1.9*/ * textRegion.boundingBox.height)
 			textRegions.push_back(textRegion);
 	}
 }
@@ -2304,8 +2338,8 @@ bool DetectText::sameTextline(const TextRegion& a, const TextRegion& b)
 	int height = std::min(a.boundingBox.y + a.boundingBox.height, b.boundingBox.y + b.boundingBox.height) - std::max(a.boundingBox.y, b.boundingBox.y);
 	/* overlapped 10% */
 	return (width > 0 && height > 0 &&
-			width * height > 0.1 * std::max(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height) &&
-			width * height > 0.8 * std::min(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height));
+			width * height > /*0.1*/0.5 * std::max(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height) &&
+			width * height > /*0.8*/0.9 * std::min(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height));
 }
 
 bool DetectText::pairsInLine(const Pair& a, const Pair& b)
@@ -5944,7 +5978,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 		stddevLetterSize = sqrt(stddevLetterSize/(double)letters.size());
 
 		// Check 1: the size variance of letters should not be too large
-		double textBoxDiameter = sqrt(textRegions[textRegionIndex].boundingBox.width*textRegions[textRegionIndex].boundingBox.width + textRegions[textRegionIndex].boundingBox.height*textRegions[textRegionIndex].boundingBox.height);
+//xx		double textBoxDiameter = sqrt(textRegions[textRegionIndex].boundingBox.width*textRegions[textRegionIndex].boundingBox.width + textRegions[textRegionIndex].boundingBox.height*textRegions[textRegionIndex].boundingBox.height);
 		//std::cout << "Size variance check: averageLetterSize=" << averageLetterSize << "   stddevLetterSize=" << stddevLetterSize << "   textBoxDiameter=" << textBoxDiameter << std::endl;
 //xx		if (stddevLetterSize > 0.33*averageLetterSize)
 //xx			continue;

@@ -105,11 +105,11 @@ clrComponentParameter: 20
 
 # maximum pythagorean distance between components, default: 2.0
 # double
-distanceRatioParameter: 3.1 #2.9 #3.0  #2.9 #2.5
+distanceRatioParameter: 3.0 #3.1 #2.9 #3.0  #2.9 #2.5
 
 # comparison between median sw of components, default: 2.5
 # double
-medianSwParameter: 1.8 #1.5 #2.0
+medianSwParameter: 2.0 #1.8 #1.5 #2.0
 
 # maximum diagonal ratio, default 2.0
 # double
@@ -117,7 +117,7 @@ diagonalRatioParamter: 2.0
 
 # maximum gray color value difference between components, default: 10.0
 # double
-grayClrParameter: 31.0 #10.0
+grayClrParameter: 35.0 #31.0 #10.0
 
 # maximum single color valur difference between components, default: 35.0
 # double
@@ -219,7 +219,7 @@ showChains: false
 # bool
 showBreakLines: false
 
-showWords: false
+showWords: true
 
 showCriterions: false
 
@@ -237,7 +237,7 @@ showNeighborMerging: false
 
 # show results with ocr
 # bool
-showResult: false
+showResult: true
 
 # when showing results show all image regions that probably contain text, even if ocr didn't find text
 # bool

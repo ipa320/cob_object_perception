@@ -180,7 +180,7 @@ private:
 
   // main method
 	void detect();
-	void detect_original_epshtein();
+	void detect_original_epshtein(cv::Mat& image, double scale_factor=1.);
 	void detect_bormann();
 
 	void preprocess();
