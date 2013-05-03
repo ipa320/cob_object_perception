@@ -220,10 +220,14 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	approximateLine(depth_image, plotZW,dotMiddle,dotRight, 1, abc2);
 
 	//compute scalar product
-	float scalarProductNorm;
-	cv::normalize(abc1, abc1Norm);
-	cv::normalize(abc2, abc2Norm);
-	cv::multiply(abc1Norm,abc2Norm,scalarProductNorm);
+
+	cv::Mat abc1Norm, abc2Norm;
+	cv::normalize(abc1, abc1Norm,1);
+	cv::normalize(abc2, abc2Norm,1);
+	std::cout << "abc1: " <<abc1 << "\n";
+	//cv::multiply(abc1Norm,abc2Norm,scalarProductNorm);
+	cv::Mat scalarProductNorm = abc1Norm * abc2Norm;
+	std::cout << "scalarProductNorm: " <<scalarProductNorm << "\n";
 
 	/*
 	//write depth of points along the line into a matrix
