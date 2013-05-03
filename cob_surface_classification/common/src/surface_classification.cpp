@@ -105,19 +105,15 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 
 }
 
-
-
-
-void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image)
+void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side)
 {
-	int lineLength = 60;
-	cv::Point2f dotLeft(color_image.cols/2 -lineLength/2, color_image.rows/2);
-	cv::Point2f dotRight(color_image.cols/2 +lineLength/2, color_image.rows/2);
-	cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
-	cv::Point2f dotUp(color_image.cols/2 , color_image.rows/2 +lineLength/2);
-	cv::Point2f dotDown(color_image.cols/2 , color_image.rows/2 -lineLength/2);
-	cv::line(color_image,dotUp,dotDown,CV_RGB(0,1,0),1);
-	cv::Point2f dotMiddle(color_image.cols/2 , color_image.rows/2 );
+	/*linear regression via least squares minimisation (-> SVD)
+	 * ----------------------------------------------------------*/
+
+
+	int lineLength = dotRight.x - dotLeft.x;
+	int windowX = plotZW.cols;
+	int windowY = plotZW.rows;
 
 	//write depth of points along the line into a matrix
 	//format of one line: [coordinate along the line, depth coordinate, 1]
@@ -148,11 +144,115 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 	//std::cout << "param: \n" << abc << "\n";
 
-	//plot z over w, draw estimated lines
-	int windowX = 600;	//size of window in x-direction
-	int windowY = 600;
+
+	/* draw computed coordinates and apprroximates lines in plotZW
+	 * ------------------------------------------------------------*/
+	//projects coordinates on pixel range of window
+
+	cv::Mat wCoordNorm,zCoord;
+	//pixel range in window
+	int leftBoundary = 0;
+	int rightBoundary = 0;
+	//scale and shift x-values for visualization:
+	if(side == 0)
+	{
+		//left side
+		leftBoundary = 0;
+		rightBoundary = windowX /2;
+	}
+	else if (side == 1)
+	{
+		//right side
+		leftBoundary = windowX/2;
+		rightBoundary = windowX;
+	}
+
+	cv::normalize(coordinates.col(0),wCoordNorm,leftBoundary,rightBoundary,cv::NORM_MINMAX);
+	//cv::normalize(coordinates.col(0),wCoordNorm,0,rightBoundary,cv::NORM_MINMAX);
+	//std::cout << "wCoordNorm: \n" << wCoordNorm << "\n";
+
+
+	//compute shift and scale parameters of wCoordNorm
+	float min = dotLeft.x; //s.o.
+	float max = dotRight.x;
+	float scaleX = (rightBoundary-leftBoundary) /(max-min);
+	//float scaleX = windowX /(max-min);
+
 	int scaleDepth = 200;
-	cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+	zCoord = coordinates.col(1) ;
+
+	//std::cout << "zCoord: \n" << zCoord << "\n";
+
+	for(int v=0; v< coordinates.rows; v++)
+	{
+		//scale z-value for visualization
+		cv::circle(plotZW,cv::Point2f(wCoordNorm.at<float>(v),zCoord.at<float>(v) * scaleDepth),1,CV_RGB(255,255,255),2);
+	}
+
+
+	/*float x1 =( 0 - min)*scaleX;
+	float x2 = ((-abc.at<float>(2)/abc.at<float>(0))-min) *scaleX;
+	cv::line(plotZW,cv::Point2f(x1 ,(-abc.at<float>(2)/abc.at<float>(1)) *scaleDepth ), cv::Point2f(x2 ,0 ),CV_RGB(255,255,255),1);*/
+	float x1 = leftBoundary;
+	float x2 = rightBoundary;
+	float z1 = (-abc.at<float>(2) - abc.at<float>(0) * min) / abc.at<float>(1);
+	float z2 = (-abc.at<float>(2) - abc.at<float>(0) * max) / abc.at<float>(1);
+	cv::line(plotZW,cv::Point2f(x1 ,z1 *scaleDepth ), cv::Point2f(x2 , z2 * scaleDepth ),CV_RGB(255,255,255),1);
+}
+
+
+void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image)
+{
+	int lineLength = 60;
+	cv::Point2f dotLeft(color_image.cols/2 -lineLength/2, color_image.rows/2);
+	cv::Point2f dotRight(color_image.cols/2 +lineLength/2, color_image.rows/2);
+	cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
+	cv::Point2f dotUp(color_image.cols/2 , color_image.rows/2 +lineLength/2);
+	cv::Point2f dotDown(color_image.cols/2 , color_image.rows/2 -lineLength/2);
+	cv::line(color_image,dotUp,dotDown,CV_RGB(0,1,0),1);
+	cv::Point2f dotMiddle(color_image.cols/2 , color_image.rows/2 );
+
+	//plot z over w, draw estimated lines
+		int windowX = 600;	//size of window in x-direction
+		int windowY = 600;
+
+		cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+
+
+	approximateLine(depth_image, plotZW,dotLeft,dotMiddle, 0);
+	approximateLine(depth_image, plotZW,dotMiddle,dotRight, 1);
+
+	/*
+	//write depth of points along the line into a matrix
+	//format of one line: [coordinate along the line, depth coordinate, 1]
+	cv::Mat coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
+	cv::LineIterator xIter (depth_image,dotLeft,dotRight);
+
+
+	for(int v=0; v<xIter.count; v++, ++xIter)
+	{
+		//anstatt dem Index in x-Richtung die Koordinate in x-Richtung nehmen!!!!
+		coordinates.at<float>(v,0) = xIter.pos().x;	//coordinate along the line
+		coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().x, xIter.pos().y);	//depth coordinate
+		coordinates.at<float>(v,2) = 1.0;
+	}
+
+	//std::cout << "coordinates: \n" << coordinates << "\n";
+
+	cv::Mat sv;	//singular values
+	cv::Mat u;	//left singular vectors
+	cv::Mat vt;	//right singular vectors, transposed, 3x3
+	cv::SVD::compute(coordinates,sv,u,vt);
+
+	//std::cout << "SVD: \n" << vt << "\n";
+
+	//last column of v = last row of vt is x, so that y is minimal
+	cv::Mat abc; //parameters of the approximated line: aw+bz+1 = 0
+	abc =  vt.row(2);
+
+	//std::cout << "param: \n" << abc << "\n";
+
+
 
 	cv::Mat wCoordNorm,zCoord;
 	//scale and shift x-values for visualization
@@ -162,7 +262,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	float min = color_image.cols/2 -lineLength/2; //s.o.
 	float max = color_image.cols/2 +lineLength/2;
 	float scaleX = windowX /(max-min);
-
+	int scaleDepth = 200;
 
 	zCoord = coordinates.col(1) ;
 	for(int v=0; v< coordinates.rows; v++)
@@ -174,7 +274,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 	float x1 =( 0 - min)*scaleX;
 	float x2 = ((-abc.at<float>(2)/abc.at<float>(0))-min) *scaleX;
-	cv::line(plotZW,cv::Point2f(x1 ,(-abc.at<float>(2)/abc.at<float>(1)) *scaleDepth ), cv::Point2f(x2 ,0 ),CV_RGB(255,255,255),1);
+	cv::line(plotZW,cv::Point2f(x1 ,(-abc.at<float>(2)/abc.at<float>(1)) *scaleDepth ), cv::Point2f(x2 ,0 ),CV_RGB(255,255,255),1); */
 
 
 
