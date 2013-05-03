@@ -105,7 +105,7 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 
 }
 
-void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side, cv::Mat abc)
+void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side, cv::Mat& abc)
 {
 	/*linear regression via least squares minimisation (-> SVD)
 	 * ----------------------------------------------------------*/
@@ -143,7 +143,7 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZ
 	//cv::Mat abc; //parameters of the approximated line: aw+bz+1 = 0
 	abc =  vt.row(2);
 
-	//std::cout << "param: \n" << abc << "\n";
+
 
 
 	/* draw computed coordinates and approximates lines in plotZW
@@ -220,73 +220,27 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	approximateLine(depth_image, plotZW,dotMiddle,dotRight, 1, abc2);
 
 	//compute scalar product
+	float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
+	cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
+	float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
+	cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
 
-	cv::Mat abc1Norm, abc2Norm;
-	cv::normalize(abc1, abc1Norm,1);
-	cv::normalize(abc2, abc2Norm,1);
 	std::cout << "abc1: " <<abc1 << "\n";
-	//cv::multiply(abc1Norm,abc2Norm,scalarProductNorm);
-	cv::Mat scalarProductNorm = abc1Norm * abc2Norm;
-	std::cout << "scalarProductNorm: " <<scalarProductNorm << "\n";
+	//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
+	cv::Mat scalarProduct = n1 * n2.t();
+	std::cout << "scalarProduct: " <<scalarProduct << "\n";
 
-	/*
-	//write depth of points along the line into a matrix
-	//format of one line: [coordinate along the line, depth coordinate, 1]
-	cv::Mat coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
-	cv::LineIterator xIter (depth_image,dotLeft,dotRight);
-
-
-	for(int v=0; v<xIter.count; v++, ++xIter)
+	bool convex = false;
+	bool concave = false;
+	if(n1.at<float>(1) > 0 && n2.at<float>(1) < 0)
 	{
-		//anstatt dem Index in x-Richtung die Koordinate in x-Richtung nehmen!!!!
-		coordinates.at<float>(v,0) = xIter.pos().x;	//coordinate along the line
-		coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().x, xIter.pos().y);	//depth coordinate
-		coordinates.at<float>(v,2) = 1.0;
+		convex = true;
+	}
+	else if (n1.at<float>(1) < 0 && n2.at<float>(1) > 0)
+	{
+		concave = true;
 	}
 
-	//std::cout << "coordinates: \n" << coordinates << "\n";
-
-	cv::Mat sv;	//singular values
-	cv::Mat u;	//left singular vectors
-	cv::Mat vt;	//right singular vectors, transposed, 3x3
-	cv::SVD::compute(coordinates,sv,u,vt);
-
-	//std::cout << "SVD: \n" << vt << "\n";
-
-	//last column of v = last row of vt is x, so that y is minimal
-	cv::Mat abc; //parameters of the approximated line: aw+bz+1 = 0
-	abc =  vt.row(2);
-
-	//std::cout << "param: \n" << abc << "\n";
-
-
-
-	cv::Mat wCoordNorm,zCoord;
-	//scale and shift x-values for visualization
-	cv::normalize(coordinates.col(0),wCoordNorm,0,windowX,cv::NORM_MINMAX);
-
-	//compute shift and scale parameters of wCoordNorm
-	float min = color_image.cols/2 -lineLength/2; //s.o.
-	float max = color_image.cols/2 +lineLength/2;
-	float scaleX = windowX /(max-min);
-	int scaleDepth = 200;
-
-	zCoord = coordinates.col(1) ;
-	for(int v=0; v< coordinates.rows; v++)
-	{
-		//scale z-value for visualization
-		cv::circle(plotZW,cv::Point2f(wCoordNorm.at<float>(v),zCoord.at<float>(v) * scaleDepth),1,CV_RGB(255,255,255),2);
-	}
-
-
-	float x1 =( 0 - min)*scaleX;
-	float x2 = ((-abc.at<float>(2)/abc.at<float>(0))-min) *scaleX;
-	cv::line(plotZW,cv::Point2f(x1 ,(-abc.at<float>(2)/abc.at<float>(1)) *scaleDepth ), cv::Point2f(x2 ,0 ),CV_RGB(255,255,255),1); */
-
-
-
-	cv::imshow("depth over coordinate on line",plotZW);
-	cv::waitKey(10);
 
 }
 

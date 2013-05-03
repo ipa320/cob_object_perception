@@ -83,7 +83,7 @@ public:
 	void testFunction(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Mat& depth_image);
 
 private:
-	void approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side, cv::Mat abc);
+	void approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side, cv::Mat& abc);
 	void computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud);
 	void derivatives(cv::Mat& color_image, cv::Mat& depth_image);
 	void depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image);
