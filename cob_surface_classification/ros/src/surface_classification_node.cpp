@@ -165,7 +165,7 @@ public:
 				{
 					for (unsigned int u=0; u<cloud->width; u++)
 					{
-						pcl::PointXYZRGB point = (*cloud)(u,v);
+						pcl::PointXYZRGB point = cloud->at(u,v);
 						if(std::isnan(point.z) == false)
 							depth_image.at< float >(v,u) = point.z;
 						//std::cout << "di: " << depth_image.at< float >(v,u )<<"\n";

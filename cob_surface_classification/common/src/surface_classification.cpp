@@ -105,7 +105,7 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 
 }
 
-void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side)
+void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZW, cv::Point2f dotLeft, cv::Point2f dotRight, int side, cv::Mat abc)
 {
 	/*linear regression via least squares minimisation (-> SVD)
 	 * ----------------------------------------------------------*/
@@ -125,7 +125,8 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZ
 	{
 		//anstatt dem Index in x-Richtung die Koordinate in x-Richtung nehmen!!!!
 		coordinates.at<float>(v,0) = xIter.pos().x;	//coordinate along the line
-		coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().x, xIter.pos().y);	//depth coordinate
+		//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
+		coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
 		coordinates.at<float>(v,2) = 1.0;
 	}
 
@@ -139,13 +140,13 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZ
 	//std::cout << "SVD: \n" << vt << "\n";
 
 	//last column of v = last row of vt is x, so that y is minimal
-	cv::Mat abc; //parameters of the approximated line: aw+bz+1 = 0
+	//cv::Mat abc; //parameters of the approximated line: aw+bz+1 = 0
 	abc =  vt.row(2);
 
 	//std::cout << "param: \n" << abc << "\n";
 
 
-	/* draw computed coordinates and apprroximates lines in plotZW
+	/* draw computed coordinates and approximates lines in plotZW
 	 * ------------------------------------------------------------*/
 	//projects coordinates on pixel range of window
 
@@ -168,15 +169,14 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZ
 	}
 
 	cv::normalize(coordinates.col(0),wCoordNorm,leftBoundary,rightBoundary,cv::NORM_MINMAX);
-	//cv::normalize(coordinates.col(0),wCoordNorm,0,rightBoundary,cv::NORM_MINMAX);
 	//std::cout << "wCoordNorm: \n" << wCoordNorm << "\n";
 
 
 	//compute shift and scale parameters of wCoordNorm
 	float min = dotLeft.x; //s.o.
 	float max = dotRight.x;
-	float scaleX = (rightBoundary-leftBoundary) /(max-min);
-	//float scaleX = windowX /(max-min);
+	//float scaleX = (rightBoundary-leftBoundary) /(max-min);
+
 
 	int scaleDepth = 200;
 	zCoord = coordinates.col(1) ;
@@ -189,10 +189,6 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image, cv::Mat& plotZ
 		cv::circle(plotZW,cv::Point2f(wCoordNorm.at<float>(v),zCoord.at<float>(v) * scaleDepth),1,CV_RGB(255,255,255),2);
 	}
 
-
-	/*float x1 =( 0 - min)*scaleX;
-	float x2 = ((-abc.at<float>(2)/abc.at<float>(0))-min) *scaleX;
-	cv::line(plotZW,cv::Point2f(x1 ,(-abc.at<float>(2)/abc.at<float>(1)) *scaleDepth ), cv::Point2f(x2 ,0 ),CV_RGB(255,255,255),1);*/
 	float x1 = leftBoundary;
 	float x2 = rightBoundary;
 	float z1 = (-abc.at<float>(2) - abc.at<float>(0) * min) / abc.at<float>(1);
@@ -213,14 +209,21 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	cv::Point2f dotMiddle(color_image.cols/2 , color_image.rows/2 );
 
 	//plot z over w, draw estimated lines
-		int windowX = 600;	//size of window in x-direction
-		int windowY = 600;
+	int windowX = 600;	//size of window in x-direction
+	int windowY = 600;
 
-		cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+	cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
 
+	cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
+	approximateLine(depth_image, plotZW,dotLeft,dotMiddle, 0, abc1);
+	cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
+	approximateLine(depth_image, plotZW,dotMiddle,dotRight, 1, abc2);
 
-	approximateLine(depth_image, plotZW,dotLeft,dotMiddle, 0);
-	approximateLine(depth_image, plotZW,dotMiddle,dotRight, 1);
+	//compute scalar product
+	float scalarProductNorm;
+	cv::normalize(abc1, abc1Norm);
+	cv::normalize(abc2, abc2Norm);
+	cv::multiply(abc1Norm,abc2Norm,scalarProductNorm);
 
 	/*
 	//write depth of points along the line into a matrix
