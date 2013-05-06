@@ -191,6 +191,70 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 	cv::line(plotZW,cv::Point2f(x1 ,z1 *scaleDepth ), cv::Point2f(x2 , z2 * scaleDepth ),CV_RGB(255,255,255),1);
 }
 
+void SurfaceClassification::scalarProduct(int iX, int iY, int lineLength, cv::Mat depth_image, cv::Mat& scalarProducts, cv::Mat& concaveConvex)
+{
+
+	cv::Point2f dotLeft(iX -lineLength/2, iY);
+	cv::Point2f dotRight(iX +lineLength/2, iY);
+	//cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
+	cv::Point2f dotMiddle(iX , iY );
+	cv::Mat coordinates1 = cv::Mat::zeros(dotMiddle.x - dotLeft.x,3,CV_32FC1);
+	cv::Mat coordinates2 = cv::Mat::zeros(dotRight.x - dotMiddle.x,3,CV_32FC1);
+
+	cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
+	approximateLine(depth_image,dotLeft,dotMiddle, abc1, coordinates1);
+
+	cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
+	approximateLine(depth_image,dotMiddle,dotRight, abc2, coordinates2);
+
+	/*
+		drawLines(plotZW,coordinates1,abc1,dotLeft,dotMiddle,0);
+		drawLines(plotZW,coordinates2,abc2,dotMiddle,dotRight,1);*/
+
+
+
+	//compute scalar product
+	float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
+	float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
+
+
+	//in der Realität gibt es keine unendlich spitzen Kanten
+	//erstmal begrenzen
+	float maxInclination = 10;
+	if(std::isinf(b1))
+		b1 = maxInclination;
+	if(std::isinf(b2))
+		b2 = maxInclination;
+
+	//Richtungsvektoren der Geraden:
+	cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
+	cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
+
+	cv::Mat n1Norm, n2Norm;
+	cv::normalize(n1,n1Norm,1);
+	cv::normalize(n2,n2Norm,1);
+
+	//std::cout << "n1: " <<n1<< "\n";
+	//std::cout << "n2: " <<n2<< "\n";
+	//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
+	//Skalarprodukt muss zwischen 0 und 1 sein!
+	cv::Mat scalarProduct = n1Norm * n2Norm.t();
+	//std::cout << "scalarProduct: " <<scalarProduct << "\n";
+	scalarProducts.at<float>(iY,iX) = scalarProduct.at<float>(0,0);
+	/*
+
+					if(n1.at<float>(1) > 0.05 && n2.at<float>(1) < 0.05)
+					{
+						concaveConvex.at<float>(iY,iX) = 2;
+					}
+					else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) > 0.05)
+					{
+						concaveConvex.at<float>(iY,iX) = 1;
+					}*/
+}
+
+
+
 void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image)
 {
 	int lineLength = 60;
@@ -208,7 +272,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	int windowX = 600;	//size of window in x-direction
 	int windowY = 600;
 
-	cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+	//cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
 	cv::Mat scalarProducts (cv::Mat::ones(windowX,windowY,CV_32FC1));
 	cv::Mat concaveConvex (cv::Mat::zeros(windowX,windowY,CV_8UC1)); 	//0:neither concave nor convex; 1:concave; 2:convex
 
@@ -225,65 +289,9 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			sampleStep ++;
 			if(sampleStep == 5)
 			{
-			sampleStep = 0;
+				sampleStep = 0;
 
-			cv::Point2f dotLeft(iX -lineLength/2, iY);
-			cv::Point2f dotRight(iX +lineLength/2, iY);
-			//cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
-			cv::Point2f dotMiddle(iX , iY );
-			cv::Mat coordinates1 = cv::Mat::zeros(dotMiddle.x - dotLeft.x,3,CV_32FC1);
-			cv::Mat coordinates2 = cv::Mat::zeros(dotRight.x - dotMiddle.x,3,CV_32FC1);
-
-			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
-			approximateLine(depth_image,dotLeft,dotMiddle, abc1, coordinates1);
-
-			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
-			approximateLine(depth_image,dotMiddle,dotRight, abc2, coordinates2);
-
-			/*
-				drawLines(plotZW,coordinates1,abc1,dotLeft,dotMiddle,0);
-				drawLines(plotZW,coordinates2,abc2,dotMiddle,dotRight,1);*/
-
-
-
-			//compute scalar product
-			float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
-			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
-
-
-			//in der Realität gibt es keine unendlich spitzen Kanten
-			//erstmal begrenzen
-			float maxInclination = 10;
-			if(std::isinf(b1))
-				b1 = maxInclination;
-			if(std::isinf(b2))
-				b2 = maxInclination;
-
-			//Richtungsvektoren der Geraden:
-			cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
-			cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
-
-			cv::Mat n1Norm, n2Norm;
-			cv::normalize(n1,n1Norm,1);
-			cv::normalize(n2,n2Norm,1);
-
-			//std::cout << "n1: " <<n1<< "\n";
-			//std::cout << "n2: " <<n2<< "\n";
-			//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
-			//Skalarprodukt muss zwischen 0 und 1 sein!
-			cv::Mat scalarProduct = n1Norm * n2Norm.t();
-			//std::cout << "scalarProduct: " <<scalarProduct << "\n";
-			scalarProducts.at<float>(iY,iX) = scalarProduct.at<float>(0,0);
-			/*
-
-				if(n1.at<float>(1) > 0.05 && n2.at<float>(1) < 0.05)
-				{
-					concaveConvex.at<float>(iY,iX) = 2;
-				}
-				else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) > 0.05)
-				{
-					concaveConvex.at<float>(iY,iX) = 1;
-				}*/
+				scalarProduct(iX, iY, lineLength, depth_image, scalarProducts, concaveConvex);
 
 			}
 		}
