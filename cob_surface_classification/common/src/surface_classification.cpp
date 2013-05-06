@@ -209,15 +209,24 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	int windowY = 600;
 
 	cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
-	cv::Mat scalarProducts (cv::Mat::zeros(windowX,windowY,CV_32FC1));
+	cv::Mat scalarProducts (cv::Mat::ones(windowX,windowY,CV_32FC1));
 	cv::Mat concaveConvex (cv::Mat::zeros(windowX,windowY,CV_8UC1)); 	//0:neither concave nor convex; 1:concave; 2:convex
 
 	/*	int iX=color_image.cols/2;
 	int iY=color_image.rows/2;*/
+
+	int sampleStep = 0;	//computation only for every n-th pixel
+	//loop over rows
 	for(int iY = lineLength/2; iY< windowY-lineLength/2; iY++)
 	{
+		//loop over columns
 		for(int iX = lineLength/2; iX< windowX-lineLength/2; iX++)
 		{
+			sampleStep ++;
+			if(sampleStep == 5)
+			{
+			sampleStep = 0;
+
 			cv::Point2f dotLeft(iX -lineLength/2, iY);
 			cv::Point2f dotRight(iX +lineLength/2, iY);
 			//cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
@@ -258,8 +267,8 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			cv::normalize(n1,n1Norm,1);
 			cv::normalize(n2,n2Norm,1);
 
-			std::cout << "n1: " <<n1<< "\n";
-			std::cout << "n2: " <<n2<< "\n";
+			//std::cout << "n1: " <<n1<< "\n";
+			//std::cout << "n2: " <<n2<< "\n";
 			//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
 			//Skalarprodukt muss zwischen 0 und 1 sein!
 			cv::Mat scalarProduct = n1Norm * n2Norm.t();
@@ -275,6 +284,8 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 				{
 					concaveConvex.at<float>(iY,iX) = 1;
 				}*/
+
+			}
 		}
 	}
 	//std::cout << "scalarProduct: " <<scalarProducts << "\n";
@@ -284,6 +295,8 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 	/*cv::Mat scalarProductsNorm;
 	cv::normalize(scalarProducts,scalarProductsNorm,0,1,cv::NORM_MINMAX);*/
+
+	//scalarproduct = 1 for flat surfaces, = 0 for perpendicular lines
 	cv::imshow("Skalarprodukt", scalarProducts);
 	cv::waitKey(10);
 

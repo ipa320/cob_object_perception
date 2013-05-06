@@ -165,6 +165,7 @@ public:
 				{
 					for (unsigned int u=0; u<cloud->width; u++)
 					{
+						//bei Aufruf aus der Matrix ist der Index (Zeile,Spalte), also (y-Wert,x-Wert)!!!
 						pcl::PointXYZRGB point = cloud->at(u,v);
 						if(std::isnan(point.z) == false)
 							depth_image.at< float >(v,u) = point.z;
