@@ -133,21 +133,35 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 
 		//später nicht einfach x bzw y-Koordinate betrachten, sondern (x-x0)²+(y-y0)² als w nehmen
 		//Koordinaten jeweils relativ zum Ursprung des lokalen Koordinatensystems ausdrücken
-		if (XorY == 0)
+		//if (XorY == 0)
+
+		//dont't save point with nan-entries (no data available)
+		if(!std::isnan(pointcloud->at(xIter.pos().x, xIter.pos().y).x))
+		{
 			coordinates.at<float>(v,0) = pointcloud->at(xIter.pos().x, xIter.pos().y).x - x0;
-		else if (XorY == 1)
-			coordinates.at<float>(v,0) = pointcloud->at(xIter.pos().y, xIter.pos().x).y - y0;
+			//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
+					coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
+					coordinates.at<float>(v,2) = 1.0;
+		}
+		else
+			v--;	//no row added to coordinates-matrix
 
 
-		//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
-		coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
-		coordinates.at<float>(v,2) = 1.0;
+
+		//else if (XorY == 1)
+		//	coordinates.at<float>(v,0) = pointcloud->at(xIter.pos().y, xIter.pos().x).y - y0;
+
 	}
+	//std::cout <<"coordinatesbeforetrafo" << coordinates << "\n";
+
+
 
 	cv::Mat sv;	//singular values
 	cv::Mat u;	//left singular vectors
 	cv::Mat vt;	//right singular vectors, transposed, 3x3
 	cv::SVD::compute(coordinates,sv,u,vt);
+
+	//std::cout <<"coordinates" << coordinates << "\n";
 
 	//last column of v = last row of vt is x, so that y is minimal
 	//parameters of the approximated line: aw+bz+1 = 0
@@ -175,7 +189,7 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 
 	float w,z;
 	//std::cout << "maxw: \n" << maxW << "\n";
-	std::cout << "zCoord: \n" << coordinates.col(1) << "\n";
+	//std::cout << "zCoord: \n" << coordinates.col(1) << "\n";
 
 	if(maxW == 0)
 	{
@@ -183,16 +197,18 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 		std::cout << "SurfaceClassification::drawLines(): Prevented division by 0\n";
 	}
 
+
+
 	for(int v=0; v< coordinates.rows; v++)
 	{
 		//scale z-value for visualization
 		w = (coordinates.at<float>(v,0) / maxW) * windowX/2 + windowX/2;
 		//std::cout << "w: \n" << w << "\n";
 		z = coordinates.at<float>(v,1) *scaleDepth;
-		std::cout << "z scaled: \n" << z << "\n";
+		//std::cout << "z scaled: \n" << z << "\n";
 
 		z = windowY - z;
-		std::cout << "z invertiert: \n" << z << "\n";
+		//std::cout << "z invertiert: \n" << z << "\n";
 		cv::circle(plotZW,cv::Point2f(w,z),1,CV_RGB(255,255,255),2);
 	}
 
@@ -211,8 +227,12 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 		z1 = z1 * scaleDepth;
 		z1 = windowY - z1;
 
+
 		z2 = z2 *scaleDepth;
 		z2 = windowY - z2;
+
+		//std::cout << "z-end: \n" << z2 << "\n";
+		//std::cout << "acb: \n" << abc << "\n";
 
 		cv::line(plotZW,cv::Point2f(x1 ,z1 ), cv::Point2f(x2 , z2 ),CV_RGB(255,255,255),1);
 
