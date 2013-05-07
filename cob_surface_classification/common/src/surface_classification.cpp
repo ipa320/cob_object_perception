@@ -157,23 +157,64 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 
 void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& abc, cv::Point2f dotLeft, cv::Point2f dotRight, int side)
 {
+	float scaleDepth = 300;
+
+
 	int windowX = plotZW.cols;
+	int windowY = plotZW.rows;
 
 	//maximale w-Koordinate auf rightBoundary abbilden, minimale auf leftBoundary
 	//letzter Eintrag ist groesste w-Koordinate
 	//alle Koordinaten werden durch diese groesste geteilt -> Projektion auf [0,1]
 	float maxW = coordinates.col(0).at<float>(coordinates.rows -1);
 
-	float scaleDepth = 200;
-	float w;
+	//take magnitude of maxW, so that normalization of coordinates won't affect the sign
+	if(maxW <0)
+		maxW = maxW * (-1);
+
+
+	float w,z;
+	//std::cout << "maxw: \n" << maxW << "\n";
+	std::cout << "zCoord: \n" << coordinates.col(1) << "\n";
+
+	if(maxW == 0)
+	{
+		maxW = 1;
+		std::cout << "SurfaceClassification::drawLines(): Prevented division by 0\n";
+	}
 
 	for(int v=0; v< coordinates.rows; v++)
 	{
 		//scale z-value for visualization
-		w = (coordinates.at<float>(0,v) / maxW) * windowX/2 + windowX/2;
-		std::cout << "w:" << w << "\n";
-		cv::circle(plotZW,cv::Point2f(w,coordinates.at<float>(1,v) * scaleDepth),1,CV_RGB(255,255,255),2);
+		w = (coordinates.at<float>(v,0) / maxW) * windowX/2 + windowX/2;
+		//std::cout << "w: \n" << w << "\n";
+		z = coordinates.at<float>(v,1) *scaleDepth;
+		std::cout << "z scaled: \n" << z << "\n";
+
+		z = windowY - z;
+		std::cout << "z invertiert: \n" << z << "\n";
+		cv::circle(plotZW,cv::Point2f(w,z),1,CV_RGB(255,255,255),2);
 	}
+
+	//compute first and last point of the line
+	// P1(0,-c/b)
+	// P2(xBoundary,(-c-a*xBoundary)/b);
+	float x1 = 0;
+		float z1 = -abc.at<float>(2)/abc.at<float>(1);	//line equation -> z-value for x1
+		float x2 = coordinates.col(0).at<float>(coordinates.rows -1);
+		float z2 = (-abc.at<float>(2) - abc.at<float>(0) * x2) / abc.at<float>(1);
+
+
+		x1 =  windowX/2;
+		x2 = (x2/ maxW) * windowX/2 + windowX/2;
+
+		z1 = z1 * scaleDepth;
+		z1 = windowY - z1;
+
+		z2 = z2 *scaleDepth;
+		z2 = windowY - z2;
+
+		cv::line(plotZW,cv::Point2f(x1 ,z1 ), cv::Point2f(x2 , z2 ),CV_RGB(255,255,255),1);
 
 /*
 
@@ -231,7 +272,7 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 	}
 
 	//compute first and last point of the line
-	float x1 = leftBoundary;
+	float x1 = 0;
 	float x2 = rightBoundary;
 	float z1 = (-abc.at<float>(2) - abc.at<float>(0) * min) / abc.at<float>(1);	//line equation -> z-value for x1
 	float z2 = (-abc.at<float>(2) - abc.at<float>(0) * max) / abc.at<float>(1);
@@ -298,10 +339,10 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 	cv::Point2f dotMiddle(color_image.cols/2 , color_image.rows/2 );
 	cv::Point2f dotUp(color_image.cols/2 , color_image.rows/2 +lineLength/2);
-	cv::Point2f dotDown(color_image.cols/2 , color_image.rows/2 -lineLength/2);
+	cv::Point2f dotDown(color_image.cols/2 , color_image.rows/2 -lineLength/2);*/
 
-	cv::line(depth_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
-	cv::line(depth_image,dotUp,dotDown,CV_RGB(0,1,0),1);*/
+	cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
+	cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 
 
 	//plot z over w, draw estimated lines
@@ -341,13 +382,13 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			cv::Mat coordinates2 = cv::Mat::zeros(dotRight.x - dotMiddle.x,3,CV_32FC1);
 
 			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
-			//approximateLine(depth_image,pointcloud, dotMiddle,dotLeft, abc1, coordinates1,0);
+			approximateLine(depth_image,pointcloud, dotMiddle,dotLeft, abc1, coordinates1,0);
 
 			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
 			approximateLine(depth_image,pointcloud, dotMiddle,dotRight, abc2, coordinates2,0);
 			//std::cout<< "coordinates2" <<coordinates2 << "\n";
 
-			//drawLines(plotZW,coordinates1,abc1,dotMiddle,dotLeft,0);
+			drawLines(plotZW,coordinates1,abc1,dotMiddle,dotLeft,0);
 			drawLines(plotZW,coordinates2,abc2,dotMiddle,dotRight,1);
 
 
