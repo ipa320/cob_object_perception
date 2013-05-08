@@ -105,80 +105,155 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 
 }
 
-void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc, cv::Mat& coordinates, int XorY)
+void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc, cv::Mat& coordinates)
 {
-	//dotIni muss der Urspruch des lokalen Koordinatensystems sein, dotEnd der äußere Endpunkt der betrachteten Linie
+	//std::cout << "approximateLine()\n";
 
 
-	/*linear regression via least squares minimisation (-> SVD)
+	//dotIni is origin of local coordinate system, dotEnd the end point of the line
+
+
+	/* consider depth coordinates along the line between dotIni and dotEnd
+	 * write them into a matrix
+	 * approximation of the function z(w), that is depth(z) over coordinate on the line(w)
+	 *
+	 * linear regression via least squares minimisation (-> SVD)
 	 * ----------------------------------------------------------*/
 
 	//write depth of points along the line into a matrix
 	//format of one line: [coordinate along the line, depth coordinate, 1]
 
-	//von dotIni zu dotEnd laufen:
+
+	//iterate from dotIni to dotEnd:
 	cv::LineIterator xIter (depth_image,dotIni,dotEnd);
 
-	//Ursprung des lokalen Koordinatensystems ist dotLeft:
-	float x0 = pointcloud->at(dotIni.x,dotIni.y).x;	//muss hier beim Zugriff auf cloud x und y vertauscht werden?
-	float y0 = pointcloud->at(dotIni.x,dotIni.y).y;
+	float x0,y0; //coordinates of reference point
+	bool first = true;
 
-	//std::cout <<"x0"
-
-	for(int v=0; v<xIter.count; v++, ++xIter)
+	int v;
+	cv::Mat currentCoord (cv::Mat::zeros(1,3,CV_32FC1));
+	for( v=0; v<xIter.count; v++, ++xIter)
 	{
-		//anstatt dem Index in x-Richtung die Koordinate in x-Richtung nehmen?! (aus pointCloud auslesen)
-		//coordinates.at<float>(v,0) = xIter.pos().x - x0;	// coordinate along the line
-		//coordinates.at<float>(v,0) = xIter.pos().x;
-
 		//später nicht einfach x bzw y-Koordinate betrachten, sondern (x-x0)²+(y-y0)² als w nehmen
-		//Koordinaten jeweils relativ zum Ursprung des lokalen Koordinatensystems ausdrücken
-		//if (XorY == 0)
 
-		//dont't save point with nan-entries (no data available)
+
+		//dont't save points with nan-entries (no data available)
 		if(!std::isnan(pointcloud->at(xIter.pos().x, xIter.pos().y).x))
 		{
-			coordinates.at<float>(v,0) = pointcloud->at(xIter.pos().x, xIter.pos().y).x - x0;
-			//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
-					coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
-					coordinates.at<float>(v,2) = 1.0;
+			if(first)
+			{
+				//origin of local coordinate system is the first point with valid data. Express coordinates relatively:
+				x0 = pointcloud->at(xIter.pos().x,xIter.pos().y).x;
+				y0 = pointcloud->at(xIter.pos().x,xIter.pos().y).y;
+				coordinates.at<float>(0,0) = x0;
+				coordinates.at<float>(0,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
+				coordinates.at<float>(0,2) = 1.0;
+				first = false;
+				//std::cout << "coordinates: " <<coordinates << "\n";
+			}
+			else
+			{
+				currentCoord.at<float>(0,0) = pointcloud->at(xIter.pos().x, xIter.pos().y).x - x0;
+				//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
+				currentCoord.at<float>(0,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
+				currentCoord.at<float>(0,2) = 1.0;
+				coordinates.push_back(currentCoord);
+				//std::cout << "coordinates: " <<coordinates << "\n";
+				/*
+							coordinates.at<float>(v,0) = pointcloud->at(xIter.pos().x, xIter.pos().y).x - x0;
+							//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
+							coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
+							coordinates.at<float>(v,2) = 1.0;*/
+			}
+
+
 		}
-		else
+		/*else
+		{
 			v--;	//no row added to coordinates-matrix
+			//coordinates.at<float>(v,0) = 0;
+			//coordinates.at<float>(v,1) = 0;
+			//coordinates.at<float>(v,2) = 0;
+		}*/
 
-
-
-		//else if (XorY == 1)
-		//	coordinates.at<float>(v,0) = pointcloud->at(xIter.pos().y, xIter.pos().x).y - y0;
 
 	}
-	//std::cout <<"coordinatesbeforetrafo" << coordinates << "\n";
 
+	//Reihen unterhalb von v löschen?
 
+	//std::cout << "coordinates: " <<coordinates << "\n";
+	/*std::cout << "v: " <<v << "\n";
+	std::cout << "coordinates.rows: " <<coordinates.rows-1 << "\n";
+
+	cv::Mat coordSmall;
+	if(v<coordinates.rows-1)
+	{
+		//coordinates.copyTo(coordSmall,coordinates);
+		coordinates.pop_back(coordinates.rows -1 - v);
+	}
+
+	std::cout << "coordSmall: " <<coordinates << "\n";
+	//coordinates = coordSmall;
+	//~coordSmall;*/
 
 	cv::Mat sv;	//singular values
-	cv::Mat u;	//left singular vectors
-	cv::Mat vt;	//right singular vectors, transposed, 3x3
-	cv::SVD::compute(coordinates,sv,u,vt);
+		cv::Mat u;	//left singular vectors
+		cv::Mat vt;	//right singular vectors, transposed, 3x3
 
-	//std::cout <<"coordinates" << coordinates << "\n";
+	//if there were valid coordinates available, perform SVD
+	if(coordinates.rows >2)
+	{
+
+
+			cv::SVD::compute(coordinates,sv,u,vt);
+			abc =  vt.row(2);
+			//std::cout << "SVD performed\n";
+	}
+
+	//std::cout << "vt: \n"<<vt << "\n";
 
 	//last column of v = last row of vt is x, so that y is minimal
 	//parameters of the approximated line: aw+bz+1 = 0
-	abc =  vt.row(2);
+	/*if(vt.rows !=3)
+	{
+		std::cout << "SVD failed\n";
+	}
+	else
+		abc =  vt.row(2);
+
+	if(std::isnan(abc.at<float>(0,0)) || std::isnan(abc.at<float>(0,1)))
+	{
+		std::cout << "abc is nan\n";
+		std::cout << "coordinates: " <<coordinates << "\n";
+	}*/
+
+
+
+	//std::cout << "abc: " <<abc << "\n";
 
 }
 
-void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& abc, cv::Point2f dotLeft, cv::Point2f dotRight, int side)
+void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& abc)
 {
+	// draw computed coordinates and approximates lines in plotZW
+	//origin of coordinate system at the bottom in the middle
+	//x-axis: w-coordinate	(first column of "coordinates")
+	//y-axis: z-coordinate	(second column of "coordinates")
+	// -----------------------------------------------------------
+
+
+	//Skalierung des Tiefen-Wertes zur besseren Darstellung
 	float scaleDepth = 300;
 
 
 	int windowX = plotZW.cols;
 	int windowY = plotZW.rows;
 
-	//maximale w-Koordinate auf rightBoundary abbilden, minimale auf leftBoundary
-	//letzter Eintrag ist groesste w-Koordinate
+	//std::cout << "coordinates: \n" <<coordinates <<"\n";
+	//std::cout << "abc: \n" <<abc <<"\n";
+
+
+	//letzter Eintrag in der Spalte der w-Koordinaten ist die groesste w-Koordinate
 	//alle Koordinaten werden durch diese groesste geteilt -> Projektion auf [0,1]
 	float maxW = coordinates.col(0).at<float>(coordinates.rows -1);
 
@@ -186,10 +261,7 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 	if(maxW <0)
 		maxW = maxW * (-1);
 
-
-	float w,z;
-	//std::cout << "maxw: \n" << maxW << "\n";
-	//std::cout << "zCoord: \n" << coordinates.col(1) << "\n";
+	float w,z;	//w-coordinate along line,  depth coordinate z
 
 	if(maxW == 0)
 	{
@@ -197,106 +269,40 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 		std::cout << "SurfaceClassification::drawLines(): Prevented division by 0\n";
 	}
 
-
-
 	for(int v=0; v< coordinates.rows; v++)
 	{
-		//scale z-value for visualization
+		//project w-coordinates on interval [0,windowX/2] and then shift to the middle windowX/2
 		w = (coordinates.at<float>(v,0) / maxW) * windowX/2 + windowX/2;
-		//std::cout << "w: \n" << w << "\n";
+		//scale z-value for visualization
 		z = coordinates.at<float>(v,1) *scaleDepth;
-		//std::cout << "z scaled: \n" << z << "\n";
 
+		//invert depth-coordinate for visualization (coordinate system of image-matrix is in upper left corner,
+		//whereas we want our coordinate system to be at the bottom with the positive z-axis going upward
 		z = windowY - z;
-		//std::cout << "z invertiert: \n" << z << "\n";
 		cv::circle(plotZW,cv::Point2f(w,z),1,CV_RGB(255,255,255),2);
 	}
 
-	//compute first and last point of the line
+	//compute first and last point of the line using the parameters abc
 	// P1(0,-c/b)
 	// P2(xBoundary,(-c-a*xBoundary)/b);
 	float x1 = 0;
-		float z1 = -abc.at<float>(2)/abc.at<float>(1);	//line equation -> z-value for x1
-		float x2 = coordinates.col(0).at<float>(coordinates.rows -1);
-		float z2 = (-abc.at<float>(2) - abc.at<float>(0) * x2) / abc.at<float>(1);
+	float z1 = -abc.at<float>(2)/abc.at<float>(1);	//line equation -> z-value for x1
+	float x2 = coordinates.col(0).at<float>(coordinates.rows -1);
+	float z2 = (-abc.at<float>(2) - abc.at<float>(0) * x2) / abc.at<float>(1);
 
+	//scaling and shifting
+	x1 =  windowX/2;
+	x2 = (x2/ maxW) * windowX/2 + windowX/2;
 
-		x1 =  windowX/2;
-		x2 = (x2/ maxW) * windowX/2 + windowX/2;
+	z1 = z1 * scaleDepth;
+	z1 = windowY - z1;
 
-		z1 = z1 * scaleDepth;
-		z1 = windowY - z1;
+	z2 = z2 *scaleDepth;
+	z2 = windowY - z2;
 
+	//draw line between the two points
+	cv::line(plotZW,cv::Point2f(x1 ,z1 ), cv::Point2f(x2 , z2 ),CV_RGB(255,255,255),1);
 
-		z2 = z2 *scaleDepth;
-		z2 = windowY - z2;
-
-		//std::cout << "z-end: \n" << z2 << "\n";
-		//std::cout << "acb: \n" << abc << "\n";
-
-		cv::line(plotZW,cv::Point2f(x1 ,z1 ), cv::Point2f(x2 , z2 ),CV_RGB(255,255,255),1);
-
-/*
-
-
-
-	// draw computed coordinates and approximates lines in plotZW
-	 // ------------------------------------------------------------
-	//projects coordinates on pixel range of window
-
-	int windowX = plotZW.cols;
-	int windowY = plotZW.rows;
-
-	cv::Mat wCoordNorm,zCoord;
-	//pixel range in window
-	int leftBoundary = 0;
-	int rightBoundary = 0;
-	//scale and shift x-values for visualization:
-	if(side == 0)
-	{
-		//left side
-		leftBoundary = 0;
-		rightBoundary = windowX /2;
-	}
-	else if (side == 1)
-	{
-		//right side
-		leftBoundary = windowX/2;
-		rightBoundary = windowX;
-	}
-
-	cv::normalize(coordinates.col(0),wCoordNorm,leftBoundary,rightBoundary,cv::NORM_MINMAX);
-	//std::cout << "wCoordNorm: \n" << wCoordNorm << "\n";
-
-
-
-
-
-
-
-
-	//compute shift and scale parameters of wCoordNorm (as performed in cv::normalize)
-	float min = dotLeft.x; //s.o.
-	float max = dotRight.x;
-	//float scaleX = (rightBoundary-leftBoundary) /(max-min);
-
-	int scaleDepth = 200;
-	zCoord = coordinates.col(1) ;
-
-	//std::cout << "zCoord: \n" << zCoord << "\n";
-
-	for(int v=0; v< coordinates.rows; v++)
-	{
-		//scale z-value for visualization
-		cv::circle(plotZW,cv::Point2f(wCoordNorm.at<float>(v),zCoord.at<float>(v) * scaleDepth),1,CV_RGB(255,255,255),2);
-	}
-
-	//compute first and last point of the line
-	float x1 = 0;
-	float x2 = rightBoundary;
-	float z1 = (-abc.at<float>(2) - abc.at<float>(0) * min) / abc.at<float>(1);	//line equation -> z-value for x1
-	float z2 = (-abc.at<float>(2) - abc.at<float>(0) * max) / abc.at<float>(1);
-	cv::line(plotZW,cv::Point2f(x1 ,z1 *scaleDepth ), cv::Point2f(x2 , z2 * scaleDepth ),CV_RGB(255,255,255),1);*/
 }
 
 
@@ -304,36 +310,43 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 
 void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalarProduct, int& concaveConvex)
 {
+	//std::cout << "scalarProduct()\n";
+
 	//compute scalar product
+
+
+	//normal vector n=[1,(-c-a)/b]
 	float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
 	float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
 
+	//std::cout << "b1: " <<b1 << "\n";
+	//std::cout << "b2: " <<b2<< "\n";
 
 	//in der Realität gibt es keine unendlich spitzen Kanten
 	//erstmal begrenzen
-	float maxInclination = 10;
+	/*float maxInclination = 1000;
 	if(std::isinf(b1))
 		b1 = maxInclination;
 	if(std::isinf(b2))
-		b2 = maxInclination;
+		b2 = maxInclination;*/
 
 	//Richtungsvektoren der Geraden:
-	cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
+	cv::Mat n1 = (cv::Mat_<float>(1,2) << -1, -b1);
 	cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
 
 	cv::Mat n1Norm, n2Norm;
 	cv::normalize(n1,n1Norm,1);
 	cv::normalize(n2,n2Norm,1);
+	//std::cout << "n1: " <<n1Norm << "\n";
+	//std::cout << "n2: " <<n2Norm<< "\n";
 
-	//std::cout << "n1: " <<n1<< "\n";
-	//std::cout << "n2: " <<n2<< "\n";
 	//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
 	//Skalarprodukt muss zwischen 0 und 1 sein!
 	cv::Mat scalProd = n1Norm * n2Norm.t();
-	//std::cout << "scalarProduct: " <<scalarProduct << "\n";
+
 	scalarProduct = scalProd.at<float>(0,0);
-
-
+	//std::cout << "scalarProduct: " <<scalarProduct << "\n";
+	/*
 
 	if(n1.at<float>(1) > 0.05 && n2.at<float>(1) < 0.05)
 	{
@@ -344,7 +357,7 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 	{
 		//concave
 		concaveConvex = 125;
-	}
+	}*/
 
 }
 
@@ -352,7 +365,7 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 
 void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud)
 {
-	int lineLength = 60;
+	int lineLength = 30;
 
 	/*cv::Point2f dotLeft(color_image.cols/2 -lineLength/2, color_image.rows/2);
 	cv::Point2f dotRight(color_image.cols/2 +lineLength/2, color_image.rows/2);
@@ -361,8 +374,10 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	cv::Point2f dotUp(color_image.cols/2 , color_image.rows/2 +lineLength/2);
 	cv::Point2f dotDown(color_image.cols/2 , color_image.rows/2 -lineLength/2);*/
 
-	cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
-	cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
+
+	//zeichne Fadenkreuz:
+	//cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
+	//cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 
 
 	//plot z over w, draw estimated lines
@@ -370,21 +385,21 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	int windowY = 600;
 
 	cv::Mat plotZW (cv::Mat::zeros(windowX,windowY,CV_32FC1));
-	cv::Mat scalarProducts (cv::Mat::ones(windowX,windowY,CV_32FC1));
-	cv::Mat concaveConvex (cv::Mat::zeros(windowX,windowY,CV_8UC1)); 	//0:neither concave nor convex; 1:concave; 2:convex
-	cv::Mat scalarProductsY (cv::Mat::ones(windowX,windowY,CV_32FC1));
-	cv::Mat scalarProductsX (cv::Mat::ones(windowX,windowY,CV_32FC1));
+	cv::Mat scalarProducts (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
+	cv::Mat concaveConvex (cv::Mat::zeros(color_image.rows,color_image.cols,CV_8UC1)); 	//0:neither concave nor convex; 1:concave; 2:convex
+	cv::Mat scalarProductsY (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
+	cv::Mat scalarProductsX (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
 
-	int iX=color_image.cols/2;
-	int iY=color_image.rows/2;
+	//int iX=color_image.cols/2;
+	//int iY=color_image.rows/2;
 
 	int sampleStep = 0;	//computation only for every n-th pixel
 	//loop over rows
-	/*for(int iY = lineLength/2; iY< windowY-lineLength/2; iY++)
+	for(int iY = lineLength/2; iY< color_image.rows-lineLength/2; iY++)
 	{
 		//loop over columns
-		for(int iX = lineLength/2; iX< windowX-lineLength/2; iX++)
-		{*/
+		for(int iX = lineLength/2; iX< color_image.cols-lineLength/2; iX++)
+		{
 			/*sampleStep ++;
 			if(sampleStep == 5)
 			{
@@ -398,31 +413,43 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			cv::Point2f dotRight(iX +lineLength/2, iY);
 			//cv::line(color_image,dotLeft,dotRight,CV_RGB(0,1,0),1);
 			cv::Point2f dotMiddle(iX , iY );
-			cv::Mat coordinates1 = cv::Mat::zeros(dotMiddle.x - dotLeft.x,3,CV_32FC1);
-			cv::Mat coordinates2 = cv::Mat::zeros(dotRight.x - dotMiddle.x,3,CV_32FC1);
+			cv::Mat coordinates1 = cv::Mat::zeros(1,3,CV_32FC1); //= cv::Mat::zeros(dotMiddle.x - dotLeft.x,3,CV_32FC1);
+			cv::Mat coordinates2 = cv::Mat::zeros(1,3,CV_32FC1); //= cv::Mat::zeros(dotRight.x - dotMiddle.x,3,CV_32FC1);
+
 
 			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
-			approximateLine(depth_image,pointcloud, dotMiddle,dotLeft, abc1, coordinates1,0);
+
+			//approximateLine(depth_image,pointcloud, dotMiddle,dotLeft, abc1, coordinates1);
+			approximateLine(depth_image,pointcloud, cv::Point2f(iX-1,iY),dotLeft, abc1, coordinates1);
+
 
 			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
-			approximateLine(depth_image,pointcloud, dotMiddle,dotRight, abc2, coordinates2,0);
+			//approximateLine(depth_image,pointcloud, dotMiddle,dotRight, abc2, coordinates2);
+			//besser den Pixel rechts bzw.links von dotMiddle betrachten, damit dotMiddle nicht zu beiden Seiten dazu gerechnet wird (sonst ungenau bei Sprung)
+			approximateLine(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2, coordinates2);
 			//std::cout<< "coordinates2" <<coordinates2 << "\n";
 
-			drawLines(plotZW,coordinates1,abc1,dotMiddle,dotLeft,0);
-			drawLines(plotZW,coordinates2,abc2,dotMiddle,dotRight,1);
+			//drawLines(plotZW,coordinates1,abc1);
+			//drawLines(plotZW,coordinates2,abc2);
 
 
-			/*float scalProdX = 1;
+			float scalProdX = 1;
 			int concConv = 0;
-			scalarProduct(abc1,abc2,scalProdX,concConv);
-
+			if(abc1.at<float>(0,0) == 0 || abc2.at<float>(0,0) == 0)
+			{
+				//abc konnte nicht approximiert werden
+				scalProdX = 1;
+			}
+			else
+				scalarProduct(abc1,abc2,scalProdX,concConv);
 
 			scalarProductsX.at<float>(iY,iX) = scalProdX;
 
-			if (scalProdX < 0.3)
-				concaveConvex.at<float>(iY,iX) = concConv;*/
 
-/*
+			//if (scalProdX < 0.3)
+			//concaveConvex.at<float>(iY,iX) = concConv;
+
+			/*
 
 
 
@@ -464,21 +491,25 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 				scalarProducts.at<float>(iY,iX) = (scalProdX > scalProdY)? scalProdX : scalProdY;
 
 
-*/
+			 */
 
 
 			//}
-		/*}
-	}*/
-	//std::cout << "scalarProduct: " <<scalarProducts << "\n";
-	cv::imshow("depth over coordinate along line", plotZW);
-	cv::waitKey(10);
+		}
+	}
+	std::cout << "scalarProduct: " <<scalarProductsX << "\n";
+	//cv::imshow("depth over coordinate along line", plotZW);
+	//cv::waitKey(10);
 
 
 	//cv::Mat scalarProductsNorm;
 	//cv::normalize(scalarProducts,scalarProductsNorm,0,1,cv::NORM_MINMAX);
 
 	//scalarproduct = 1 for flat surfaces, = 0 for perpendicular lines
+	//cv::Mat vis (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
+	//cv::Mat sub = vis - scalarProductsX;
+	//cv::normalize(scalarProductsX,vis,0,1,cv::NORM_MINMAX);
+
 	//cv::imshow("Skalarprodukt", scalarProductsX);
 	//cv::waitKey(10);
 
