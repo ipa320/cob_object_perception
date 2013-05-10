@@ -337,8 +337,8 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 	cv::Mat n1Norm, n2Norm;
 	cv::normalize(n1,n1Norm,1);
 	cv::normalize(n2,n2Norm,1);
-	//std::cout << "n1: " <<n1Norm << "\n";
-	//std::cout << "n2: " <<n2Norm<< "\n";
+	std::cout << "n1: " <<n1Norm << "\n";
+	std::cout << "n2: " <<n2Norm<< "\n";
 
 	//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
 	//Skalarprodukt muss zwischen 0 und 1 sein!
@@ -346,21 +346,22 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 
 	scalarProduct = scalProd.at<float>(0,0);
 	//std::cout << "scalarProduct: " <<scalarProduct << "\n";
-	/*
 
-	if(n1.at<float>(1) > 0.05 && n2.at<float>(1) < 0.05)
+
+	//convex: second component of both normal vectors is positive
+	//concave: negative
+	if(n1.at<float>(1) > 0.05 && n2.at<float>(1) > 0.05)
 	{
 		//convex
 		concaveConvex = 255;
 	}
-	else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) > 0.05)
+	else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) < 0.05)
 	{
 		//concave
 		concaveConvex = 125;
-	}*/
+	}
 
 }
-
 
 
 void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud)
@@ -376,8 +377,8 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 
 	//zeichne Fadenkreuz:
-	//cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
-	//cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
+	cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
+	cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 
 
 	//plot z over w, draw estimated lines
@@ -390,16 +391,16 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	cv::Mat scalarProductsY (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
 	cv::Mat scalarProductsX (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
 
-	//int iX=color_image.cols/2;
-	//int iY=color_image.rows/2;
+	int iX=color_image.cols/2;
+	int iY=color_image.rows/2;
 
 	int sampleStep = 0;	//computation only for every n-th pixel
 	//loop over rows
-	for(int iY = lineLength/2; iY< color_image.rows-lineLength/2; iY++)
+	/*for(int iY = lineLength/2; iY< color_image.rows-lineLength/2; iY++)
 	{
 		//loop over columns
 		for(int iX = lineLength/2; iX< color_image.cols-lineLength/2; iX++)
-		{
+		{*/
 			/*sampleStep ++;
 			if(sampleStep == 5)
 			{
@@ -429,8 +430,8 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			approximateLine(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2, coordinates2);
 			//std::cout<< "coordinates2" <<coordinates2 << "\n";
 
-			//drawLines(plotZW,coordinates1,abc1);
-			//drawLines(plotZW,coordinates2,abc2);
+			drawLines(plotZW,coordinates1,abc1);
+			drawLines(plotZW,coordinates2,abc2);
 
 
 			float scalProdX = 1;
@@ -443,10 +444,12 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			else
 				scalarProduct(abc1,abc2,scalProdX,concConv);
 
-			scalarProductsX.at<float>(iY,iX) = scalProdX;
+			std::cout << "scalarProduct: " <<scalProdX << "\n";
+			std::cout << "concave 125 grau, konvex 255 weiß: " <<concConv << "\n";
+			//scalarProductsX.at<float>(iY,iX) = scalProdX;
 
 
-			//if (scalProdX < 0.3)
+			//if (scalProdX < 0.8)
 			//concaveConvex.at<float>(iY,iX) = concConv;
 
 			/*
@@ -495,11 +498,12 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 
 			//}
-		}
-	}
-	std::cout << "scalarProduct: " <<scalarProductsX << "\n";
-	//cv::imshow("depth over coordinate along line", plotZW);
-	//cv::waitKey(10);
+		/*}
+	}*/
+	//std::cout << "scalarProduct: " <<scalarProductsX << "\n";
+
+	cv::imshow("depth over coordinate along line", plotZW);
+	cv::waitKey(10);
 
 
 	//cv::Mat scalarProductsNorm;
