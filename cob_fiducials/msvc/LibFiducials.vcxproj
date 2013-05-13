@@ -19,6 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\common\src\aruco\arucofidmarkers.cpp" />
+    <ClCompile Include="..\common\src\aruco\board.cpp" />
+    <ClCompile Include="..\common\src\aruco\boarddetector.cpp" />
+    <ClCompile Include="..\common\src\aruco\cameraparameters.cpp" />
+    <ClCompile Include="..\common\src\aruco\cvdrawingutils.cpp" />
+    <ClCompile Include="..\common\src\aruco\FiducialModelAruco.cpp" />
+    <ClCompile Include="..\common\src\aruco\marker.cpp" />
+    <ClCompile Include="..\common\src\aruco\markerdetector.cpp" />
     <ClCompile Include="..\common\src\FiducialModelPi.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
@@ -35,6 +43,17 @@
   <ItemGroup>
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialModel.h" />
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialParameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\aruco.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\arucofidmarkers.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\board.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\boarddetector.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\cameraparameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\cvdrawingutils.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\exports.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\FiducialArucoParameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\FiducialModelAruco.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\marker.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\markerdetector.h" />
     <ClInclude Include="..\common\include\cob_fiducials\FiducialDefines.h" />
     <ClInclude Include="..\common\include\cob_fiducials\FiducialModelPi.h" />
     <ClInclude Include="..\common\include\cob_fiducials\FiducialTestingEnvironment.h" />

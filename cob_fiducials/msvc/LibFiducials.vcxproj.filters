@@ -5,7 +5,31 @@
       <Filter>cob_fiducials</Filter>
     </ClCompile>
     <ClCompile Include="..\common\src\FiducialModelPi.cpp">
-      <Filter>cob_fiducials</Filter>
+      <Filter>cob_fiducials\pi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\arucofidmarkers.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\board.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\boarddetector.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\cameraparameters.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\cvdrawingutils.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\marker.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\markerdetector.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\FiducialModelAruco.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -15,22 +39,61 @@
     <ClInclude Include="..\common\include\cob_fiducials\FiducialDefines.h">
       <Filter>cob_fiducials</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\include\cob_fiducials\FiducialModelPi.h">
-      <Filter>cob_fiducials</Filter>
-    </ClInclude>
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialModel.h">
       <Filter>cob_fiducials</Filter>
     </ClInclude>
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialParameters.h">
       <Filter>cob_fiducials</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\FiducialModelPi.h">
+      <Filter>cob_fiducials\pi</Filter>
+    </ClInclude>
     <ClInclude Include="..\common\include\cob_fiducials\FiducialPiParameters.h">
-      <Filter>cob_fiducials</Filter>
+      <Filter>cob_fiducials\pi</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\aruco.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\arucofidmarkers.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\board.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\boarddetector.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\cameraparameters.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\cvdrawingutils.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\exports.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\marker.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\markerdetector.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\FiducialArucoParameters.h">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\FiducialModelAruco.h">
+      <Filter>cob_fiducials\aruco</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cob_fiducials">
       <UniqueIdentifier>{5d5c2f8d-e7db-4e9f-9697-3ce38d62d8b3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cob_fiducials\pi">
+      <UniqueIdentifier>{973dcd72-6862-4320-aeba-eee2ceb8971e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cob_fiducials\aruco">
+      <UniqueIdentifier>{db2ec143-dbb6-4c3d-9f7e-74fafc25b998}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

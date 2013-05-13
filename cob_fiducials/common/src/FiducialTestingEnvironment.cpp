@@ -1,9 +1,11 @@
 //#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_fiducials/FiducialModelPi.h"
+	#include "cob_fiducials/aruco/FiducialModelAruco.h"
 	#include "cob_fiducials/FiducialTestingEnvironment.h"
 #else
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialTestingEnvironment.h"
 #endif
 
@@ -15,10 +17,67 @@ FiducialTestingEnvironment::FiducialTestingEnvironment(cv::Mat& camera_matrix)
 {	
 	m_camera_matrix = camera_matrix.clone();
 	m_pi_tag = boost::shared_ptr<FiducialModelPi>(new FiducialModelPi());
+	m_aruco_tag = boost::shared_ptr<FiducialModelAruco>(new FiducialModelAruco());
 }
 
 FiducialTestingEnvironment::~FiducialTestingEnvironment()
 {
+}
+
+unsigned long FiducialTestingEnvironment::FiducialTestAruco()
+{
+	// ----------------------------------- Init detector -----------------------------------------
+	if (m_aruco_tag->Init(m_camera_matrix, "ConfigurationFiles/objectDetectorIni.xml") & ipa_Utils::RET_FAILED)
+		return ipa_Utils::RET_FAILED;
+
+	// ----------------------------------- Load images -----------------------------------------
+	std::string dataset_name = "dataset_170413";
+	std::string filename_prefix = "ConfigurationFiles/fiducials/" + dataset_name + "/";
+
+	bool load_next_image = true;
+	std::vector<cv::Mat> image_vec;
+	while (load_next_image)
+	{
+		std::stringstream filename;
+		filename << filename_prefix << "tags_" << image_vec.size() << "_coloredPC_color_8U3.png";
+
+		cv::Mat image = cv::imread(filename.str(),-1);
+		if (!image.data)
+			load_next_image = false;
+		else
+			image_vec.push_back(image);
+	}
+
+	if (image_vec.empty())
+	{
+		std::cerr << "\t ... [ERROR] Loading image failed from\n";
+		std::cerr << "\t ... [ERROR] " << filename_prefix << std::endl;
+		return ipa_Utils::RET_FAILED;
+	}
+
+	std::cout << "\t ... [OK] Loaded " << image_vec.size() << " images" << std::endl;
+
+	// ----------------------------------- Recognize fiducials -----------------------------------------
+	for (int i=0; i<image_vec.size(); i++)
+	{
+		cv::Mat rot;
+		cv::Mat trans;
+
+		std::vector<t_pose> tags_vec;
+		if (m_aruco_tag->GetPose(image_vec[i], tags_vec) & ipa_Utils::RET_FAILED)
+			continue;
+
+		// Render and save results
+		for (int j=0; j<tags_vec.size(); j++)
+		{
+			RenderPose(image_vec[i], tags_vec[j].rot, tags_vec[j].trans);
+			std::stringstream filename;
+			filename << filename_prefix << "result_" << i << "_" << j << "_" << tags_vec[j].id << "_coloredPC_color_8U3.png";
+			cv::imwrite(filename.str(), image_vec[i]);
+		}
+	}	
+
+	return ipa_Utils::RET_OK;
 }
 
 unsigned long FiducialTestingEnvironment::FiducialTestPI()

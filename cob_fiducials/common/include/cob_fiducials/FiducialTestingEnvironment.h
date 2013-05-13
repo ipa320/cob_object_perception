@@ -6,10 +6,12 @@
 	#include "cob_vision_utils/GlobalDefines.h"
 	#include "cob_fiducials/FiducialDefines.h"
 	#include "cob_fiducials/FiducialModelPi.h"
+	#include "cob_fiducials/aruco/FiducialModelAruco.h"
 #else
 	#include "cob_perception_common/cob_vision_utils/common/include/cob_vision_utils/GlobalDefines.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
 #endif
 
 namespace ipa_Fiducials
@@ -27,10 +29,12 @@ public:
 	~FiducialTestingEnvironment();	///< Destructor.
 
 	unsigned long FiducialTestPI();
+	unsigned long FiducialTestAruco();
 private:
 	unsigned long RenderPose(cv::Mat& image, cv::Mat& rot, cv::Mat& trans);
 	unsigned long ReprojectXYZ(double x, double y, double z, int& u, int& v);
 	boost::shared_ptr<FiducialModelPi> m_pi_tag;
+	boost::shared_ptr<FiducialModelAruco> m_aruco_tag;
 	cv::Mat m_camera_matrix;
 };
 
