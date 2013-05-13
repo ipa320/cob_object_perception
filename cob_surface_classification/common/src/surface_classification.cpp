@@ -145,7 +145,7 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 				//origin of local coordinate system is the first point with valid data. Express coordinates relatively:
 				x0 = pointcloud->at(xIter.pos().x,xIter.pos().y).x;
 				y0 = pointcloud->at(xIter.pos().x,xIter.pos().y).y;
-				coordinates.at<float>(0,0) = x0;
+				coordinates.at<float>(0,0) = 0;
 				coordinates.at<float>(0,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
 				coordinates.at<float>(0,2) = 1.0;
 				first = false;
@@ -243,7 +243,7 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 
 
 	//Skalierung des Tiefen-Wertes zur besseren Darstellung
-	float scaleDepth = 300;
+	float scaleDepth = 400;
 
 
 	int windowX = plotZW.cols;
@@ -312,54 +312,87 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 {
 	//std::cout << "scalarProduct()\n";
 
-	//compute scalar product
+	//detect steps
+	//------------------------------------------------------------
 
+	//compute z-value at w =0
+	//compare value on left side of w=0 to value on right side
+	// P[0, -c/b]
+	float zLeft = -abc1.at<float>(2)/abc1.at<float>(1);
+	float zRight = -abc2.at<float>(2)/abc2.at<float>(1);
 
-	//normal vector n=[1,(-c-a)/b]
-	float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
-	float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
-
-	//std::cout << "b1: " <<b1 << "\n";
-	//std::cout << "b2: " <<b2<< "\n";
-
-	//in der Realität gibt es keine unendlich spitzen Kanten
-	//erstmal begrenzen
-	/*float maxInclination = 1000;
-	if(std::isinf(b1))
-		b1 = maxInclination;
-	if(std::isinf(b2))
-		b2 = maxInclination;*/
-
-	//Richtungsvektoren der Geraden:
-	cv::Mat n1 = (cv::Mat_<float>(1,2) << -1, -b1);
-	cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
-
-	cv::Mat n1Norm, n2Norm;
-	cv::normalize(n1,n1Norm,1);
-	cv::normalize(n2,n2Norm,1);
-	std::cout << "n1: " <<n1Norm << "\n";
-	std::cout << "n2: " <<n2Norm<< "\n";
-
-	//abc ist schon normiert, da Ergebnis der SVD eine orthonormale Matrix ist
-	//Skalarprodukt muss zwischen 0 und 1 sein!
-	cv::Mat scalProd = n1Norm * n2Norm.t();
-
-	scalarProduct = scalProd.at<float>(0,0);
-	//std::cout << "scalarProduct: " <<scalarProduct << "\n";
-
-
-	//convex: second component of both normal vectors is positive
-	//concave: negative
-	if(n1.at<float>(1) > 0.05 && n2.at<float>(1) > 0.05)
+	std::cout <<"step: " << zRight-zLeft <<"\n";
+	if((zRight - zLeft) > 0.05 || (zRight - zLeft) < -0.05)
 	{
-		//convex
-		concaveConvex = 255;
+		//mark step as edge in depth data
+		scalarProduct = 0;
 	}
-	else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) < 0.05)
+
+	else
 	{
-		//concave
-		concaveConvex = 125;
+		//if depth data is continuous: compute scalar product
+		//--------------------------------------------------------
+
+			//normal vector n=[1,(-c-a)/b]
+			float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
+			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
+
+			//std::cout << "b1: " <<b1 << "\n";
+			//std::cout << "b2: " <<b2<< "\n";
+
+
+			//Richtungsvektoren der Geraden:
+			cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
+			cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
+
+			cv::Mat n1Norm, n2Norm;
+			cv::normalize(n1,n1Norm,1);
+			cv::normalize(n2,n2Norm,1);
+			//std::cout << "n1: " <<n1 << "\n";
+			//std::cout << "n2: " <<n2<< "\n";
+
+
+			//Skalarprodukt muss zwischen 0 und 1 sein!
+			cv::Mat scalProd = n1Norm * n2Norm.t();
+
+			scalarProduct = scalProd.at<float>(0,0);
+			//std::cout << "scalarProduct: " <<scalarProduct << "\n";
+
+/*
+
+			//convex: second component of both normal vectors is positive
+			//concave: negative
+			//assuming following definition of normal vectors:
+			//cv::Mat n1 = (cv::Mat_<float>(1,2) << -1, -b1);
+			//cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
+			if(n1.at<float>(1) > 0.05 && n2.at<float>(1) > 0.05)
+			{
+				//convex
+				concaveConvex = 255;//CV_RGB(255, 0,0);
+			}
+			else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) < 0.05)
+			{
+				//concave
+				concaveConvex = 125;//CV_RGB(0,255,0);
+			}*/
+
+
+			//convex: gradient of right line is larger than gradient of left line
+			//concave: gradient of right line is smaller than gradient of left line
+			float offset = 1.5;	//how much the gradients need to differ
+			if(b2 > (b1 + offset))
+				//convex
+				concaveConvex = 255;
+			else if (b1 > b2 + offset)
+				//concave
+				concaveConvex = 125;
+
 	}
+
+
+
+
+
 
 }
 
@@ -444,13 +477,17 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			else
 				scalarProduct(abc1,abc2,scalProdX,concConv);
 
-			std::cout << "scalarProduct: " <<scalProdX << "\n";
-			std::cout << "concave 125 grau, konvex 255 weiß: " <<concConv << "\n";
-			//scalarProductsX.at<float>(iY,iX) = scalProdX;
+			//std::cout << "scalarProduct: " <<scalProdX << "\n";
+			//std::cout << "concave 125 grau, konvex 255 weiß: " <<concConv << "\n";
+
+			//compute magnitude of scalar product (sign only depends on which angle between the lines was considered)
+			if(scalProdX < 0)
+				scalProdX = scalProdX * (-1);
+			scalarProductsX.at<float>(iY,iX) = scalProdX;
 
 
-			//if (scalProdX < 0.8)
-			//concaveConvex.at<float>(iY,iX) = concConv;
+			//if (scalProdX < 0.3)
+				concaveConvex.at<unsigned char>(iY,iX) = concConv;
 
 			/*
 
@@ -498,7 +535,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 
 			//}
-		/*}
+/*		}
 	}*/
 	//std::cout << "scalarProduct: " <<scalarProductsX << "\n";
 
