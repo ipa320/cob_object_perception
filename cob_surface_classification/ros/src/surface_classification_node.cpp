@@ -87,6 +87,8 @@
 #include <pcl_ros/point_cloud.h>
 
 
+
+
 #include <cob_surface_classification/surface_classification.h>
 
 class SurfaceClassificationNode
@@ -132,6 +134,8 @@ public:
 
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
+		Timer timer;
+		timer.start();
 		ROS_INFO("Input Callback");
 
 		// convert color image to cv::Mat
@@ -178,6 +182,8 @@ public:
 
 
 		surface_classification_.testFunction(color_image, cloud, depth_image);
+		timer.stop();
+		std::cout << timer.getElapsedTimeInMilliSec() << " ms for InputCallback\n";
 
 	}
 

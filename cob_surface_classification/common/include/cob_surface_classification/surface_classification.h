@@ -75,6 +75,10 @@
 #include <pcl/visualization/histogram_visualizer.h>
 #include <pcl/features/fpfh.h>
 
+// timer
+#include <iostream>
+#include "timer.h"
+
 
 
 class SurfaceClassification
