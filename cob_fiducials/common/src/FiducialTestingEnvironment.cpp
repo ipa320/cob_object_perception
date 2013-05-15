@@ -60,9 +60,6 @@ unsigned long FiducialTestingEnvironment::FiducialTestAruco()
 	// ----------------------------------- Recognize fiducials -----------------------------------------
 	for (int i=0; i<image_vec.size(); i++)
 	{
-		cv::Mat rot;
-		cv::Mat trans;
-
 		std::vector<t_pose> tags_vec;
 		if (m_aruco_tag->GetPose(image_vec[i], tags_vec) & ipa_Utils::RET_FAILED)
 			continue;

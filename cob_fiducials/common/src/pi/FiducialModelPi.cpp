@@ -1022,8 +1022,6 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		double d_line1_AC = pi_tags[i].d_line1_AC;
 		double d_line1_CD = tag_size - pi_tags[i].d_line1_AC;
 		ref_tag.cross_ration_1 = (d_line1_AB/d_line1_BD)/(d_line1_AC/d_line1_CD);
-
-		
 	
 		// Marker coordinates
 		ref_tag.marker_points.push_back(cv::Point2f(0, -0));
@@ -1105,17 +1103,17 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 		{
 
 //************************************************************************************
-//	BEGIN FiducialDetector->Fiducial
+//	BEGIN FiducialDetector->PI
 //************************************************************************************
 			// Tag element "ObjectDetectorParameters" of Xml Inifile
 
-			for(TiXmlElement* p_xmlElement_Root_FI = p_xmlElement_Root->FirstChildElement("Fiducial"); 
+			for(TiXmlElement* p_xmlElement_Root_FI = p_xmlElement_Root->FirstChildElement("PI"); 
 				p_xmlElement_Root_FI != NULL; 
-				p_xmlElement_Root_FI = p_xmlElement_Root_FI->NextSiblingElement("Fiducial"))
+				p_xmlElement_Root_FI = p_xmlElement_Root_FI->NextSiblingElement("PI"))
 			{
 				FiducialPiParameters pi_parameters;
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->ID
+//	BEGIN FiducialDetector->PI->ID
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				TiXmlElement *p_xmlElement_Child = NULL;
@@ -1134,13 +1132,13 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				else
 				{
 					std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
-					std::cerr << "\t ... Can't find tag 'IF'" << std::endl;
+					std::cerr << "\t ... Can't find tag 'ID'" << std::endl;
 					return ipa_Utils::RET_FAILED;
 				}
 
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->LineWidthHeight
+//	BEGIN FiducialDetector->PI->LineWidthHeight
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1164,7 +1162,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->CrossRatioLine0
+//	BEGIN FiducialDetector->PI->CrossRatioLine0
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1196,7 +1194,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->CrossRatioLine1
+//	BEGIN FiducialDetector->PI->CrossRatioLine1
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1228,7 +1226,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->Offset
+//	BEGIN FiducialDetector->PI->Offset
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1269,7 +1267,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 			if (vec_pi_parameters.empty())
 			{
 				std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
-				std::cerr << "\t ... Could't find tag 'Fiducial'" << std::endl;
+				std::cerr << "\t ... Could't find tag 'PI'" << std::endl;
 				return ipa_Utils::RET_FAILED;
 			}
 
