@@ -1,10 +1,10 @@
 //#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
-	#include "cob_fiducials/FiducialModelPi.h"
+	#include "cob_fiducials/pi/FiducialModelPi.h"
 	#include "cob_fiducials/aruco/FiducialModelAruco.h"
 	#include "cob_fiducials/FiducialTestingEnvironment.h"
 #else
-	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/pi/FiducialModelPi.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialTestingEnvironment.h"
 #endif
@@ -31,7 +31,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestAruco()
 		return ipa_Utils::RET_FAILED;
 
 	// ----------------------------------- Load images -----------------------------------------
-	std::string dataset_name = "dataset_170413";
+	std::string dataset_name = "dataset_310515";
 	std::string filename_prefix = "ConfigurationFiles/fiducials/" + dataset_name + "/";
 
 	bool load_next_image = true;

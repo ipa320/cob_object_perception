@@ -1,8 +1,8 @@
 //#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
-	#include "cob_fiducials/FiducialModelPi.h"
+	#include "cob_fiducials/pi/FiducialModelPi.h"
 #else
-	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/pi/FiducialModelPi.h"
 #endif
 #include <opencv/highgui.h>
 

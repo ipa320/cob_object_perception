@@ -27,18 +27,13 @@
     <ClCompile Include="..\common\src\aruco\FiducialModelAruco.cpp" />
     <ClCompile Include="..\common\src\aruco\marker.cpp" />
     <ClCompile Include="..\common\src\aruco\markerdetector.cpp" />
-    <ClCompile Include="..\common\src\FiducialModelPi.cpp">
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
     <ClCompile Include="..\common\src\FiducialTestingEnvironment.cpp">
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="..\common\src\pi\FiducialModelPi.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialModel.h" />
@@ -55,9 +50,9 @@
     <ClInclude Include="..\common\include\cob_fiducials\aruco\marker.h" />
     <ClInclude Include="..\common\include\cob_fiducials\aruco\markerdetector.h" />
     <ClInclude Include="..\common\include\cob_fiducials\FiducialDefines.h" />
-    <ClInclude Include="..\common\include\cob_fiducials\FiducialModelPi.h" />
     <ClInclude Include="..\common\include\cob_fiducials\FiducialTestingEnvironment.h" />
-    <ClInclude Include="..\common\include\cob_fiducials\FiducialPiParameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\pi\FiducialModelPi.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\pi\FiducialPiParameters.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D9F1E3DF-0A22-431A-A173-9FD673525F7A}</ProjectGuid>

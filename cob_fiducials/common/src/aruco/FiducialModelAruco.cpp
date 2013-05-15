@@ -3,6 +3,7 @@
 	#include "cob_fiducials/FiducialModelAruco.h"
 #else
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/arucofidmarkers.h"
 #endif
 #include <opencv/highgui.h>
 
@@ -11,9 +12,9 @@ using namespace ipa_Fiducials;
 
 FiducialModelAruco::FiducialModelAruco()
 {
-	int pyrDownLevels = 3;
+	int pyrDownLevels = 0;
 	int speed_level = 0; //0: slow but exact, 1: fast, but inaccurate
-	m_marker_size=-1;
+	m_marker_size=0.07;
 
 	//Configure other parameters
     if (pyrDownLevels>0)
@@ -50,14 +51,19 @@ unsigned long FiducialModelAruco::GetPose(cv::Mat& image, std::vector<t_pose>& v
 		t_pose pose;
 		
 		// Apply transformation
-		cv::Mat trans_1x3_CfromO = markers[i].Tvec.clone();
+		cv::Mat trans_3x1_CfromO = markers[i].Tvec.clone();
 		cv::Mat rot_3x3_CfromO;
 		cv::Rodrigues(markers[i].Rvec, rot_3x3_CfromO);
 
-		ApplyExtrinsics(rot_3x3_CfromO, trans_1x3_CfromO);
+		cv::Mat rot_3x3_CfromO_D;
+		cv::Mat trans_3x1_CfromO_D;
+		rot_3x3_CfromO.convertTo(rot_3x3_CfromO_D, CV_64FC1);
+		trans_3x1_CfromO.convertTo(trans_3x1_CfromO_D, CV_64FC1);
 
-		rot_3x3_CfromO.copyTo(pose.rot);
-		trans_1x3_CfromO.copyTo(pose.trans);
+		ApplyExtrinsics(rot_3x3_CfromO_D, trans_3x1_CfromO_D);
+
+		rot_3x3_CfromO_D.copyTo(pose.rot);
+		trans_3x1_CfromO_D.copyTo(pose.trans);
 
 		vec_pose.push_back(pose);
 	}

@@ -5,12 +5,12 @@
 #ifdef __LINUX__
 	#include "cob_vision_utils/GlobalDefines.h"
 	#include "cob_fiducials/FiducialDefines.h"
-	#include "cob_fiducials/FiducialModelPi.h"
+	#include "cob_fiducials/pi/FiducialModelPi.h"
 	#include "cob_fiducials/aruco/FiducialModelAruco.h"
 #else
 	#include "cob_perception_common/cob_vision_utils/common/include/cob_vision_utils/GlobalDefines.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
-	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/pi/FiducialModelPi.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
 #endif
 
