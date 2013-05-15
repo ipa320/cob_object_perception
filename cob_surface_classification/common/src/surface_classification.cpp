@@ -73,7 +73,7 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 	//&: Adresse der Variable
 	// -> pointCloud selbst wird verändert! ohne & wird eine Kopie von pointcloud übergeben und nur die kopie verändert
 	//bei Funktionsaufruf einfach das objekt übergeben, bei der Deklaration der Funktion ein & an den Datentyp -> die Funktion verwendet eine Referenz/einen Zeiger auf das Objekt!
-	//<> template (generisch); XYZRGB: Tiefendaten + Farbbild
+
 	std::cout << "function call \n";
 
 	std::vector<int> test;
@@ -107,8 +107,8 @@ void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<p
 
 void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc, cv::Mat& coordinates)
 {
-	//Timer timer;
-	//timer.start();
+	Timer timer;
+
 	//std::cout << "approximateLine()\n";
 
 
@@ -123,120 +123,167 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 	 * ----------------------------------------------------------*/
 
 	//write depth of points along the line into a matrix
-	//format of one line: [coordinate along the line, depth coordinate, 1]
+	//format of one line: [coordinate along the line (w), depth coordinate (z) , 1]
+
+	//parameters of the approximated line: aw+bz+1 = 0
+
+	/*timer.start();
+	for(int itim=0;itim<10000;itim++)
+	{*/
 
 
-	//iterate from dotIni to dotEnd:
-	cv::LineIterator xIter (depth_image,dotIni,dotEnd);
+	int xDist = dotEnd.x - dotIni.x;
+	int yDist = dotEnd.y - dotIni.y;
+	int lineLength = std::max(std::abs(xDist),std::abs(yDist)) + 1;
+	int dist;
+
+	int lineIter;	//index of current pixel on line
+	int endIndex;	//index of last pixel on line
+	int sign = 1;
+	int xIter[lineLength];
+	int yIter[lineLength];
+	//std::cout << "xDist: " << xDist <<"\n";
+	if(xDist != 0)
+	{
+		//line in x-direction
+		//lineLength = std::abs(xDist) +1;
+		lineIter = dotIni.x;
+		endIndex = dotEnd.x;
+		if(xDist <0)
+			sign = -1;
+		//include both points -> one coordinate more than distance
+
+
+		for(int i=0; i<lineLength; i ++)
+		{
+			xIter[i] = dotIni.x + i * sign;
+			yIter[i] = dotIni.y;
+		}
+
+
+	}
+	else
+	{
+		//lineLength = std::abs(yDist) +1;
+		lineIter = dotIni.y;
+		endIndex = dotEnd.y;
+		if(yDist <0)
+			sign = -1;
+
+		for(int i=0; i<lineLength; i ++)
+		{
+			xIter[i] = dotIni.x;
+			yIter[i] = dotIni.y + i*sign;
+		}
+
+	}
+
+	//std::cout << "xIter:\n" <<xIter << "\nyIter:\n" <<yIter << "\n";
 
 	float x0,y0; //coordinates of reference point
 	bool first = true;
 
-	int v;
-	cv::Mat currentCoord (cv::Mat::zeros(1,3,CV_32FC1));
-	for( v=0; v<xIter.count; v++, ++xIter)
+	int iCoord;
+	//timer.start();
+
+
+	//iterate from dotIni to dotEnd:
+	//cv::LineIterator xIter (depth_image,dotIni,dotEnd);
+
+	coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
+	//cv::Mat currentCoord (cv::Mat::zeros(1,3,CV_32FC1));
+
+	iCoord = 0;
+	//for(int v=0; v<xIter.count; v++, ++xIter)
+	int iX = 0;
+	int iY = 0;
+
+
+	while(iX < lineLength && iY < lineLength)
 	{
 		//später nicht einfach x bzw y-Koordinate betrachten, sondern (x-x0)²+(y-y0)² als w nehmen
 
 
 		//don't save points with nan-entries (no data available)
-		if(!std::isnan(pointcloud->at(xIter.pos().x, xIter.pos().y).x))
+		if(!std::isnan(pointcloud->at(xIter[iX],yIter[iY]).x))
 		{
+
 			if(first)
 			{
 				//origin of local coordinate system is the first point with valid data. Express coordinates relatively:
-				x0 = pointcloud->at(xIter.pos().x,xIter.pos().y).x;
-				y0 = pointcloud->at(xIter.pos().x,xIter.pos().y).y;
-				coordinates.at<float>(0,0) = 0;
+				x0 = pointcloud->at(xIter[iX],yIter[iY]).x;		//x0 = pointcloud->at(xIter.pos().x,xIter.pos().y).x;
+				y0 = pointcloud->at(xIter[iX],yIter[iY]).y;
+
+
+
+				/*coordinates.at<float>(0,0) = 0;
 				coordinates.at<float>(0,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
-				coordinates.at<float>(0,2) = 1.0;
+				coordinates.at<float>(0,2) = 1.0;*/
 				first = false;
+
 				//std::cout << "coordinates: " <<coordinates << "\n";
 			}
-			else
+			//std::cout << "writing coordinates\n ";
+			coordinates.at<float>(iCoord,0) = (pointcloud->at(xIter[iX],yIter[iY]).x - x0)
+																				+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
+			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);	//depth coordinate
+			coordinates.at<float>(iCoord,2) = 1.0;
+			iCoord++;
+
+
+			/*else
 			{
 				//als Koordinate wird (x-x0) + (y-y0) abgespeichert. Ist ausreichend, wenn immer entweder entlang x-Linien oder y-Linien approximiert wird. (Dann ist eine der Differenzen 0).
 				//Ansonsten müssen später die Differenzen jeweils quadriert und dann addiert werden.
 				currentCoord.at<float>(0,0) = (pointcloud->at(xIter.pos().x, xIter.pos().y).x - x0)
-												+ (pointcloud->at(xIter.pos().x, xIter.pos().y).y - y0);
+														+ (pointcloud->at(xIter.pos().x, xIter.pos().y).y - y0);
 				//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
 				currentCoord.at<float>(0,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
 				currentCoord.at<float>(0,2) = 1.0;
 				coordinates.push_back(currentCoord);
-				//std::cout << "coordinates: " <<coordinates << "\n";
-				/*
-							coordinates.at<float>(v,0) = pointcloud->at(xIter.pos().x, xIter.pos().y).x - x0;
-							//ACHTUNG: Matrix depth_image: zuerst Zeilenindex (y), dann Spaltenindex (x) !!!!
-							coordinates.at<float>(v,1) = depth_image.at<float>(xIter.pos().y, xIter.pos().x);	//depth coordinate
-							coordinates.at<float>(v,2) = 1.0;*/
-			}
-
+				sizeCoordinates++;
+			}*/
 
 		}
-		/*else
-		{
-			v--;	//no row added to coordinates-matrix
-			//coordinates.at<float>(v,0) = 0;
-			//coordinates.at<float>(v,1) = 0;
-			//coordinates.at<float>(v,2) = 0;
-		}*/
-
-
+		iX++;
+		iY++;
 	}
-	//cout << timer.getElapsedTimeInMilliSec() << " ms in approximateLine() after setting up coordinates-matrix\n";
-
-	//Reihen unterhalb von v löschen?
-
 	//std::cout << "coordinates: " <<coordinates << "\n";
-	/*std::cout << "v: " <<v << "\n";
-	std::cout << "coordinates.rows: " <<coordinates.rows-1 << "\n";
-
-	cv::Mat coordSmall;
-	if(v<coordinates.rows-1)
-	{
-		//coordinates.copyTo(coordSmall,coordinates);
-		coordinates.pop_back(coordinates.rows -1 - v);
-	}
-
-	std::cout << "coordSmall: " <<coordinates << "\n";
-	//coordinates = coordSmall;
-	//~coordSmall;*/
-
-	cv::Mat sv;	//singular values
-	cv::Mat u;	//left singular vectors
-	cv::Mat vt;	//right singular vectors, transposed, 3x3
-
-	//if there were valid coordinates available, perform SVD
-	if(coordinates.rows >2)
-	{
-
-
-		cv::SVD::compute(coordinates,sv,u,vt);
-		abc =  vt.row(2);
-		//std::cout << "SVD performed\n";
-	}
-	//cout << timer.getElapsedTimeInMilliSec() << " ms in approximateLine() after SVD\n";
-
-	//std::cout << "vt: \n"<<vt << "\n";
-
-	//last column of v = last row of vt is x, so that y is minimal
-	//parameters of the approximated line: aw+bz+1 = 0
-	/*if(vt.rows !=3)
-	{
-		std::cout << "SVD failed\n";
-	}
+	if(iCoord == 0)
+		//no valid data
+		abc = cv::Mat::zeros(1,3,CV_32FC1);
 	else
-		abc =  vt.row(2);
-
-	if(std::isnan(abc.at<float>(0,0)) || std::isnan(abc.at<float>(0,1)))
 	{
-		std::cout << "abc is nan\n";
-		std::cout << "coordinates: " <<coordinates << "\n";
-	}*/
+		//std::cout <<"iCoord "<< iCoord <<", lineLength "<<lineLength<< "\n";
+		if(iCoord<lineLength)
+		{
+			//std::cout << "resizing\n ";
+			coordinates.resize(iCoord);
+			//std::cout << "coordinates after resize: " <<coordinates << "\n";
+		}
 
 
 
-	//std::cout << "abc: " <<abc << "\n";
+
+		cv::Mat sv;	//singular values
+		cv::Mat u;	//left singular vectors
+		cv::Mat vt;	//right singular vectors, transposed, 3x3
+
+
+		//if there have been valid coordinates available, perform SVD
+		//last column of v = last row of v-transposed is x, so that y is minimal
+		if(coordinates.rows >2)
+		{
+			cv::SVD::compute(coordinates,sv,u,vt);
+			abc =  vt.row(2);
+		}
+	}
+
+	/*}
+
+	timer.stop();
+	std::cout << timer.getElapsedTimeInMilliSec() /10000<< " ms setting up coordinates-matrix (averaged over 10000 iterations)\n";*/
+
 
 }
 
@@ -360,29 +407,12 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 		//std::cout << "n2: " <<n2<< "\n";
 
 
-		//Skalarprodukt muss zwischen 0 und 1 sein!
-		cv::Mat scalProd = n1Norm * n2Norm.t();
+		//Skalarprodukt liegt zwischen 0 und 1
+		//cv::Mat scalProd = n1Norm * n2Norm.t();
+		scalarProduct = n1Norm.at<float>(0) * n2Norm.at<float>(0) + n1Norm.at<float>(1) * n2Norm.at<float>(1);
 
-		scalarProduct = scalProd.at<float>(0,0);
+		//scalarProduct = scalProd.at<float>(0,0);
 		//std::cout << "scalarProduct: " <<scalarProduct << "\n";
-
-		/*
-
-			//convex: second component of both normal vectors is positive
-			//concave: negative
-			//assuming following definition of normal vectors:
-			//cv::Mat n1 = (cv::Mat_<float>(1,2) << -1, -b1);
-			//cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
-			if(n1.at<float>(1) > 0.05 && n2.at<float>(1) > 0.05)
-			{
-				//convex
-				concaveConvex = 255;//CV_RGB(255, 0,0);
-			}
-			else if (n1.at<float>(1) < 0.05 && n2.at<float>(1) < 0.05)
-			{
-				//concave
-				concaveConvex = 125;//CV_RGB(0,255,0);
-			}*/
 
 
 		//convex: gradient of right line is larger than gradient of left line
@@ -397,11 +427,6 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 
 	}
 
-
-
-
-
-
 }
 
 
@@ -410,7 +435,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	/*Timer timerFunc;
 	timerFunc.start();*/
 
-	int lineLength = 30;
+	int lineLength = 20;	//depth coordinates along two lines with length lineLength/2 are considered
 
 	//zeichne Fadenkreuz:
 	//cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
@@ -428,10 +453,10 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	cv::Mat scalarProductsY (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
 	cv::Mat scalarProductsX (cv::Mat::ones(color_image.rows,color_image.cols,CV_32FC1));
 
-	//	int iX=color_image.cols/2;
-	//	int iY=color_image.rows/2;
+	int iX=color_image.cols/2;
+	int iY=color_image.rows/2;
 
-	//Timer timer;
+	Timer timer;
 
 	int sampleStep = 0;	//computation only for every n-th pixel
 
@@ -455,19 +480,24 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			//------------------------------------------------------------------------
 			cv::Point2f dotLeft(iX -lineLength/2, iY);
 			cv::Point2f dotRight(iX +lineLength/2, iY);
-			cv::Mat coordinates1 = cv::Mat::zeros(1,3,CV_32FC1);
-			cv::Mat coordinates2 = cv::Mat::zeros(1,3,CV_32FC1);
+			cv::Mat coordinates1;
+			cv::Mat coordinates2;
 
 
 			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
 
-			//timer.start();
-
+			//	timer.start();
+			//for(int i=0; i<10000; i++)
+			//{
+			//	coordinates1 = cv::Mat::zeros(1,3,CV_32FC1);
 			//do not use point right at the center (would belong to both lines -> steps not correctly represented)
+
 			approximateLine(depth_image,pointcloud, cv::Point2f(iX-1,iY),dotLeft, abc1, coordinates1);
 
-			//timer.stop();
-			//cout << timer.getElapsedTimeInMilliSec() << " ms for lineApproximation\n";
+			//}
+
+			//	timer.stop();
+			//	std::cout << timer.getElapsedTimeInMilliSec() /10000 << " ms for lineApproximation (averaged over 10000 iterations)\n";
 
 			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
 
@@ -487,10 +517,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			}
 			else
 			{
-				//timer.start();
 				scalarProduct(abc1,abc2,scalProdX,concConv);
-				//timer.stop();
-				//cout << timer.getElapsedTimeInMilliSec() << " ms for scalarProduct\n";
 			}
 
 			//std::cout << "scalarProduct: " <<scalProdX << "\n";
