@@ -136,25 +136,20 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 
 	int xDist = dotEnd.x - dotIni.x;
 	int yDist = dotEnd.y - dotIni.y;
+	//include both points -> one coordinate more than distance
 	int lineLength = std::max(std::abs(xDist),std::abs(yDist)) + 1;
-	int dist;
-
 	int lineIter;	//index of current pixel on line
 	int endIndex;	//index of last pixel on line
-	int sign = 1;
+	int sign = 1;	//iteration in positive or negative direction
 	int xIter[lineLength];
 	int yIter[lineLength];
-	//std::cout << "xDist: " << xDist <<"\n";
+
+	//iterate from dotIni to dotEnd. Set up indices for iteration:
 	if(xDist != 0)
 	{
 		//line in x-direction
-		//lineLength = std::abs(xDist) +1;
-		lineIter = dotIni.x;
-		endIndex = dotEnd.x;
 		if(xDist <0)
 			sign = -1;
-		//include both points -> one coordinate more than distance
-
 
 		for(int i=0; i<lineLength; i ++)
 		{
@@ -164,9 +159,7 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 	}
 	else
 	{
-		//lineLength = std::abs(yDist) +1;
-		lineIter = dotIni.y;
-		endIndex = dotEnd.y;
+		//line in y-direction
 		if(yDist <0)
 			sign = -1;
 
@@ -177,7 +170,6 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 		}
 	}
 
-	//std::cout << "xIter:\n" <<xIter << "\nyIter:\n" <<yIter << "\n";
 
 	float x0,y0; //coordinates of reference point
 	bool first = true;
@@ -186,14 +178,8 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 	//timer.start();
 
 
-	//iterate from dotIni to dotEnd:
-
-
 	coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
-	//cv::Mat currentCoord (cv::Mat::zeros(1,3,CV_32FC1));
-
 	iCoord = 0;
-	//for(int v=0; v<xIter.count; v++, ++xIter)
 	int iX = 0;
 	int iY = 0;
 
@@ -213,11 +199,9 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 				x0 = pointcloud->at(xIter[iX],yIter[iY]).x;		//x0 = pointcloud->at(xIter.pos().x,xIter.pos().y).x;
 				y0 = pointcloud->at(xIter[iX],yIter[iY]).y;
 				first = false;
-				//std::cout << "coordinates: " <<coordinates << "\n";
 			}
-			//std::cout << "writing coordinates\n ";
 			coordinates.at<float>(iCoord,0) = (pointcloud->at(xIter[iX],yIter[iY]).x - x0)
-											+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
+													+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
 			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);	//depth coordinate
 			coordinates.at<float>(iCoord,2) = 1.0;
 
@@ -227,23 +211,21 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 			{
 				step = true;
 			}
+
 			iCoord++;
 		}
 		iX++;
 		iY++;
 	}
-	//std::cout << "coordinates: " <<coordinates << "\n";
+
 	if(iCoord == 0)
 		//no valid data
 		abc = cv::Mat::zeros(1,3,CV_32FC1);
 	else
 	{
-		//std::cout <<"iCoord "<< iCoord <<", lineLength "<<lineLength<< "\n";
 		if(iCoord<lineLength)
 		{
-			//std::cout << "resizing\n ";
 			coordinates.resize(iCoord);
-			//std::cout << "coordinates after resize: " <<coordinates << "\n";
 		}
 
 
@@ -262,7 +244,6 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 	}
 
 	/*}
-
 	timer.stop();
 	std::cout << timer.getElapsedTimeInMilliSec() /10000<< " ms setting up coordinates-matrix (averaged over 10000 iterations)\n";*/
 
@@ -284,9 +265,6 @@ void SurfaceClassification::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv:
 
 	int windowX = plotZW.cols;
 	int windowY = plotZW.rows;
-
-	//std::cout << "coordinates: \n" <<coordinates <<"\n";
-	//std::cout << "abc: \n" <<abc <<"\n";
 
 
 	//letzter Eintrag in der Spalte der w-Koordinaten ist die groesste w-Koordinate
@@ -374,9 +352,6 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 		float b1 = -(abc1.at<float>(0) + abc1.at<float>(2))/abc1.at<float>(1);
 		float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
 
-		//std::cout << "b1: " <<b1 << "\n";
-		//std::cout << "b2: " <<b2<< "\n";
-
 
 		//Richtungsvektoren der Geraden:
 		cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
@@ -385,16 +360,9 @@ void SurfaceClassification::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& sca
 		cv::Mat n1Norm, n2Norm;
 		cv::normalize(n1,n1Norm,1);
 		cv::normalize(n2,n2Norm,1);
-		//std::cout << "n1: " <<n1 << "\n";
-		//std::cout << "n2: " <<n2<< "\n";
-
 
 		//Skalarprodukt liegt zwischen 0 und 1
-		//cv::Mat scalProd = n1Norm * n2Norm.t();
 		scalarProduct = n1Norm.at<float>(0) * n2Norm.at<float>(0) + n1Norm.at<float>(1) * n2Norm.at<float>(1);
-
-		//scalarProduct = scalProd.at<float>(0,0);
-		//std::cout << "scalarProduct: " <<scalarProduct << "\n";
 
 
 		//convex: gradient of right line is larger than gradient of left line
@@ -490,6 +458,8 @@ void SurfaceClassification::thinEdges(cv::Mat& edgePicture, int xy)
 
 void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& depth_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud)
 {
+	float edgeThreshold = 0.5; //scalarproduct > edgeThreshold is set to 1 and thus not detected as edge. the larger the threshold, the more lines are detected as edges.
+
 	/*Timer timerFunc;
 	timerFunc.start();*/
 
@@ -516,10 +486,9 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 	Timer timer;
 
-	int sampleStep = 0;	//computation only for every n-th pixel
 
 	//	cout << timerFunc.getElapsedTimeInMilliSec() << " ms for initial definitions before loop\n";
-	//	int countIterations = 0;
+
 
 	//loop over rows
 	for(int iY = lineLength/2; iY< color_image.rows-lineLength/2; iY++)
@@ -527,38 +496,31 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 		//loop over columns
 		for(int iX = lineLength/2; iX< color_image.cols-lineLength/2; iX++)
 		{
-			/*sampleStep ++;
-			if(sampleStep == 5)
-			{
-				sampleStep = 0;*/
-
 
 
 			//scalarProduct of depth along lines in x-direction
 			//------------------------------------------------------------------------
 			cv::Point2f dotLeft(iX -lineLength/2, iY);
 			cv::Point2f dotRight(iX +lineLength/2, iY);
-			cv::Mat coordinates1;
-			cv::Mat coordinates2;
+			cv::Mat coordinates1;	//coordinates on the left side of the center point
+			cv::Mat coordinates2;	//coordinates on the right
+			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));	//line parameters a,b,c of line a*w+b*z+1=0, left line
+			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));	//right line
 
 
-			cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));
-
-			//	timer.start();
-			//for(int i=0; i<10000; i++)
-			//{
-			//	coordinates1 = cv::Mat::zeros(1,3,CV_32FC1);
-			//do not use point right at the center (would belong to both lines -> steps not correctly represented)
-
+			//boolean step will be set to true in approximateLine(), if there is a step either in coordinates1 or coordinates2
+			//-> needs to be set to false before calling approximateLine() for both sides.
+			//in scalarProduct(), boolean step will be considered when detecting a step at the central point.
+			//if there is a step at the central point, the coordinates on the right and left to it should be continuous without step!
+			//(else the step would be detected in the neighbourhood as well, leading to inaccuracies)
 			bool step = false;
+			//do not use point right at the center (would belong to both lines -> steps not correctly represented)
 			approximateLine(depth_image,pointcloud, cv::Point2f(iX-1,iY),dotLeft, abc1, coordinates1, step);
-
-			//}
 
 			//	timer.stop();
 			//	std::cout << timer.getElapsedTimeInMilliSec() /10000 << " ms for lineApproximation (averaged over 10000 iterations)\n";
 
-			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));
+
 
 			//besser den Pixel rechts bzw.links von dotMiddle betrachten, damit dotMiddle nicht zu beiden Seiten dazu gerechnet wird (sonst ungenau bei Sprung)
 			approximateLine(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2, coordinates2,step);
@@ -569,7 +531,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 			float scalProdX = 1;
 			int concConv = 0;
-			if(abc1.at<float>(0,0) == 0 || abc2.at<float>(0,0) == 0)
+			if(abc1.at<float>(0,2) == 0 || abc2.at<float>(0,2) == 0)
 			{
 				//abc konnte nicht approximiert werden
 				scalProdX = 1;
@@ -595,8 +557,6 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 
 
-
-
 			//scalarProduct of depth along lines in y-direction
 			//------------------------------------------------------------------------
 			cv::Point2f dotDown(iX , iY-lineLength/2);
@@ -612,11 +572,7 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 
 
-			//boolean step will be set to true in approximateLine(), if there is a step either in coordinates1 or coordinates2
-			//-> needs to be set to false before calling approximateLine() for both sides.
-			//in scalarProduct(), boolean step will be considered when detecting a step at the central point.
-			//if there is a step at the central point, the coordinates on the right and left to it should be continuous without step!
-			//(else the step would be detected in the neighbourhood as well, leading to inaccuracies)
+
 			step = false;
 
 			//do not use point right at the center (would belong to both lines -> steps not correctly represented)
@@ -662,15 +618,10 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 			concaveConvexY.at<unsigned char>(iY,iX) = concConvY;
 
-/*
+			/*
 			//Minimum:
 			scalarProducts.at<float>(iY,iX) = (scalProdX < scalProdY)? scalProdX : scalProdY;*/
 
-
-
-
-			//}
-			//countIterations++;
 		}
 	}
 
@@ -679,35 +630,22 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	thinEdges(scalarProductsY, 1);
 
 	for(int iY = lineLength/2; iY< color_image.rows-lineLength/2; iY++)
+	{
+		for(int iX = lineLength/2; iX< color_image.cols-lineLength/2; iX++)
 		{
-			//loop over columns
-			for(int iX = lineLength/2; iX< color_image.cols-lineLength/2; iX++)
-			{
-				//Minimum:
-				scalarProducts.at<float>(iY,iX) = std::min(scalarProductsX.at<float>(iY,iX), scalarProductsY.at<float>(iY,iX));
-			}
+			//Minimum:
+			scalarProducts.at<float>(iY,iX) = std::min(scalarProductsX.at<float>(iY,iX), scalarProductsY.at<float>(iY,iX));
+			if(scalarProducts.at<float>(iY,iX) > edgeThreshold)
+				scalarProducts.at<float>(iY,iX) = 1;
 		}
+	}
 
-
-
-	//cout << timerFunc.getElapsedTimeInMilliSec() << " ms directly after loop\n";
-	//cout << "countIterations: " <<countIterations <<"\n";
-
-	//std::cout << "scalarProduct: " <<scalarProductsX << "\n";
 
 	//cv::imshow("depth over coordinate along line", plotZW);
 	//cv::waitKey(10);
 
-
-	//cv::Mat scalarProductsNorm;
-	//cv::normalize(scalarProducts,scalarProductsNorm,0,1,cv::NORM_MINMAX);
-
-
-
 	cv::imshow("Skalarprodukt", scalarProducts);
 	cv::waitKey(10);
-
-
 
 	//cv::imshow("Skalarprodukt with thinned edges", scalarProducts);
 	//cv::waitKey(10);
