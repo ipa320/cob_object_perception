@@ -662,9 +662,9 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 
 			concaveConvexY.at<unsigned char>(iY,iX) = concConvY;
 
-
+/*
 			//Minimum:
-			scalarProducts.at<float>(iY,iX) = (scalProdX < scalProdY)? scalProdX : scalProdY;
+			scalarProducts.at<float>(iY,iX) = (scalProdX < scalProdY)? scalProdX : scalProdY;*/
 
 
 
@@ -673,6 +673,23 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 			//countIterations++;
 		}
 	}
+
+	//thin edges in x- and y-direction separately
+	thinEdges(scalarProductsX, 0);
+	thinEdges(scalarProductsY, 1);
+
+	for(int iY = lineLength/2; iY< color_image.rows-lineLength/2; iY++)
+		{
+			//loop over columns
+			for(int iX = lineLength/2; iX< color_image.cols-lineLength/2; iX++)
+			{
+				//Minimum:
+				scalarProducts.at<float>(iY,iX) = std::min(scalarProductsX.at<float>(iY,iX), scalarProductsY.at<float>(iY,iX));
+			}
+		}
+
+
+
 	//cout << timerFunc.getElapsedTimeInMilliSec() << " ms directly after loop\n";
 	//cout << "countIterations: " <<countIterations <<"\n";
 
@@ -690,10 +707,9 @@ void SurfaceClassification::depth_along_lines(cv::Mat& color_image, cv::Mat& dep
 	cv::imshow("Skalarprodukt", scalarProducts);
 	cv::waitKey(10);
 
-	//thinEdges(scalarProductsX, 0);
-	//thinEdges(scalarProductsY, 1);
 
-	//cv::imshow("Skalarprodukt with thinned edges", scalarProductsY);
+
+	//cv::imshow("Skalarprodukt with thinned edges", scalarProducts);
 	//cv::waitKey(10);
 
 	//cv::imshow("concave = grey, convex = white", concaveConvexY);
