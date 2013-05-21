@@ -88,8 +88,9 @@
 
 
 
-
-#include <cob_surface_classification/surface_classification.h>
+#include <cob_surface_classification/edge_detection.h>
+//#include <cob_surface_classification/surface_classification.h>
+#include <cob_surface_classification/organized_normal_estimation.h>
 
 class SurfaceClassificationNode
 {
@@ -149,8 +150,16 @@ public:
 		pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pc_ptr(&point_cloud_src);*/
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 		//Inhalt des Pointers übergeben
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
+
+		/*
+		one_.setInputCloud(cloud);
+		one_.setPixelSearchRadius(8,2,2);
+		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+		one_.compute(*normals);*/
+
 
 //		cv::Mat color_image = cv::Mat::zeros(point_cloud_src.height, point_cloud_src.width, CV_8UC3);
 //		for (unsigned int v=0; v<point_cloud_src.height; v++)
@@ -181,7 +190,9 @@ public:
 		//std::cout << depth_image.at< float >(100,100 )<<"\n";
 
 
-		surface_classification_.testFunction(color_image, cloud, depth_image);
+		edge_detection_.computeDepthEdges(color_image, depth_image, cloud);
+
+		//surface_classification_.testFunction(color_image, cloud, depth_image);
 		timer.stop();
 		std::cout << timer.getElapsedTimeInMilliSec() << " ms for InputCallback\n";
 
@@ -196,7 +207,10 @@ private:
 	message_filters::Subscriber<sensor_msgs::PointCloud2> pointcloud_sub_;
 	message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >* sync_input_;
 
-	SurfaceClassification surface_classification_;
+	//SurfaceClassification surface_classification_;
+	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal> one_;
+
+	EdgeDetection<pcl::PointXYZRGB> edge_detection_;
 };
 
 int main (int argc, char** argv)
