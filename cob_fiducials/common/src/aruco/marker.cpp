@@ -25,6 +25,8 @@ The views and conclusions contained in the software and documentation are those 
 authors and should not be interpreted as representing official policies, either expressed
 or implied, of Rafael Muñoz Salinas.
 ********************************/
+
+//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 #include "cob_fiducials/aruco/marker.h"
 #else
@@ -299,7 +301,7 @@ void Marker::calculateExtrinsics(float markerSizeMeters,cv::Mat  camMatrix,cv::M
     //rotate the X axis so that Y is perpendicular to the marker plane
    if (setYPerperdicular) rotateXAxis(Rvec);
     ssize=markerSizeMeters; 
-    cout<<(*this)<<endl;
+    //cout<<(*this)<<endl;
     
 }
 

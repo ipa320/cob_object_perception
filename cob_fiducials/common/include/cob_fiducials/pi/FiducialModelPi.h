@@ -23,7 +23,7 @@ struct t_pi
 {
 	void sparse_copy_to(t_pi& copy)
 	{
-		copy.parameters.id = parameters.id;
+		copy.parameters.m_id = parameters.m_id;
 		copy.marker_points = marker_points;
 	}
 

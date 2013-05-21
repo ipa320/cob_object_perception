@@ -16,7 +16,8 @@ namespace ipa_Fiducials
 class __DLL_LIBFIDUCIALS__ FiducialArucoParameters : public AbstractFiducialParameters
 {
 public:
-	double line_width_height; ///< Common width and height of fiducial
+	bool m_isInit; ///< Has this parameter set been initialized
+	double m_line_width_height; ///< Common width and height of fiducial
 };
 
 } // end namespace ipa_Fiducials

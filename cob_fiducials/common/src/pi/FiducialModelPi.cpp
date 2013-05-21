@@ -1,4 +1,4 @@
-//#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_fiducials/pi/FiducialModelPi.h"
 #else
@@ -844,9 +844,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		}
 
 		t_pose tag_pose;
-		cv::Mat dist_coeffs;
-		tag_pose.id = final_tag_vec[i].parameters.id;
-		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), dist_coeffs, 
+		tag_pose.id = final_tag_vec[i].parameters.m_id;
+		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), GetDistortionCoeffs(), 
 			tag_pose.rot, tag_pose.trans);
 
 		// Apply transformation
@@ -1040,8 +1039,8 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		// Offset
 		for(unsigned int j=0; j<ref_tag.marker_points.size(); j++)
 		{
-			ref_tag.marker_points[j].x += pi_tags[i].offset.x;
-			ref_tag.marker_points[j].y += pi_tags[i].offset.y;
+			ref_tag.marker_points[j].x += pi_tags[i].m_offset.x;
+			ref_tag.marker_points[j].y += pi_tags[i].m_offset.y;
 		}
 
 		double delta = ref_tag.cross_ration_0/ref_tag.cross_ration_1;
@@ -1053,7 +1052,7 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		else if (delta < 1)
 		{
 			std::cout << "[WARNING] FiducialModelPi::LoadCoordinates" << std::endl;
-			std::cout << "\t ... Skipping fiducial "<< ref_tag.parameters.id <<" due to cross ratios" << std::endl;
+			std::cout << "\t ... Skipping fiducial "<< ref_tag.parameters.m_id <<" due to cross ratios" << std::endl;
 			std::cout << "\t ... Cross ratio 0 must be larger than cross ratio 1" << std::endl;
 		}
 		else
@@ -1122,7 +1121,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				if ( p_xmlElement_Child )
 				{
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "value", &pi_parameters.id) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "value", &pi_parameters.m_id) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'value' of tag 'ID'" << std::endl;
@@ -1235,7 +1234,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				if ( p_xmlElement_Child )
 				{
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "x", &pi_parameters.offset.x) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "x", &pi_parameters.m_offset.x) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'x' of tag 'Offset'" << std::endl;
@@ -1243,7 +1242,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 					}
 
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "y", &pi_parameters.offset.y) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "y", &pi_parameters.m_offset.y) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'y' of tag 'Offset'" << std::endl;

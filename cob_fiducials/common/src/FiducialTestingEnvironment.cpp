@@ -10,6 +10,7 @@
 #endif
 
 #include <opencv/highgui.h>
+#include <boost/progress.hpp>
 
 using namespace ipa_Fiducials;
 
@@ -57,6 +58,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestAruco()
 
 	std::cout << "\t ... [OK] Loaded " << image_vec.size() << " images" << std::endl;
 
+	boost::progress_timer timer;
 	// ----------------------------------- Recognize fiducials -----------------------------------------
 	for (int i=0; i<image_vec.size(); i++)
 	{
@@ -73,6 +75,10 @@ unsigned long FiducialTestingEnvironment::FiducialTestAruco()
 			cv::imwrite(filename.str(), image_vec[i]);
 		}
 	}	
+	double t_sum = timer.elapsed();
+	double t_avg = t_sum/image_vec.size();
+
+	std::cout << "\t ... [OK] Neeeded on average " << t_avg << " for " << image_vec.size() << " images" << std::endl;
 
 	return ipa_Utils::RET_OK;
 }
@@ -110,6 +116,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 
 	std::cout << "\t ... [OK] Loaded " << image_vec.size() << " images" << std::endl;
 
+	boost::progress_timer timer;
 	// ----------------------------------- Recognize fiducials -----------------------------------------
 	for (int i=0; i<image_vec.size(); i++)
 	{
@@ -129,6 +136,11 @@ unsigned long FiducialTestingEnvironment::FiducialTestPI()
 			cv::imwrite(filename.str(), image_vec[i]);
 		}
 	}	
+
+	double t_sum = timer.elapsed();
+	double t_avg = t_sum/image_vec.size();
+
+	std::cout << "\t ... [OK] Neeeded on average " << t_avg << " for " << image_vec.size() << " images" << std::endl;
 
 	return ipa_Utils::RET_OK;
 }

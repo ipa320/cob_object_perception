@@ -48,7 +48,7 @@ public:
 	//*******************************************************************************
 	unsigned long LoadParameters(std::vector<FiducialArucoParameters> pi_tags);
 private:
-	aruco::MarkerDetector MDetector; ///< instance of aruco detector
+	boost::shared_ptr<aruco::MarkerDetector> m_detector; ///< instance of aruco detector
 	double m_marker_size; ///< Aruco allows only a common marker size for all markers
 	std::vector<FiducialArucoParameters> m_tag_parameters; ///< Individual parameters for each tag
 };

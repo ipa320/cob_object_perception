@@ -25,6 +25,7 @@ The views and conclusions contained in the software and documentation are those 
 authors and should not be interpreted as representing official policies, either expressed
 or implied, of Rafael Muñoz Salinas.
 ********************************/
+//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 #include "cob_fiducials/aruco/markerdetector.h"
 #include "cob_fiducials/aruco/arucofidmarkers.h"
@@ -277,8 +278,8 @@ void MarkerDetector::detectRectangles(const cv::Mat &thresImg,vector<MarkerCandi
 {
     vector<MarkerCandidate>  MarkerCanditates;
     //calcualte the min_max contour sizes
-    int minSize=_minSize*std::max(thresImg.cols,thresImg.rows)*4;
-    int maxSize=_maxSize*std::max(thresImg.cols,thresImg.rows)*4;
+    int minSize=_minSize*std::max(thresImg.cols,thresImg.rows)*1;//4;
+    int maxSize=_maxSize*std::max(thresImg.cols,thresImg.rows)*1;//4;
     std::vector<std::vector<cv::Point> > contours2;
     std::vector<cv::Vec4i> hierarchy2;
 
@@ -300,11 +301,13 @@ void MarkerDetector::detectRectangles(const cv::Mat &thresImg,vector<MarkerCandi
             //check that the poligon has 4 points
             if ( approxCurve.size() ==4 )
             {
-
-//  	   drawContour(input,contours2[i],Scalar(255,0,225));
-//  		  namedWindow("input");
-//  		imshow("input",input);
-//  	 	waitKey(0);
+				cv::Mat out;
+				cv::Mat in[] = {thresImg, thresImg, thresImg};
+				cv::merge(in, 3, out);
+  				drawContour(out,contours2[i],Scalar(255,0,225));
+  				//namedWindow("input");
+  				//imshow("input",input);
+  	 			//waitKey(0);
                 //and is convex
                 if ( isContourConvex ( Mat ( approxCurve ) ) )
                 {
