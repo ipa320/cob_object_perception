@@ -6,12 +6,12 @@
 	#include "cob_vision_utils/VisionUtils.h"
 	#include "cob_fiducials/FiducialDefines.h"
 	#include "cob_fiducials/AbstractFiducialModel.h"
-	#include "cob_fiducials/FiducialPiParameters.h"
+	#include "cob_fiducials/pi/FiducialPiParameters.h"
 #else
 	#include "cob_perception_common/cob_vision_utils/common/include/cob_vision_utils/VisionUtils.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/AbstractFiducialModel.h"
-	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialPiParameters.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/pi/FiducialPiParameters.h"
 #endif
 
 
@@ -23,7 +23,7 @@ struct t_pi
 {
 	void sparse_copy_to(t_pi& copy)
 	{
-		copy.parameters.id = parameters.id;
+		copy.parameters.m_id = parameters.m_id;
 		copy.marker_points = marker_points;
 	}
 
@@ -65,6 +65,11 @@ public:
 	/// @param directory Directory, where the parameters of all fiducials are stores
 	unsigned long LoadParameters(std::string directory_and_filename);
 	unsigned long LoadParameters(std::vector<FiducialPiParameters> pi_tags);
+
+	std::string GetType()
+	{
+		return "PI";
+	};
 
 	//*******************************************************************************
 	// Class specific functions

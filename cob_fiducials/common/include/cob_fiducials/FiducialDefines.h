@@ -29,7 +29,8 @@ namespace ipa_Fiducials {
 typedef enum 
 {
 TYPE_UNDEFINED      = 0x00000000,	    ///< Undefined feature type
-	TYPE_PI             = 0x00000001		///< PI fiducial from Bergamasco et al. 'Pi-Tag: a fast image-space marker design basedon projective invariants'
+	TYPE_PI             = 0x00000001,		///< PI fiducial from Bergamasco et al. 'Pi-Tag: a fast image-space marker design basedon projective invariants'
+	TYPE_ARUCO          = 0x00000002		///< ArUco fiducial from http://www.uco.es/investiga/grupos/ava/node/26'
 }t_FiducialType;
 
 struct t_pose

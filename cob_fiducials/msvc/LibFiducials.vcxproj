@@ -19,26 +19,40 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\common\src\FiducialModelPi.cpp">
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
-    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\arucofidmarkers.cpp" />
+    <ClCompile Include="..\common\src\aruco\board.cpp" />
+    <ClCompile Include="..\common\src\aruco\boarddetector.cpp" />
+    <ClCompile Include="..\common\src\aruco\cameraparameters.cpp" />
+    <ClCompile Include="..\common\src\aruco\cvdrawingutils.cpp" />
+    <ClCompile Include="..\common\src\aruco\FiducialModelAruco.cpp" />
+    <ClCompile Include="..\common\src\aruco\marker.cpp" />
+    <ClCompile Include="..\common\src\aruco\markerdetector.cpp" />
     <ClCompile Include="..\common\src\FiducialTestingEnvironment.cpp">
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="..\common\src\pi\FiducialModelPi.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialModel.h" />
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialParameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\aruco.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\arucofidmarkers.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\board.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\boarddetector.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\cameraparameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\cvdrawingutils.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\exports.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\FiducialArucoParameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\FiducialModelAruco.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\marker.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\aruco\markerdetector.h" />
     <ClInclude Include="..\common\include\cob_fiducials\FiducialDefines.h" />
-    <ClInclude Include="..\common\include\cob_fiducials\FiducialModelPi.h" />
     <ClInclude Include="..\common\include\cob_fiducials\FiducialTestingEnvironment.h" />
-    <ClInclude Include="..\common\include\cob_fiducials\FiducialPiParameters.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\pi\FiducialModelPi.h" />
+    <ClInclude Include="..\common\include\cob_fiducials\pi\FiducialPiParameters.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D9F1E3DF-0A22-431A-A173-9FD673525F7A}</ProjectGuid>
@@ -153,6 +167,10 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ObjectFileName>$(IntDir)</ObjectFileName>
+      <PrecompiledHeaderOutputFile>
+      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderFile>
+      </PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <AdditionalDependencies>LibTinyXmlD.lib;PreCompiledHeadersD.lib;LibVisionUtilsD.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -168,10 +186,12 @@
 copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName)D.lib"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>xcopy /D /Y "$(SolutionDir)PreCompiledHeaders$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Message>Copying program databas file from PreCompiledHeaders.vcxproj project</Message>
+      <Message>
+      </Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -206,7 +226,7 @@ copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\wi
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>__LIBFIDUCIALS_EXPORT__;_WIN32;_WIN64;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
@@ -228,10 +248,12 @@ copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\wi
 copy "$(OutDir)$(ProjectName).lib" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName).lib"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>xcopy /D /Y "$(SolutionDir)PreCompiledHeaders$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Message>Copying program databas file from PreCompiledHeaders.vcxproj project</Message>
+      <Message>
+      </Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
