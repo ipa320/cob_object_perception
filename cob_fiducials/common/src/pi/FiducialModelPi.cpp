@@ -1,8 +1,8 @@
-//#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
-	#include "cob_fiducials/FiducialModelPi.h"
+	#include "cob_fiducials/pi/FiducialModelPi.h"
 #else
-	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/pi/FiducialModelPi.h"
 #endif
 #include <opencv/highgui.h>
 
@@ -844,9 +844,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		}
 
 		t_pose tag_pose;
-		cv::Mat dist_coeffs;
-		tag_pose.id = final_tag_vec[i].parameters.id;
-		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), dist_coeffs, 
+		tag_pose.id = final_tag_vec[i].parameters.m_id;
+		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), GetDistortionCoeffs(), 
 			tag_pose.rot, tag_pose.trans);
 
 		// Apply transformation
@@ -1023,8 +1022,6 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		double d_line1_AC = pi_tags[i].d_line1_AC;
 		double d_line1_CD = tag_size - pi_tags[i].d_line1_AC;
 		ref_tag.cross_ration_1 = (d_line1_AB/d_line1_BD)/(d_line1_AC/d_line1_CD);
-
-		
 	
 		// Marker coordinates
 		ref_tag.marker_points.push_back(cv::Point2f(0, -0));
@@ -1043,8 +1040,8 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		// Offset
 		for(unsigned int j=0; j<ref_tag.marker_points.size(); j++)
 		{
-			ref_tag.marker_points[j].x += pi_tags[i].offset.x;
-			ref_tag.marker_points[j].y += pi_tags[i].offset.y;
+			ref_tag.marker_points[j].x += pi_tags[i].m_offset.x;
+			ref_tag.marker_points[j].y += pi_tags[i].m_offset.y;
 		}
 
 		double delta = ref_tag.cross_ration_0/ref_tag.cross_ration_1;
@@ -1056,7 +1053,7 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		else if (delta < 1)
 		{
 			std::cout << "[WARNING] FiducialModelPi::LoadCoordinates" << std::endl;
-			std::cout << "\t ... Skipping fiducial "<< ref_tag.parameters.id <<" due to cross ratios" << std::endl;
+			std::cout << "\t ... Skipping fiducial "<< ref_tag.parameters.m_id <<" due to cross ratios" << std::endl;
 			std::cout << "\t ... Cross ratio 0 must be larger than cross ratio 1" << std::endl;
 		}
 		else
@@ -1106,17 +1103,17 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 		{
 
 //************************************************************************************
-//	BEGIN FiducialDetector->Fiducial
+//	BEGIN FiducialDetector->PI
 //************************************************************************************
 			// Tag element "ObjectDetectorParameters" of Xml Inifile
 
-			for(TiXmlElement* p_xmlElement_Root_FI = p_xmlElement_Root->FirstChildElement("Fiducial"); 
+			for(TiXmlElement* p_xmlElement_Root_FI = p_xmlElement_Root->FirstChildElement("PI"); 
 				p_xmlElement_Root_FI != NULL; 
-				p_xmlElement_Root_FI = p_xmlElement_Root_FI->NextSiblingElement("Fiducial"))
+				p_xmlElement_Root_FI = p_xmlElement_Root_FI->NextSiblingElement("PI"))
 			{
 				FiducialPiParameters pi_parameters;
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->ID
+//	BEGIN FiducialDetector->PI->ID
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				TiXmlElement *p_xmlElement_Child = NULL;
@@ -1125,7 +1122,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				if ( p_xmlElement_Child )
 				{
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "value", &pi_parameters.id) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "value", &pi_parameters.m_id) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'value' of tag 'ID'" << std::endl;
@@ -1135,13 +1132,13 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				else
 				{
 					std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
-					std::cerr << "\t ... Can't find tag 'IF'" << std::endl;
+					std::cerr << "\t ... Can't find tag 'ID'" << std::endl;
 					return ipa_Utils::RET_FAILED;
 				}
 
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->LineWidthHeight
+//	BEGIN FiducialDetector->PI->LineWidthHeight
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1165,7 +1162,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->CrossRatioLine0
+//	BEGIN FiducialDetector->PI->CrossRatioLine0
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1197,7 +1194,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->CrossRatioLine1
+//	BEGIN FiducialDetector->PI->CrossRatioLine1
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1229,7 +1226,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->Offset
+//	BEGIN FiducialDetector->PI->Offset
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1238,7 +1235,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				if ( p_xmlElement_Child )
 				{
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "x", &pi_parameters.offset.x) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "x", &pi_parameters.m_offset.x) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'x' of tag 'Offset'" << std::endl;
@@ -1246,7 +1243,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 					}
 
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "y", &pi_parameters.offset.y) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "y", &pi_parameters.m_offset.y) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'y' of tag 'Offset'" << std::endl;
@@ -1270,7 +1267,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 			if (vec_pi_parameters.empty())
 			{
 				std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
-				std::cerr << "\t ... Could't find tag 'Fiducial'" << std::endl;
+				std::cerr << "\t ... Could't find tag 'PI'" << std::endl;
 				return ipa_Utils::RET_FAILED;
 			}
 

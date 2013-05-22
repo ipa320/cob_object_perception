@@ -102,14 +102,35 @@ public:
 	/// <code>RET_OK</code> on success
 	virtual unsigned long GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose_CfromO) = 0;
 
+	// Gets the camera matrix
+	// @return 3x3 camera matrix (fx 0 cx, 0 fy cy, 0 0 1) 
 	cv::Mat GetCameraMatrix()
 	{
 		return m_camera_matrix;
 	};
 
+	// Set the camera matrix
+	// @param camera_matrix 3x3 camera matrix (fx 0 cx, 0 fy cy, 0 0 1) 
 	unsigned long SetCameraMatrix(cv::Mat camera_matrix)
 	{
 		m_camera_matrix = camera_matrix.clone();
+		return ipa_Utils::RET_OK;
+	}
+
+	// Gets the distortion coeffs
+	// @return 1x4 distortion coeffs matrix (k1,k2,p1,p2)
+	cv::Mat GetDistortionCoeffs()
+	{
+		if (m_dist_coeffs.empty())
+			return cv::Mat::zeros(1, 4, CV_64FC1);
+		return m_dist_coeffs;
+	};
+
+	// Sets the distortion coeffs
+	// @param dist_coeffs 1x4 distortion coeffs matrix (k1,k2,p1,p2)
+	unsigned long SetDistortionCoeffs(cv::Mat dist_coeffs)
+	{
+		m_dist_coeffs = dist_coeffs.clone();
 		return ipa_Utils::RET_OK;
 	}
 
@@ -118,9 +139,13 @@ public:
 	/// When using ROS, this function is replaced by parsing a launch file
 	virtual unsigned long LoadParameters(std::string directory_and_filename) = 0;
 
+	/// Return the name (fiducial type) of the detector
+	/// @return fiducial type
+	virtual std::string GetType() = 0;
 private:
 
 	cv::Mat m_camera_matrix; ///< Intrinsics of camera for PnP estimation
+	cv::Mat m_dist_coeffs; ///< Intrinsics of camera for PnP estimation
 	cv::Mat m_extrinsic_XYfromC; ///< Extrinsics 4x4 of camera to rotate and translate determined transformation before returning it
 };
 

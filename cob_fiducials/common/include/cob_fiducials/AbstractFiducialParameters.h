@@ -10,8 +10,8 @@ namespace ipa_Fiducials
 class __DLL_LIBFIDUCIALS__ AbstractFiducialParameters
 {
 public:
-	int id; // Unique ID of tag
-	cv::Point2d offset; // Offset of tag to target coordinate system
+	int m_id; // Unique ID of tag
+	cv::Point2d m_offset; // Offset of tag to target coordinate system
 
 };
 
