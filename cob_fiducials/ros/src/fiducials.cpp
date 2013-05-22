@@ -85,7 +85,7 @@
 #include <cob_vision_utils/GlobalDefines.h>
 #include <cob_vision_utils/VisionUtils.h>
 #include <cob_fiducials/FiducialDefines.h>
-#include <cob_fiducials/FiducialModelPi.h>
+#include <cob_fiducials/pi/FiducialModelPi.h>
 
 #include <boost/thread/mutex.hpp>
 #include <boost/timer.hpp>
