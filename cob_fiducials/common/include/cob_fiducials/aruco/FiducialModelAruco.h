@@ -43,6 +43,11 @@ public:
 	/// @param directory Directory, where the parameters of all fiducials are stores
 	unsigned long LoadParameters(std::string directory_and_filename);
 
+	std::string GetType()
+        {
+                return "ArUco";
+        };
+
 	//*******************************************************************************
 	// Class specific functions
 	//*******************************************************************************

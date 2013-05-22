@@ -1,6 +1,6 @@
 //#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
-	#include "cob_fiducials/FiducialModelAruco.h"
+	#include "cob_fiducials/aruco/FiducialModelAruco.h"
 #else
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/arucofidmarkers.h"
@@ -13,7 +13,7 @@ using namespace ipa_Fiducials;
 FiducialModelAruco::FiducialModelAruco()
 {
 	int pyrDownLevels = 0;
-	int speed_level = 1; //0: slow but exact, 1: fast, but inaccurate
+	int speed_level = 0; //0: slow but exact, 1: fast, but inaccurate
 	m_marker_size=-1;
 
 	//Configure detector
@@ -47,8 +47,6 @@ unsigned long FiducialModelAruco::GetPose(cv::Mat& image, std::vector<t_pose>& v
 
 	m_detector = boost::shared_ptr<aruco::MarkerDetector>(new aruco::MarkerDetector());
 
-	int pyrDownLevels = 0;
-	int speed_level = 0; //0: slow but exact, 1: fast, but inaccurate
 
 	try
 	{
@@ -62,7 +60,7 @@ unsigned long FiducialModelAruco::GetPose(cv::Mat& image, std::vector<t_pose>& v
 
 	// ------------ Compute pose --------------------------------------
 
-	for (int i=0; i<markers.size(); i++)
+	for (unsigned int i=0; i<markers.size(); i++)
 	{
 		int nPoints = markers[i].size();	
 		int id = markers[i].id;
@@ -92,7 +90,7 @@ unsigned long FiducialModelAruco::GetPose(cv::Mat& image, std::vector<t_pose>& v
 		pattern_coords.at<float>(0,2)=0;
 		
 		float* p_image_coords = 0;
-		for (unsigned int j=0; j<nPoints; j++)
+		for (int j=0; j<nPoints; j++)
 		{
 			p_image_coords = image_coords.ptr<float>(j);
 			p_image_coords[0] = markers[i][j].x;
@@ -103,6 +101,25 @@ unsigned long FiducialModelAruco::GetPose(cv::Mat& image, std::vector<t_pose>& v
 		tag_pose.id = id;
 		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), GetDistortionCoeffs(), 
 			tag_pose.rot, tag_pose.trans);
+		
+		//rotate the X axis so that Y is perpendicular to the marker plane
+		bool setYPerperdicular = true;
+		if (setYPerperdicular)
+		{
+			cv::Mat R(3,3,CV_64F);
+			cv::Rodrigues(tag_pose.rot, R);
+			//create a rotation matrix for x axis
+			cv::Mat RX=cv::Mat::eye(3,3,CV_64F);
+			float angleRad=M_PI/2;
+			RX.at<float>(1,1)=cos(angleRad);
+			RX.at<float>(1,2)=-sin(angleRad);
+			RX.at<float>(2,1)=sin(angleRad);
+			RX.at<float>(2,2)=cos(angleRad);
+			//now multiply
+			R=R*RX;
+			//finally, the the rodrigues back
+			cv::Rodrigues(R,tag_pose.rot);
+		}
 
 		// Apply transformation
 		cv::Mat rot_3x3_CfromO;
@@ -154,7 +171,7 @@ unsigned long FiducialModelAruco::LoadParameters(std::vector<FiducialArucoParame
 	}
 
 
-	for (int i=0; i<aruco_tags.size(); i++)
+	for (unsigned int i=0; i<aruco_tags.size(); i++)
 	{
 		if (aruco_tags[i].m_id<m_tag_parameters.size())
 		{

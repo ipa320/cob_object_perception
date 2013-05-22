@@ -139,6 +139,9 @@ public:
 	/// When using ROS, this function is replaced by parsing a launch file
 	virtual unsigned long LoadParameters(std::string directory_and_filename) = 0;
 
+	/// Return the name (fiducial type) of the detector
+	/// @return fiducial type
+	virtual std::string GetType() = 0;
 private:
 
 	cv::Mat m_camera_matrix; ///< Intrinsics of camera for PnP estimation

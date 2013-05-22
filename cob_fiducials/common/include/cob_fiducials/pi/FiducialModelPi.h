@@ -66,6 +66,11 @@ public:
 	unsigned long LoadParameters(std::string directory_and_filename);
 	unsigned long LoadParameters(std::vector<FiducialPiParameters> pi_tags);
 
+	std::string GetType()
+	{
+		return "PI";
+	};
+
 	//*******************************************************************************
 	// Class specific functions
 	//*******************************************************************************

@@ -86,6 +86,7 @@
 #include <cob_vision_utils/VisionUtils.h>
 #include <cob_fiducials/FiducialDefines.h>
 #include <cob_fiducials/pi/FiducialModelPi.h>
+#include <cob_fiducials/aruco/FiducialModelAruco.h>
 
 #include <boost/thread/mutex.hpp>
 #include <boost/timer.hpp>
@@ -161,7 +162,9 @@ private:
     boost::mutex mutexQ_;
     boost::condition_variable condQ_;
 
-    boost::shared_ptr<ipa_Fiducials::FiducialModelPi> m_pi_tag;
+    t_FiducialType fiducial_type_;
+    boost::shared_ptr<ipa_Fiducials::AbstractFiducialModel> tag_detector_;
+    
 
 public:
     /// Constructor.
@@ -228,8 +231,19 @@ public:
         //dynamic_reconfigure_server_.updateConfig(launch_reconfigure_config_);
         //dynamic_reconfigure_server_.setCallback(f);
 
-        ROS_INFO("[fiducials] Setting up PI-tag library");
-        m_pi_tag = boost::shared_ptr<FiducialModelPi>(new FiducialModelPi());
+        ROS_INFO("[fiducials] Setting up tag library");
+	switch(fiducial_type_)
+	{
+	case ipa_Fiducials::TYPE_PI:
+	        tag_detector_ = boost::shared_ptr<FiducialModelPi>(new FiducialModelPi());
+		break;
+	case ipa_Fiducials::TYPE_ARUCO:
+	        tag_detector_ = boost::shared_ptr<FiducialModelAruco>(new FiducialModelAruco());
+		break;
+	default:
+        	ROS_ERROR("[fiducials] Unknown fiducial type");
+		return false;
+	}
 
         ROS_INFO("[fiducials] Initializing [OK]");
         ROS_INFO("[fiducials] Up and running");
@@ -293,12 +307,12 @@ public:
                 camera_matrix_.at<double>(2,2) = 1;
 
                 ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix");
-                if (m_pi_tag->Init(camera_matrix_, model_directory_ + model_filename_) & ipa_Utils::RET_FAILED)
-                {
-                    ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
-                    return;
-                }
-
+		
+        	if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_) & ipa_Utils::RET_FAILED)
+        	{
+			ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
+			return;
+		}
                 camera_matrix_initialized_ = true;
             }
 
@@ -398,7 +412,11 @@ public:
         // Detect fiducials and assign results
         std::vector<ipa_Fiducials::t_pose> tags_vec;
         std::vector<std::vector<double> >vec_vec7d;
-        if (m_pi_tag->GetPose(color_image, tags_vec) & ipa_Utils::RET_OK)
+
+	unsigned long ret_val = ipa_Utils::RET_OK;
+	ret_val = tag_detector_->GetPose(color_image, tags_vec);
+
+	if (ret_val & ipa_Utils::RET_OK)
         {
             pose_array_size = tags_vec.size();
 
@@ -406,8 +424,11 @@ public:
             for (unsigned int i=0; i<pose_array_size; i++)
             {
                 cob_object_detection_msgs::Detection fiducial_instance;
-                fiducial_instance.label = "pi-tag"; //tags_vec[i].id;
-                fiducial_instance.detector = "Fiducial_PI";
+
+		std::stringstream ss;
+		ss << tags_vec[i].id;
+                fiducial_instance.label = ss.str();
+                fiducial_instance.detector = tag_detector_->GetType();
                 fiducial_instance.score = 0;
                 fiducial_instance.bounding_box_lwh.x = 0;
                 fiducial_instance.bounding_box_lwh.y = 0;
@@ -437,7 +458,7 @@ public:
                 fiducial_instance.pose.header.frame_id = received_frame_id_;
 
                 detection_array.detections.push_back(fiducial_instance);
-                ROS_INFO("[fiducials] Detected PI-Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
+                ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
                          fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
                          vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
             }
@@ -729,7 +750,29 @@ public:
 
     unsigned long loadParameters()
     {
-        std::string tmp_string;
+       std::string tmp_string;
+        /// Parameters are set within the launch file
+        if (node_handle_.getParam("fiducial_type", tmp_string) == false)
+        {
+            ROS_ERROR("[fiducials] fiducial type not specified");
+            return false;
+        }
+        if (tmp_string == "TYPE_ARUCO")
+        {
+            fiducial_type_ = ipa_Fiducials::TYPE_ARUCO;
+        }
+        else if (tmp_string == "TYPE_PI")
+        {
+            fiducial_type_ = ipa_Fiducials::TYPE_PI;
+        }
+        else
+        {
+            std::string str = "[fiducials] TYPE '" + tmp_string + "' unknown, try 'TYPE_ARUCO' or 'TYPE_PI'";
+            ROS_ERROR("%s", str.c_str());
+            return false;
+        }
+
+        ROS_INFO("Fiducial type: %s", tmp_string.c_str());
 
         /// Parameters are set within the launch file
         if (node_handle_.getParam("ros_node_mode", tmp_string) == false)
