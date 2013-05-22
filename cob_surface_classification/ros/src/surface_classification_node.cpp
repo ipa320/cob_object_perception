@@ -1,61 +1,61 @@
 /*!
-*****************************************************************
-* \file
-*
-* \note
-* Copyright (c) 2013 \n
-* Fraunhofer Institute for Manufacturing Engineering
-* and Automation (IPA) \n\n
-*
-*****************************************************************
-*
-* \note
-* Project name: Care-O-bot
-* \note
-* ROS stack name: cob_object_perception
-* \note
-* ROS package name: cob_surface_classification
-*
-* \author
-* Author: Richard Bormann
-* \author
-* Supervised by:
-*
-* \date Date of creation: 07.08.2012
-*
-* \brief
-* functions for display of people detections
-*
-*****************************************************************
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions are met:
-*
-* - Redistributions of source code must retain the above copyright
-* notice, this list of conditions and the following disclaimer. \n
-* - Redistributions in binary form must reproduce the above copyright
-* notice, this list of conditions and the following disclaimer in the
-* documentation and/or other materials provided with the distribution. \n
-* - Neither the name of the Fraunhofer Institute for Manufacturing
-* Engineering and Automation (IPA) nor the names of its
-* contributors may be used to endorse or promote products derived from
-* this software without specific prior written permission. \n
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License LGPL as
-* published by the Free Software Foundation, either version 3 of the
-* License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU Lesser General Public License LGPL for more details.
-*
-* You should have received a copy of the GNU Lesser General Public
-* License LGPL along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*
-****************************************************************/
+ *****************************************************************
+ * \file
+ *
+ * \note
+ * Copyright (c) 2013 \n
+ * Fraunhofer Institute for Manufacturing Engineering
+ * and Automation (IPA) \n\n
+ *
+ *****************************************************************
+ *
+ * \note
+ * Project name: Care-O-bot
+ * \note
+ * ROS stack name: cob_object_perception
+ * \note
+ * ROS package name: cob_surface_classification
+ *
+ * \author
+ * Author: Richard Bormann
+ * \author
+ * Supervised by:
+ *
+ * \date Date of creation: 07.08.2012
+ *
+ * \brief
+ * functions for display of people detections
+ *
+ *****************************************************************
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. \n
+ * - Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution. \n
+ * - Neither the name of the Fraunhofer Institute for Manufacturing
+ * Engineering and Automation (IPA) nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission. \n
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License LGPL as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License LGPL for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License LGPL along with this program.
+ * If not, see <http://www.gnu.org/licenses/>.
+ *
+ ****************************************************************/
 
 
 
@@ -85,6 +85,7 @@
 // point cloud
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 
 
@@ -144,6 +145,10 @@ public:
 		cv::Mat color_image;
 		convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
 
+		//visualization
+		cv::imshow("image", color_image);
+		cv::waitKey(10);
+
 		// get color image from point cloud
 		/*pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
 		pcl::fromROSMsg(*pointcloud_msg, point_cloud_src);
@@ -154,45 +159,73 @@ public:
 		//Inhalt des Pointers übergeben
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
 
-		/*
-		one_.setInputCloud(cloud);
-		one_.setPixelSearchRadius(8,2,2);
-		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-		one_.compute(*normals);*/
 
 
-//		cv::Mat color_image = cv::Mat::zeros(point_cloud_src.height, point_cloud_src.width, CV_8UC3);
-//		for (unsigned int v=0; v<point_cloud_src.height; v++)
-//		{
-//			for (unsigned int u=0; u<point_cloud_src.width; u++)
-//			{
-//				pcl::PointXYZRGB point = point_cloud_src(u,v);
-//				if (isnan_(point.z) == false)
-//					color_image.at<cv::Point3_<unsigned char> >(v,u) = cv::Point3_<unsigned char>(point.b, point.g, point.r);
-//			}
-//		}
+
+		//		cv::Mat color_image = cv::Mat::zeros(point_cloud_src.height, point_cloud_src.width, CV_8UC3);
+		//		for (unsigned int v=0; v<point_cloud_src.height; v++)
+		//		{
+		//			for (unsigned int u=0; u<point_cloud_src.width; u++)
+		//			{
+		//				pcl::PointXYZRGB point = point_cloud_src(u,v);
+		//				if (isnan_(point.z) == false)
+		//					color_image.at<cv::Point3_<unsigned char> >(v,u) = cv::Point3_<unsigned char>(point.b, point.g, point.r);
+		//			}
+		//		}
 
 		//compute depth_image: greyvalue corresponds to depth z
 		cv::Mat depth_image = cv::Mat::zeros(cloud->height, cloud->width, CV_32FC1);
-				for (unsigned int v=0; v<cloud->height; v++)
-				{
-					for (unsigned int u=0; u<cloud->width; u++)
-					{
-						//bei Aufruf aus der Matrix ist der Index (Zeile,Spalte), also (y-Wert,x-Wert)!!!
-						pcl::PointXYZRGB point = cloud->at(u,v);
-						if(std::isnan(point.z) == false)
-							depth_image.at< float >(v,u) = point.z;
-						//std::cout << "di: " << depth_image.at< float >(v,u )<<"\n";
-						//std::cout << "point: " << point.z <<"\n";
-					}
-				}
+		for (unsigned int v=0; v<cloud->height; v++)
+		{
+			for (unsigned int u=0; u<cloud->width; u++)
+			{
+				//bei Aufruf aus der Matrix ist der Index (Zeile,Spalte), also (y-Wert,x-Wert)!!!
+				pcl::PointXYZRGB point = cloud->at(u,v);
+				if(std::isnan(point.z) == false)
+					depth_image.at< float >(v,u) = point.z;
+				//std::cout << "di: " << depth_image.at< float >(v,u )<<"\n";
+				//std::cout << "point: " << point.z <<"\n";
+			}
+		}
 
-		//std::cout << depth_image.at< float >(100,100 )<<"\n";
+		/*cv::imshow("depth_image", depth_image);
+		cv::waitKey(10);*/
+
+		cv::Mat edgeImage = cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1);
+
+		edge_detection_.computeDepthEdges( depth_image, cloud, edgeImage);
+		cv::imshow("edge_image", edgeImage);
+		cv::waitKey(10);
+
+		one_.computeMaskManually_increasing(cloud->width);
+		one_.setInputCloud(cloud);
+		one_.setEdgeImage(edgeImage);
+		one_.setPixelSearchRadius(8,2,2);
+		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+		one_.compute(*normals);
 
 
-		edge_detection_.computeDepthEdges(color_image, depth_image, cloud);
+		// visualize normals
+		pcl::visualization::PCLVisualizer viewer("Cloud and Normals");
+		viewer.setBackgroundColor (0.0, 0.0, 0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
 
-		//surface_classification_.testFunction(color_image, cloud, depth_image);
+
+		viewer.addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "cloud");
+		viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,5,0.005,"normals");
+		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
+		//viewer.addCoordinateSystem (1.0);
+		//viewer.initCameraParameters ();
+
+		while (!viewer.wasStopped ())
+			{
+				viewer.spinOnce();
+
+			}
+			viewer.removePointCloud("cloud");
+
+
+
 		timer.stop();
 		std::cout << timer.getElapsedTimeInMilliSec() << " ms for InputCallback\n";
 
