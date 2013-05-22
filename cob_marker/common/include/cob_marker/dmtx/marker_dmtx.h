@@ -67,9 +67,10 @@
 class Marker_DMTX : public GeneralMarker {
 
   long timeout_;
+  int count_;
 
 public:
-  Marker_DMTX():timeout_(100) {}
+  Marker_DMTX():timeout_(100), count_(10) {}
 
   /// returns name of algorithm
   virtual std::string getName() const {return "marker_dmtx";}
@@ -79,6 +80,7 @@ public:
 
   // SETTINGS
   void setTimeout(const long t) {timeout_=t;}
+  void setMaxDetectionCount(int count) {count_=count;}
 };
 
 #include "impl/marker_dmtx.hpp"
