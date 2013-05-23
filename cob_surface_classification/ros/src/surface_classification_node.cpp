@@ -193,16 +193,34 @@ public:
 
 		cv::Mat edgeImage = cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1);
 
+
 		edge_detection_.computeDepthEdges( depth_image, cloud, edgeImage);
-		cv::imshow("edge_image", edgeImage);
-		cv::waitKey(10);
+		//cv::imshow("edge_image", edgeImage);
+		//cv::waitKey(10);
 
 		one_.computeMaskManually_increasing(cloud->width);
 		one_.setInputCloud(cloud);
 		one_.setEdgeImage(edgeImage);
 		one_.setPixelSearchRadius(8,2,2);
 		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+
+		//int index = cloud->width * (cloud->height/2-1) + cloud->width/2; //index des Punktes in der Mitte vom Fenster: Fensterbreite * halbe Anzahl Zeilen + halbe Zeile
+		/*boost::shared_ptr <std::vector<int> > ind;
+		ind.reset (new std::vector<int>);
+		ind->resize(std::floor(cloud->points.size() /5));
+		for(size_t i=0; i<ind->size();i++)
+		{
+			(*ind)[i] = i*5;
+			std::cout << "ind " << (*ind)[i] <<endl;
+		}
+		//std::cout <<endl;
+		//ind->push_back(index);
+		one_.setIndices(ind);*/
+		//std::cout << "width " << cloud->width<<endl;
 		one_.compute(*normals);
+
+
+/*
 
 
 		// visualize normals
@@ -212,7 +230,7 @@ public:
 
 
 		viewer.addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "cloud");
-		viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,5,0.005,"normals");
+		viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,1,0.005,"normals");
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 		//viewer.addCoordinateSystem (1.0);
 		//viewer.initCameraParameters ();
@@ -222,7 +240,7 @@ public:
 				viewer.spinOnce();
 
 			}
-			viewer.removePointCloud("cloud");
+			viewer.removePointCloud("cloud");*/
 
 
 
