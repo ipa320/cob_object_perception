@@ -63,6 +63,91 @@
 #ifndef __IMPL_ORGANIZED_NORMAL_ESTIMATION_H__
 #define __IMPL_ORGANIZED_NORMAL_ESTIMATION_H__
 
+template <typename PointInT, typename PointOutT> bool
+cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::compareCoordToEdgeCoord(
+		int idx, int idx_x, int idx_y, std::vector<Eigen::Vector2f>& directionsOfEdges)
+{
+	bool ignorePoint = false;
+
+	int idx_inDepIm_x = idx % input_->width;
+	int idx_inDepIm_y = idx * inv_width_;
+
+	Eigen::Vector2f newDir;
+	std::vector<Eigen::Vector2f>::iterator it_dirOfEd;
+	Eigen::Vector2f ind_curr; //from query point to currently treated point in neighbourhood, "index coordinates"
+
+	ind_curr(0) = idx_inDepIm_x - idx_x;
+	ind_curr(1) = idx_inDepIm_y - idx_y;
+
+
+	//check if p_i on edge
+	if(edgeImage_.at<float>(idx_inDepIm_y,idx_inDepIm_x) == 0)
+	{
+		ignorePoint = true;
+		newDir = ind_curr;
+		directionsOfEdges.push_back(newDir);
+	}
+	//check if coordinates of p_i larger than coordinates of edge points -> p_i "behind" edge
+	for(it_dirOfEd = directionsOfEdges.begin(); it_dirOfEd != directionsOfEdges.end(); ++it_dirOfEd)
+	{
+
+		if((ind_curr(0) > 0 && (*it_dirOfEd)(0) > 0 && ind_curr(0) > (*it_dirOfEd)(0))
+				|| (ind_curr(0) < 0 && (*it_dirOfEd)(0) < 0 && ind_curr(0) < (*it_dirOfEd)(0))
+				|| (ind_curr(1) > 0 && (*it_dirOfEd)(1) > 0 && ind_curr(1) > (*it_dirOfEd)(1))
+				|| (ind_curr(1) < 0 && (*it_dirOfEd)(1) < 0 && ind_curr(1) < (*it_dirOfEd)(1)))
+			ignorePoint = true;
+	}
+	return ignorePoint;
+}
+
+
+template <typename PointInT, typename PointOutT> bool
+cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::checkDirectionForEdge(
+		int idx,	Eigen::Vector2f p_curr, std::vector<Eigen::Vector2f>&  directionsOfEdges)
+{
+	bool ignorePoint = false;
+
+	int idx_inDepIm_x = idx % input_->width;
+	int idx_inDepIm_y = idx * inv_width_;
+
+	std::vector<Eigen::Vector2f>::iterator it_dirOfEd;
+
+	float scalProd;
+
+	p_curr.normalize();
+
+	//check if p_i on edge
+	if(edgeImage_.at<float>(idx_inDepIm_y,idx_inDepIm_x) == 0)
+	{
+		ignorePoint = true;
+		//std::cout << "dir: " << p_curr <<endl;
+		directionsOfEdges.push_back(p_curr);
+		return ignorePoint;
+	}
+
+	//check if coordinates of p_i larger than coordinates of edge points -> p_i "behind" edge
+	for(it_dirOfEd = directionsOfEdges.begin(); it_dirOfEd != directionsOfEdges.end(); ++it_dirOfEd)
+	{
+		scalProd = (*it_dirOfEd)(0) * p_curr(0) + (*it_dirOfEd)(1) * p_curr(1); // + (*it_dirOfEd)(2) * p_curr(2);
+		//std::cout << "scalProd: " <<scalProd <<endl;
+		if(std::abs(scalProd) > 0.96)
+		{
+			std::cout << "dirOfEd: \n" << *it_dirOfEd<<endl;
+			std::cout << "p_curr: \n" << p_curr <<endl;
+			//check if both vectors point the same direction (not in the opposite one)
+			if(((*it_dirOfEd)(0) * p_curr(0) >= 0) && ( (*it_dirOfEd)(1) * p_curr(1) >= 0)) //&& ((*it_dirOfEd)(2) * p_curr(2) > 0))
+			{
+				std::cout << "sameDirection\n " ;
+				ignorePoint = true;
+				return ignorePoint;
+			}
+		}
+	}
+	return ignorePoint;
+}
+
+
+
 template <typename PointInT, typename PointOutT> void
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal (
 		const PointCloudIn &cloud, int index,  float &n_x, float &n_y, float &n_z)
@@ -103,7 +188,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 
 	std::vector<int> range_border_counter(mask_.size(), 0);
 	Eigen::Vector3f p_curr;	//vector from query point to currently treated point in neighbourhood
-	Eigen::Vector2f ind_curr; //from query point to currently treated point in neighbourhood, "index coordinates"
+	//Eigen::Vector2f ind_curr; //from query point to currently treated point in neighbourhood, "index coordinates"
 
 	Eigen::Vector3f p_prev(0,0,0);	//vector from query point to previously treated point in neighbourhood
 	Eigen::Vector3f p_first(0,0,0);
@@ -129,8 +214,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 		int idx_inDepIm_x = 0;	//index of neighbour point in edge image
 		int idx_inDepIm_y = 0;
 		std::vector<Eigen::Vector2f> directionsOfEdges;
-		Eigen::Vector2f newDir;
-		std::vector<Eigen::Vector2f>::iterator it_dirOfEd;
+		//std::vector<Eigen::Vector3f> directionsOfEdges;
 		bool ignorePoint;
 
 		int countcir = 0;
@@ -151,37 +235,31 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 				if ( pcl_isnan(p_i(2)) )                        { ++gab; continue; }               // count as gab point
 
 
-				ignorePoint = false;
+				//ignorePoint = false;
 
 				if(!edgeImage_.empty())
 				{
 
 
+
+
+					//ignorePoint = compareCoordToEdgeCoord(idx, idx_x,idx_y,directionsOfEdges);
+
+					/*//reale Koordinaten:
+					 * Eigen::Vector3f xy3 = p_i - p;
+					xy3.resize(2);
+					Eigen::Vector2f xy = xy3;*/
+
+					//Bildindizes als Koordianten:
 					idx_inDepIm_x = idx % input_->width;
 					idx_inDepIm_y = idx * inv_width_;
+					Eigen::Vector2f xy;
+					xy(0) = idx_inDepIm_x - idx_x;
+					xy(1) = idx_inDepIm_y - idx_y;
+					ignorePoint = checkDirectionForEdge(idx, xy, directionsOfEdges);
+					//std::cout << "ignorepoint: " << ignorePoint <<endl;
 
 
-					ind_curr(0) = idx_inDepIm_x - idx_x;
-					ind_curr(1) = idx_inDepIm_y - idx_y;
-
-
-					//check if p_i on edge
-					if(edgeImage_.at<float>(idx_inDepIm_y,idx_inDepIm_x) == 0)
-					{
-						ignorePoint = true;
-						newDir = ind_curr;
-						directionsOfEdges.push_back(newDir);
-					}
-					//check if coordinates of p_i larger than coordinates of edge points -> p_i "behind" edge
-					for(it_dirOfEd = directionsOfEdges.begin(); it_dirOfEd != directionsOfEdges.end(); ++it_dirOfEd)
-					{
-
-						if((ind_curr(0) > 0 && ind_curr(0) > (*it_dirOfEd)(0))
-								|| (ind_curr(0) < 0 && ind_curr(0) < (*it_dirOfEd)(0))
-								|| (ind_curr(1) > 0 && ind_curr(1) > (*it_dirOfEd)(1))
-								|| (ind_curr(1) < 0 && ind_curr(1) < (*it_dirOfEd)(1)))
-							ignorePoint = true;
-					}
 
 				}
 
@@ -202,6 +280,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 				if ( gab <= max_gab && has_prev_point ) // check if gab is small enough and a previous point exists
 				{
 
+					idx_inDepIm_x = idx % input_->width;
+					idx_inDepIm_y = idx * inv_width_;
 					controlImage.at<cv::Point3_<unsigned char> >(idx_inDepIm_y,idx_inDepIm_x) = cv::Point3_<unsigned char>(0,255,0);
 
 					p_curr = p_i - p;
@@ -292,7 +372,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	n_y = n_idx(1);
 	n_z = n_idx(2);
 
-*/
+	 */
 		}
 
 template <typename PointInT, typename PointOutT> void
@@ -303,12 +383,12 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computeFeature (Poi
 	for(int i= 0; i< edgeImage_.rows; i++)
 		for(int j=0; j<edgeImage_.cols; j++)
 			for(int c=0; c<3;c++)
-		{
+			{
 				if(edgeImage_.at<float>(i,j) == 0)
 					controlImage.at<cv::Vec3b>(i,j)[c] = 0;
 				else
 					controlImage.at<cv::Vec3b>(i,j)[c] = 255;
-		}
+			}
 
 
 	//std::cout << "indices: " << indices_->at(0) <<endl;
@@ -319,7 +399,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computeFeature (Poi
 
 		if(count % 660== 0)	//340
 		{
-		computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2]);
+			computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2]);
 		}
 		count++;
 
