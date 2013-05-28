@@ -136,8 +136,7 @@ public:
 
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
-		Timer timer;
-		timer.start();
+
 		ROS_INFO("Input Callback");
 
 		// convert color image to cv::Mat
@@ -196,6 +195,11 @@ public:
 		//cv::imshow("edge_image", edgeImage);
 		//cv::waitKey(10);
 
+		//Timer timer;
+		//timer.start();
+		//for(int i=0; i<10; i++)
+		//{
+
 		one_.setInputCloud(cloud);
 		one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
 		one_.computeMaskManually_increasing(cloud->width);
@@ -215,11 +219,16 @@ public:
 		//ind->push_back(index);
 		one_.setIndices(ind);*/
 
+
+
 		one_.compute(*normals);
 
+		//}timer.stop();
+		//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
 
 
 
+/*
 
 		// visualize normals
 		pcl::visualization::PCLVisualizer viewer("Cloud and Normals");
@@ -238,13 +247,7 @@ public:
 				viewer.spinOnce();
 
 			}
-			viewer.removePointCloud("cloud");
-
-
-
-		timer.stop();
-		std::cout << timer.getElapsedTimeInMilliSec() << " ms for InputCallback\n";
-
+			viewer.removePointCloud("cloud");*/
 	}
 
 private:
