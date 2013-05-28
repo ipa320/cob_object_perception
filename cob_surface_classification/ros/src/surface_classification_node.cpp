@@ -202,6 +202,7 @@ public:
 		one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
 		one_.computeMaskManually_increasing(cloud->width);
 		one_.setEdgeImage(edgeImage);
+		one_.setSameDirectionThres(0.94);
 		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 
 		//int index = cloud->width * (cloud->height/2-1) + cloud->width/2; //index des Punktes in der Mitte vom Fenster: Fensterbreite * halbe Anzahl Zeilen + halbe Zeile

@@ -120,7 +120,6 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::checkDirectionForEd
 	if(edgeImage_.at<float>(idx_inDepIm_y,idx_inDepIm_x) == 0)
 	{
 		ignorePoint = true;
-		//std::cout << "dir: " << p_curr <<endl;
 		directionsOfEdges.push_back(p_curr);
 		return ignorePoint;
 	}
@@ -129,15 +128,12 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::checkDirectionForEd
 	for(it_dirOfEd = directionsOfEdges.begin(); it_dirOfEd != directionsOfEdges.end(); ++it_dirOfEd)
 	{
 		scalProd = (*it_dirOfEd)(0) * p_curr(0) + (*it_dirOfEd)(1) * p_curr(1); // + (*it_dirOfEd)(2) * p_curr(2);
-		//std::cout << "scalProd: " <<scalProd <<endl;
-		if(std::abs(scalProd) > 0.96)
+		if(std::abs(scalProd) > sameDirectionThres_)
 		{
-			std::cout << "dirOfEd: \n" << *it_dirOfEd<<endl;
-			std::cout << "p_curr: \n" << p_curr <<endl;
+
 			//check if both vectors point the same direction (not in the opposite one)
 			if(((*it_dirOfEd)(0) * p_curr(0) >= 0) && ( (*it_dirOfEd)(1) * p_curr(1) >= 0)) //&& ((*it_dirOfEd)(2) * p_curr(2) > 0))
 			{
-				std::cout << "sameDirection\n " ;
 				ignorePoint = true;
 				return ignorePoint;
 			}
@@ -164,7 +160,6 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	//two vectors computed in the tangential plane: origin of vectors = query point, end points are two points at the boundary of the neighbourhood
 	//the normal is the cross product of those two vectors
 
-	//std::cout << "max index " <<cloud.points.size() <<endl;
 
 	Eigen::Vector3f p = cloud.points[index].getVector3fMap();	//query point
 	if (pcl_isnan(p(2)))
@@ -172,12 +167,18 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
 		return;
 	}
-	//std::cout << "max index " <<cloud.points.size() <<endl;
+
+
 	int idx, max_gab, gab, init_gab, n_normals = 0;
 	int idx_x = index % input_->width;
 	int idx_y = index * inv_width_;
-	//std::cout << "idx_x: " << idx_x <<endl;
-	//std::cout << "idx_y: " << idx_y <<endl;
+
+	//no normal estimation if point is directly on edge
+	if(edgeImage_.at<float>(idx_y,idx_x) == 0)
+	{
+		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
+		return;
+	}
 
 
 	//Quantisierungsstufen werden mit zunehmendem Abstand von der Kamera größer
@@ -203,12 +204,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 			idx_x >= pixel_search_radius_ && idx_x < (int)cloud.width - pixel_search_radius_)
 	{
 
-		//std::cout << "idx_y: " << idx_y <<endl;
-		//std::cout << "idx_x: " << idx_x <<endl;
-
 		controlImage.at<cv::Point3_<unsigned char> >(idx_y,idx_x) = cv::Point3_<unsigned char>(0,0,255);
 		cv::circle(controlImage,cv::Point2f(idx_x,idx_y),pixel_search_radius_,CV_RGB(255,0,0),1);
-
 
 
 		int idx_inDepIm_x = 0;	//index of neighbour point in edge image
