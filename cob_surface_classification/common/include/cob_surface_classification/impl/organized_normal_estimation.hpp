@@ -66,7 +66,10 @@
 template <typename PointInT, typename PointOutT> bool
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::compareCoordToEdgeCoord(
 		int idx, int idx_x, int idx_y, std::vector<Eigen::Vector2f>& directionsOfEdges)
-{
+		{
+	//ignore points with coordinates x,y larger than coordinates of any edge point detected so far
+
+
 	bool ignorePoint = false;
 
 	int idx_inDepIm_x = idx % input_->width;
@@ -98,13 +101,16 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::compareCoordToEdgeC
 			ignorePoint = true;
 	}
 	return ignorePoint;
-}
+		}
 
 
 template <typename PointInT, typename PointOutT> bool
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::checkDirectionForEdge(
 		int idx,	Eigen::Vector2f p_curr, std::vector<Eigen::Vector2f>&  directionsOfEdges)
-{
+		{
+	//ignore points if in direction of an edge. Edge directions detected so far are stored in "directionsOfEdges".
+	//Directions are compared by computing the scalarproduct.
+
 	bool ignorePoint = false;
 
 	int idx_inDepIm_x = idx % input_->width;
@@ -140,7 +146,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::checkDirectionForEd
 		}
 	}
 	return ignorePoint;
-}
+		}
 
 
 
@@ -148,11 +154,6 @@ template <typename PointInT, typename PointOutT> void
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal (
 		const PointCloudIn &cloud, int index,  float &n_x, float &n_y, float &n_z)
 		{
-
-
-
-
-
 
 	//input: index - index of point in input_ cloud
 	//output: n_x, n_y, n_z - coordinates of normal vector
@@ -170,6 +171,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 
 
 	int idx, max_gab, gab, init_gab, n_normals = 0;
+	//indices of central point in edgeImage_:
 	int idx_x = index % input_->width;
 	int idx_y = index * inv_width_;
 
@@ -199,6 +201,13 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	std::vector<int>::iterator it_ci; // points in circle iterator
 	std::vector<int>::iterator it_rbc = range_border_counter.begin();
 
+	//indices of currently evaluated point in edgeImage_:
+	int idx_inDepIm_x = 0;
+	int idx_inDepIm_y = 0;
+	std::vector<Eigen::Vector2f> directionsOfEdges;
+	bool ignorePoint;
+
+
 	// check where query point is and use out-of-image validation for neighbors or not
 	if (idx_y >= pixel_search_radius_ && idx_y < (int)cloud.height - pixel_search_radius_ &&
 			idx_x >= pixel_search_radius_ && idx_x < (int)cloud.width - pixel_search_radius_)
@@ -206,15 +215,6 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 
 		controlImage.at<cv::Point3_<unsigned char> >(idx_y,idx_x) = cv::Point3_<unsigned char>(0,0,255);
 		cv::circle(controlImage,cv::Point2f(idx_x,idx_y),pixel_search_radius_,CV_RGB(255,0,0),1);
-
-
-		int idx_inDepIm_x = 0;	//index of neighbour point in edge image
-		int idx_inDepIm_y = 0;
-		std::vector<Eigen::Vector2f> directionsOfEdges;
-		//std::vector<Eigen::Vector3f> directionsOfEdges;
-		bool ignorePoint;
-
-		int countcir = 0;
 
 		//iterate over circles with decreasing radius (from pixel_search_radius to 0) -> cover entire circular neighbourhood from outside border to inside
 		//compute normal for every pair of points on every circle (that is a specific distance to query point)
@@ -234,11 +234,9 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 
 				//ignorePoint = false;
 
+				//consider neighbourhood bounded by edges
 				if(!edgeImage_.empty())
 				{
-
-
-
 
 					//ignorePoint = compareCoordToEdgeCoord(idx, idx_x,idx_y,directionsOfEdges);
 
@@ -247,19 +245,16 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 					xy3.resize(2);
 					Eigen::Vector2f xy = xy3;*/
 
-					//Bildindizes als Koordianten:
+					//image indices as coordinates:
 					idx_inDepIm_x = idx % input_->width;
 					idx_inDepIm_y = idx * inv_width_;
 					Eigen::Vector2f xy;
 					xy(0) = idx_inDepIm_x - idx_x;
 					xy(1) = idx_inDepIm_y - idx_y;
 					ignorePoint = checkDirectionForEdge(idx, xy, directionsOfEdges);
-					//std::cout << "ignorepoint: " << ignorePoint <<endl;
-
-
-
 				}
 
+				//consider neighbourhood bounded by steps in depth
 				else
 				{
 					//if depth distance larger than threshold, ignore point
@@ -267,16 +262,11 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 						ignorePoint = true;
 				}
 
-
-
-
 				if(ignorePoint){ ++gab; ++(*it_rbc); continue; }  // count as gab point
 
-				//if depth distance larger than threshold, ignore point
-				//if ( fabs(p_i(2) - p(2)) > distance_threshold ) { ++gab; ++(*it_rbc); continue; }  // count as gab point
+
 				if ( gab <= max_gab && has_prev_point ) // check if gab is small enough and a previous point exists
 				{
-
 					idx_inDepIm_x = idx % input_->width;
 					idx_inDepIm_y = idx * inv_width_;
 					controlImage.at<cv::Point3_<unsigned char> >(idx_inDepIm_y,idx_inDepIm_x) = cv::Point3_<unsigned char>(0,255,0);
@@ -306,9 +296,6 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 				n_idx += (p_prev.cross(p_first)).normalized();
 				++n_normals;
 			}
-
-			//countcir++;
-			//if(countcir == 3) break;
 		} // end loop of circles
 
 
@@ -316,7 +303,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 
 
 	}
-	/*
+	//point near image boundaries:
 	else
 	{
 		for (it_c = mask_.begin(); it_c != mask_.end(); ++it_c, ++it_rbc) // iterate circles
@@ -331,7 +318,30 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 				int v = idx * inv_width_; // calculate y coordinate in image, // check left, right border
 				if ( v < 0 || v >= (int)cloud.height || pcl_isnan(cloud.points[idx].z)) { ++gab; continue; } // count as gab point
 				Eigen::Vector3f p_i = cloud.points[idx].getVector3fMap();
-				if ( fabs(p_i(2) - p(2)) > distance_threshold ) { ++gab; ++(*it_rbc); continue; }  // count as gab point
+
+				//consider neighbourhood bounded by edges
+				if(!edgeImage_.empty())
+				{
+					//image indices as coordinates:
+					idx_inDepIm_x = idx % input_->width;
+					idx_inDepIm_y = idx * inv_width_;
+					Eigen::Vector2f xy;
+					xy(0) = idx_inDepIm_x - idx_x;
+					xy(1) = idx_inDepIm_y - idx_y;
+					ignorePoint = checkDirectionForEdge(idx, xy, directionsOfEdges);
+				}
+
+				//consider neighbourhood bounded by steps in depth
+				else
+				{
+					//if depth distance larger than threshold, ignore point
+					if ( fabs(p_i(2) - p(2)) > distance_threshold )
+						ignorePoint = true;
+				}
+
+				if(ignorePoint){ ++gab; ++(*it_rbc); continue; }  // count as gab point
+
+
 				if ( gab <= max_gab && has_prev_point) // check gab is small enough and a previous point exists
 				{
 					p_curr = p_i - p;
@@ -369,8 +379,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	n_y = n_idx(1);
 	n_z = n_idx(2);
 
-	 */
-		}
+
+}
 
 template <typename PointInT, typename PointOutT> void
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computeFeature (PointCloudOut &output)

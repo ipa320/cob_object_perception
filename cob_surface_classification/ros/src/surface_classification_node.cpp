@@ -173,7 +173,7 @@ public:
 		//			}
 		//		}
 
-		//compute depth_image: greyvalue corresponds to depth z
+		//compute depth_image: greyvalue represents depth z
 		cv::Mat depth_image = cv::Mat::zeros(cloud->height, cloud->width, CV_32FC1);
 		for (unsigned int v=0; v<cloud->height; v++)
 		{
@@ -183,8 +183,6 @@ public:
 				pcl::PointXYZRGB point = cloud->at(u,v);
 				if(std::isnan(point.z) == false)
 					depth_image.at< float >(v,u) = point.z;
-				//std::cout << "di: " << depth_image.at< float >(v,u )<<"\n";
-				//std::cout << "point: " << point.z <<"\n";
 			}
 		}
 
@@ -214,10 +212,9 @@ public:
 			(*ind)[i] = i*5;
 			std::cout << "ind " << (*ind)[i] <<endl;
 		}
-		//std::cout <<endl;
 		//ind->push_back(index);
 		one_.setIndices(ind);*/
-		//std::cout << "width " << cloud->width<<endl;
+
 		one_.compute(*normals);
 
 
