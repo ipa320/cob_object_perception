@@ -212,9 +212,9 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	if (idx_y >= pixel_search_radius_ && idx_y < (int)cloud.height - pixel_search_radius_ &&
 			idx_x >= pixel_search_radius_ && idx_x < (int)cloud.width - pixel_search_radius_)
 	{
-
+/*
 		controlImage.at<cv::Point3_<unsigned char> >(idx_y,idx_x) = cv::Point3_<unsigned char>(0,0,255);
-		cv::circle(controlImage,cv::Point2f(idx_x,idx_y),pixel_search_radius_,CV_RGB(255,0,0),1);
+		cv::circle(controlImage,cv::Point2f(idx_x,idx_y),pixel_search_radius_,CV_RGB(255,0,0),1);*/
 
 		//iterate over circles with decreasing radius (from pixel_search_radius to 0) -> cover entire circular neighbourhood from outside border to inside
 		//compute normal for every pair of points on every circle (that is a specific distance to query point)
@@ -267,9 +267,9 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 
 				if ( gab <= max_gab && has_prev_point ) // check if gab is small enough and a previous point exists
 				{
-					idx_inDepIm_x = idx % input_->width;
+					/*idx_inDepIm_x = idx % input_->width;
 					idx_inDepIm_y = idx * inv_width_;
-					controlImage.at<cv::Point3_<unsigned char> >(idx_inDepIm_y,idx_inDepIm_x) = cv::Point3_<unsigned char>(0,255,0);
+					controlImage.at<cv::Point3_<unsigned char> >(idx_inDepIm_y,idx_inDepIm_x) = cv::Point3_<unsigned char>(0,255,0);*/
 
 					p_curr = p_i - p;
 					n_idx += (p_prev.cross(p_curr)).normalized(); // compute normal of p_prev and p_curr
@@ -297,11 +297,6 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 				++n_normals;
 			}
 		} // end loop of circles
-
-
-
-
-
 	}
 	//point near image boundaries:
 	else
@@ -385,7 +380,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 template <typename PointInT, typename PointOutT> void
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computeFeature (PointCloudOut &output)
 {
-	controlImage = cv::Mat::ones(edgeImage_.rows,edgeImage_.cols,CV_8UC3) ;
+	/*controlImage = cv::Mat::ones(edgeImage_.rows,edgeImage_.cols,CV_8UC3) ;	//draw neighbourhood taken into account for computations
 
 	for(int i= 0; i< edgeImage_.rows; i++)
 		for(int j=0; j<edgeImage_.cols; j++)
@@ -397,26 +392,21 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computeFeature (Poi
 					controlImage.at<cv::Vec3b>(i,j)[c] = 255;
 			}
 
-
-	//std::cout << "indices: " << indices_->at(0) <<endl;
-	int count = 0;
+	int count = 0;*/
 
 	for (std::vector<int>::iterator it=indices_->begin(); it != indices_->end(); ++it)
 	{
 
-		if(count % 660== 0)	//340
-		{
+		/*if(count % 660== 0)	//computations only at every 660th point
+		{*/
 			computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2]);
-		}
-		count++;
+		/*}
+		count++;*/
 
-		//std::cout << "it: " << *it <<endl;
-		//std::cout << "it-end: " << *(indices_->end()) <<endl;
-		//std::cout << "cloud size: " << input_->points.size() <<endl;
 	}
 
-	cv::imshow("controlImage", controlImage);
-	cv::waitKey(10);
+	/*cv::imshow("controlImage", controlImage);
+	cv::waitKey(10);*/
 }
 
 

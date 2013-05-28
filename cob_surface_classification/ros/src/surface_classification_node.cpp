@@ -218,7 +218,7 @@ public:
 		one_.compute(*normals);
 
 
-/*
+
 
 
 		// visualize normals
@@ -228,7 +228,7 @@ public:
 
 
 		viewer.addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "cloud");
-		viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,1,0.005,"normals");
+		viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 		//viewer.addCoordinateSystem (1.0);
 		//viewer.initCameraParameters ();
@@ -238,7 +238,7 @@ public:
 				viewer.spinOnce();
 
 			}
-			viewer.removePointCloud("cloud");*/
+			viewer.removePointCloud("cloud");
 
 
 
