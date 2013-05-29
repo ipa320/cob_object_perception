@@ -154,10 +154,10 @@ template <typename PointInT, typename PointOutT> void
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal (
 		const PointCloudIn &cloud, int index,  float &n_x, float &n_y, float &n_z)
 		{
-	Timer timer;
+	/*Timer timer;
 	timer.start();
 	for(int i=0; i<10; i++)
-	{
+	{*/
 
 	//input: index - index of point in input_ cloud
 	//output: n_x, n_y, n_z - coordinates of normal vector
@@ -378,8 +378,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	n_y = n_idx(1);
 	n_z = n_idx(2);
 
-	}timer.stop();
-	std::cout << timer.getElapsedTimeInMilliSec() << " ms for one normalEstimation, averaged over 10 iterations\n";
+	/*}timer.stop();
+	std::cout << timer.getElapsedTimeInMilliSec() << " ms for one normalEstimation, averaged over 10 iterations\n";*/
 
 
 }

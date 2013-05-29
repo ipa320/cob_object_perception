@@ -81,9 +81,14 @@
 
 
 
+
+
 class SurfaceClassification
 {
 public:
+
+
+
 	void testFunction(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Mat& depth_image);
 
 private:

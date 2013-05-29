@@ -17,6 +17,8 @@
   <depend package="sensor_msgs"/>
   <depend package="message_filters"/>
   <depend package="image_transport"/>
+  <depend package="cob_3d_mapping_common"/>
+  <depend package="cob_3d_segmentation"/>
 
 </package>
 

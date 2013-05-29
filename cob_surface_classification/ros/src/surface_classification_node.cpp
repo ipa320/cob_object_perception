@@ -88,14 +88,23 @@
 #include <pcl/visualization/cloud_viewer.h>
 
 
-
+//internal includes
 #include <cob_surface_classification/edge_detection.h>
 //#include <cob_surface_classification/surface_classification.h>
 #include <cob_surface_classification/organized_normal_estimation.h>
+#include <cob_surface_classification/refine_segmentation.h>
+
+//package includes
+#include <cob_3d_segmentation/depth_segmentation.h>
+#include <cob_3d_segmentation/cluster_classifier.h>
+#include <cob_3d_mapping_common/point_types.h>
+
 
 class SurfaceClassificationNode
 {
 public:
+	typedef cob_3d_segmentation::PredefinedSegmentationTypes ST;
+
 	SurfaceClassificationNode(ros::NodeHandle nh)
 	: node_handle_(nh)
 	{
@@ -145,6 +154,10 @@ public:
 		convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
 
 		//visualization
+		//zeichne Fadekreuz
+		int lineLength = 30;
+		cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
+		cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
 		cv::waitKey(10);
 
@@ -155,6 +168,8 @@ public:
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+		pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
+	    ST::Graph::Ptr graph;
 		//Inhalt des Pointers übergeben
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
 
@@ -206,21 +221,6 @@ public:
 		one_.setEdgeImage(edgeImage);
 		one_.setSameDirectionThres(0.94);
 		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-
-		//int index = cloud->width * (cloud->height/2-1) + cloud->width/2; //index des Punktes in der Mitte vom Fenster: Fensterbreite * halbe Anzahl Zeilen + halbe Zeile
-		/*boost::shared_ptr <std::vector<int> > ind;
-		ind.reset (new std::vector<int>);
-		ind->resize(std::floor(cloud->points.size() /5));
-		for(size_t i=0; i<ind->size();i++)
-		{
-			(*ind)[i] = i*5;
-			std::cout << "ind " << (*ind)[i] <<endl;
-		}
-		//ind->push_back(index);
-		one_.setIndices(ind);*/
-
-
-
 		one_.compute(*normals);
 
 		//}timer.stop();
@@ -248,6 +248,21 @@ public:
 
 			}
 			viewer.removePointCloud("cloud");*/
+
+
+		seg_.setInputCloud(cloud);
+		seg_.setNormalCloudIn(normals);
+		seg_.setLabelCloudInOut(labels);
+		seg_.setClusterGraphOut(graph);
+		seg_.performInitialSegmentation();
+
+		/*
+		segRefined_.setClusterGraphIn(graph);
+		segRefined_.setLabelCloudInOut(labels);
+		segRefined_.setNormalCloudIn(normals);
+		segRefined_.refineUsingCurvature();*/
+
+
 	}
 
 private:
@@ -263,6 +278,9 @@ private:
 	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal> one_;
 
 	EdgeDetection<pcl::PointXYZRGB> edge_detection_;
+    cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> seg_;
+	cob_3d_segmentation::RefineSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segRefined_;
+
 };
 
 int main (int argc, char** argv)

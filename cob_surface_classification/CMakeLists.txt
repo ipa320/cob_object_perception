@@ -36,6 +36,19 @@ rosbuild_add_boost_directories()
 #target_link_libraries(example ${PROJECT_NAME})
 
 
+rosbuild_add_library(cob_3d_curvatureSegmentation
+	common/src/refine_segmentation.cpp)
+	
+target_link_libraries(cob_3d_curvatureSegmentation cob_3d_segmentation cob_3d_mapping_common)
+
+
+
 rosbuild_add_executable(surface_classification ros/src/surface_classification_node.cpp
 												common/src/surface_classification.cpp)
+#target_link_libraries(surface_classification cob_3d_mapping_common)
+target_link_libraries(surface_classification cob_3d_curvatureSegmentation)
 rosbuild_link_boost(surface_classification system)
+
+#rosbuild_add_library(test common/include/cob_surface_classification/impl/curvatureSegmentation.hpp)
+#target_link_libraries(test cob_3d_mapping_common)
+#rosbuild_link_boost(test system)
