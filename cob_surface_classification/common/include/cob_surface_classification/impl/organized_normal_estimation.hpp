@@ -63,8 +63,8 @@
 #ifndef __IMPL_ORGANIZED_NORMAL_ESTIMATION_H__
 #define __IMPL_ORGANIZED_NORMAL_ESTIMATION_H__
 
-template <typename PointInT, typename PointOutT> bool
-cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::compareCoordToEdgeCoord(
+template <typename PointInT, typename PointOutT, typename LabelOutT> bool
+cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::compareCoordToEdgeCoord(
 		int idx, int idx_x, int idx_y, std::vector<Eigen::Vector2f>& directionsOfEdges)
 		{
 	//ignore points with coordinates x,y larger than coordinates of any edge point detected so far
@@ -104,8 +104,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::compareCoordToEdgeC
 		}
 
 
-template <typename PointInT, typename PointOutT> bool
-cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::checkDirectionForEdge(
+template <typename PointInT, typename PointOutT, typename LabelOutT> bool
+cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::checkDirectionForEdge(
 		int idx,	Eigen::Vector2f p_curr, std::vector<Eigen::Vector2f>&  directionsOfEdges)
 		{
 	//ignore points if in direction of an edge. Edge directions detected so far are stored in "directionsOfEdges".
@@ -150,9 +150,9 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::checkDirectionForEd
 
 
 
-template <typename PointInT, typename PointOutT> void
-cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal (
-		const PointCloudIn &cloud, int index,  float &n_x, float &n_y, float &n_z)
+template <typename PointInT, typename PointOutT, typename LabelOutT> void
+cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePointNormal (
+		const PointCloudIn &cloud, int index,  float &n_x, float &n_y, float &n_z, int& label_out)
 		{
 	/*Timer timer;
 	timer.start();
@@ -170,6 +170,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	if (pcl_isnan(p(2)))
 	{
 		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
+	    label_out = I_NAN;
 		return;
 	}
 
@@ -183,6 +184,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 	if(edgeImage_.at<float>(idx_y,idx_x) == 0)
 	{
 		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
+	    label_out = I_NAN;
 		return;
 	}
 
@@ -384,8 +386,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computePointNormal 
 
 }
 
-template <typename PointInT, typename PointOutT> void
-cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computeFeature (PointCloudOut &output)
+template <typename PointInT, typename PointOutT, typename LabelOutT> void
+cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computeFeature (PointCloudOut &output)
 {
 	/*controlImage = cv::Mat::ones(edgeImage_.rows,edgeImage_.cols,CV_8UC3) ;	//draw neighbourhood taken into account for computations
 
@@ -401,12 +403,21 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT>::computeFeature (Poi
 
 	int count = 0;*/
 
+
+	  if (labels_->points.size() != input_->size())
+	  {
+	    labels_->points.resize(input_->size());
+	    labels_->height = input_->height;
+	    labels_->width = input_->width;
+	  }
+
 	for (std::vector<int>::iterator it=indices_->begin(); it != indices_->end(); ++it)
 	{
 
 		/*if(count % 660== 0)	//computations only at every 660th point
 		{*/
-			computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2]);
+	    labels_->points[*it].label = I_UNDEF;
+		computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2], labels_->points[*it].label);
 		/*}
 		count++;*/
 

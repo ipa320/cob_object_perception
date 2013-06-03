@@ -100,6 +100,7 @@
 #include <cob_3d_mapping_common/point_types.h>
 
 
+
 class SurfaceClassificationNode
 {
 public:
@@ -169,7 +170,9 @@ public:
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 		pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
-	    ST::Graph::Ptr graph;
+		ST::Graph::Ptr graph(new ST::Graph);
+
+
 		//Inhalt des Pointers übergeben
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
 
@@ -219,6 +222,7 @@ public:
 		one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
 		one_.computeMaskManually_increasing(cloud->width);
 		one_.setEdgeImage(edgeImage);
+		one_.setOutputLabels(labels);
 		one_.setSameDirectionThres(0.94);
 		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 		one_.compute(*normals);
@@ -228,7 +232,7 @@ public:
 
 
 
-/*
+		/*
 
 		// visualize normals
 		pcl::visualization::PCLVisualizer viewer("Cloud and Normals");
@@ -256,6 +260,26 @@ public:
 		seg_.setClusterGraphOut(graph);
 		seg_.performInitialSegmentation();
 
+
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented(new pcl::PointCloud<pcl::PointXYZRGB>);
+		*segmented = *cloud;
+		graph->clusters()->mapClusterColor(segmented);
+
+
+		// visualize segmentation
+		pcl::visualization::PCLVisualizer viewer("segmentation");
+		viewer.setBackgroundColor (0.0, 0.0, 0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(segmented);
+		viewer.addPointCloud<pcl::PointXYZRGB> (segmented,rgb,"seg");
+
+		while (!viewer.wasStopped ())
+		{
+			viewer.spinOnce();
+
+		}
+		viewer.removePointCloud("seg");
+
+
 		/*
 		segRefined_.setClusterGraphIn(graph);
 		segRefined_.setLabelCloudInOut(labels);
@@ -275,10 +299,10 @@ private:
 	message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >* sync_input_;
 
 	//SurfaceClassification surface_classification_;
-	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal> one_;
+	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
 
 	EdgeDetection<pcl::PointXYZRGB> edge_detection_;
-    cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> seg_;
+	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> seg_;
 	cob_3d_segmentation::RefineSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segRefined_;
 
 };

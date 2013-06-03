@@ -13,7 +13,7 @@
     </rosparam>
   </node-->
 
-  <node ns="surface_classification" name="surface_classification" pkg="cob_surface_classification" type="surface_classification" output="screen">
+  <node ns="surface_classification" name="surface_classification" pkg="cob_surface_classification" type="surface_classification" output="screen" launch-prefix="gdb -ex run --args">
     <remap from="pointcloud_in" to="object_segmentation_pass_through/output"/>
     <remap from="pointcloud_in" to="/cam3d/rgb/points"/>
     <remap from="colorimage_in" to="/cam3d/rgb/image_color"/>
