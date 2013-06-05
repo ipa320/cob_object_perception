@@ -154,13 +154,14 @@ public:
 		cv::Mat color_image;
 		convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
 
+		/*
 		//visualization
-		//zeichne Fadekreuz
+		//zeichne Fadenkreuz
 		int lineLength = 30;
 		cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
 		cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
-		cv::waitKey(10);
+		cv::waitKey(10);*/
 
 		// get color image from point cloud
 		/*pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
@@ -240,7 +241,7 @@ public:
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
 
 
-		viewer.addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "cloud");
+		viewer.addPointCloud<pcl::PoitXYZRGB> (cloud, rgb, "cloud");
 		viewer.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
 		viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 		//viewer.addCoordinateSystem (1.0);
@@ -271,20 +272,43 @@ public:
 		viewer.setBackgroundColor (0.0, 0.0, 0);
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(segmented);
 		viewer.addPointCloud<pcl::PointXYZRGB> (segmented,rgb,"seg");
-
+/*
 		while (!viewer.wasStopped ())
 		{
 			viewer.spinOnce();
 
 		}
-		viewer.removePointCloud("seg");
+		viewer.removePointCloud("seg");*/
 
 
-		/*
-		segRefined_.setClusterGraphIn(graph);
+
+		segRefined_.setInputCloud(cloud);
+		segRefined_.setClusterGraphInOut(graph);
 		segRefined_.setLabelCloudInOut(labels);
 		segRefined_.setNormalCloudIn(normals);
-		segRefined_.refineUsingCurvature();*/
+		//segRefined_.setCurvThres()
+		segRefined_.refineUsingCurvature();
+		//segRefined_.printCurvature(color_image);
+
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedRef(new pcl::PointCloud<pcl::PointXYZRGB>);
+		*segmentedRef = *cloud;
+		graph->clusters()->mapClusterColor(segmentedRef);
+
+
+		// visualize segmentation
+		pcl::visualization::PCLVisualizer viewerRef("segmentationRef");
+		viewerRef.setBackgroundColor (0.0, 0.0, 0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbRef(segmentedRef);
+		viewerRef.addPointCloud<pcl::PointXYZRGB> (segmentedRef,rgbRef,"segRef");
+
+		while (!viewer.wasStopped ())
+		{
+			viewer.spinOnce();
+			viewerRef.spinOnce();
+
+		}
+		viewerRef.removePointCloud("segRef");
+		viewer.removePointCloud("seg");
 
 
 	}
@@ -297,6 +321,7 @@ private:
 	image_transport::SubscriberFilter colorimage_sub_; ///< Color camera image topic
 	message_filters::Subscriber<sensor_msgs::PointCloud2> pointcloud_sub_;
 	message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >* sync_input_;
+
 
 	//SurfaceClassification surface_classification_;
 	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
