@@ -270,6 +270,7 @@ EdgeDetection<PointInT>::approximateLine
 
 	abc.at<float>(1) = 1;		//b=1
 	float z1 = depth_image.at<float>(dotIni.y, dotIni.x);
+	float z2 = depth_image.at<float>(dotEnd.y, dotEnd.x);
 
 
 	// c = -z1
@@ -278,16 +279,14 @@ EdgeDetection<PointInT>::approximateLine
 	float w2;
 
 	//don't save points with nan-entries (no data available)
-	if(!std::isnan(pointcloud->at(dotEnd.x,dotEnd.y).z))
+	if(!std::isnan(pointcloud->at(dotEnd.x,dotEnd.y).z) && !std::isnan(pointcloud->at(dotIni.x,dotIni.y).z))
 	{
 		float x0 = pointcloud->at(dotIni.x,dotIni.y).x;
 		float y0 = pointcloud->at(dotIni.x,dotIni.y).y;
 		//dotIni and dotEnd lie on line in either x- or y-direction
-		w2 = (pointcloud->at(dotEnd.x,dotEnd.y).x - x0)
-																+ (pointcloud->at(dotEnd.x,dotEnd.y).y - y0);
+		w2 = (pointcloud->at(dotEnd.x,dotEnd.y).x - x0) + (pointcloud->at(dotEnd.x,dotEnd.y).y - y0);
 		if(w2 != 0)
 		{
-			float z2 = depth_image.at<float>(dotEnd.y, dotEnd.x);
 			// a = -(z2-z1) /(w2-w1);
 			abc.at<float>(0) = (z1-z2) /w2;
 		}
@@ -326,7 +325,7 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 	float zRight = -abc2.at<float>(2)/abc2.at<float>(1);
 
 	//there truly is a step at the central point only if there is none in the coordinates to its left and right
-	if(!step && ((zRight - zLeft) > 0.05 || (zRight - zLeft) < -0.05))
+	if(!step && ((zRight - zLeft) > stepThreshold_ || (zRight - zLeft) < -stepThreshold_))
 	{
 		//mark step as edge in depth data
 		scalarProduct = 0;
@@ -381,25 +380,47 @@ EdgeDetection<PointInT>::approximateLineFullAndHalfDist
 	cv::Mat abc1 (cv::Mat::zeros(1,3,CV_32FC1));	//first approximation, full distance from dotIni to dotEnd
 	cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));	//second approximation, half distance from dotIni to dotEnd
 	approximateLine(depth_image,pointcloud, dotIni,dotEnd, abc1);
+
+
 	if(dotEnd.x == dotIni.x)
+		//half distance in y-direction
 		dotEnd.y = (int) (dotEnd.y - (dotEnd.y-dotIni.y)/2);
 	else if(dotEnd.y == dotEnd.y)
+		//half distance in x-direction
 		dotEnd.x = (int) (dotEnd.x - (dotEnd.x-dotIni.x)/2);
+
+
 
 	approximateLine(depth_image,pointcloud, dotIni,dotEnd, abc2);
 
 	float scalProd = 1;
-	int concConv = 0; //sinnlos, evtl noch neue Funktion scalarProduct() ohne concConv schreiben
-	bool step = false;
-	scalarProduct(abc1,abc2,scalProd,concConv,step);
-	//std::cout <<"scalProd: " <<scalProd <<endl;
-	if(scalProd > 0.95 || scalProd < -0.95)
+	int sinnlos2 = 0; //sinnlos, evtl noch neue Funktion scalarProduct() ohne concConv schreiben
+
+
+	if(abc1.at<float>(0) == 0 && abc1.at<float>(1) == 0)
 	{
+		//falls nan bei full distance, die Werte von halfDist übernehmen
+		abc = abc2;
+	}
+	else if(abc2.at<float>(0) == 0 && abc2.at<float>(1) == 0)
+	{
+		//falls nan bei half dist, die Werte bei fulldist übernehmen
 		abc = abc1;
 	}
 	else
-		//lines not going in the same direction -> no edge
-		abc = cv::Mat::zeros(1,3,CV_32FC1);
+	{
+		bool sinnlos = false;	//noch neue Funktion scalarProduct ohne bool step schreiben
+		scalarProduct(abc1,abc2,scalProd,sinnlos2,sinnlos);
+		//std::cout <<"scalProd: " <<scalProd <<endl;
+		if(scalProd > 0.95 || scalProd < -0.95)
+		{
+			//approximations of fulldist and halfdist going in the same direction
+			abc = abc1;
+		}
+		else
+			//lines not going in the same direction -> no edge
+			abc = cv::Mat::zeros(1,3,CV_32FC1);
+	}
 
 }
 
@@ -669,7 +690,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			cv::Mat abc2 (cv::Mat::zeros(1,3,CV_32FC1));	//right line
 			cv::Mat n1;
 			cv::Mat n2;
-bool step;
+bool step = false;
 
 			/* line approximation using SVD
 			 * ----------------------------------------------------------*/
@@ -697,8 +718,8 @@ bool step;
 			/*	approximate line using only two points
 			 * -------------------------------------------------------------------*/
 
-			//no step detection in approximateLine from 2 points
-			step = false;
+//no step detection in approximateLine from 2 points
+step = false;
 
 			//std::cout << "left\n";
 			approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX-1,iY),dotLeft, abc1);
@@ -742,7 +763,7 @@ bool step;
 
 			concaveConvex.at<unsigned char>(iY,iX) = concConv;
 
-			/*
+
 
 	//scalarProduct of depth along lines in y-direction
 	//------------------------------------------------------------------------
@@ -755,7 +776,7 @@ bool step;
 	cv::Mat n2Y;
 
 	cv::Mat abc1Y (cv::Mat::zeros(1,3,CV_32FC1));
-	cv::Mat abc2Y (cv::Mat::zeros(1,3,CV_32FC1));*/
+	cv::Mat abc2Y (cv::Mat::zeros(1,3,CV_32FC1));
 
 			//timer.start();
 
@@ -785,9 +806,9 @@ bool step;
 
 			//no step detection in approximateLine from 2 points
 			step = false;
-			/*
-	approximateLine(depth_image,pointcloud, cv::Point2f(iX,iY-1),dotDown, abc1Y);
-	approximateLine(depth_image,pointcloud, cv::Point2f(iX,iY+1),dotUp, abc2Y);*/
+
+	approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX,iY-1),dotDown, abc1Y);
+	approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX,iY+1),dotUp, abc2Y);
 
 
 
@@ -796,7 +817,7 @@ bool step;
 			//drawLines(plotZW,coordinates1Y,abc1Y);
 			//drawLines(plotZW,coordinates2Y,abc2Y);
 
-			/*				float scalProdY = 1;
+			float scalProdY = 1;
 			int concConvY = 0;
 			if(abc1Y.at<float>(0,0) == 0 || abc2Y.at<float>(0,0) == 0)
 			{
@@ -822,13 +843,13 @@ bool step;
 
 			concaveConvexY.at<unsigned char>(iY,iX) = concConvY;
 
-			 */
+
 			//Minimum:
 			//scalarProducts.at<float>(iY,iX) = (scalProdX < scalProdY)? scalProdX : scalProdY;
 		}
 	}
 
-	/*	//thin edges in x- and y-direction separately
+		//thin edges in x- and y-direction separately
 	thinEdges(scalarProductsX, 0);
 	thinEdges(scalarProductsY, 1);
 
@@ -843,7 +864,7 @@ bool step;
 			else
 				edgeImage.at<float>(iY,iX) = 0;
 		}
-	}*/
+	}
 
 
 
@@ -852,7 +873,7 @@ bool step;
 	//cv::imshow("depth over coordinate along line", plotZW);
 	//cv::waitKey(10);
 
-	cv::imshow("Skalarprodukt", scalarProductsX);
+	cv::imshow("Skalarprodukt", edgeImage);
 	cv::waitKey(10);
 
 

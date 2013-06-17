@@ -33,6 +33,7 @@ public:
 
 	EdgeDetection ():
 		edgeThreshold_(0.5),
+		stepThreshold_(0.05),
 		lineLength_(20),
 		windowX_(600),
 		windowY_(600)
@@ -41,6 +42,10 @@ public:
 	inline void setEdgeThreshold(float th)
 	{
 		edgeThreshold_ = th;
+	}
+	inline void setStepThreshold(float th)
+	{
+		stepThreshold_ = th;
 	}
 	inline void setLineLength(int l)
 	{
@@ -67,6 +72,7 @@ private:
 	void drawLineAlongN(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& n);
 
 	float edgeThreshold_;	//scalarproduct > edgeThreshold is set to 1 and thus not detected as edge. the larger the threshold, the more lines are detected as edges.
+	float stepThreshold_;	//minimum distance which is detected as a step in depth coordinates
 	int lineLength_;	//depth coordinates along two lines with length lineLength/2 are considered
 	int windowX_;	//size of visualization windows in x-direction
 	int windowY_;
