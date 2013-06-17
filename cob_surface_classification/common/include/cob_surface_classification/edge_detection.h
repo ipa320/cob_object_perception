@@ -58,6 +58,7 @@ public:
 private:
 
 	void approximateLine(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc,cv::Mat& n, cv::Mat& coordinates, bool& step);
+	void approximateLine(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
 	void scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalarProduct, int& concaveConvex, bool& step);
 	void thinEdges(cv::Mat& edgePicture, int xy);
 	void drawLines(cv::Mat& plotXY, cv::Mat& coordinates, cv::Mat& abc);
