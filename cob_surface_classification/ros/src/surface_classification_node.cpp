@@ -158,8 +158,8 @@ public:
 		//visualization
 		//zeichne Fadenkreuz
 		int lineLength = 30;
-		cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
-		cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
+		//cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
+		//cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
 		cv::waitKey(10);
 
@@ -175,6 +175,7 @@ public:
 		pcl::PointCloud<PointLabel>::Ptr labelsWithoutEdges(new pcl::PointCloud<PointLabel>);
 		ST::Graph::Ptr graph(new ST::Graph);
 		ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
+
 
 
 		//Inhalt des Pointers übergeben
@@ -207,8 +208,8 @@ public:
 			}
 		}
 
-		cv::imshow("depth_image", depth_image);
-		cv::waitKey(10);
+		//cv::imshow("depth_image", depth_image);
+		//cv::waitKey(10);
 
 
 /*
@@ -230,7 +231,7 @@ public:
 		//for(int i=0; i<10; i++)
 		//{
 
-/*
+
 
 		one_.setInputCloud(cloud);
 		one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
@@ -239,7 +240,7 @@ public:
 		one_.setOutputLabels(labels);
 		one_.setSameDirectionThres(0.94);
 		one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-		one_.compute(*normals);*/
+		one_.compute(*normals);
 
 		//}timer.stop();
 		//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
@@ -267,47 +268,47 @@ public:
 			}
 			viewerNormals.removePointCloud("cloud");*/
 
-/*
+
 		seg_.setInputCloud(cloud);
 		seg_.setNormalCloudIn(normals);
 		seg_.setLabelCloudInOut(labels);
 		seg_.setClusterGraphOut(graph);
 		seg_.performInitialSegmentation();
-
+/*
 		segWithoutEdges_.setInputCloud(cloud);
 		segWithoutEdges_.setNormalCloudIn(normalsWithoutEdges);
 		segWithoutEdges_.setLabelCloudInOut(labelsWithoutEdges);
 		segWithoutEdges_.setClusterGraphOut(graphWithoutEdges);
-		segWithoutEdges_.performInitialSegmentation();
+		segWithoutEdges_.performInitialSegmentation();*/
 
 
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented(new pcl::PointCloud<pcl::PointXYZRGB>);
+/*		pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented(new pcl::PointCloud<pcl::PointXYZRGB>);
 		*segmented = *cloud;
 		graph->clusters()->mapClusterColor(segmented);
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedWithoutEdges(new pcl::PointCloud<pcl::PointXYZRGB>);
 	    pcl::copyPointCloud<pcl::PointXYZRGB,pcl::PointXYZRGB>(*cloud, *segmentedWithoutEdges);
-		graphWithoutEdges->clusters()->mapClusterColor(segmentedWithoutEdges);
-
+		graphWithoutEdges->clusters()->mapClusterColor(segmentedWithoutEdges);*/
+/*
 
 		// visualize segmentation
 		pcl::visualization::PCLVisualizer viewer("segmentation");
 		viewer.setBackgroundColor (0.0, 0.0, 0);
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(segmented);
-		viewer.addPointCloud<pcl::PointXYZRGB> (segmented,rgb,"seg");
-
+		viewer.addPointCloud<pcl::PointXYZRGB> (segmented,rgb,"seg");*/
+/*
 		pcl::visualization::PCLVisualizer viewerWithoutEdges("segmentationWithoutEdges");
 		viewerWithoutEdges.setBackgroundColor (0.0, 0.0, 0);
 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbWithoutEdges(segmentedWithoutEdges);
 		viewerWithoutEdges.addPointCloud<pcl::PointXYZRGB> (segmentedWithoutEdges,rgbWithoutEdges,"segWithoutEdges");
 
-		while (!viewerWithoutEdges.wasStopped ())
+		while (!viewer.wasStopped ())
 		{
 			viewer.spinOnce();
-			viewerWithoutEdges.spinOnce();
+			//viewerWithoutEdges.spinOnce();
 
 		}
-		viewer.removePointCloud("seg");
+		viewer.removePointCloud("seg");*/
 
 
 /*
@@ -317,9 +318,9 @@ public:
 		segRefined_.setNormalCloudIn(normals);
 		//segRefined_.setCurvThres()
 		segRefined_.refineUsingCurvature();
-		//segRefined_.printCurvature(color_image);
+		//segRefined_.printCurvature(color_image);*/
 
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedRef(new pcl::PointCloud<pcl::PointXYZRGB>);
+	/*	pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedRef(new pcl::PointCloud<pcl::PointXYZRGB>);
 		*segmentedRef = *cloud;
 		graph->clusters()->mapClusterColor(segmentedRef);
 
@@ -338,6 +339,35 @@ public:
 		}
 		viewerRef.removePointCloud("segRef");
 		viewer.removePointCloud("seg");*/
+
+
+		//classification
+
+		cc_.setClusterHandler(graph->clusters());
+		cc_.setNormalCloudInOut(normals);
+		cc_.setLabelCloudIn(labels);
+		cc_.setPointCloudIn(cloud);
+		cc_.classify();
+
+
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr classified(new pcl::PointCloud<pcl::PointXYZRGB>);
+		*classified = *cloud;
+		graph->clusters()->mapTypeColor(classified);
+		graph->clusters()->mapClusterBorders(classified);
+
+		// visualize classification
+				pcl::visualization::PCLVisualizer viewerClass("classification");
+				viewerClass.setBackgroundColor (0.0, 0.0, 0);
+				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbClass(classified);
+				viewerClass.addPointCloud<pcl::PointXYZRGB> (classified,rgbClass,"class");
+
+				while (!viewerClass.wasStopped ())
+				{
+					viewerClass.spinOnce();
+
+
+				}
+				viewerClass.removePointCloud("class");
 
 
 	}
@@ -361,6 +391,8 @@ private:
 	cob_3d_segmentation::RefineSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segRefined_;
 
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segWithoutEdges_;
+
+    cob_3d_segmentation::ClusterClassifier<ST::CH, ST::Point, ST::Normal, ST::Label> cc_;
 
 };
 

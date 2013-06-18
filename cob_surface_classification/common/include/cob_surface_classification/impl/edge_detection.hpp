@@ -110,7 +110,7 @@ EdgeDetection<PointInT>::approximateLine
 				first = false;
 			}
 			coordinates.at<float>(iCoord,0) = (pointcloud->at(xIter[iX],yIter[iY]).x - x0)
-																														+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
+											+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
 			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);	//depth coordinate
 			coordinates.at<float>(iCoord,2) = 1.0;
 
@@ -313,32 +313,9 @@ EdgeDetection<PointInT>::approximateLine
 			abc = cv::Mat::zeros(1,3,CV_32FC1);
 		}
 	}
-
-	/*if(!std::isnan(pointcloud->at(dotEnd.x,dotEnd.y).z) && !std::isnan(pointcloud->at(dotIni.x,dotIni.y).z))
-	{
-		float x0 = pointcloud->at(dotIni.x,dotIni.y).x;
-		float y0 = pointcloud->at(dotIni.x,dotIni.y).y;
-		//dotIni and dotEnd lie on line in either x- or y-direction
-		w2 = (pointcloud->at(dotEnd.x,dotEnd.y).x - x0) + (pointcloud->at(dotEnd.x,dotEnd.y).y - y0);
-		if(w2 != 0)
-		{
-			// a = -(z2-z1) /(w2-w1);
-			abc.at<float>(0) = (z1-z2) /w2;
-		}
-		else
-		{
-			std::cout << "dotIni and dotEnd are the same!\n";
-			abc = cv::Mat::zeros(1,3,CV_32FC1);
-		}
-	}
-	else
-
-		//no valid data
-		//abc = cv::Mat::zeros(1,3,CV_32FC1);
-		abc.at<float>(0) =abc.at<float>(1) =abc.at<float>(2)   = std::numeric_limits<float>::quiet_NaN();*/
-	/*}
+/*}
 			timer.stop();
-			std::cout << timer.getElapsedTimeInMilliSec() /10000<< " ms for approximating one line using 2 points (averaged over 10000 iterations)\n";*/
+			std::cout << timer.getElapsedTimeInMilliSec() /10000<< " ms for approximating one line using 2 points  (averaged over 10000 iterations)\n";*/
 
 }
 
@@ -459,16 +436,13 @@ EdgeDetection<PointInT>::approximateLineFullAndHalfDist
 	//propagate information from both lines
 	if(std::isnan(abc1.at<float>(0,0)) || std::isnan(abc2.at<float>(0,0)))
 	{
-
 		abc.at<float>(0) =abc.at<float>(1) =abc.at<float>(2)   = std::numeric_limits<float>::quiet_NaN();
-		//abc = cv::Mat::zeros(1,3,CV_32FC1);
 	}
 	else if(abc1.at<float>(0) == 0 && abc1.at<float>(1) == 0)
 	{
 		//falls nan bei full distance, die Werte von halfDist übernehmen
 		abc = abc2;
 	}
-	//else if(abc2.at<float>(0) == 0 && abc2.at<float>(1) == 0)
 	else if(abc2.at<float>(0) == 0 && abc2.at<float>(1) == 0)
 	{
 		//falls nan bei half dist, die Werte bei fulldist übernehmen
@@ -499,10 +473,10 @@ EdgeDetection<PointInT>::approximateLineFullAndHalfDist
 
 	}
 
-	/*		}
+			/*}
 	timer.stop();
-	std::cout << timer.getElapsedTimeInMilliSec() /10000<< " ms for approximating lines using two points, half and full distance (averaged over 10000 iterations)\n";*/
-
+	std::cout << timer.getElapsedTimeInMilliSec() /10000<< " ms for approximating lines using two points, half and full distance. comparison of gradients instead of computing scalarProduct (averaged over 10000 iterations)\n";
+*/
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -782,9 +756,13 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//in scalarProduct(), boolean step will be considered when detecting a step at the central point.
 	//if there is a step at the central point, the coordinates on the right and left to it should be continuous without step!
 	//(else the step would be detected in the neighbourhood as well, leading to inaccuracies)
+
 	step = false;
+
 	//do not use point right at the center (would belong to both lines -> steps not correctly represented)
 	approximateLine(depth_image,pointcloud, cv::Point2f(iX-1,iY),dotLeft, abc1,n1, coordinates1, step);
+
+
 	//n1 wird nur gebraucht, falls PCA anstatt SVD
 
 	//	timer.stop();
