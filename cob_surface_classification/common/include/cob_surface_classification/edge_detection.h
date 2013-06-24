@@ -34,6 +34,7 @@ public:
 	EdgeDetection ():
 		edgeThreshold_(0.5),
 		stepThreshold_(0.05),
+		offsetConcConv_(1.5),
 		lineLength_(20),
 		windowX_(600),
 		windowY_(600)
@@ -46,6 +47,10 @@ public:
 	inline void setStepThreshold(float th)
 	{
 		stepThreshold_ = th;
+	}
+	inline void setOffsetConcConv(float th)
+	{
+		offsetConcConv_ = th;
 	}
 	inline void setLineLength(int l)
 	{
@@ -62,6 +67,7 @@ public:
 
 private:
 
+	void coordinatesMat(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step);
 	void approximateLine(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc,cv::Mat& n, cv::Mat& coordinates, bool& step);
 	void approximateLine(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
 	void scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalarProduct, int& concaveConvex, bool& step);
@@ -71,8 +77,14 @@ private:
 	void drawLines(cv::Mat& plotXY, cv::Mat& coordinates, cv::Mat& abc);
 	void drawLineAlongN(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& n);
 
+	void deriv2nd3pts (cv::Mat threePoints, float& deriv);
+	void deriv2nd5pts (cv::Mat threePoints, float& deriv);
+	void deriv2nd (cv::Mat depth_image,PointCloudInPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv);
+
+
 	float edgeThreshold_;	//scalarproduct > edgeThreshold is set to 1 and thus not detected as edge. the larger the threshold, the more lines are detected as edges.
 	float stepThreshold_;	//minimum distance which is detected as a step in depth coordinates
+	float offsetConcConv_;	//how much the gradients need to differ
 	int lineLength_;	//depth coordinates along two lines with length lineLength/2 are considered
 	int windowX_;	//size of visualization windows in x-direction
 	int windowY_;

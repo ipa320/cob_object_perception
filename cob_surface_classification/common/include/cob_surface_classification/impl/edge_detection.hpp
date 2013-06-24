@@ -9,34 +9,9 @@
 #define IMPL_EDGE_DETECTION_HPP_
 
 template <typename PointInT> void
-EdgeDetection<PointInT>::approximateLine
-(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc, cv::Mat& n, cv::Mat& coordinates, bool& step)
+EdgeDetection<PointInT>::coordinatesMat
+(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step)
 {
-	//Achtung: coordinates-Matrix wird durch SVD verändert
-
-	Timer timer;
-
-	//std::cout << "approximateLine()\n";
-
-
-	//dotIni is origin of local coordinate system, dotEnd the end point of the line
-
-
-	/* consider depth coordinates along the line between dotIni and dotEnd
-	 * write them into a matrix
-	 * approximation of the function z(w), that is depth(z) over coordinate on the line(w)
-	 *
-	 * linear regression via least squares minimisation (-> SVD)
-	 * ----------------------------------------------------------*/
-
-	//write depth of points along the line into a matrix
-	//format of one line: [coordinate along the line (w), depth coordinate (z) , 1]
-
-	//parameters of the approximated line: aw+bz+1 = 0
-
-
-
-
 	int xDist = dotEnd.x - dotIni.x;
 	int yDist = dotEnd.y - dotIni.y;
 	//include both points -> one coordinate more than distance
@@ -127,15 +102,150 @@ EdgeDetection<PointInT>::approximateLine
 		iY++;
 	}
 
-	if(iCoord == 0)
+	if(iCoord != 0 && iCoord<lineLength)
+	{
+			coordinates.resize(iCoord);
+	}
+
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+
+template <typename PointInT> void
+EdgeDetection<PointInT>::approximateLine
+(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc, cv::Mat& n, cv::Mat& coordinates, bool& step)
+{
+	//Achtung: coordinates-Matrix wird durch SVD verändert
+
+	Timer timer;
+
+	//std::cout << "approximateLine()\n";
+
+
+	//dotIni is origin of local coordinate system, dotEnd the end point of the line
+
+
+	/* consider depth coordinates along the line between dotIni and dotEnd
+	 * write them into a matrix
+	 * approximation of the function z(w), that is depth(z) over coordinate on the line(w)
+	 *
+	 * linear regression via least squares minimisation (-> SVD)
+	 * ----------------------------------------------------------*/
+
+	//write depth of points along the line into a matrix
+	//format of one line: [coordinate along the line (w), depth coordinate (z) , 1]
+
+	//parameters of the approximated line: aw+bz+1 = 0
+
+
+/*
+
+	int xDist = dotEnd.x - dotIni.x;
+	int yDist = dotEnd.y - dotIni.y;
+	//include both points -> one coordinate more than distance
+	int lineLength = std::max(std::abs(xDist),std::abs(yDist)) + 1;
+	int sign = 1;	//iteration in positive or negative direction
+	int xIter[lineLength];
+	int yIter[lineLength];
+
+	//iterate from dotIni to dotEnd. Set up indices for iteration:
+	if(xDist != 0)
+	{
+		//line in x-direction
+		if(xDist <0)
+			sign = -1;
+
+		for(int i=0; i<lineLength; i ++)
+		{
+			xIter[i] = dotIni.x + i * sign;
+			yIter[i] = dotIni.y;
+		}
+	}
+	else
+	{
+		//line in y-direction
+		if(yDist <0)
+			sign = -1;
+
+		for(int i=0; i<lineLength; i ++)
+		{
+			xIter[i] = dotIni.x;
+			yIter[i] = dotIni.y + i*sign;
+		}
+	}
+
+
+	float x0,y0; //coordinates of reference point
+
+
+	int iCoord;
+
+	//---------------------------------------------------------------------------------------------------
+	//SVD version
+	//---------------------------------------------------------------------------------------------------
+
+	//timer.start();
+		//for(int itim=0;itim<10000;itim++)
+		//{
+
+	coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
+	iCoord = 0;
+	int iX = 0;
+	int iY = 0;
+	bool first = true;
+
+
+
+	while(iX < lineLength && iY < lineLength)
+	{
+		//später nicht einfach x bzw y-Koordinate betrachten, sondern (x-x0)²+(y-y0)² als w nehmen
+
+
+		//don't save points with nan-entries (no data available)
+		if(!std::isnan(pointcloud->at(xIter[iX],yIter[iY]).x))
+		{
+
+			if(first)
+			{
+				//origin of local coordinate system is the first point with valid data. Express coordinates relatively:
+				x0 = pointcloud->at(xIter[iX],yIter[iY]).x;		//x0 = pointcloud->at(xIter.pos().x,xIter.pos().y).x;
+				y0 = pointcloud->at(xIter[iX],yIter[iY]).y;
+				first = false;
+			}
+			coordinates.at<float>(iCoord,0) = (pointcloud->at(xIter[iX],yIter[iY]).x - x0)
+											+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
+			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);	//depth coordinate
+			coordinates.at<float>(iCoord,2) = 1.0;
+
+
+			//detect steps in depth coordinates
+			if(iCoord != 0 && std::abs(coordinates.at<float>(iCoord,1) - coordinates.at<float>(iCoord-1,1)) > 0.05)
+			{
+				step = true;
+			}
+
+			iCoord++;
+		}
+		iX++;
+		iY++;
+	}
+*/
+
+	coordinatesMat(depth_image,  pointcloud,  dotIni,  dotEnd, coordinates, step);
+
+	//if(iCoord == 0)
+	if(coordinates.rows == 0)
 		//no valid data
 		abc = cv::Mat::zeros(1,3,CV_32FC1);
 	else
 	{
-		if(iCoord<lineLength)
+		/*if(iCoord<lineLength)
 		{
 			coordinates.resize(iCoord);
-		}
+		}*/
 
 
 		cv::Mat sv;	//singular values
@@ -293,7 +403,7 @@ EdgeDetection<PointInT>::approximateLine
 	}
 	else if(std::isnan(pointcloud->at(dotEnd.x,dotEnd.y).z))
 	{
-		//mark as no "no decision possible"
+		//mark as "no decision possible"
 		abc = cv::Mat::zeros(1,3,CV_32FC1);
 	}
 	else
@@ -376,13 +486,17 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 
 			//convex: gradient of right line is larger than gradient of left line
 			//concave: gradient of right line is smaller than gradient of left line
-			float offset = 1.5;	//how much the gradients need to differ
-			if(b2 > (b1 + offset))
+			setOffsetConcConv(0.35);
+			if(b2 > (b1 + offsetConcConv_))
 				//convex
 				concaveConvex = 255;
-			else if (b1 > b2 + offset)
+			else if (b1 > b2 + offsetConcConv_)
 				//concave
 				concaveConvex = 125;
+
+			//std::cout << "b1: " <<b1 <<endl;
+			//std::cout << "b2: " <<b2 <<endl;
+
 
 		}
 
@@ -466,7 +580,7 @@ EdgeDetection<PointInT>::approximateLineFullAndHalfDist
 		if(std::abs(abc2.at<float>(0)) - std::abs(abc1.at<float>(0)) < 0.01)
 			abc = abc1;
 		else
-			//no edge
+			//just beside an edge -> do not mark as edge
 			abc = cv::Mat::zeros(1,3,CV_32FC1);
 
 
@@ -697,6 +811,56 @@ EdgeDetection<PointInT>::drawLineAlongN(cv::Mat& plotZW, cv::Mat& coordinates, c
 	cv::line(plotZW,cv::Point2f(x1 ,z1 ), cv::Point2f(x2 , z2 ),CV_RGB(255,255,255),1);
 }
 
+//--------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------
+
+
+template <typename PointInT> void
+EdgeDetection<PointInT>::deriv2nd3pts
+(cv::Mat points, float& deriv)
+{
+	std::cout << "points: " <<points <<endl;
+
+	//use stencil of width 3
+	//f(x)'' = (f(x+dx) + f(x-dx) - 2* f(x))/ dx²
+
+	//leave away denominator, because only magnitude is important
+	//float dx = (points.at<float>(points.rows-1,0) - points.at<float>(0,0))/2;
+
+	//take first and last entry of matrix (most distant points)
+	deriv = (points.at<float>(points.rows-1,1) + points.at<float>(0,1) - 2* points.at<float>((int)points.rows/2,1));	/// (dx * dx);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------
+
+
+template <typename PointInT> void
+EdgeDetection<PointInT>::deriv2nd5pts
+(cv::Mat fivePoints, float& deriv)
+{
+	std::cout << "fivepoints: " <<fivePoints <<endl;
+
+	//use stencil of width 5
+	//f''(x) = (-f(x-2h) + 16f(x-h) -f(x)  + 16f(x+h) -f(x+2h)) / (12*h²)
+	float dx = fivePoints.at<float>(2,0) - fivePoints.at<float>(1,0);
+	deriv = (-fivePoints.at<float>(0,1) + 16* fivePoints.at<float>(1,1) - fivePoints.at<float>(2,1) + 16* fivePoints.at<float>(3,1) -fivePoints.at<float>(4,1))	/ (dx * dx);
+}
+//-----------------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------
+
+
+template <typename PointInT> void
+EdgeDetection<PointInT>::deriv2nd
+(cv::Mat depth_image,PointCloudInPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv)
+{
+	cv::Mat coordinates;
+	bool step; //sinnlos
+	coordinatesMat(depth_image, cloud, dotStart, dotStop, coordinates, step);
+	deriv2nd3pts(coordinates,deriv);
+}
+
+
 
 //-----------------------------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -717,9 +881,11 @@ EdgeDetection<PointInT>::computeDepthEdges
 	cv::Mat concaveConvexY (cv::Mat::zeros(depth_image.rows,depth_image.cols,CV_8UC1)); 	//0:neither concave nor convex; 125:concave; 255:convex
 	cv::Mat scalarProductsY (cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1));
 	cv::Mat scalarProductsX (cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1));
+	cv::Mat secondDeriv (cv::Mat::zeros(depth_image.rows,depth_image.cols,CV_32FC1));
 
 	int iX=depth_image.cols/2;
 	int iY=depth_image.rows/2;
+
 
 	Timer timer;
 
@@ -727,13 +893,14 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//	cout << timerFunc.getElapsedTimeInMilliSec() << " ms for initial definitions before loop\n";
 
 
+/*
 	//loop over rows
 	for(int iY = lineLength_/2; iY< depth_image.rows-lineLength_/2; iY++)
 	{
 		//loop over columns
 		for(int iX = lineLength_/2; iX< depth_image.cols-lineLength_/2; iX++)
 		{
-
+*/
 
 			//scalarProduct of depth along lines in x-direction
 			//------------------------------------------------------------------------
@@ -749,7 +916,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			/* line approximation using SVD
 			 * ----------------------------------------------------------*/
-			/*
+
 
 	//boolean step will be set to true in approximateLine(), if there is a step either in coordinates1 or coordinates2
 	//-> needs to be set to false before calling approximateLine() for both sides.
@@ -772,10 +939,10 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 	//besser den Pixel rechts bzw.links von dotMiddle betrachten, damit dotMiddle nicht zu beiden Seiten dazu gerechnet wird (sonst ungenau bei Sprung)
 	approximateLine(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2,n2, coordinates2,step);
-			 */
 
-			/*	approximate line using only two points
-			 * -------------------------------------------------------------------*/
+/*
+			//	approximate line using only two points
+			// -------------------------------------------------------------------
 
 			//no step detection in approximateLine from 2 points
 			step = false;
@@ -786,7 +953,9 @@ EdgeDetection<PointInT>::computeDepthEdges
 			approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2);
 
 
-
+			//std::cout << "abc1 (left):\n " << abc1 << "\n";
+			//std::cout << "abc2 (right):\n " << abc2 << "\n";
+*/
 
 			/* -------------------------------------------------------------------*/
 
@@ -819,15 +988,31 @@ EdgeDetection<PointInT>::computeDepthEdges
 			}
 
 			//std::cout << "scalarProduct: " <<scalProdX << "\n";
-			//std::cout << "concave 125 grau, konvex 255 weiß: " <<concConv << "\n";
+			//std::cout << "concave 125 grau, konvex 255 weiß, unbestimmt 0 schwarz: " <<concConv << "\n";
 
 			//compute magnitude of scalar product (sign only depends on which angle between the lines was considered)
 			if(scalProdX < 0)
 				scalProdX = scalProdX * (-1);
 			scalarProductsX.at<float>(iY,iX) = scalProdX;
 
+			int length = 10; //entspricht stencil-Länge -1 . Muss kleiner sein als lineLength_
+			cv::Point2f dotStart(iX - length, iY);
+			cv::Point2f dotStop(iX + length, iY);
 
-			concaveConvex.at<unsigned char>(iY,iX) = concConv;
+			float deriv = 0;
+			deriv2nd(depth_image,pointcloud,dotStart, dotStop,deriv);
+
+			//secondDeriv.at<float>(iY,iX) = deriv;
+			std::cout << "deriv: " <<deriv << "\n";
+			if(deriv < 0)
+				concConv = 125;
+			else if(deriv > 0)
+				concConv = 255;
+			else
+				concConv = 0;
+
+
+			//concaveConvex.at<unsigned char>(iY,iX) = concConv;
 
 
 
@@ -914,11 +1099,11 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//Minimum:
 			//scalarProducts.at<float>(iY,iX) = (scalProdX < scalProdY)? scalProdX : scalProdY;
-		}
-	}
+	/*	}
+	}*/	//loop over image
 
 
-	//thin edges in x- and y-direction separately
+/*	//thin edges in x- and y-direction separately
 	thinEdges(scalarProductsX, 0);
 	thinEdges(scalarProductsY, 1);
 
@@ -933,7 +1118,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			else
 				edgeImage.at<float>(iY,iX) = 0;
 		}
-	}
+	}*/
 
 
 
@@ -942,12 +1127,18 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//cv::imshow("depth over coordinate along line", plotZW);
 	//cv::waitKey(10);
 
-	cv::imshow("Skalarprodukt", edgeImage);
-	cv::waitKey(10);
+	//cv::imshow("edge image", edgeImage);
+	//cv::waitKey(10);
+
+	/*cv::Mat secondDerivNorm;
+	cv::normalize(secondDeriv,secondDerivNorm,0,1,CV_N);
+	cv::imshow("second derivative", secondDeriv);
+	cv::waitKey(10);*/
 
 
 
-	//cv::imshow("concave = grey, convex = white", concaveConvexY);
+	//cv::imshow("x-direction (concave = grey, convex = white, undefined = black)", concaveConvex);
+	//cv::imshow("y-direction (concave = grey, convex = white, undefined = black)", concaveConvexY);
 	//cv::waitKey(10);
 
 	//timerFunc.stop();
