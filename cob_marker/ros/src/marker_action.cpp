@@ -71,7 +71,6 @@
 #include <pcl/common/pca.h>
 #include <tf/transform_broadcaster.h>
 
-
 #include <cob_object_detection_msgs/DetectObjectsAction.h>
 #include <cob_object_detection_msgs/DetectObjectsActionGoal.h>
 #include <cob_object_detection_msgs/DetectObjectsActionResult.h>
@@ -110,7 +109,7 @@ public:
   }
 };
 
-#define TEST
+//#define TEST
 
 template<typename Parent>
 class Qr_Node : public Parent
@@ -129,9 +128,11 @@ class Qr_Node : public Parent
 
   ros::Subscriber img_sub_;
   ros::Publisher  detection_pub_;
-  ros::Publisher test_pub_;
-  
+  ros::Publisher test_pub_;  
+
+#ifdef TEST  
   tf::TransformBroadcaster br_;
+#endif
 
   GeneralMarker *gm_;
 
@@ -140,6 +141,8 @@ class Qr_Node : public Parent
   MARKER_TYPE marker_type_;
   double f_; //focal length
   double marker_size_; // in metre
+
+  std::string tf_frame;
 
   void subscribe() {
     visual_sub_.subscribe();
@@ -151,17 +154,19 @@ class Qr_Node : public Parent
   }
 
   bool compPCA(pcl::PCA<PointCloud::PointType> &pca, const PointCloud &pc, const float w, const Eigen::Vector2i &o, const Eigen::Vector2f &d) {
-    PointCloud tmp;
+    PointCloud tmp_pc;
     for(int x=0; x<w; x++) {
       Eigen::Vector2i p = o + (d*x).cast<int>();
       if(pcl_isfinite(pc(p(0),p(1)).getVector3fMap().sum()))
-        tmp.push_back( pc(p(0),p(1)) );
+        tmp_pc.push_back( pc(p(0),p(1)) );
     }
-    if(tmp.size()<2) {
+    if(tmp_pc.size()<3) {
       ROS_WARN("no valid points");
       return false;
     }
-    pca.compute(tmp);
+    tmp_pc.width=1;
+    tmp_pc.height=tmp_pc.size();
+    pca.setInputCloud(tmp_pc.makeShared());
     return true;
   }
 
@@ -222,14 +227,22 @@ public:
         bool tryHarder;
         if(n->getParam("tryHarder",tryHarder))
           dynamic_cast<Marker_Zxing*>(gm_)->setTryHarder(tryHarder);
+        ROS_INFO("using zxing algorithm");
       }
       else if(algo_=="dmtx")
       {
         gm_ = new Marker_DMTX();
 
-        int dmtx_timeout_;
-        n->param<int>("dmtx_timeout",dmtx_timeout_,500);
-        dynamic_cast<Marker_DMTX*>(gm_)->setTimeout(dmtx_timeout_);
+        double dmtx_timeout_;
+        int dmtx_max_markers_;
+        n->param<double>("dmtx_timeout",dmtx_timeout_,0.5);
+        n->param<int>("dmtx_max_markers",dmtx_max_markers_,10);
+        n->param<std::string>("frame_id",tf_frame,"/head_cam3d_link");
+        
+        dynamic_cast<Marker_DMTX*>(gm_)->setTimeout((int)(dmtx_timeout_ * 1000));
+        dynamic_cast<Marker_DMTX*>(gm_)->setMaxDetectionCount((int)(dmtx_max_markers_));
+        ROS_INFO("using dmtx algorithm with %f s timeout",dmtx_timeout_);
+        ROS_INFO("using dmtx algorithm with max %i markers to detect",dmtx_max_markers_);
       }
     }
 
@@ -266,7 +279,10 @@ public:
       }
 
       if(success)
+      {
+        ROS_INFO("success break while loop");
         break;
+      }
 
       mutex_.unlock();
 
@@ -280,11 +296,13 @@ public:
     }
 
 #ifndef TEST
+    ROS_INFO("unsubscribe");
     unsubscribe();
 #endif
 
     if(success)
     {
+      ROS_INFO("setSucceeded");
       as_->setSucceeded(result_);
       mutex_.unlock();
     }
@@ -390,11 +408,14 @@ public:
       det.pose.pose.orientation.z = q2.z();
       result_.object_list.detections.push_back(det);
 
+#ifdef TEST  
       //tf broadcaster for debuggin
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
-      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "head_cam3d_link", res[i].code_.substr(0,3)));
+      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].code_.substr(0,3)));
+#endif
+
 #else
       ROS_ASSERT(0);
 #endif
@@ -406,10 +427,20 @@ public:
   {
     if(!gm_) return;
     double time_before_find = ros::Time::now().toSec();
+    std::stringstream ss;
 
     std::vector<GeneralMarker::SMarker> res;
     gm_->findPattern(*msg_image, res);
-    ROS_DEBUG("\nfindPattern finished: runtime %f s ; %d pattern found", (ros::Time::now().toSec() - time_before_find), (int)res.size());
+    ROS_INFO("\nfindPattern finished: runtime %f s ; %d pattern found", (ros::Time::now().toSec() - time_before_find), (int)res.size());
+    if((int)res.size() > 0)
+    {
+        ROS_INFO("found %d pattern in %f s", (int)res.size(), (ros::Time::now().toSec() - time_before_find));
+        for(int k = 0; k < (int)res.size(); k++)
+        {
+            ss << res[k].code_.c_str() <<", ";
+        }
+        ROS_INFO("%s",ss.str().c_str());
+    }
 
     PointCloud pc;
     if(res.size()>0)
@@ -481,15 +512,21 @@ public:
       Eigen::Quaternionf q2(M);
 
       //TODO: please change to ROS_DEBUG
-      std::cout<<"E\n"<<pca1.getEigenVectors()<<"\n";
-      std::cout<<"E\n"<<pca2.getEigenVectors()<<"\n";
-      std::cout<<"E\n"<<pca1.getEigenValues()<<"\n";
-      std::cout<<"E\n"<<pca2.getEigenValues()<<"\n";
-
-      std::cout<<"M\n"<<M2<<"\n";
-      std::cout<<"d\n"<<M.col(0).dot(M.col(1))<<"\n";
-      std::cout<<"d\n"<<M.col(0).dot(M.col(2))<<"\n";
-      std::cout<<"d\n"<<M.col(1).dot(M.col(2))<<"\n";
+      ss.clear();
+      ss.str("");
+      ss<<"E\n"<<pca1.getEigenVectors()<<"\n";
+      ss<<"E\n"<<pca2.getEigenVectors()<<"\n";
+      ss<<"E\n"<<pca1.getEigenValues()<<"\n";
+      ss<<"E\n"<<pca2.getEigenValues()<<"\n";
+      ROS_DEBUG("%s",ss.str().c_str());
+      
+      ss.clear();
+      ss.str("");
+      ss<<"M\n"<<M2<<"\n";
+      ss<<"d\n"<<M.col(0).dot(M.col(1))<<"\n";
+      ss<<"d\n"<<M.col(0).dot(M.col(2))<<"\n";
+      ss<<"d\n"<<M.col(1).dot(M.col(2))<<"\n";
+      ROS_DEBUG("%s",ss.str().c_str());
       //std::cout<<"m\n"<<m<<"\n";
 
       cob_object_detection_msgs::Detection det;
@@ -506,17 +543,16 @@ public:
       det.pose.pose.orientation.z = q2.z();
       result_.object_list.detections.push_back(det);
 
-
       //tf broadcaster for debuggin
+      #ifdef TEST
       tf::Transform transform;
       transform.setOrigin( tf::Vector3(m(0), m(1), m(2)) );
       transform.setRotation( tf::Quaternion(q.x(), q.y(), q.z(), q.w()) );
-      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "head_cam3d_link", res[i].code_.substr(0,3)));
+      br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), tf_frame.c_str(), res[i].code_.substr(0,3)));
+      #endif
     }
     mutex_.unlock();
   }
-
-
 };
 
 #ifdef COMPILE_NODELET
