@@ -819,7 +819,7 @@ template <typename PointInT> void
 EdgeDetection<PointInT>::deriv2nd3pts
 (cv::Mat points, float& deriv)
 {
-	std::cout << "points: " <<points <<endl;
+	//std::cout << "points: " <<points <<endl;
 
 	//use stencil of width 3
 	//f(x)'' = (f(x+dx) + f(x-dx) - 2* f(x))/ dx²
@@ -839,7 +839,7 @@ template <typename PointInT> void
 EdgeDetection<PointInT>::deriv2nd5pts
 (cv::Mat fivePoints, float& deriv)
 {
-	std::cout << "fivepoints: " <<fivePoints <<endl;
+	//std::cout << "fivepoints: " <<fivePoints <<endl;
 
 	//use stencil of width 5
 	//f''(x) = (-f(x-2h) + 16f(x-h) -f(x)  + 16f(x+h) -f(x+2h)) / (12*h²)
@@ -893,14 +893,14 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//	cout << timerFunc.getElapsedTimeInMilliSec() << " ms for initial definitions before loop\n";
 
 
-/*
+
 	//loop over rows
 	for(int iY = lineLength_/2; iY< depth_image.rows-lineLength_/2; iY++)
 	{
 		//loop over columns
 		for(int iX = lineLength_/2; iX< depth_image.cols-lineLength_/2; iX++)
 		{
-*/
+
 
 			//scalarProduct of depth along lines in x-direction
 			//------------------------------------------------------------------------
@@ -1003,16 +1003,17 @@ EdgeDetection<PointInT>::computeDepthEdges
 			deriv2nd(depth_image,pointcloud,dotStart, dotStop,deriv);
 
 			//secondDeriv.at<float>(iY,iX) = deriv;
-			std::cout << "deriv: " <<deriv << "\n";
-			if(deriv < 0)
+			//std::cout << "deriv: " <<deriv << "\n";
+			float curv_threshold = 0.003;
+			if(deriv < -curv_threshold)
 				concConv = 125;
-			else if(deriv > 0)
+			else if(deriv > curv_threshold)
 				concConv = 255;
 			else
 				concConv = 0;
 
 
-			//concaveConvex.at<unsigned char>(iY,iX) = concConv;
+			concaveConvex.at<unsigned char>(iY,iX) = concConv;
 
 
 
@@ -1099,8 +1100,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//Minimum:
 			//scalarProducts.at<float>(iY,iX) = (scalProdX < scalProdY)? scalProdX : scalProdY;
-	/*	}
-	}*/	//loop over image
+		}
+	}	//loop over image
 
 
 /*	//thin edges in x- and y-direction separately
@@ -1137,9 +1138,9 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 
 
-	//cv::imshow("x-direction (concave = grey, convex = white, undefined = black)", concaveConvex);
+	cv::imshow("x-direction (concave = grey, convex = white, undefined = black)", concaveConvex);
 	//cv::imshow("y-direction (concave = grey, convex = white, undefined = black)", concaveConvexY);
-	//cv::waitKey(10);
+	cv::waitKey(10);
 
 	//timerFunc.stop();
 	//cout << timerFunc.getElapsedTimeInMilliSec() << " ms for depth_along_lines()\n";
