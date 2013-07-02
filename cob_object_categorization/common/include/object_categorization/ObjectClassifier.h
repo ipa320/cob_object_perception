@@ -307,7 +307,11 @@ public:
 
 	CvMat* mSqrtInverseCovarianceMatrix;		///< The squareroot of the inverse covariance matrix of the local feature point data.
 
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvEM* mLocalFeatureClusterer;		///< Cluster model which performs local feature point clustering for global feature histograms.
+#else
+	cv::EM* mLocalFeatureClusterer;		///< Cluster model which performs local feature point clustering for global feature histograms.
+#endif
 	
 	StatisticsMap mStatisticsMap;		///< Map for the (temporary) storage of the classifier performance statistics for each class' classifier (ClassName, ClassifierPerformanceStruct).
 

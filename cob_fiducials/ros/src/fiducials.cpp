@@ -336,6 +336,7 @@ public:
             if (ros_node_mode_ == MODE_TOPIC || ros_node_mode_ == MODE_TOPIC_AND_SERVICE)
             {
                 cob_object_detection_msgs::DetectionArray detection_array;
+                detection_array.header = color_camera_data->header;
                 detectFiducials(detection_array, color_mat_8U3_);
 
                 // Publish
@@ -427,6 +428,7 @@ public:
 
 		std::stringstream ss;
 		ss << tags_vec[i].id;
+				fiducial_instance.header = detection_array.header;
                 fiducial_instance.label = ss.str();
                 fiducial_instance.detector = tag_detector_->GetType();
                 fiducial_instance.score = 0;

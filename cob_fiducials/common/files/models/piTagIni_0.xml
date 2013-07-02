@@ -23,7 +23,8 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="0.025" y="-0.075" />
+		<!--Offset x="0.025" y="-0.075" /-->
+		<Offset x="-0.05" y="0.05" />
 	</PI>
 	<PI>
 		<ID value="2" />
@@ -49,6 +50,7 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="0.009" y="0.190" />
+		<!--Offset x="0.009" y="0.190" /-->
+		<Offset x="-0.05" y="0.05" />
 	</PI>
 </FiducialDetector>
