@@ -227,7 +227,11 @@ int main(int argc, char* argv[])
   boost::filesystem::directory_iterator end_iter;
   for (boost::filesystem::directory_iterator dir_iter(path); dir_iter != end_iter; ++dir_iter)
     if (boost::filesystem::is_regular_file(dir_iter->status()))
+#if !defined(BOOST_FILESYSTEM_VERSION) || BOOST_FILESYSTEM_VERSION<3
       allFileNames.push_back(dir_iter->filename());
+#else
+  	  allFileNames.push_back(dir_iter->path().filename().string());
+#endif
 
   std::stringstream ss;
   std::string s;
