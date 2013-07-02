@@ -24,7 +24,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 //	input_pointcloud_camera_info_sub_ = node_handle_.subscribe("input_pointcloud_camera_info", 1, &ObjectRecording::calibrationCallback, this);
 
 	// input synchronization
-	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >(1);
+	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >(10);
 	sync_input_->connectInput(input_marker_detection_sub_, input_pointcloud_sub_, color_image_sub_);
 	sync_input_->registerCallback(boost::bind(&ObjectRecording::inputCallback, this, _1, _2, _3));
 }
