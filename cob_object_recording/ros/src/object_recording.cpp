@@ -47,13 +47,24 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	if (convertColorImageMessageToMat(input_image_msg, color_image_ptr, color_image) == false)
 		return;
 
+	// todo: select ROI for sharpness computation
+
+	// compute sharpness measure
+	cv::Mat dx, dy;
+	cv::Mat gray_image;
+	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
+	cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
+	cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
+	double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)color_image.cols*color_image.rows);
+	std::cout << "sharpness score=" << score << std::endl;
+
 	typedef pcl::PointXYZRGB PointType;
 	pcl::PointCloud<PointType> input_pointcloud;
 	pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
 
-	cv::Mat display_segmentation = cv::Mat::zeros(input_pointcloud_msg->height, input_pointcloud_msg->width, CV_8UC3);
+//	cv::Mat display_segmentation = cv::Mat::zeros(input_pointcloud_msg->height, input_pointcloud_msg->width, CV_8UC3);
 	cv::imshow("color image", color_image);
-	cv::imshow("segmented image", display_segmentation);
+	//cv::imshow("segmented image", display_segmentation);
 	cv::waitKey(10);
 }
 
