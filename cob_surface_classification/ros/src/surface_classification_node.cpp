@@ -58,10 +58,10 @@
  ****************************************************************/
 
 /*switches for execution of processing steps*/
-#define SEG 						false; 	//segmentation
+#define SEG 						true; 	//segmentation
 #define SEG_WITHOUT_EDGES 			false; 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false; 	//segmentation refinement
-#define CLASSIFY 					false;	//classification
+#define CLASSIFY 					true;	//classification
 
 #define NORMAL_VIS 					false; 	//visualisation of normals
 #define SEG_VIS 					false; 	//visualisation of segmentation
@@ -432,7 +432,6 @@ public:
 			}
 			viewerClass.removePointCloud("class");
 		}
-
 
 	}
 
