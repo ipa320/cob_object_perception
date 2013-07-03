@@ -12,3 +12,5 @@ publish_marker_array: true
 publish_tf: true
 # Publish 2D image
 publish_2d_image: true
+# verbosity level on output (1=all outputs, 2=only warnings,infos and errors)
+debug_verbosity: 1
