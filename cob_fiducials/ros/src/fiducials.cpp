@@ -154,6 +154,8 @@ private:
     unsigned int prev_marker_array_size_; ///< Size of previously published marker array
     visualization_msgs::MarkerArray marker_array_msg_;
 
+    int debug_verbosity_; ///< verbosity level on output (1=all outputs, 2=only warnings,infos and errors)
+
     static std::string color_image_encoding_; ///< Color encoding of incoming messages
     CobFiducialsNode::t_Mode ros_node_mode_;	///< Specifys if node is started as topic or service
     std::string model_directory_; ///< Working directory, from which models are loaded and saved
@@ -460,9 +462,10 @@ public:
                 fiducial_instance.pose.header.frame_id = received_frame_id_;
 
                 detection_array.detections.push_back(fiducial_instance);
-                ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
-                         fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
-                         vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
+                if (debug_verbosity_ == 1)
+                    ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
+                             fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
+                             vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
             }
         }
         else
@@ -843,7 +846,12 @@ public:
             ROS_INFO("[fiducials] publish_2d_image: true");
         else
             ROS_INFO("[fiducials] publish_2d_image: false");
-
+        if (node_handle_.getParam("debug_verbosity", debug_verbosity_) == false)
+        {
+            ROS_ERROR("[fiducials] 'debug_verbosity=[1,2]' not specified in yaml file");
+            return false;
+        }
+        ROS_INFO("[fiducials] debug_verbosity: %i", debug_verbosity_);
         //if (node_handle_.getParam("StereoPreFilterCap", StereoPreFilterCap_) == false)
         //{
         //	ROS_ERROR("[sensor_fusion] StereoPreFilterCap for sensor fusion node not specified");
