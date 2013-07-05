@@ -474,6 +474,7 @@ public:
                 {
                 	double sharpness_measure;
                 	tag_detector_->GetSharpnessMeasure(color_image, tags_vec[i], tag_detector_->GetGeneralFiducialParameters(tags_vec[i].id), sharpness_measure);
+                	fiducial_instance.score = sharpness_measure;
                 }
             }
         }

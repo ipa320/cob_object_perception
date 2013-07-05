@@ -128,28 +128,65 @@ public:
 		point3d_marker.at<double>(3,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_offset.x;	// lower left
 		point3d_marker.at<double>(3,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y - fiducial_parameters.m_sharpness_pattern_area_rect3d.height + fiducial_parameters.m_offset.y;
 		std::vector<cv::Point> sharpness_area(4);
+		cv::Point min_point(image.cols-1, image.rows-1), max_point(0,0);
 		for (int i=0; i<4; ++i)
 		{
 			cv::Mat point3d_camera = pose_CfromO.rot * point3d_marker.row(i).t() + pose_CfromO.trans;
 			cv::Mat point2d_camera = m_camera_matrix * point3d_camera;
-			sharpness_area[i].x = cvRound(point2d_camera.at<double>(0)/point2d_camera.at<double>(2));
-			sharpness_area[i].y = cvRound(point2d_camera.at<double>(1)/point2d_camera.at<double>(2));
+			sharpness_area[i].x = std::max(0, std::min(image.cols-1, cvRound(point2d_camera.at<double>(0)/point2d_camera.at<double>(2))));
+			sharpness_area[i].y = std::max(0, std::min(image.rows-1, cvRound(point2d_camera.at<double>(1)/point2d_camera.at<double>(2))));
+			if (min_point.x > sharpness_area[i].x)
+				min_point.x = sharpness_area[i].x;
+			if (min_point.y > sharpness_area[i].y)
+				min_point.y = sharpness_area[i].y;
+			if (max_point.x < sharpness_area[i].x)
+				max_point.x = sharpness_area[i].x;
+			if (max_point.y < sharpness_area[i].y)
+				max_point.y = sharpness_area[i].y;
 		}
+		cv::Mat roi = image.rowRange(min_point.y, max_point.y);
+		roi = roi.colRange(min_point.x, max_point.x);
 
-		cv::Mat display_image = image.clone();
+		// compute sharpness measure
+		cv::Mat temp, gray_image;
+		cv::cvtColor(roi, temp, CV_BGR2GRAY);
+		cv::normalize(temp, gray_image, 0, 255, cv::NORM_MINMAX);
+		cv::imshow("gray_image", gray_image);
+
+		cv::Mat image_copy = image.clone();
 		for (int i=0; i<4; ++i)
-			cv::line(display_image, sharpness_area[i], sharpness_area[(i+1)%4], CV_RGB(0,255,0), 2);
-		cv::imshow("sharpness area", display_image);
-		cv::waitKey(10);
+			cv::line(image_copy, sharpness_area[i], sharpness_area[(i+1)%4], CV_RGB(0,255,0), 2);
+		for (unsigned int i=0; i<sharpness_area.size(); ++i)
+			sharpness_area[i] -= min_point;			// map sharpness_area into the roi
+		cv::Mat dx, dy;
+		cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
+		cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
+		dx = cv::abs(dx);
+		dy = cv::abs(dy);
+		double score = 0.;
+		int pixel_count = 0;
+		for (int v=0; v<roi.rows; ++v)
+		{
+			for (int u=0; u<roi.cols; ++u)
+			{
+				if (cv::pointPolygonTest(sharpness_area, cv::Point2f(u,v), false) > 0)
+				{
+					score += dx.at<float>(v,u) + dy.at<float>(v,u);
+					++pixel_count;
+//					cv::circle(image_copy, cv::Point(u+min_point.x, v+min_point.y), 1, CV_RGB(255,0,0),1);
+				}
+			}
+		}
+//		if (pixel_count > 0)
+//			score /= sqrt((double)pixel_count);
+		double camera_dist = cv::norm(pose_CfromO.trans, cv::NORM_L2);
+		score *= camera_dist;
 
-//		// compute sharpness measure
-//		cv::Mat dx, dy;
-//		cv::Mat gray_image;
-//		cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
-//		cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
-//		cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
-//		double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)color_image.cols*color_image.rows);
-//		std::cout << "sharpness score=" << score << std::endl;
+//		double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)image.cols*image.rows);
+		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << score << std::endl;
+
+		cv::imshow("sharpness area", image_copy);
+		cv::waitKey(10);
 
 		return ipa_Utils::RET_OK;
 	}
