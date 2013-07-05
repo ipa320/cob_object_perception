@@ -5,17 +5,23 @@
 #ifdef __LINUX__
 	#include "cob_vision_utils/VisionUtils.h"
 	#include "cob_fiducials/FiducialDefines.h"
+	#include "cob_fiducials/AbstractFiducialParameters.h"
 
 	#include "tinyxml.h"
 #else
 	#include "cob_perception_common/cob_vision_utils/common/include/cob_vision_utils/VisionUtils.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/AbstractFiducialParameters.h"
 
 	#include "cob_object_perception_intern/windows/src/extern/TinyXml/tinyxml.h"	
 #endif
 
 #include <boost/shared_ptr.hpp>
 #include <opencv/cv.h>
+// todo: remove after debugging
+#include <opencv/highgui.h>
+
+#include <map>
 
 namespace ipa_Fiducials
 {
@@ -102,6 +108,52 @@ public:
 	/// <code>RET_OK</code> on success
 	virtual unsigned long GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose_CfromO) = 0;
 
+	unsigned long GetSharpnessMeasure(const cv::Mat& image, t_pose pose_CfromO, const AbstractFiducialParameters& fiducial_parameters, double& sharpness_measure)
+	{
+		if (fiducial_parameters.m_id == -1)
+		{
+			std::cerr << "ERROR - AbstractFiducialModel::GetSharpnessMeasure" << std::endl;
+			std::cerr << "\t [FAILED] Could not find general fiducial parameters to the provided id." << std::endl;
+			return ipa_Utils::RET_FAILED;
+		}
+
+		// select image region for sharpness analysis
+		cv::Mat point3d_marker = cv::Mat::zeros(4,3,CV_64FC1);
+		point3d_marker.at<double>(0,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_offset.x;	// upper left
+		point3d_marker.at<double>(0,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y + fiducial_parameters.m_offset.y;
+		point3d_marker.at<double>(1,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_sharpness_pattern_area_rect3d.width + fiducial_parameters.m_offset.x;	// upper right
+		point3d_marker.at<double>(1,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y + fiducial_parameters.m_offset.y;
+		point3d_marker.at<double>(2,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_sharpness_pattern_area_rect3d.width + fiducial_parameters.m_offset.x;	// lower right
+		point3d_marker.at<double>(2,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y - fiducial_parameters.m_sharpness_pattern_area_rect3d.height + fiducial_parameters.m_offset.y;
+		point3d_marker.at<double>(3,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_offset.x;	// lower left
+		point3d_marker.at<double>(3,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y - fiducial_parameters.m_sharpness_pattern_area_rect3d.height + fiducial_parameters.m_offset.y;
+		std::vector<cv::Point> sharpness_area(4);
+		for (int i=0; i<4; ++i)
+		{
+			cv::Mat point3d_camera = pose_CfromO.rot * point3d_marker.row(i).t() + pose_CfromO.trans;
+			cv::Mat point2d_camera = m_camera_matrix * point3d_camera;
+			sharpness_area[i].x = cvRound(point2d_camera.at<double>(0)/point2d_camera.at<double>(2));
+			sharpness_area[i].y = cvRound(point2d_camera.at<double>(1)/point2d_camera.at<double>(2));
+		}
+
+		cv::Mat display_image = image.clone();
+		for (int i=0; i<4; ++i)
+			cv::line(display_image, sharpness_area[i], sharpness_area[(i+1)%4], CV_RGB(0,255,0), 2);
+		cv::imshow("sharpness area", display_image);
+		cv::waitKey(10);
+
+//		// compute sharpness measure
+//		cv::Mat dx, dy;
+//		cv::Mat gray_image;
+//		cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
+//		cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
+//		cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
+//		double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)color_image.cols*color_image.rows);
+//		std::cout << "sharpness score=" << score << std::endl;
+
+		return ipa_Utils::RET_OK;
+	}
+
 	// Gets the camera matrix
 	// @return 3x3 camera matrix (fx 0 cx, 0 fy cy, 0 0 1) 
 	cv::Mat GetCameraMatrix()
@@ -134,6 +186,20 @@ public:
 		return ipa_Utils::RET_OK;
 	}
 
+	// Gets the general fiducial parameters for a certain marker
+	// @return general fiducial parameters
+	AbstractFiducialParameters GetGeneralFiducialParameters(int marker_id)
+	{
+		std::map<int, AbstractFiducialParameters>::iterator it = m_general_fiducial_parameters.find(marker_id);
+		if (it==m_general_fiducial_parameters.end())
+		{
+			AbstractFiducialParameters empty;
+			empty.m_id = -1;
+			return empty;
+		}
+		return it->second;
+	};
+
 	/// Load fiducial-centric coordinates of markers from file
 	/// @param directory_and_filename Path to XML filename, where the parameters of all fiducials are stores.
 	/// When using ROS, this function is replaced by parsing a launch file
@@ -147,6 +213,9 @@ private:
 	cv::Mat m_camera_matrix; ///< Intrinsics of camera for PnP estimation
 	cv::Mat m_dist_coeffs; ///< Intrinsics of camera for PnP estimation
 	cv::Mat m_extrinsic_XYfromC; ///< Extrinsics 4x4 of camera to rotate and translate determined transformation before returning it
+
+protected:
+	std::map<int, AbstractFiducialParameters> m_general_fiducial_parameters;	///< map of marker id to some general parameters like offsets
 };
 
 } // end namespace ipa_Fiducials

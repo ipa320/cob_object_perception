@@ -68,9 +68,9 @@ protected:
 	bool convertColorImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image);
 
 	tf::Transform computeMarkerPose(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg);
-	unsigned long ProjectXYZ(double x, double y, double z, int& u, int& v);
+//	unsigned long ProjectXYZ(double x, double y, double z, int& u, int& v);
 
-	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
+//	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
 	bool startRecording(cob_object_detection_msgs::StartObjectRecording::Request &req, cob_object_detection_msgs::StartObjectRecording::Response &res);
 	bool stopRecording(cob_object_detection_msgs::StopObjectRecording::Request &req, cob_object_detection_msgs::StopObjectRecording::Response &res);
@@ -79,7 +79,7 @@ protected:
 	message_filters::Subscriber<cob_object_detection_msgs::DetectionArray> input_marker_detection_sub_;	///< detection of coordinate system the object is placed on
 //	ros::Subscriber input_pointcloud_sub_;	///< incoming point cloud topic
 	message_filters::Subscriber<sensor_msgs::PointCloud2> input_pointcloud_sub_;	///< incoming point cloud topic
-	ros::Subscriber input_color_camera_info_sub_;	///< camera calibration of incoming color image data
+//	ros::Subscriber input_color_camera_info_sub_;	///< camera calibration of incoming color image data
 	image_transport::ImageTransport* it_;
 	image_transport::SubscriberFilter color_image_sub_; ///< color camera image topic
 	message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >* sync_input_;

@@ -21,7 +21,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	color_image_sub_.subscribe(*it_, "input_color_image", 1);
 	//input_pointcloud_sub_ = node_handle_.subscribe("input_pointcloud_segments", 10, &ObjectRecording::inputCallback, this);
 	input_pointcloud_sub_.subscribe(node_handle_, "input_pointcloud", 1);
-	input_color_camera_info_sub_ = node_handle_.subscribe("input_color_camera_info", 1, &ObjectRecording::calibrationCallback, this);
+//	input_color_camera_info_sub_ = node_handle_.subscribe("input_color_camera_info", 1, &ObjectRecording::calibrationCallback, this);
 
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >(10);
@@ -129,38 +129,38 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	cv::waitKey(10);
 }
 
-unsigned long ObjectRecording::ProjectXYZ(double x, double y, double z, int& u, int& v)
-{
-	cv::Mat XYZ(4, 1, CV_64FC1);
-	cv::Mat UVW(3, 1, CV_64FC1);
-
-	double* d_ptr = 0;
-	double du = 0;
-	double dv = 0;
-	double dw = 0;
-
-	x *= 1000;
-	y *= 1000;
-	z *= 1000;
-
-	d_ptr = XYZ.ptr<double>(0);
-	d_ptr[0] = x;
-	d_ptr[1] = y;
-	d_ptr[2] = z;
-	d_ptr[3] = 1.;
-
-	UVW = color_camera_matrix_ * XYZ;
-
-	d_ptr = UVW.ptr<double>(0);
-	du = d_ptr[0];
-	dv = d_ptr[1];
-	dw = d_ptr[2];
-
-	u = cvRound(du/dw);
-	v = cvRound(dv/dw);
-
-	return 0;
-}
+//unsigned long ObjectRecording::ProjectXYZ(double x, double y, double z, int& u, int& v)
+//{
+//	cv::Mat XYZ(4, 1, CV_64FC1);
+//	cv::Mat UVW(3, 1, CV_64FC1);
+//
+//	double* d_ptr = 0;
+//	double du = 0;
+//	double dv = 0;
+//	double dw = 0;
+//
+//	x *= 1000;
+//	y *= 1000;
+//	z *= 1000;
+//
+//	d_ptr = XYZ.ptr<double>(0);
+//	d_ptr[0] = x;
+//	d_ptr[1] = y;
+//	d_ptr[2] = z;
+//	d_ptr[3] = 1.;
+//
+//	UVW = color_camera_matrix_ * XYZ;
+//
+//	d_ptr = UVW.ptr<double>(0);
+//	du = d_ptr[0];
+//	dv = d_ptr[1];
+//	dw = d_ptr[2];
+//
+//	u = cvRound(du/dw);
+//	v = cvRound(dv/dw);
+//
+//	return 0;
+//}
 
 /// Converts a color image message to cv::Mat format.
 bool ObjectRecording::convertColorImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image)
@@ -207,20 +207,20 @@ tf::Transform ObjectRecording::computeMarkerPose(const cob_object_detection_msgs
 	return tf::Transform(mean_orientation, mean_translation);
 }
 
-void ObjectRecording::calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg)
-{
-//	pointcloud_height_ = calibration_msg->height;
-//	pointcloud_width_ = calibration_msg->width;
-	cv::Mat temp(3,4,CV_64FC1);
-	for (int i=0; i<12; i++)
-		temp.at<double>(i/4,i%4) = calibration_msg->P.at(i);
-//		std::cout << "projection_matrix: [";
-//		for (int v=0; v<3; v++)
-//			for (int u=0; u<4; u++)
-//				std::cout << temp.at<double>(v,u) << " ";
-//		std::cout << "]" << std::endl;
-	color_camera_matrix_ = temp;
-}
+//void ObjectRecording::calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg)
+//{
+////	pointcloud_height_ = calibration_msg->height;
+////	pointcloud_width_ = calibration_msg->width;
+//	cv::Mat temp(3,4,CV_64FC1);
+//	for (int i=0; i<12; i++)
+//		temp.at<double>(i/4,i%4) = calibration_msg->P.at(i);
+////		std::cout << "projection_matrix: [";
+////		for (int v=0; v<3; v++)
+////			for (int u=0; u<4; u++)
+////				std::cout << temp.at<double>(v,u) << " ";
+////		std::cout << "]" << std::endl;
+//	color_camera_matrix_ = temp;
+//}
 
 
 int main (int argc, char** argv)
