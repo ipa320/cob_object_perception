@@ -30,6 +30,10 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	service_server_start_recording_ = node_handle_.advertiseService("start_recording", &ObjectRecording::startRecording, this);
 	service_server_stop_recording_ = node_handle_.advertiseService("stop_recording", &ObjectRecording::stopRecording, this);
 	service_server_save_recorded_object_ = node_handle_.advertiseService("save_recorded_object", &ObjectRecording::saveRecordedObject, this);
+
+
+	// todo: read in parameters
+	sharpness_threshold_ = 0.8;
 }
 
 ObjectRecording::~ObjectRecording()
@@ -75,7 +79,7 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 
 	if (input_marker_detections_msg->detections.size() == 0)
 	{
-		ROS_INFO("No markers detected.\n");
+		ROS_INFO("ObjectRecording::inputCallback: No markers detected.\n");
 		return;
 	}
 
@@ -88,45 +92,57 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	// compute mean coordinate system if multiple markers detected
 	tf::Transform marker_pose = computeMarkerPose(input_marker_detections_msg);
 
-	// compute rotation and translation matrices
-	cv::Mat rot_3x3_c_from_marker(3, 3, CV_64FC1);
-	cv::Mat trans_3x1_c_from_marker(3,1, CV_64FC1);
-	for (int y=0; y<3; ++y)
-		for (int x=0; x<3; ++x)
-			rot_3x3_c_from_marker.at<double>(y,x) = marker_pose.getBasis()[y].m_floats[x];
-	for (int x=0; x<3; ++x)
-		trans_3x1_c_from_marker.at<double>(x) = marker_pose.getOrigin().m_floats[x];
+	// check image quality (sharpness)
+	double avg_sharpness = 0.;
+	for (unsigned int i=0; i<input_marker_detections_msg->detections.size(); ++i)
+		avg_sharpness += input_marker_detections_msg->detections[i].score;
+	avg_sharpness /= (double)input_marker_detections_msg->detections.size();
 
-	cv::Mat display_image = color_image.clone();
-	cv::Mat point3d_marker(3,1,CV_64FC1);
-	point3d_marker.at<double>(0) = 0;
-	point3d_marker.at<double>(1) = 0.21;
-	point3d_marker.at<double>(2) = 0;
-	cv::Mat point3d_c = rot_3x3_c_from_marker*point3d_marker + trans_3x1_c_from_marker;
-	int u, v;
-	ProjectXYZ(point3d_c.at<double>(0), point3d_c.at<double>(1), point3d_c.at<double>(2), u, v);
-	cv::circle(display_image, cv::Point(u,v), 2, CV_RGB(0,255,0), 2);
+	if (avg_sharpness < sharpness_threshold_)
+	{
+		ROS_WARN("ObjectRecording::inputCallback: Image quality too low. Discarding image with sharpness %.3f (threshold = %.3f)", avg_sharpness, sharpness_threshold_);
+		return;
+	}
 
-	// todo: select ROI for sharpness computation
-	// y +/- 0.21m, x=0m
-
-	// compute sharpness measure
-	cv::Mat dx, dy;
-	cv::Mat gray_image;
-	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
-	cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
-	cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
-	double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)color_image.cols*color_image.rows);
-	std::cout << "sharpness score=" << score << std::endl;
+//	// compute rotation and translation matrices
+//	cv::Mat rot_3x3_c_from_marker(3, 3, CV_64FC1);
+//	cv::Mat trans_3x1_c_from_marker(3,1, CV_64FC1);
+//	for (int y=0; y<3; ++y)
+//		for (int x=0; x<3; ++x)
+//			rot_3x3_c_from_marker.at<double>(y,x) = marker_pose.getBasis()[y].m_floats[x];
+//	for (int x=0; x<3; ++x)
+//		trans_3x1_c_from_marker.at<double>(x) = marker_pose.getOrigin().m_floats[x];
+//
+//	cv::Mat display_image = color_image.clone();
+//	cv::Mat point3d_marker(3,1,CV_64FC1);
+//	point3d_marker.at<double>(0) = 0;
+//	point3d_marker.at<double>(1) = 0.21;
+//	point3d_marker.at<double>(2) = 0;
+//	cv::Mat point3d_c = rot_3x3_c_from_marker*point3d_marker + trans_3x1_c_from_marker;
+//	int u, v;
+//	ProjectXYZ(point3d_c.at<double>(0), point3d_c.at<double>(1), point3d_c.at<double>(2), u, v);
+//	cv::circle(display_image, cv::Point(u,v), 2, CV_RGB(0,255,0), 2);
+//
+//	// todo: select ROI for sharpness computation
+//	// y +/- 0.21m, x=0m
+//
+//	// compute sharpness measure
+//	cv::Mat dx, dy;
+//	cv::Mat gray_image;
+//	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
+//	cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
+//	cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
+//	double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)color_image.cols*color_image.rows);
+//	std::cout << "sharpness score=" << score << std::endl;
 
 	typedef pcl::PointXYZRGB PointType;
 	pcl::PointCloud<PointType> input_pointcloud;
 	pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
 
 //	cv::Mat display_segmentation = cv::Mat::zeros(input_pointcloud_msg->height, input_pointcloud_msg->width, CV_8UC3);
-	cv::imshow("color image", display_image);
+//	cv::imshow("color image", display_image);
 	//cv::imshow("segmented image", display_segmentation);
-	cv::waitKey(10);
+//	cv::waitKey(10);
 }
 
 //unsigned long ObjectRecording::ProjectXYZ(double x, double y, double z, int& u, int& v)

@@ -94,6 +94,11 @@ protected:
 //	unsigned int pointcloud_width_;			///< width of the received point cloud
 //	unsigned int pointcloud_height_;			///< height of the received point cloud
 	cv::Mat color_camera_matrix_;	///< projection matrix of the calibrated camera that transforms points from 3D to image plane in homogeneous coordinates: [u,v,w]=P*[X,Y,Z,1]
+
+	double sharpness_threshold_;	///< threshold for the image sharpness, images with lower sharpness are not utilized for data recording
+
+	int pan_divisions_;		///< the number of images that need to be recorded along the pan direction around the object at every tilt level, pan=[0°...360°]
+	int tilt_divisions_;	///< the number of images that need to be recorded along the tilt direction around the object at every pan level, tilt=[0°...90°], i.e. only the upper hemisphere
 };
 
 #endif /* OBJECT_RECORDING_H_ */
