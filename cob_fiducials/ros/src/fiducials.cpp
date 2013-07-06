@@ -150,6 +150,7 @@ private:
     //fiducials::fiducialsConfig launch_reconfigure_config_;
     //dynamic_reconfigure::Server<cob_fiducials::fiducialsConfig> dynamic_reconfigure_server_;
 
+    bool compute_sharpness_measure_;	///< computes a measure for image sharpness
     bool publish_tf_;
     tf::TransformBroadcaster tf_broadcaster_; ///< Broadcast transforms of detected fiducials
     bool publish_2d_image_;
@@ -460,6 +461,14 @@ public:
                 fiducial_instance.pose.header = detection_array.header;
 //                fiducial_instance.pose.header.stamp = received_timestamp_;
 //                fiducial_instance.pose.header.frame_id = received_frame_id_;
+
+        		// Analyze the image sharpness at the area inside the detected marker
+                if (compute_sharpness_measure_ == true)
+                {
+                	double sharpness_measure;
+                	tag_detector_->GetSharpnessMeasure(color_image, tags_vec[i], tag_detector_->GetGeneralFiducialParameters(tags_vec[i].id), sharpness_measure);
+                	fiducial_instance.score = sharpness_measure;
+                }
 
                 detection_array.detections.push_back(fiducial_instance);
                 if (debug_verbosity_ == 1)
@@ -817,6 +826,15 @@ public:
             return false;
         }
         ROS_INFO("[fiducials] model_filename: %s", model_filename_.c_str());
+        if (node_handle_.getParam("compute_sharpness_measure", compute_sharpness_measure_) == false)
+        {
+            ROS_ERROR("[fiducials] 'compute_sharpness_measure=[true/false]' not specified in yaml file");
+            return false;
+        }
+        if (compute_sharpness_measure_)
+            ROS_INFO("[fiducials] compute_sharpness_measure: true");
+        else
+            ROS_INFO("[fiducials] compute_sharpness_measure: false");
         if (node_handle_.getParam("publish_marker_array", publish_marker_array_) == false)
         {
             ROS_ERROR("[fiducials] 'publish_marker_array=[true/false]' not specified in yaml file");

@@ -950,7 +950,7 @@ bool FiducialModelPi::ProjectionValid(cv::Mat& rot_CfromO, cv::Mat& trans_CfromO
 
 	// Check reprojection error
 	double dist = 0;
-	for (unsigned int i=0; i<pts_in_O.rows; i++)
+	for (int i=0; i<pts_in_O.rows; i++)
 	{
 		p_image_coords = image_coords.ptr<float>(i);
 		p_pts_in_O = pts_in_O.ptr<float>(i);
@@ -1256,6 +1256,56 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 					std::cerr << "\t ... Can't find tag 'Offset'" << std::endl;
 					return ipa_Utils::RET_FAILED;
 				}
+
+//************************************************************************************
+//	BEGIN FiducialDetector->PI->SharpnessArea
+//************************************************************************************
+				// Subtag element "ObjectDetectorParameters" of Xml Inifile
+				p_xmlElement_Child = NULL;
+				p_xmlElement_Child = p_xmlElement_Root_FI->FirstChildElement( "SharpnessArea" );
+
+				if ( p_xmlElement_Child )
+				{
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "x", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.x) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'x' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "y", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.y) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'y' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "width", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.width) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'width' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "height", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.height) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'height' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+				}
+				else
+				{
+					std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+					std::cerr << "\t ... Can't find tag 'SharpnessArea'" << std::endl;
+					return ipa_Utils::RET_FAILED;
+				}
+
+				m_general_fiducial_parameters[pi_parameters.m_id].m_offset = pi_parameters.m_offset;
 
 				vec_pi_parameters.push_back(pi_parameters);
 
