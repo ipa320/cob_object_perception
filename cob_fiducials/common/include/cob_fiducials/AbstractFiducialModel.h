@@ -184,9 +184,13 @@ public:
 		double sharpness_score = 0.;
 		for (int i=0; i<pixel_count; ++i)
 			sharpness_score += (double)((int)gray_values[i]-(int)avg_gray)*((int)gray_values[i]-(int)avg_gray);
-//		if (pixel_count > 0)
-//			score /= sqrt((double)pixel_count);
 		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
+
+		double m = 9139.749632393357;	// these numbers come from measuring pixel_count and sharpness_score in all possible situations and interpolating a function (here: a linear function y=m*x+n) with that data
+		double n = -2670187.875850272;
+		double sharpness_score_normalized = std::min(1., sharpness_score / (m * pixel_count + n));	// how far is the score from the linear sharpness function
+
+		std::cout << "sharpness_score_normalized=" << sharpness_score_normalized << std::endl;
 
 		// Variant M_G (sum of absolute gradients)
 //		cv::Mat dx, dy;
