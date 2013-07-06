@@ -22,6 +22,7 @@
 #include <opencv/highgui.h>
 
 #include <map>
+#include <fstream>
 
 namespace ipa_Fiducials
 {
@@ -68,6 +69,9 @@ public:
 			m_extrinsic_XYfromC.at<double>(3,3) = 1.0;
 		}
 		
+		// todo: set to false for normal operation
+		m_log_sharpness_measurements = false;
+
 		return LoadParameters(directory_and_filename);
 	};
 
@@ -158,32 +162,83 @@ public:
 			cv::line(image_copy, sharpness_area[i], sharpness_area[(i+1)%4], CV_RGB(0,255,0), 2);
 		for (unsigned int i=0; i<sharpness_area.size(); ++i)
 			sharpness_area[i] -= min_point;			// map sharpness_area into the roi
-		cv::Mat dx, dy;
-		cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
-		cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
-		dx = cv::abs(dx);
-		dy = cv::abs(dy);
-		double score = 0.;
-		int pixel_count = 0;
+
+		// Variant M_V (std. dev. of gray values)
+		std::vector<uchar> gray_values;
+		double avg_gray = 0.;
 		for (int v=0; v<roi.rows; ++v)
 		{
 			for (int u=0; u<roi.cols; ++u)
 			{
 				if (cv::pointPolygonTest(sharpness_area, cv::Point2f(u,v), false) > 0)
 				{
-					score += dx.at<float>(v,u) + dy.at<float>(v,u);
-					++pixel_count;
-//					cv::circle(image_copy, cv::Point(u+min_point.x, v+min_point.y), 1, CV_RGB(255,0,0),1);
+					uchar val = gray_image.at<uchar>(v,u);
+					gray_values.push_back(val);
+					avg_gray += (double)val;
 				}
 			}
 		}
+		int pixel_count = (int)gray_values.size();
+		if (pixel_count > 0)
+			avg_gray /= (double)pixel_count;
+		double sharpness_score = 0.;
+		for (int i=0; i<pixel_count; ++i)
+			sharpness_score += (double)((int)gray_values[i]-(int)avg_gray)*((int)gray_values[i]-(int)avg_gray);
 //		if (pixel_count > 0)
 //			score /= sqrt((double)pixel_count);
-		double camera_dist = cv::norm(pose_CfromO.trans, cv::NORM_L2);
-		score *= camera_dist;
+		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
 
-//		double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)image.cols*image.rows);
-		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << score << std::endl;
+		// Variant M_G (sum of absolute gradients)
+//		cv::Mat dx, dy;
+//		cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
+//		cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
+//		dx = cv::abs(dx);
+//		dy = cv::abs(dy);
+//		double sharpness_score = 0.;
+//		int pixel_count = 0;
+//		for (int v=0; v<roi.rows; ++v)
+//		{
+//			for (int u=0; u<roi.cols; ++u)
+//			{
+//				if (cv::pointPolygonTest(sharpness_area, cv::Point2f(u,v), false) > 0)
+//				{
+//					sharpness_score += dx.at<float>(v,u) + dy.at<float>(v,u);
+//					++pixel_count;
+////					cv::circle(image_copy, cv::Point(u+min_point.x, v+min_point.y), 1, CV_RGB(255,0,0),1);
+//				}
+//			}
+//		}
+////		if (pixel_count > 0)
+////			sharpness_score /= sqrt((double)pixel_count);
+//		double camera_dist = cv::norm(pose_CfromO.trans, cv::NORM_L2);
+//		sharpness_score *= camera_dist;
+//		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
+
+
+		if (m_log_sharpness_measurements == true)
+		{
+			SharpnessLogData log;
+			log.distance_to_camera= cv::norm(pose_CfromO.trans, cv::NORM_L2);
+			log.pixel_count = pixel_count;
+			log.sharpness_score = sharpness_score;
+			m_log_data.push_back(log);
+
+			cv::imshow("image", image);
+			int key = cv::waitKey(10);
+			if (key == 's')
+			{
+				std::ofstream file("sharpness_log_file.txt", std::ios::out);
+				if (file.is_open() == false)
+					std::cout << "Error: AbstractFiducialModel::GetSharpnessMeasure: Could not open file." << std::endl;
+				else
+				{
+					for (unsigned int i=0; i<m_log_data.size(); ++i)
+						file << m_log_data[i].pixel_count << "\t" << m_log_data[i].distance_to_camera << "\t" << m_log_data[i].sharpness_score << "\n";
+					file.close();
+					std::cout << "Info: AbstractFiducialModel::GetSharpnessMeasure: All data successfully written to disk." << std::endl;
+				}
+			}
+		}
 
 		cv::imshow("sharpness area", image_copy);
 		cv::waitKey(10);
@@ -253,6 +308,15 @@ private:
 
 protected:
 	std::map<int, AbstractFiducialParameters> m_general_fiducial_parameters;	///< map of marker id to some general parameters like offsets
+
+	struct SharpnessLogData
+	{
+		int pixel_count;
+		double distance_to_camera;
+		double sharpness_score;
+	};
+	bool m_log_sharpness_measurements;	///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve
+	std::vector<SharpnessLogData> m_log_data;
 };
 
 } // end namespace ipa_Fiducials
