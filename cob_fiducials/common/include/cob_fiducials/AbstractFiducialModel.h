@@ -112,6 +112,13 @@ public:
 	/// <code>RET_OK</code> on success
 	virtual unsigned long GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose_CfromO) = 0;
 
+	/// Computes a measure of image sharpness by analyzing the marker region and the inserted Siemens star
+	/// @param image Scene image
+	/// @param pose_CfromO Pose of the detected tag relative to the camera
+	/// @param fiducial_parameters Container for several parameters of the utilized marker. Mainly the offsets are relevant to the function.
+	/// @param sharpness_measure Degree of image sharpness (in [0...1] = [blurry...sharp]) computed by the function.
+	/// @return <code>RET_FAILED</code> if the tag id is invalid
+	/// <code>RET_OK</code> on success
 	unsigned long GetSharpnessMeasure(const cv::Mat& image, t_pose pose_CfromO, const AbstractFiducialParameters& fiducial_parameters, double& sharpness_measure)
 	{
 		if (fiducial_parameters.m_id == -1)
@@ -121,7 +128,7 @@ public:
 			return ipa_Utils::RET_FAILED;
 		}
 
-		// select image region for sharpness analysis
+		// 1. select image region for sharpness analysis
 		cv::Mat point3d_marker = cv::Mat::zeros(4,3,CV_64FC1);
 		point3d_marker.at<double>(0,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_offset.x;	// upper left
 		point3d_marker.at<double>(0,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y + fiducial_parameters.m_offset.y;
@@ -151,19 +158,21 @@ public:
 		cv::Mat roi = image.rowRange(min_point.y, max_point.y);
 		roi = roi.colRange(min_point.x, max_point.x);
 
-		// compute sharpness measure
+		// 2. compute sharpness measure
 		cv::Mat temp, gray_image;
 		cv::cvtColor(roi, temp, CV_BGR2GRAY);
 		cv::normalize(temp, gray_image, 0, 255, cv::NORM_MINMAX);
-		cv::imshow("gray_image", gray_image);
 
-		cv::Mat image_copy = image.clone();
-		for (int i=0; i<4; ++i)
-			cv::line(image_copy, sharpness_area[i], sharpness_area[(i+1)%4], CV_RGB(0,255,0), 2);
+//		cv::imshow("gray_image", gray_image);
+//		cv::Mat image_copy = image.clone();
+//		for (int i=0; i<4; ++i)
+//			cv::line(image_copy, sharpness_area[i], sharpness_area[(i+1)%4], CV_RGB(0,255,0), 2);
+
+		// map sharpness_area into the roi
 		for (unsigned int i=0; i<sharpness_area.size(); ++i)
-			sharpness_area[i] -= min_point;			// map sharpness_area into the roi
+			sharpness_area[i] -= min_point;
 
-		// Variant M_V (std. dev. of gray values)
+		// variant M_V (std. dev. of gray values)
 		std::vector<uchar> gray_values;
 		double avg_gray = 0.;
 		for (int v=0; v<roi.rows; ++v)
@@ -184,40 +193,13 @@ public:
 		double sharpness_score = 0.;
 		for (int i=0; i<pixel_count; ++i)
 			sharpness_score += (double)((int)gray_values[i]-(int)avg_gray)*((int)gray_values[i]-(int)avg_gray);
-		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
+//		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
 
 		double m = 9139.749632393357;	// these numbers come from measuring pixel_count and sharpness_score in all possible situations and interpolating a function (here: a linear function y=m*x+n) with that data
 		double n = -2670187.875850272;
-		double sharpness_score_normalized = std::min(1., sharpness_score / (m * pixel_count + n));	// how far is the score from the linear sharpness function
+		sharpness_measure = std::min(1., sharpness_score / (m * pixel_count + n));	// how far is the score from the linear sharpness function
 
-		std::cout << "sharpness_score_normalized=" << sharpness_score_normalized << std::endl;
-
-		// Variant M_G (sum of absolute gradients)
-//		cv::Mat dx, dy;
-//		cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
-//		cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
-//		dx = cv::abs(dx);
-//		dy = cv::abs(dy);
-//		double sharpness_score = 0.;
-//		int pixel_count = 0;
-//		for (int v=0; v<roi.rows; ++v)
-//		{
-//			for (int u=0; u<roi.cols; ++u)
-//			{
-//				if (cv::pointPolygonTest(sharpness_area, cv::Point2f(u,v), false) > 0)
-//				{
-//					sharpness_score += dx.at<float>(v,u) + dy.at<float>(v,u);
-//					++pixel_count;
-////					cv::circle(image_copy, cv::Point(u+min_point.x, v+min_point.y), 1, CV_RGB(255,0,0),1);
-//				}
-//			}
-//		}
-////		if (pixel_count > 0)
-////			sharpness_score /= sqrt((double)pixel_count);
-//		double camera_dist = cv::norm(pose_CfromO.trans, cv::NORM_L2);
-//		sharpness_score *= camera_dist;
-//		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
-
+//		std::cout << "sharpness_score_normalized=" << sharpness_score_normalized << std::endl;
 
 		if (m_log_sharpness_measurements == true)
 		{
@@ -244,8 +226,8 @@ public:
 			}
 		}
 
-		cv::imshow("sharpness area", image_copy);
-		cv::waitKey(10);
+//		cv::imshow("sharpness area", image_copy);
+//		cv::waitKey(10);
 
 		return ipa_Utils::RET_OK;
 	}
@@ -320,7 +302,7 @@ protected:
 		double sharpness_score;
 	};
 	bool m_log_sharpness_measurements;	///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve
-	std::vector<SharpnessLogData> m_log_data;
+	std::vector<SharpnessLogData> m_log_data;	///< structure for logging measured data
 };
 
 } // end namespace ipa_Fiducials

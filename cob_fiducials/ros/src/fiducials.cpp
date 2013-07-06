@@ -178,7 +178,6 @@ public:
         : sub_counter_(0),
           endless_counter_(0)
     {
-    	compute_sharpness_measure_ = true;
         camera_matrix_initialized_ = false;
         /// Void
         node_handle_ = nh;
@@ -463,12 +462,6 @@ public:
 //                fiducial_instance.pose.header.stamp = received_timestamp_;
 //                fiducial_instance.pose.header.frame_id = received_frame_id_;
 
-                detection_array.detections.push_back(fiducial_instance);
-                if (debug_verbosity_ == 1)
-                    ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
-                             fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
-                             vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
-
         		// Analyze the image sharpness at the area inside the detected marker
                 if (compute_sharpness_measure_ == true)
                 {
@@ -476,6 +469,12 @@ public:
                 	tag_detector_->GetSharpnessMeasure(color_image, tags_vec[i], tag_detector_->GetGeneralFiducialParameters(tags_vec[i].id), sharpness_measure);
                 	fiducial_instance.score = sharpness_measure;
                 }
+
+                detection_array.detections.push_back(fiducial_instance);
+                if (debug_verbosity_ == 1)
+                    ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
+                             fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
+                             vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
             }
         }
         else
@@ -827,6 +826,15 @@ public:
             return false;
         }
         ROS_INFO("[fiducials] model_filename: %s", model_filename_.c_str());
+        if (node_handle_.getParam("compute_sharpness_measure", compute_sharpness_measure_) == false)
+        {
+            ROS_ERROR("[fiducials] 'compute_sharpness_measure=[true/false]' not specified in yaml file");
+            return false;
+        }
+        if (compute_sharpness_measure_)
+            ROS_INFO("[fiducials] compute_sharpness_measure: true");
+        else
+            ROS_INFO("[fiducials] compute_sharpness_measure: false");
         if (node_handle_.getParam("publish_marker_array", publish_marker_array_) == false)
         {
             ROS_ERROR("[fiducials] 'publish_marker_array=[true/false]' not specified in yaml file");
