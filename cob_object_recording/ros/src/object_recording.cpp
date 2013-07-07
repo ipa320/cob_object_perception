@@ -11,10 +11,6 @@
 ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 : node_handle_(nh)
 {
-//	color_camera_matrix_ = (cv::Mat_<double>(3, 4) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-//	pointcloud_width_ = 640;
-//	pointcloud_height_ = 480;
-
 	prev_marker_array_size_ = 0;
 
 	// subscribers
@@ -37,9 +33,11 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 
 	// todo: read in parameters
 	sharpness_threshold_ = 0.8;
-	pan_divisions_ = 12;
-	tilt_divisions_ = 3;
-	preferred_recording_distance_ = 1.;
+	pan_divisions_ = 6;
+	tilt_divisions_ = 2;
+	preferred_recording_distance_ = 0.8;
+	distance_threshold_translation_ = 0.08;
+	distance_threshold_orientation_ = 8./180.*CV_PI;
 }
 
 ObjectRecording::~ObjectRecording()
@@ -55,7 +53,26 @@ bool ObjectRecording::startRecording(cob_object_detection_msgs::StartObjectRecor
 {
 	ROS_INFO("Request to start recording received.");
 
-	// clear data containers
+	// clear data container
+	recording_data_.clear();
+
+	// prepare data container
+	int dataset_size = pan_divisions_ * tilt_divisions_ + 1;
+	recording_data_.resize(dataset_size);
+	double pan_step = 360./(180.*pan_divisions_) * CV_PI;
+	double tilt_step = 90./(180.*tilt_divisions_) * CV_PI;
+	double pan_max = 359.9/180.*CV_PI;
+	double tilt_min = -89.9/180.*CV_PI;
+	int index = 0;
+	std::cout << "New perspectives added:\n";
+	for (double tilt=-tilt_step/2; tilt>tilt_min; tilt-=tilt_step)
+		for (double pan=0; pan<pan_max; pan+=pan_step, ++index)
+		{
+			std::cout << index+1 << ". tilt=" << tilt << " \t pan=" << pan << std::endl;
+			computePerspective(pan, tilt, preferred_recording_distance_, recording_data_[index].pose_desired);
+		}
+	std::cout << index+1 << ". tilt=" << -90./180*CV_PI << " \t pan=0" << std::endl;
+	computePerspective(0., -90./180*CV_PI, preferred_recording_distance_, recording_data_[index].pose_desired);
 
 	// register callback function for data processing
 	registered_callback_ = sync_input_->registerCallback(boost::bind(&ObjectRecording::inputCallback, this, _1, _2, _3));
@@ -67,7 +84,21 @@ bool ObjectRecording::stopRecording(cob_object_detection_msgs::StopObjectRecordi
 {
 	ROS_INFO("Request to stop recording received.");
 
+	res.recording_stopped = true;
+	if (req.stop_although_model_is_incomplete == false)
+	{
+		for (unsigned int i=0; i<recording_data_.size(); ++i)
+			res.recording_stopped &= recording_data_[i].perspective_recorded;
+		if (res.recording_stopped == false)
+		{
+			ROS_INFO("Recording not stopped since data collection is not yet complete.");
+			return false;
+		}
+	}
+
 	registered_callback_.disconnect();
+
+	ROS_INFO("Stopped recording.");
 
 	return true;
 }
@@ -96,6 +127,11 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	if (convertColorImageMessageToMat(input_image_msg, color_image_ptr, color_image) == false)
 		return;
 
+	// convert point cloud 2 message to pointcloud
+	typedef pcl::PointXYZRGB PointType;
+	pcl::PointCloud<PointType> input_pointcloud;
+	pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
+
 	// compute mean coordinate system if multiple markers detected
 	tf::Transform fiducial_pose = computeMarkerPose(input_marker_detections_msg);
 
@@ -111,82 +147,47 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 		return;
 	}
 
+	// compute whether the camera is close to one of the target perspectives
+	for (unsigned int i=0; i<recording_data_.size(); ++i)
+	{
+		tf::Transform pose_recorded = fiducial_pose.inverse();
+
+		// check translational distance to camera
+		double distance_translation = recording_data_[i].pose_desired.getOrigin().distance(pose_recorded.getOrigin());
+		if (distance_translation > distance_threshold_translation_)
+			continue;
+
+		// check rotational distance to camera frame
+		double distance_orientation = recording_data_[i].pose_desired.getRotation().angle(pose_recorded.getRotation());
+		if (distance_orientation > distance_threshold_orientation_)
+			continue;
+
+//		std::cout << "  distance=" << distance_translation << "\t angle=" << distance_orientation << "(t=" << distance_threshold_orientation_ << ")" << std::endl;
+//		std::cout << "recording_data_[i].pose_desired: XYZ=(" << recording_data_[i].pose_desired.getOrigin().getX() << ", " << recording_data_[i].pose_desired.getOrigin().getY() << ", " << recording_data_[i].pose_desired.getOrigin().getZ() << "), WABC=(" << recording_data_[i].pose_desired.getRotation().getW() << ", " << recording_data_[i].pose_desired.getRotation().getX() << ", " << recording_data_[i].pose_desired.getRotation().getY() << ", " << recording_data_[i].pose_desired.getRotation().getZ() << "\n";
+//		std::cout << "                  pose_recorded: XYZ=(" << pose_recorded.getOrigin().getX() << ", " << pose_recorded.getOrigin().getY() << ", " << pose_recorded.getOrigin().getZ() << "), WABC=(" << pose_recorded.getRotation().getW() << ", " << pose_recorded.getRotation().getX() << ", " << pose_recorded.getRotation().getY() << ", " << pose_recorded.getRotation().getZ() << "\n";
+
+		// check that pose distance is at least as close as last time
+		double distance_pose = distance_translation + distance_orientation;
+		if (distance_pose > recording_data_[i].distance_to_desired_pose)
+			continue;
+
+		// check that sharpness score is at least as good as last time
+		if (avg_sharpness < recording_data_[i].sharpness_score)
+			continue;
+
+		// save data
+		recording_data_[i].image = color_image;
+		recording_data_[i].pointcloud = input_pointcloud;
+		recording_data_[i].pose_recorded = pose_recorded;
+		recording_data_[i].distance_to_desired_pose = distance_pose;
+		recording_data_[i].sharpness_score = avg_sharpness;
+		recording_data_[i].perspective_recorded = true;
+	}
+
 	// display the markers indicating the already recorded perspectives and the missing
 	publishRecordingPoseMarkers(input_marker_detections_msg, fiducial_pose);
-
-//	// compute rotation and translation matrices
-//	cv::Mat rot_3x3_c_from_marker(3, 3, CV_64FC1);
-//	cv::Mat trans_3x1_c_from_marker(3,1, CV_64FC1);
-//	for (int y=0; y<3; ++y)
-//		for (int x=0; x<3; ++x)
-//			rot_3x3_c_from_marker.at<double>(y,x) = marker_pose.getBasis()[y].m_floats[x];
-//	for (int x=0; x<3; ++x)
-//		trans_3x1_c_from_marker.at<double>(x) = marker_pose.getOrigin().m_floats[x];
-//
-//	cv::Mat display_image = color_image.clone();
-//	cv::Mat point3d_marker(3,1,CV_64FC1);
-//	point3d_marker.at<double>(0) = 0;
-//	point3d_marker.at<double>(1) = 0.21;
-//	point3d_marker.at<double>(2) = 0;
-//	cv::Mat point3d_c = rot_3x3_c_from_marker*point3d_marker + trans_3x1_c_from_marker;
-//	int u, v;
-//	ProjectXYZ(point3d_c.at<double>(0), point3d_c.at<double>(1), point3d_c.at<double>(2), u, v);
-//	cv::circle(display_image, cv::Point(u,v), 2, CV_RGB(0,255,0), 2);
-//
-//	// todo: select ROI for sharpness computation
-//	// y +/- 0.21m, x=0m
-//
-//	// compute sharpness measure
-//	cv::Mat dx, dy;
-//	cv::Mat gray_image;
-//	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
-//	cv::Sobel(gray_image, dx, CV_32FC1, 1, 0, 3);
-//	cv::Sobel(gray_image, dy, CV_32FC1, 0, 1, 3);
-//	double score = (cv::sum(cv::abs(dx)) + cv::sum(cv::abs(dy))).val[0] / ((double)color_image.cols*color_image.rows);
-//	std::cout << "sharpness score=" << score << std::endl;
-
-	typedef pcl::PointXYZRGB PointType;
-	pcl::PointCloud<PointType> input_pointcloud;
-	pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
-
-//	cv::Mat display_segmentation = cv::Mat::zeros(input_pointcloud_msg->height, input_pointcloud_msg->width, CV_8UC3);
-//	cv::imshow("color image", display_image);
-	//cv::imshow("segmented image", display_segmentation);
-//	cv::waitKey(10);
 }
 
-//unsigned long ObjectRecording::ProjectXYZ(double x, double y, double z, int& u, int& v)
-//{
-//	cv::Mat XYZ(4, 1, CV_64FC1);
-//	cv::Mat UVW(3, 1, CV_64FC1);
-//
-//	double* d_ptr = 0;
-//	double du = 0;
-//	double dv = 0;
-//	double dw = 0;
-//
-//	x *= 1000;
-//	y *= 1000;
-//	z *= 1000;
-//
-//	d_ptr = XYZ.ptr<double>(0);
-//	d_ptr[0] = x;
-//	d_ptr[1] = y;
-//	d_ptr[2] = z;
-//	d_ptr[3] = 1.;
-//
-//	UVW = color_camera_matrix_ * XYZ;
-//
-//	d_ptr = UVW.ptr<double>(0);
-//	du = d_ptr[0];
-//	dv = d_ptr[1];
-//	dw = d_ptr[2];
-//
-//	u = cvRound(du/dw);
-//	v = cvRound(dv/dw);
-//
-//	return 0;
-//}
 
 /// Converts a color image message to cv::Mat format.
 bool ObjectRecording::convertColorImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image)
@@ -236,36 +237,26 @@ tf::Transform ObjectRecording::computeMarkerPose(const cob_object_detection_msgs
 
 void ObjectRecording::publishRecordingPoseMarkers(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg, tf::Transform fiducial_pose)
 {
-	double pan = 60./180.*CV_PI, tilt = -45./180.*CV_PI;
-	tf::Transform pose1, pose2, pose3;
-	pose1.setOrigin(tf::Vector3(1.0, 0., 0.));
-	pose1.setRotation(tf::Quaternion(-90./180.*CV_PI, 0., 90./180.*CV_PI));
-	pose2.setOrigin(tf::Vector3(0.,0.,0.));
-	pose2.setRotation(tf::Quaternion(tilt, 0., 0.));
-	pose3.setOrigin(tf::Vector3(0.,0.,0.));
-	pose3.setRotation(tf::Quaternion(0., 0., pan));
-	tf::Transform pose = fiducial_pose * pose3 * pose2 * pose1;
-
-    // Publish marker array
 	// 3 arrows for each coordinate system of each detected fiducial
-	unsigned int marker_array_size = 3*1;
+	unsigned int marker_array_size = 3*recording_data_.size();
 	if (marker_array_size >= prev_marker_array_size_)
-	{
 		marker_array_msg_.markers.resize(marker_array_size);
-	}
 
-	// publish a coordinate system from arrow markers for each object
-	for (unsigned int i=0; i<1; ++i)
+	// Publish marker array
+	for (unsigned int i=0; i<recording_data_.size(); ++i)
 	{
+		// publish a coordinate system from arrow markers for each object
+		tf::Transform pose = fiducial_pose * recording_data_[i].pose_desired;
+
 		for (unsigned int j=0; j<3; ++j)
 		{
 			unsigned int idx = 3*i+j;
 			marker_array_msg_.markers[idx].header = input_marker_detections_msg->header;
-			marker_array_msg_.markers[idx].ns = "fiducials";
+			marker_array_msg_.markers[idx].ns = "object_recording";
 			marker_array_msg_.markers[idx].id =  idx;
 			marker_array_msg_.markers[idx].type = visualization_msgs::Marker::ARROW;
 			marker_array_msg_.markers[idx].action = visualization_msgs::Marker::ADD;
-			marker_array_msg_.markers[idx].color.a = 0.85;
+			marker_array_msg_.markers[idx].color.a = (recording_data_[i].perspective_recorded==false ? 0.85 : 0.15);
 			marker_array_msg_.markers[idx].color.r = 0;
 			marker_array_msg_.markers[idx].color.g = 0;
 			marker_array_msg_.markers[idx].color.b = 0;
@@ -304,18 +295,30 @@ void ObjectRecording::publishRecordingPoseMarkers(const cob_object_detection_msg
 			marker_array_msg_.markers[idx].scale.y = 0.015; // head diameter
 			marker_array_msg_.markers[idx].scale.z = 0.0; // head length 0=default
 		}
-
-		if (prev_marker_array_size_ > marker_array_size)
-		{
-			for (unsigned int i = marker_array_size; i < prev_marker_array_size_; ++i)
-			{
-				marker_array_msg_.markers[i].action = visualization_msgs::Marker::DELETE;
-			}
-		}
-		prev_marker_array_size_ = marker_array_size;
-
-		recording_pose_marker_array_publisher_.publish(marker_array_msg_);
 	}
+
+	if (prev_marker_array_size_ > marker_array_size)
+	{
+		for (unsigned int i = marker_array_size; i < prev_marker_array_size_; ++i)
+		{
+			marker_array_msg_.markers[i].action = visualization_msgs::Marker::DELETE;
+		}
+	}
+	prev_marker_array_size_ = marker_array_size;
+
+	recording_pose_marker_array_publisher_.publish(marker_array_msg_);
+}
+
+void ObjectRecording::computePerspective(const double& pan, const double& tilt, const double& preferred_recording_distance, tf::Transform& perspective_pose)
+{
+	tf::Transform pose1, pose2, pose3;
+	pose1.setOrigin(tf::Vector3(preferred_recording_distance, 0., 0.));			// recording distance
+	pose1.setRotation(tf::Quaternion(-90./180.*CV_PI, 0., 90./180.*CV_PI));		// rotation in camera direction
+	pose2.setOrigin(tf::Vector3(0.,0.,0.));
+	pose2.setRotation(tf::Quaternion(tilt, 0., 0.));		// orientation in tilt direction
+	pose3.setOrigin(tf::Vector3(0.,0.,0.));
+	pose3.setRotation(tf::Quaternion(0., 0., pan));			// orientation in pan direction
+	perspective_pose = pose3 * pose2 * pose1;
 }
 
 //void ObjectRecording::calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg)

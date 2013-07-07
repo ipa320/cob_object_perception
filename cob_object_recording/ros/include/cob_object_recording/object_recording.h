@@ -71,13 +71,14 @@ public:
 		pcl::PointCloud<pcl::PointXYZRGB> pointcloud;
 		tf::Transform pose_desired;
 		tf::Transform pose_recorded;
+		double distance_to_desired_pose;
 		double sharpness_score;
-
 		bool perspective_recorded;
 
 		RecordingData()
 		{
 			perspective_recorded = false;
+			distance_to_desired_pose = 1e10;
 			sharpness_score = 0.;
 		};
 	};
@@ -93,6 +94,8 @@ protected:
 //	unsigned long ProjectXYZ(double x, double y, double z, int& u, int& v);
 
 	void publishRecordingPoseMarkers(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg, tf::Transform fiducial_pose);
+
+	void computePerspective(const double& pan, const double& tilt, const double& preferred_recording_distance, tf::Transform& perspective_pose);
 
 //	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
@@ -128,6 +131,8 @@ protected:
 	int pan_divisions_;		///< the number of images that need to be recorded along the pan direction around the object at every tilt level, pan=[0°...360°]
 	int tilt_divisions_;	///< the number of images that need to be recorded along the tilt direction around the object at every pan level, tilt=[0°...90°], i.e. only the upper hemisphere
 	double preferred_recording_distance_;	///< desired camera distance to object while recording in [m]
+	double distance_threshold_translation_;		///< only record an image if the camera is closer to the target perspective than this length (in [m])
+	double distance_threshold_orientation_;		///< only record an image if the camera orientation is closer to the target perspective than this
 
 	std::vector<RecordingData> recording_data_;		///< container for the desired perspectives and the recorded data
 };
