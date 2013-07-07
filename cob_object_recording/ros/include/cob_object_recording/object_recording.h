@@ -28,6 +28,9 @@
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
 
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+
 // boost
 #include <boost/bind.hpp>
 
@@ -51,6 +54,8 @@
 #include <sensor_msgs/image_encodings.h>
 
 
+#include <vector>
+
 class ObjectRecording
 {
 public:
@@ -59,6 +64,23 @@ public:
 	ObjectRecording(ros::NodeHandle nh);
 
 	~ObjectRecording();
+
+	struct RecordingData
+	{
+		cv::Mat image;
+		pcl::PointCloud<pcl::PointXYZRGB> pointcloud;
+		tf::Transform pose_desired;
+		tf::Transform pose_recorded;
+		double sharpness_score;
+
+		bool perspective_recorded;
+
+		RecordingData()
+		{
+			perspective_recorded = false;
+			sharpness_score = 0.;
+		};
+	};
 
 protected:
 	/// callback for the incoming pointcloud data stream
@@ -69,6 +91,8 @@ protected:
 
 	tf::Transform computeMarkerPose(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg);
 //	unsigned long ProjectXYZ(double x, double y, double z, int& u, int& v);
+
+	void publishRecordingPoseMarkers(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg, tf::Transform fiducial_pose);
 
 //	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
@@ -89,6 +113,10 @@ protected:
 	ros::ServiceServer service_server_stop_recording_; ///< Service server which accepts requests for stopping recording
 	ros::ServiceServer service_server_save_recorded_object_; ///< Service server which accepts requests for saving recorded data to disk
 
+	ros::Publisher recording_pose_marker_array_publisher_;
+	unsigned int prev_marker_array_size_; ///< Size of previously published marker array
+	visualization_msgs::MarkerArray marker_array_msg_;
+
 	ros::NodeHandle node_handle_;			///< ROS node handle
 
 //	unsigned int pointcloud_width_;			///< width of the received point cloud
@@ -99,6 +127,9 @@ protected:
 
 	int pan_divisions_;		///< the number of images that need to be recorded along the pan direction around the object at every tilt level, pan=[0°...360°]
 	int tilt_divisions_;	///< the number of images that need to be recorded along the tilt direction around the object at every pan level, tilt=[0°...90°], i.e. only the upper hemisphere
+	double preferred_recording_distance_;	///< desired camera distance to object while recording in [m]
+
+	std::vector<RecordingData> recording_data_;		///< container for the desired perspectives and the recorded data
 };
 
 #endif /* OBJECT_RECORDING_H_ */

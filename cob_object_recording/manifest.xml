@@ -19,6 +19,7 @@
   <depend package="sensor_msgs"/>
   <depend package="message_filters"/>
   <depend package="image_transport"/>
+  <depend package="visualization_msgs"/>
   <depend package="cob_object_detection_msgs"/>
 
 

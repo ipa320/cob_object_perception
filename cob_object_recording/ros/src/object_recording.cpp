@@ -15,6 +15,8 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 //	pointcloud_width_ = 640;
 //	pointcloud_height_ = 480;
 
+	prev_marker_array_size_ = 0;
+
 	// subscribers
 	input_marker_detection_sub_.subscribe(node_handle_, "input_marker_detections", 1);
 	it_ = new image_transport::ImageTransport(node_handle_);
@@ -31,13 +33,18 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	service_server_stop_recording_ = node_handle_.advertiseService("stop_recording", &ObjectRecording::stopRecording, this);
 	service_server_save_recorded_object_ = node_handle_.advertiseService("save_recorded_object", &ObjectRecording::saveRecordedObject, this);
 
+	recording_pose_marker_array_publisher_ = node_handle_.advertise<visualization_msgs::MarkerArray>("recording_pose_marker_array", 0);
 
 	// todo: read in parameters
 	sharpness_threshold_ = 0.8;
+	pan_divisions_ = 12;
+	tilt_divisions_ = 3;
+	preferred_recording_distance_ = 1.;
 }
 
 ObjectRecording::~ObjectRecording()
 {
+	recording_pose_marker_array_publisher_.shutdown();
 
 	if (it_ != 0) delete it_;
 	if (sync_input_ != 0) delete sync_input_;
@@ -90,7 +97,7 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 		return;
 
 	// compute mean coordinate system if multiple markers detected
-	tf::Transform marker_pose = computeMarkerPose(input_marker_detections_msg);
+	tf::Transform fiducial_pose = computeMarkerPose(input_marker_detections_msg);
 
 	// check image quality (sharpness)
 	double avg_sharpness = 0.;
@@ -103,6 +110,9 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 		ROS_WARN("ObjectRecording::inputCallback: Image quality too low. Discarding image with sharpness %.3f (threshold = %.3f)", avg_sharpness, sharpness_threshold_);
 		return;
 	}
+
+	// display the markers indicating the already recorded perspectives and the missing
+	publishRecordingPoseMarkers(input_marker_detections_msg, fiducial_pose);
 
 //	// compute rotation and translation matrices
 //	cv::Mat rot_3x3_c_from_marker(3, 3, CV_64FC1);
@@ -198,7 +208,7 @@ bool ObjectRecording::convertColorImageMessageToMat(const sensor_msgs::Image::Co
 tf::Transform ObjectRecording::computeMarkerPose(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg)
 {
 	tf::Vector3 mean_translation;
-	tf::Quaternion mean_orientation;
+	tf::Quaternion mean_orientation(0.,0.,0.);
 	for (unsigned int i=0; i<input_marker_detections_msg->detections.size(); ++i)
 	{
 		tf::Point translation;
@@ -221,6 +231,91 @@ tf::Transform ObjectRecording::computeMarkerPose(const cob_object_detection_msgs
 	mean_orientation /= (double)input_marker_detections_msg->detections.size();
 	mean_orientation.normalize();
 	return tf::Transform(mean_orientation, mean_translation);
+}
+
+
+void ObjectRecording::publishRecordingPoseMarkers(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg, tf::Transform fiducial_pose)
+{
+	double pan = 60./180.*CV_PI, tilt = -45./180.*CV_PI;
+	tf::Transform pose1, pose2, pose3;
+	pose1.setOrigin(tf::Vector3(1.0, 0., 0.));
+	pose1.setRotation(tf::Quaternion(-90./180.*CV_PI, 0., 90./180.*CV_PI));
+	pose2.setOrigin(tf::Vector3(0.,0.,0.));
+	pose2.setRotation(tf::Quaternion(tilt, 0., 0.));
+	pose3.setOrigin(tf::Vector3(0.,0.,0.));
+	pose3.setRotation(tf::Quaternion(0., 0., pan));
+	tf::Transform pose = fiducial_pose * pose3 * pose2 * pose1;
+
+    // Publish marker array
+	// 3 arrows for each coordinate system of each detected fiducial
+	unsigned int marker_array_size = 3*1;
+	if (marker_array_size >= prev_marker_array_size_)
+	{
+		marker_array_msg_.markers.resize(marker_array_size);
+	}
+
+	// publish a coordinate system from arrow markers for each object
+	for (unsigned int i=0; i<1; ++i)
+	{
+		for (unsigned int j=0; j<3; ++j)
+		{
+			unsigned int idx = 3*i+j;
+			marker_array_msg_.markers[idx].header = input_marker_detections_msg->header;
+			marker_array_msg_.markers[idx].ns = "fiducials";
+			marker_array_msg_.markers[idx].id =  idx;
+			marker_array_msg_.markers[idx].type = visualization_msgs::Marker::ARROW;
+			marker_array_msg_.markers[idx].action = visualization_msgs::Marker::ADD;
+			marker_array_msg_.markers[idx].color.a = 0.85;
+			marker_array_msg_.markers[idx].color.r = 0;
+			marker_array_msg_.markers[idx].color.g = 0;
+			marker_array_msg_.markers[idx].color.b = 0;
+
+			marker_array_msg_.markers[idx].points.resize(2);
+			marker_array_msg_.markers[idx].points[0].x = 0.0;
+			marker_array_msg_.markers[idx].points[0].y = 0.0;
+			marker_array_msg_.markers[idx].points[0].z = 0.0;
+			marker_array_msg_.markers[idx].points[1].x = 0.0;
+			marker_array_msg_.markers[idx].points[1].y = 0.0;
+			marker_array_msg_.markers[idx].points[1].z = 0.0;
+
+			if (j==0)
+			{
+				marker_array_msg_.markers[idx].points[1].x = 0.2;
+				marker_array_msg_.markers[idx].color.r = 255;
+			}
+			else if (j==1)
+			{
+				marker_array_msg_.markers[idx].points[1].y = 0.2;
+				marker_array_msg_.markers[idx].color.g = 255;
+			}
+			else if (j==2)
+			{
+				marker_array_msg_.markers[idx].points[1].z = 0.2;
+				marker_array_msg_.markers[idx].color.b = 255;
+			}
+
+			marker_array_msg_.markers[idx].pose.position.x = pose.getOrigin().getX();
+			marker_array_msg_.markers[idx].pose.position.y = pose.getOrigin().getY();
+			marker_array_msg_.markers[idx].pose.position.z = pose.getOrigin().getZ();
+			tf::quaternionTFToMsg(pose.getRotation(), marker_array_msg_.markers[idx].pose.orientation);
+
+			marker_array_msg_.markers[idx].lifetime = ros::Duration(1);
+			marker_array_msg_.markers[idx].scale.x = 0.01; // shaft diameter
+			marker_array_msg_.markers[idx].scale.y = 0.015; // head diameter
+			marker_array_msg_.markers[idx].scale.z = 0.0; // head length 0=default
+		}
+
+		if (prev_marker_array_size_ > marker_array_size)
+		{
+			for (unsigned int i = marker_array_size; i < prev_marker_array_size_; ++i)
+			{
+				marker_array_msg_.markers[i].action = visualization_msgs::Marker::DELETE;
+			}
+		}
+		prev_marker_array_size_ = marker_array_size;
+
+		recording_pose_marker_array_publisher_.publish(marker_array_msg_);
+	}
 }
 
 //void ObjectRecording::calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg)
