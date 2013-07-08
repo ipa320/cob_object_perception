@@ -14,6 +14,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 : node_handle_(nh)
 {
 	prev_marker_array_size_ = 0;
+	camera_matrix_received_ = false;
 
 	// subscribers
 	input_marker_detection_sub_.subscribe(node_handle_, "input_marker_detections", 1);
@@ -149,6 +150,9 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 			return false;
 		}
 	}
+
+	// save camera matrix
+	// todo:
 
 	// save all perspectives
 	int saved_perspectives = 0;
@@ -393,20 +397,206 @@ void ObjectRecording::computePerspective(const double& pan, const double& tilt, 
 	perspective_pose = pose3 * pose2 * pose1;
 }
 
-//void ObjectRecording::calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg)
-//{
-////	pointcloud_height_ = calibration_msg->height;
-////	pointcloud_width_ = calibration_msg->width;
-//	cv::Mat temp(3,4,CV_64FC1);
-//	for (int i=0; i<12; i++)
-//		temp.at<double>(i/4,i%4) = calibration_msg->P.at(i);
-////		std::cout << "projection_matrix: [";
-////		for (int v=0; v<3; v++)
-////			for (int u=0; u<4; u++)
-////				std::cout << temp.at<double>(v,u) << " ";
-////		std::cout << "]" << std::endl;
-//	color_camera_matrix_ = temp;
-//}
+
+unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_OfromC, cv::Scalar& xyzr_learning_coordinates, cv::Scalar& uv_learning_boundaries)
+{
+//	cv::Mat xyzImage = coloredPointCloud->GetXYZImage();
+//	cv::Mat colorImage = coloredPointCloud->GetColorImage();
+
+	if (camera_matrix_received_ == false)
+	{
+		std::cerr << "ERROR - ObjectRecording::DoRangeSegmentation:" << std::endl;
+		std::cerr << "\t ...  camera matrix is not set.\n";
+		return 1;
+	}
+
+	if (pointcloud.empty() || color_image.empty())
+	{
+		std::cerr << "ERROR - ObjectRecording::DoRangeSegmentation:" << std::endl;
+		std::cerr << "\t ... pointcloud or color image is NULL\n";
+		return 1;
+	}
+
+	tf::Transform pose_CfromO = pose_OfromC.inverse();
+
+//	if (xyzrLearningCoordinates->val[3] <= 0)
+//	{
+//		std::cout << "WARNING - ColoredPointCloudToolbox::DoRangeSegmentation:" << std::endl;
+//		std::cout << "\t ... Segmentation radius is smaller or equal 0 \n";
+//		std::cout << "\t ... Setting radius to 0.1 meter \n";
+//	}
+
+//	if (rot_3x3_CfromO.empty())
+//	{
+//		rot_3x3_CfromO = cv::Mat::zeros(3, 3, CV_64FC1);
+//		rot_3x3_CfromO.at<double>(0, 0) = 1;
+//		rot_3x3_CfromO.at<double>(1, 1) = 1;
+//		rot_3x3_CfromO.at<double>(2, 2) = 1;
+//	}
+//	if (trans_3x1_CfromO.empty())
+//		trans_3x1_CfromO = cv::Mat::zeros(3, 1, CV_64FC1);
+
+	{
+		int minU = std::numeric_limits<int>::max();
+		int maxU = -std::numeric_limits<int>::max();
+		int minV = std::numeric_limits<int>::max();
+		int maxV = -std::numeric_limits<int>::max();
+
+		int u = 0;
+		int v = 0;
+
+		// Compute minimal and maximal image coordinates based on all 8 corners of the
+		// segmentation cube
+//		cv::Mat pt_cube(3, 1, CV_64FC1);
+//		double* p_pt_cube = pt_cube.ptr<double>(0);
+//		double dx, dy, dz;
+//		dx = xyzrLearningCoordinates.val[0];
+		tf::Vector3 pt_cube_O;
+		pt_cube_O.setX(xyzr_learning_coordinates.val[0]);
+		for (int i = 0; i < 2; i++)
+		{
+//			dy = xyzrLearningCoordinates.val[1];
+			pt_cube_O.setY(xyzr_learning_coordinates.val[1]);
+			for (int j = 0; j < 2; j++)
+			{
+//				dz = 0;
+				pt_cube_O.setZ(0);
+				for (int k = 0; k < 2; k++)
+				{
+//					p_pt_cube[0] = dx;
+//					p_pt_cube[1] = dy;
+//					p_pt_cube[2] = dz;
+
+					tf::Vector3 pt_cube_C = pose_CfromO*pt_cube_O;
+//					cv::Mat pt_in_C = rot_3x3_CfromO * pt_cube;
+//					pt_in_C += trans_3x1_CfromO;
+//					double* p_pt_in_C = pt_in_C.ptr<double>(0);
+					ProjectXYZ(pt_cube_C.getX(), pt_cube_C.getY(), pt_cube_C.getZ(), u, v);	// todo:
+
+					minU = std::min(minU, u);
+					maxU = std::max(maxU, u);
+					minV = std::min(minV, v);
+					maxV = std::max(maxV, v);
+
+//					dz = xyzrLearningCoordinates.val[2];
+					pt_cube_O.setZ(xyzr_learning_coordinates.val[2]);
+				}
+//				dy *= -1;
+				pt_cube_O.setY(-pt_cube_O.getY());
+			}
+//			dx *= -1;
+			pt_cube_O.setX(-pt_cube_O.getX());
+		}
+
+		uv_learning_boundaries = cv::Scalar(minU, maxU, minV, maxV);
+	}
+
+	// write all image pixels and 3D points within the 2D and 3D bounding boxes, respectively
+//	cv::Mat rot_3x3_OfromC = rot_3x3_CfromO.inv();
+//	cv::Mat pt_in_C(3, 1, CV_64FC1);
+	tf::Vector3 pt_in_C;
+	for (unsigned j = 0; j < pointcloud.height; j++)
+	{
+		//float* f_coord_ptr = xyzImage.ptr<float>(j);
+		unsigned char* c_shared_ptr = color_image.ptr<unsigned char>(j);
+
+		for (unsigned int i = 0; i < pointcloud.width; i++)
+		{
+			// crop image to object
+			bool maskColorValues = true;
+			if (j > uv_learning_boundaries.val[2] && j < uv_learning_boundaries.val[3] && i > uv_learning_boundaries.val[0] && i < uv_learning_boundaries.val[1])
+				maskColorValues = false;
+
+			// crop point cloud to bounding box
+			bool maskDepthValues = true;
+			pcl::PointXYZRGB& point = pointcloud.at(i, j);
+
+			if (point.x == point.x && point.y == point.y && point.z == point.z)		// test for NaN
+			{
+				tf::Vector3 pt_in_C(point.x, point.y, point.z);
+				tf::Vector3 pt_in_O = pose_OfromC * pt_in_C;
+//				double* p_pt_in_C = pt_in_C.ptr<double>(0);
+//				p_pt_in_C[0] = point.x;	//f_coord_ptr[iTimes3];
+//				p_pt_in_C[1] = point.y;	//f_coord_ptr[iTimes3 + 1];
+//				p_pt_in_C[2] = point.z;	//f_coord_ptr[iTimes3 + 2];
+//				pt_in_C -= trans_3x1_CfromO;
+//				cv::Mat pt_in_O = rot_3x3_OfromC * pt_in_C;
+
+				if (std::abs<double>(pt_in_O.getX()) <= xyzr_learning_coordinates.val[0] && std::abs<double>(pt_in_O.getY()) <= xyzr_learning_coordinates.val[1] &&
+					pt_in_O.getZ() >= xyzr_learning_coordinates.val[3] && pt_in_O.getZ() <= xyzr_learning_coordinates.val[2])
+					maskDepthValues = false;
+			}
+
+			if (maskColorValues)
+			{
+				/// Set color of shared image to black
+				int iTimes3 = i * 3;
+				c_shared_ptr[iTimes3] = 0;
+				c_shared_ptr[iTimes3 + 1] = 0;
+				c_shared_ptr[iTimes3 + 2] = 0;
+			}
+			if (maskDepthValues)
+			{
+				/// Set corresponding depth value to 0
+				point.x = 0;
+				point.y = 0;
+				point.z = 0;
+//				f_coord_ptr[iTimes3] = 0;
+//				f_coord_ptr[iTimes3 + 1] = 0;
+//				f_coord_ptr[iTimes3 + 2] = 0;
+			}
+		}
+	}
+
+	return 0;
+}
+
+unsigned long ObjectRecording::ProjectXYZ(double x, double y, double z, int& u, int& v)
+{
+	cv::Mat XYZ(4, 1, CV_64FC1);
+	cv::Mat UVW(3, 1, CV_64FC1);
+
+	x *= 1000;
+	y *= 1000;
+	z *= 1000;
+
+	double* d_ptr = XYZ.ptr<double>(0);
+	d_ptr[0] = x;
+	d_ptr[1] = y;
+	d_ptr[2] = z;
+	d_ptr[3] = 1.;
+
+	UVW = color_camera_matrix_ * XYZ;
+
+	d_ptr = UVW.ptr<double>(0);
+	double du = d_ptr[0];
+	double dv = d_ptr[1];
+	double dw = d_ptr[2];
+
+	u = cvRound(du/dw);
+	v = cvRound(dv/dw);
+
+	return 1;
+}
+
+void ObjectRecording::calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg)
+{
+	if (camera_matrix_received_ == false)
+	{
+	//	pointcloud_height_ = calibration_msg->height;
+	//	pointcloud_width_ = calibration_msg->width;
+		cv::Mat temp(3,4,CV_64FC1);
+		for (int i=0; i<12; i++)
+			temp.at<double>(i/4,i%4) = calibration_msg->P.at(i);
+	//		std::cout << "projection_matrix: [";
+	//		for (int v=0; v<3; v++)
+	//			for (int u=0; u<4; u++)
+	//				std::cout << temp.at<double>(v,u) << " ";
+	//		std::cout << "]" << std::endl;
+		color_camera_matrix_ = temp;
+		camera_matrix_received_ = true;
+	}
+}
 
 
 int main (int argc, char** argv)
