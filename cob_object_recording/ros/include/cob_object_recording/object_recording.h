@@ -164,6 +164,7 @@ protected:
 	std::vector<RecordingData> recording_data_;		///< container for the desired perspectives and the recorded data
 
 	std::string data_storage_path_;		///< folder for data storage
+	cv::Scalar xyzr_recording_bounding_box_;	///< (maximum) bounding box for the recorded object, i.e. the bounding box may be specified too big. (val[0]=half length, val[1]=half width, val[2]=full height, val[3]=offset to minimal height 0 (to exclude outliers of the ground plane))
 };
 
 #endif /* OBJECT_RECORDING_H_ */

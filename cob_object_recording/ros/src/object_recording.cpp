@@ -22,7 +22,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	color_image_sub_.subscribe(*it_, "input_color_image", 1);
 	//input_pointcloud_sub_ = node_handle_.subscribe("input_pointcloud_segments", 10, &ObjectRecording::inputCallback, this);
 	input_pointcloud_sub_.subscribe(node_handle_, "input_pointcloud", 1);
-//	input_color_camera_info_sub_ = node_handle_.subscribe("input_color_camera_info", 1, &ObjectRecording::calibrationCallback, this);
+	input_color_camera_info_sub_ = node_handle_.subscribe("input_color_camera_info", 1, &ObjectRecording::calibrationCallback, this);
 
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >(10);
@@ -38,10 +38,11 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	sharpness_threshold_ = 0.8;
 	pan_divisions_ = 6;
 	tilt_divisions_ = 2;
-	preferred_recording_distance_ = 0.8;
+	preferred_recording_distance_ = 0.6;
 	distance_threshold_translation_ = 0.08;
 	distance_threshold_orientation_ = 8./180.*CV_PI;
 	data_storage_path_ = std::string(getenv("HOME")) + "/.ros/";
+	xyzr_recording_bounding_box_ = cv::Scalar(0.14, 0.065, 0.4, 0.01);
 }
 
 ObjectRecording::~ObjectRecording()
@@ -152,7 +153,21 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 	}
 
 	// save camera matrix
-	// todo:
+	fs::path calibration_file_name = object_subfolder / "camera_calibration.txt";
+	std::ofstream calibration_file(calibration_file_name.string().c_str(), std::ios::out);
+	if (calibration_file.is_open() == false)
+	{
+		std::cerr << "ERROR - ObjectRecording::saveRecordedObject:" << std::endl;
+		std::cerr << "\t ... Could not create file '" << calibration_file_name.string() << "'." << std::endl;
+		return false;
+	}
+	for (int v=0; v<color_camera_matrix_.rows; ++v)
+	{
+		for (int u=0; u<color_camera_matrix_.cols; ++u)
+			calibration_file << color_camera_matrix_.at<double>(v,u) << "\t";
+		calibration_file << std::endl;
+	}
+	calibration_file.close();
 
 	// save all perspectives
 	int saved_perspectives = 0;
@@ -166,17 +181,25 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 		ss << i;
 		fs::path file = object_subfolder / ss.str();
 
+		// segment data from whole image
+		cv::Mat image_segmented = recording_data_[i].image.clone();
+		pcl::PointCloud<pcl::PointXYZRGB> pointcloud_segmented;
+		pcl::copyPointCloud(recording_data_[i].pointcloud, pointcloud_segmented);
+		cv::Scalar uv_learning_boundaries;
+		ImageAndRangeSegmentation(image_segmented, pointcloud_segmented, recording_data_[i].pose_recorded, xyzr_recording_bounding_box_, uv_learning_boundaries);
+		std::cout << "uv_learning_boundaries: " << uv_learning_boundaries.val[0] << "," << uv_learning_boundaries.val[1] << "," << uv_learning_boundaries.val[2] << "," << uv_learning_boundaries.val[3] << "\n";
+
 		// save image
 		std::string image_filename = file.string() + ".png";
-		cv::imwrite(image_filename, recording_data_[i].image);
+		cv::imwrite(image_filename, image_segmented);
 
 		// save pointcloud
 		tf::Vector3& t = recording_data_[i].pose_recorded.getOrigin();
-		recording_data_[i].pointcloud.sensor_origin_ = Eigen::Vector4f(t.getX(), t.getY(), t.getZ(), 1.0);
+		pointcloud_segmented.sensor_origin_ = recording_data_[i].pointcloud.sensor_origin_ = Eigen::Vector4f(t.getX(), t.getY(), t.getZ(), 1.0);
 		tf::Quaternion q = recording_data_[i].pose_recorded.getRotation();
-		recording_data_[i].pointcloud.sensor_orientation_ = Eigen::Quaternionf(q.getW(), q.getX(), q.getY(), q.getZ());
+		pointcloud_segmented.sensor_orientation_ = recording_data_[i].pointcloud.sensor_orientation_ = Eigen::Quaternionf(q.getW(), q.getX(), q.getY(), q.getZ());
 		std::string pcd_filename = file.string() + ".pcd";
-		pcl::io::savePCDFile(pcd_filename, recording_data_[i].pointcloud, false);
+		pcl::io::savePCDFile(pcd_filename, pointcloud_segmented, false);
 
 		++saved_perspectives;
 	}
