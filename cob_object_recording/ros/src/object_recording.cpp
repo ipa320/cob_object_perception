@@ -32,17 +32,20 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	service_server_stop_recording_ = node_handle_.advertiseService("stop_recording", &ObjectRecording::stopRecording, this);
 	service_server_save_recorded_object_ = node_handle_.advertiseService("save_recorded_object", &ObjectRecording::saveRecordedObject, this);
 
+	// dynamic reconfigure
+	dynamic_reconfigure_server_.setCallback(boost::bind(&ObjectRecording::dynamicReconfigureCallback, this, _1, _2));
+
 	recording_pose_marker_array_publisher_ = node_handle_.advertise<visualization_msgs::MarkerArray>("recording_pose_marker_array", 0);
 
-	// todo: read in parameters
-	sharpness_threshold_ = 0.8;
-	pan_divisions_ = 6;
-	tilt_divisions_ = 2;
-	preferred_recording_distance_ = 0.6;
-	distance_threshold_translation_ = 0.08;
-	distance_threshold_orientation_ = 8./180.*CV_PI;
-	data_storage_path_ = std::string(getenv("HOME")) + "/.ros/";
-	xyzr_recording_bounding_box_ = cv::Scalar(0.14, 0.065, 0.4, 0.01);
+	// now set by dynamic configure parameters
+//	pan_divisions_ = 6;
+//	tilt_divisions_ = 2;
+//	preferred_recording_distance_ = 0.6;
+//	distance_threshold_translation_ = 0.08;
+//	distance_threshold_orientation_ = 8./180.*CV_PI;
+//	sharpness_threshold_ = 0.8;
+//	xyzr_recording_bounding_box_ = cv::Scalar(0.14, 0.065, 0.4, 0.01);
+//	data_storage_path_ = std::string(getenv("HOME")) + "/.ros/";
 }
 
 ObjectRecording::~ObjectRecording()
@@ -170,6 +173,7 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 	calibration_file.close();
 
 	// save all perspectives
+	std::cout << std::endl;
 	int saved_perspectives = 0;
 	for (unsigned int i=0; i<recording_data_.size(); ++i)
 	{
@@ -187,7 +191,6 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 		pcl::copyPointCloud(recording_data_[i].pointcloud, pointcloud_segmented);
 		cv::Scalar uv_learning_boundaries;
 		ImageAndRangeSegmentation(image_segmented, pointcloud_segmented, recording_data_[i].pose_recorded, xyzr_recording_bounding_box_, uv_learning_boundaries);
-		std::cout << "uv_learning_boundaries: " << uv_learning_boundaries.val[0] << "," << uv_learning_boundaries.val[1] << "," << uv_learning_boundaries.val[2] << "," << uv_learning_boundaries.val[3] << "\n";
 
 		// save image
 		std::string image_filename = file.string() + ".png";
@@ -202,7 +205,9 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 		pcl::io::savePCDFile(pcd_filename, pointcloud_segmented, false);
 
 		++saved_perspectives;
+		std::cout << ".";
 	}
+	std::cout << std::endl;
 
 	ROS_INFO("Saved %i perspectives (out of %i required) for object '%s'.", saved_perspectives, (int)recording_data_.size(), current_object_label_.c_str());
 
@@ -619,6 +624,32 @@ void ObjectRecording::calibrationCallback(const sensor_msgs::CameraInfo::ConstPt
 		color_camera_matrix_ = temp;
 		camera_matrix_received_ = true;
 	}
+}
+
+
+void ObjectRecording::dynamicReconfigureCallback(cob_object_recording::ObjectRecordingConfig &config, uint32_t level)
+{
+	pan_divisions_ = config.pan_divisions;
+	tilt_divisions_ = config.tilt_divisions;
+	preferred_recording_distance_ = config.preferred_recording_distance;
+	distance_threshold_translation_ = config.distance_threshold_translation;
+	distance_threshold_orientation_ = config.distance_threshold_orientation/180.*CV_PI;
+	sharpness_threshold_ = config.sharpness_threshold;
+	xyzr_recording_bounding_box_ = cv::Scalar(config.xyzr_recording_bounding_box_x, config.xyzr_recording_bounding_box_y, config.xyzr_recording_bounding_box_z, config.xyzr_recording_bounding_box_r);
+	if (config.data_storage_path.compare("") == 0)
+		data_storage_path_ = std::string(getenv("HOME")) + "/.ros/";
+	else
+		data_storage_path_ = config.data_storage_path;
+
+	std::cout << "Reconfigure request with\n"
+			<< "pan_divisions=" << pan_divisions_ << "\n"
+			<< "tilt_divisions=" << tilt_divisions_ << "\n"
+			<< "preferred_recording_distance=" << preferred_recording_distance_ << "\n"
+			<< "distance_threshold_translation=" << distance_threshold_translation_ << "\n"
+			<< "distance_threshold_orientation=" << distance_threshold_orientation_ << "\n"
+			<< "sharpness_threshold=" << sharpness_threshold_ << "\n"
+			<< "xyzr_recording_bounding_box=(" << xyzr_recording_bounding_box_.val[0] << ", " << xyzr_recording_bounding_box_.val[1] << ", " << xyzr_recording_bounding_box_.val[2] << ", " << xyzr_recording_bounding_box_.val[3] << ")\n"
+			<< "data_storage_path=" << data_storage_path_ << "\n";
 }
 
 

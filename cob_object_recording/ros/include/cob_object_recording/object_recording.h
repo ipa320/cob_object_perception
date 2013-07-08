@@ -12,10 +12,11 @@
 #include <ros/ros.h>
 //#include <ros/package.h>
 #include <tf/tf.h>
+#include <dynamic_reconfigure/server.h>
 
 // ROS message includes
 #include <sensor_msgs/Image.h>
-//#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <cob_object_detection_msgs/DetectionArray.h>
 #include <cob_object_detection_msgs/StartObjectRecording.h>
@@ -30,6 +31,9 @@
 
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+
+// config
+#include <cob_object_recording/ObjectRecordingConfig.h>
 
 // boost
 #include <boost/bind.hpp>
@@ -129,6 +133,9 @@ protected:
 	/// Callback function for receiving the camera calibration.
 	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
+	/// Dynamic reconfigure callback.
+	void dynamicReconfigureCallback(cob_object_recording::ObjectRecordingConfig &config, uint32_t level);
+
 	message_filters::Subscriber<cob_object_detection_msgs::DetectionArray> input_marker_detection_sub_;	///< detection of coordinate system the object is placed on
 //	ros::Subscriber input_pointcloud_sub_;	///< incoming point cloud topic
 	message_filters::Subscriber<sensor_msgs::PointCloud2> input_pointcloud_sub_;	///< incoming point cloud topic
@@ -141,6 +148,8 @@ protected:
 	ros::ServiceServer service_server_start_recording_; ///< Service server which accepts requests for starting recording
 	ros::ServiceServer service_server_stop_recording_; ///< Service server which accepts requests for stopping recording
 	ros::ServiceServer service_server_save_recorded_object_; ///< Service server which accepts requests for saving recorded data to disk
+
+	dynamic_reconfigure::Server<cob_object_recording::ObjectRecordingConfig> dynamic_reconfigure_server_;
 
 	ros::Publisher recording_pose_marker_array_publisher_;
 	unsigned int prev_marker_array_size_; ///< Size of previously published marker array
@@ -155,7 +164,7 @@ protected:
 
 	double sharpness_threshold_;	///< threshold for the image sharpness, images with lower sharpness are not utilized for data recording
 	int pan_divisions_;		///< the number of images that need to be recorded along the pan direction around the object at every tilt level, pan=[0°...360°]
-	int tilt_divisions_;	///< the number of images that need to be recorded along the tilt direction around the object at every pan level, tilt=[0°...90°], i.e. only the upper hemisphere
+	int tilt_divisions_;	///< the number of images that need to be recorded along the tilt direction around the object at every pan level, tilt=[0°...-90°], i.e. only the upper hemisphere
 	double preferred_recording_distance_;	///< desired camera distance to object while recording in [m]
 	double distance_threshold_translation_;		///< only record an image if the camera is closer to the target perspective than this length (in [m])
 	double distance_threshold_orientation_;		///< only record an image if the camera orientation is closer to the target perspective than this angle (in radiant)
