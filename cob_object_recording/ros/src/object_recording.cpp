@@ -2,6 +2,8 @@
 #include <boost/filesystem.hpp>
 #include <fstream>
 
+namespace fs = boost::filesystem;
+
 //ObjectRecording::ObjectRecording()
 //{
 //	it_ = 0;
@@ -38,6 +40,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	preferred_recording_distance_ = 0.8;
 	distance_threshold_translation_ = 0.08;
 	distance_threshold_orientation_ = 8./180.*CV_PI;
+	data_storage_path_ = std::string(getenv("HOME")) + "/.ros/";
 }
 
 ObjectRecording::~ObjectRecording()
@@ -51,7 +54,8 @@ ObjectRecording::~ObjectRecording()
 
 bool ObjectRecording::startRecording(cob_object_detection_msgs::StartObjectRecording::Request &req, cob_object_detection_msgs::StartObjectRecording::Response &res)
 {
-	ROS_INFO("Request to start recording received.");
+	current_object_label_ = req.object_label;
+	ROS_INFO("Request to start recording object '%s' received.", current_object_label_.c_str());
 
 	// clear data container
 	recording_data_.clear();
@@ -98,14 +102,82 @@ bool ObjectRecording::stopRecording(cob_object_detection_msgs::StopObjectRecordi
 
 	registered_callback_.disconnect();
 
-	ROS_INFO("Stopped recording.");
+	ROS_INFO("Stopped recording object '%s'.", current_object_label_.c_str());
 
 	return true;
 }
 
 bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecordedObject::Request &req, cob_object_detection_msgs::SaveRecordedObject::Response &res)
 {
-	ROS_INFO("Request to save recorded data received.");
+	// take data storage path from request message, if available
+	std::string data_storage_path = data_storage_path_;
+	std::string path_from_message = req.storage_location;
+	if (path_from_message.compare("") != 0)
+		data_storage_path = path_from_message;
+
+	ROS_INFO("Request to save recorded data for object '%s' at path '%s' received.", current_object_label_.c_str(), data_storage_path.c_str());
+
+	// create subfolder for object
+	fs::path top_level_directory(data_storage_path);
+	if (fs::is_directory(top_level_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectRecording::saveRecordedObject:" << std::endl;
+		std::cerr << "\t ... Path '" << top_level_directory.string() << "' is not a directory." << std::endl;
+		return false;
+	}
+
+	fs::path package_subfolder = top_level_directory / fs::path("cob_object_recording/");
+	if (fs::is_directory(package_subfolder) == false)
+	{
+		// create subfolder
+		if (fs::create_directory(package_subfolder) == false)
+		{
+			std::cerr << "ERROR - ObjectRecording::saveRecordedObject:" << std::endl;
+			std::cerr << "\t ... Could not create path '" << package_subfolder.string() << "'." << std::endl;
+			return false;
+		}
+	}
+
+	fs::path object_subfolder = package_subfolder / current_object_label_;
+	if (fs::is_directory(object_subfolder) == false)
+	{
+		// create subfolder
+		if (fs::create_directory(object_subfolder) == false)
+		{
+			std::cerr << "ERROR - ObjectRecording::saveRecordedObject:" << std::endl;
+			std::cerr << "\t ... Could not create path '" << object_subfolder.string() << "'." << std::endl;
+			return false;
+		}
+	}
+
+	// save all perspectives
+	int saved_perspectives = 0;
+	for (unsigned int i=0; i<recording_data_.size(); ++i)
+	{
+		if (recording_data_[i].perspective_recorded == false)
+			continue;
+
+		// construct filename
+		std::stringstream ss;
+		ss << i;
+		fs::path file = object_subfolder / ss.str();
+
+		// save image
+		std::string image_filename = file.string() + ".png";
+		cv::imwrite(image_filename, recording_data_[i].image);
+
+		// save pointcloud
+		tf::Vector3& t = recording_data_[i].pose_recorded.getOrigin();
+		recording_data_[i].pointcloud.sensor_origin_ = Eigen::Vector4f(t.getX(), t.getY(), t.getZ(), 1.0);
+		tf::Quaternion q = recording_data_[i].pose_recorded.getRotation();
+		recording_data_[i].pointcloud.sensor_orientation_ = Eigen::Quaternionf(q.getW(), q.getX(), q.getY(), q.getZ());
+		std::string pcd_filename = file.string() + ".pcd";
+		pcl::io::savePCDFile(pcd_filename, recording_data_[i].pointcloud, false);
+
+		++saved_perspectives;
+	}
+
+	ROS_INFO("Saved %i perspectives (out of %i required) for object '%s'.", saved_perspectives, (int)recording_data_.size(), current_object_label_.c_str());
 
 	return true;
 }

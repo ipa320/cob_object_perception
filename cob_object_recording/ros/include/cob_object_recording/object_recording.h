@@ -127,14 +127,16 @@ protected:
 	cv::Mat color_camera_matrix_;	///< projection matrix of the calibrated camera that transforms points from 3D to image plane in homogeneous coordinates: [u,v,w]=P*[X,Y,Z,1]
 
 	double sharpness_threshold_;	///< threshold for the image sharpness, images with lower sharpness are not utilized for data recording
-
 	int pan_divisions_;		///< the number of images that need to be recorded along the pan direction around the object at every tilt level, pan=[0°...360°]
 	int tilt_divisions_;	///< the number of images that need to be recorded along the tilt direction around the object at every pan level, tilt=[0°...90°], i.e. only the upper hemisphere
 	double preferred_recording_distance_;	///< desired camera distance to object while recording in [m]
 	double distance_threshold_translation_;		///< only record an image if the camera is closer to the target perspective than this length (in [m])
-	double distance_threshold_orientation_;		///< only record an image if the camera orientation is closer to the target perspective than this
+	double distance_threshold_orientation_;		///< only record an image if the camera orientation is closer to the target perspective than this angle (in radiant)
 
+	std::string current_object_label_;		///< label of the recorded object
 	std::vector<RecordingData> recording_data_;		///< container for the desired perspectives and the recorded data
+
+	std::string data_storage_path_;		///< folder for data storage
 };
 
 #endif /* OBJECT_RECORDING_H_ */
