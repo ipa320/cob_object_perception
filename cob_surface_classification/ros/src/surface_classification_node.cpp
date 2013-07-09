@@ -63,10 +63,11 @@
 #define SEG_REFINE					false; 	//segmentation refinement
 #define CLASSIFY 					true;	//classification
 
+
 #define NORMAL_VIS 					false; 	//visualisation of normals
 #define SEG_VIS 					false; 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false; 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					false; 	//visualisation of classification
+#define CLASS_VIS 					true; 	//visualisation of classification
 
 
 
@@ -408,6 +409,7 @@ public:
 			cc_.setNormalCloudInOut(normals);
 			cc_.setLabelCloudIn(labels);
 			cc_.setPointCloudIn(cloud);
+			cc_.setMaskSizeSmooth(14);
 			cc_.classify();
 		}
 		if(s.class_vis)
