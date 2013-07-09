@@ -143,10 +143,12 @@ protected:
 //	ros::Subscriber input_pointcloud_sub_;	///< incoming point cloud topic
 	message_filters::Subscriber<sensor_msgs::PointCloud2> input_pointcloud_sub_;	///< incoming point cloud topic
 	ros::Subscriber input_color_camera_info_sub_;	///< camera calibration of incoming color image data
-	image_transport::ImageTransport* it_;
+	boost::shared_ptr<image_transport::ImageTransport> it_sub_;
 	image_transport::SubscriberFilter color_image_sub_; ///< color camera image topic
 	message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >* sync_input_;
 	message_filters::Connection registered_callback_;
+	boost::shared_ptr<image_transport::ImageTransport> it_pub_;
+	image_transport::Publisher display_image_pub_; ///< publishes 2D image data to display currently visible image with some hints for useful camera movements
 
 	ros::ServiceServer service_server_start_recording_; ///< Service server which accepts requests for starting recording
 	ros::ServiceServer service_server_stop_recording_; ///< Service server which accepts requests for stopping recording

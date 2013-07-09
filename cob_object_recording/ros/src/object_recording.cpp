@@ -6,7 +6,7 @@ namespace fs = boost::filesystem;
 
 //ObjectRecording::ObjectRecording()
 //{
-//	it_ = 0;
+//	it_sub_ = 0;
 //	sync_input_ = 0;
 //}
 
@@ -35,11 +35,15 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 
 	// subscribers
 	input_marker_detection_sub_.subscribe(node_handle_, "input_marker_detections", 1);
-	it_ = new image_transport::ImageTransport(node_handle_);
-	color_image_sub_.subscribe(*it_, "input_color_image", 1);
+	it_sub_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
+	color_image_sub_.subscribe(*it_sub_, "input_color_image", 1);
 	//input_pointcloud_sub_ = node_handle_.subscribe("input_pointcloud_segments", 10, &ObjectRecording::inputCallback, this);
 	input_pointcloud_sub_.subscribe(node_handle_, "input_pointcloud", 1);
 	input_color_camera_info_sub_ = node_handle_.subscribe("input_color_camera_info", 1, &ObjectRecording::calibrationCallback, this);
+
+	// publishers
+	it_pub_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
+	display_image_pub_ = it_pub_->advertise("display_image", 1);
 
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >(10);
@@ -69,8 +73,8 @@ ObjectRecording::~ObjectRecording()
 {
 	recording_pose_marker_array_publisher_.shutdown();
 
-	if (it_ != 0) delete it_;
-	if (sync_input_ != 0) delete sync_input_;
+//	if (it_sub_ != 0) delete it_sub_;
+//	if (sync_input_ != 0) delete sync_input_;
 }
 
 
@@ -222,7 +226,7 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 		pcl::io::savePCDFile(pcd_filename, pointcloud_segmented, false);
 
 		++saved_perspectives;
-		std::cout << ".";
+		std::cout << "." << std::flush;
 	}
 	std::cout << std::endl;
 
@@ -314,19 +318,32 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 		}
 	}
 
-	// play proximity sound w.r.t. to target pose distance
-	if (playing_hit_sound == false && closest_translation_distance < 2.*distance_threshold_translation_ && closest_orientation_distance < 2.*distance_threshold_orientation_);
-	{
-		sound_feedback_sound_proximity_.SetVolume(std::max(0., 100. - 50.*closest_translation_distance/(2.*distance_threshold_translation_) - 50.*closest_orientation_distance/(2.*distance_threshold_orientation_)));
-		sound_feedback_sound_proximity_.Play();
-	}
+//	// play proximity sound w.r.t. to target pose distance
+//	if (playing_hit_sound == false && closest_translation_distance < 2.*distance_threshold_translation_ && closest_orientation_distance < 2.*distance_threshold_orientation_);
+//	{
+//		sound_feedback_sound_proximity_.SetVolume(std::max(0., 100. - 50.*closest_translation_distance/(2.*distance_threshold_translation_) - 50.*closest_orientation_distance/(2.*distance_threshold_orientation_)));
+//		sound_feedback_sound_proximity_.Play();
+//	}
 
 	// display direction to closest position
 	cv::Mat display_image = color_image.clone();
 	tf::Vector3 translation_diff_C = fiducial_pose * recording_data_[closest_pose].pose_desired.getOrigin();
-	cv::circle(display_image, cv::Point(display_image.cols/2, display_image.rows/2), 10, cv::Scalar(0,1,0,0.5), -1);
-	cv::imshow("object recording", display_image);
-	cv::waitKey(10);
+	tf::Vector3 x_rotation_C = fiducial_pose * recording_data_[closest_pose].pose_desired * tf::Vector3(1., 0., 0.);
+	double cos_x_angle = x_rotation_C.x()/sqrt(x_rotation_C.x()*x_rotation_C.x()+x_rotation_C.y()*x_rotation_C.y());	// normalize without z-coordinate to suppress camera tilt influences
+	double sin_x_angle = sin(acos(cos_x_angle)) * (x_rotation_C.y()<0 ? 1. : -1.);
+	int du = 40 * translation_diff_C.getX()*5;	//0.20;
+	int dv = 40 * translation_diff_C.getY()*5.;	//0.20;
+	double dz = pow(2., -translation_diff_C.getZ()*5.);	//0.20);
+	cv::circle(display_image, cv::Point(display_image.cols/2 + du, display_image.rows/2 + dv), 10*dz, cv::Scalar(255,0,0,128), 2);
+	cv::line(display_image, cv::Point(display_image.cols/2+du-20*cos_x_angle, display_image.rows/2+dv+20*sin_x_angle), cv::Point(display_image.cols/2+du+20*cos_x_angle, display_image.rows/2+dv-20*sin_x_angle), cv::Scalar(255,0,0,128), 2);
+	cv::circle(display_image, cv::Point(display_image.cols/2, display_image.rows/2), 10, cv::Scalar(0,255,0,128), 2);
+	cv::line(display_image, cv::Point(display_image.cols/2-20, display_image.rows/2), cv::Point(display_image.cols/2+20, display_image.rows/2), cv::Scalar(0,255,0,128), 2);
+	cv_bridge::CvImage cv_ptr;
+	cv_ptr.image = display_image;
+	cv_ptr.encoding = "bgr8";
+	display_image_pub_.publish(cv_ptr.toImageMsg());
+//	cv::imshow("object recording", display_image);
+//	cv::waitKey(10);
 
 	// display the markers indicating the already recorded perspectives and the missing
 	publishRecordingPoseMarkers(input_marker_detections_msg, fiducial_pose);
@@ -434,7 +451,7 @@ void ObjectRecording::publishRecordingPoseMarkers(const cob_object_detection_msg
 			marker_array_msg_.markers[idx].pose.position.z = pose.getOrigin().getZ();
 			tf::quaternionTFToMsg(pose.getRotation(), marker_array_msg_.markers[idx].pose.orientation);
 
-			marker_array_msg_.markers[idx].lifetime = ros::Duration(1);
+			marker_array_msg_.markers[idx].lifetime = ros::Duration(10);
 			marker_array_msg_.markers[idx].scale.x = 0.01; // shaft diameter
 			marker_array_msg_.markers[idx].scale.y = 0.015; // head diameter
 			marker_array_msg_.markers[idx].scale.z = 0.0; // head length 0=default
