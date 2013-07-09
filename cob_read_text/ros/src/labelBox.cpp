@@ -515,7 +515,11 @@ int main(int argc, char* argv[])
 	if (imgpath.empty())
 	{
 		boost::filesystem::path full_path(boost::filesystem::current_path());
+#if !defined(BOOST_FILESYSTEM_VERSION) || BOOST_FILESYSTEM_VERSION<3
 		imgpath = full_path.directory_string();
+#else
+		imgpath = full_path.string();
+#endif
 	}
 
 	// read all image names in the folder

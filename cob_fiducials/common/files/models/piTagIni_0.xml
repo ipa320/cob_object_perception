@@ -1,7 +1,7 @@
 <FiducialDetector>
-	<Fiducial>
+	<PI>
 		<ID value="0" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
@@ -11,10 +11,13 @@
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.125" y="0.175" />
-	</Fiducial>
-	<Fiducial>
+		
+		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+		<SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
+	</PI>
+	<PI>
 		<ID value="1" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
@@ -24,10 +27,14 @@
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="0.025" y="-0.075" />
-	</Fiducial>
-	<Fiducial>
+		<!--Offset x="-0.05" y="0.05" /-->
+		
+		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+		<SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
+	</PI>
+	<PI>
 		<ID value="2" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
@@ -37,10 +44,13 @@
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.109" y="-0.090" />
-	</Fiducial>
-	<Fiducial>
+		
+		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+		<SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
+	</PI>
+	<PI>
 		<ID value="3" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
@@ -50,5 +60,9 @@
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="0.009" y="0.190" />
-	</Fiducial>
+		<!--Offset x="-0.05" y="0.05" /-->
+		
+		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+		<SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
+	</PI>
 </FiducialDetector>

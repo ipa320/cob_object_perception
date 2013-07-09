@@ -1,8 +1,8 @@
-//#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
-	#include "cob_fiducials/FiducialModelPi.h"
+	#include "cob_fiducials/pi/FiducialModelPi.h"
 #else
-	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialModelPi.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/pi/FiducialModelPi.h"
 #endif
 #include <opencv/highgui.h>
 
@@ -141,8 +141,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 // ------------ Fiducial corner extraction --------------------------------------
 	std::vector<std::vector<cv::Point2f> > marker_lines;
-	int max_pixel_dist_to_line = 2; // 2  [px]
-	int max_ellipse_difference = 7; // 11 [px]
+	int max_pixel_dist_to_line; // Will be set automatically
+	int max_ellipse_difference; // Will be set automatically
 	// Compute area
 	std::vector<double> ref_A;
 	for(unsigned int i = 0; i < ellipses.size(); i++)
@@ -153,6 +153,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		for(unsigned int j = i+1; j < ellipses.size(); j++)
 		{
 			// Check area
+			max_ellipse_difference = 0.5 * std::min(ref_A[i], ref_A[j]);
 			if (std::abs(ref_A[i] - ref_A[j]) >  max_ellipse_difference)
 				continue;
 
@@ -169,6 +170,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			for(unsigned int k = 0; k < ellipses.size() && nLine_Candidates < 2; k++)
 			{
 				// Check area
+				max_ellipse_difference = 0.5 * std::min(ref_A[j], ref_A[k]);
 				if (std::abs(ref_A[j] - ref_A[k]) >  max_ellipse_difference)
 					continue;
 
@@ -186,12 +188,15 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 				cv::Point2f vec_KprojK = proj_k - ellipses[k].center; 
 				double d_k_sqr = (vec_KprojK.x*vec_KprojK.x) + (vec_KprojK.y*vec_KprojK.y);
 				
+				max_pixel_dist_to_line = std::sqrt(std::min(ellipses[k].size.height, ellipses[k].size.width));
+				max_pixel_dist_to_line = std::max(2, max_pixel_dist_to_line);
 				if (d_k_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 					continue;
 
 				for(unsigned int l = k+1; l < ellipses.size() && nLine_Candidates < 2; l++)
 				{
 					// Check area
+					max_ellipse_difference = 0.5 * std::min(ref_A[k], ref_A[l]);
 					if (std::abs(ref_A[k] - ref_A[l]) >  max_ellipse_difference)
 						continue;
 
@@ -208,6 +213,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					cv::Point2f proj_l = ellipses[i].center + vec_IJ * t_l;
 					cv::Point2f vec_LprojL = proj_l - ellipses[l].center; 
 					double d_l_sqr = (vec_LprojL.x*vec_LprojL.x) + (vec_LprojL.y*vec_LprojL.y);
+
+					max_pixel_dist_to_line = std::sqrt(std::min(ellipses[l].size.height, ellipses[l].size.width));
+					max_pixel_dist_to_line = std::max(2, max_pixel_dist_to_line);
 					if (d_l_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 						continue;
 
@@ -247,7 +255,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 
 // ------------ Fiducial line association --------------------------------------
-	double cross_ratio_max_dist = 0.02;
+	double cross_ratio_max_dist = 0.03;
 	std::vector<t_pi> final_tag_vec;
 
 	for (unsigned int i = 0; i < m_ref_tag_vec.size(); i++)
@@ -836,16 +844,16 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		}
 
 		t_pose tag_pose;
-		cv::Mat dist_coeffs;
-		tag_pose.id = final_tag_vec[i].parameters.id;
-		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), dist_coeffs, 
+		tag_pose.id = final_tag_vec[i].parameters.m_id;
+		cv::solvePnP(pattern_coords, image_coords, GetCameraMatrix(), GetDistortionCoeffs(), 
 			tag_pose.rot, tag_pose.trans);
 
 		// Apply transformation
 		cv::Mat rot_3x3_CfromO;
 		cv::Rodrigues(tag_pose.rot, rot_3x3_CfromO);
 
-		if (!ProjectionValid(rot_3x3_CfromO, tag_pose.trans, GetCameraMatrix(), pattern_coords, image_coords))
+		cv::Mat reprojection_matrix = GetCameraMatrix();
+		if (!ProjectionValid(rot_3x3_CfromO, tag_pose.trans, reprojection_matrix, pattern_coords, image_coords))
 			continue;
 
 		ApplyExtrinsics(rot_3x3_CfromO, tag_pose.trans);
@@ -942,7 +950,7 @@ bool FiducialModelPi::ProjectionValid(cv::Mat& rot_CfromO, cv::Mat& trans_CfromO
 
 	// Check reprojection error
 	double dist = 0;
-	for (unsigned int i=0; i<pts_in_O.rows; i++)
+	for (int i=0; i<pts_in_O.rows; i++)
 	{
 		p_image_coords = image_coords.ptr<float>(i);
 		p_pts_in_O = pts_in_O.ptr<float>(i);
@@ -1014,8 +1022,6 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		double d_line1_AC = pi_tags[i].d_line1_AC;
 		double d_line1_CD = tag_size - pi_tags[i].d_line1_AC;
 		ref_tag.cross_ration_1 = (d_line1_AB/d_line1_BD)/(d_line1_AC/d_line1_CD);
-
-		
 	
 		// Marker coordinates
 		ref_tag.marker_points.push_back(cv::Point2f(0, -0));
@@ -1034,8 +1040,8 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		// Offset
 		for(unsigned int j=0; j<ref_tag.marker_points.size(); j++)
 		{
-			ref_tag.marker_points[j].x += pi_tags[i].offset.x;
-			ref_tag.marker_points[j].y += pi_tags[i].offset.y;
+			ref_tag.marker_points[j].x += pi_tags[i].m_offset.x;
+			ref_tag.marker_points[j].y += pi_tags[i].m_offset.y;
 		}
 
 		double delta = ref_tag.cross_ration_0/ref_tag.cross_ration_1;
@@ -1047,7 +1053,7 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 		else if (delta < 1)
 		{
 			std::cout << "[WARNING] FiducialModelPi::LoadCoordinates" << std::endl;
-			std::cout << "\t ... Skipping fiducial "<< ref_tag.parameters.id <<" due to cross ratios" << std::endl;
+			std::cout << "\t ... Skipping fiducial "<< ref_tag.parameters.m_id <<" due to cross ratios" << std::endl;
 			std::cout << "\t ... Cross ratio 0 must be larger than cross ratio 1" << std::endl;
 		}
 		else
@@ -1097,17 +1103,17 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 		{
 
 //************************************************************************************
-//	BEGIN FiducialDetector->Fiducial
+//	BEGIN FiducialDetector->PI
 //************************************************************************************
 			// Tag element "ObjectDetectorParameters" of Xml Inifile
 
-			for(TiXmlElement* p_xmlElement_Root_FI = p_xmlElement_Root->FirstChildElement("Fiducial"); 
+			for(TiXmlElement* p_xmlElement_Root_FI = p_xmlElement_Root->FirstChildElement("PI"); 
 				p_xmlElement_Root_FI != NULL; 
-				p_xmlElement_Root_FI = p_xmlElement_Root_FI->NextSiblingElement("Fiducial"))
+				p_xmlElement_Root_FI = p_xmlElement_Root_FI->NextSiblingElement("PI"))
 			{
 				FiducialPiParameters pi_parameters;
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->ID
+//	BEGIN FiducialDetector->PI->ID
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				TiXmlElement *p_xmlElement_Child = NULL;
@@ -1116,7 +1122,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				if ( p_xmlElement_Child )
 				{
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "value", &pi_parameters.id) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "value", &pi_parameters.m_id) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'value' of tag 'ID'" << std::endl;
@@ -1126,13 +1132,13 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				else
 				{
 					std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
-					std::cerr << "\t ... Can't find tag 'IF'" << std::endl;
+					std::cerr << "\t ... Can't find tag 'ID'" << std::endl;
 					return ipa_Utils::RET_FAILED;
 				}
 
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->LineWidthHeight
+//	BEGIN FiducialDetector->PI->LineWidthHeight
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1156,7 +1162,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->CrossRatioLine0
+//	BEGIN FiducialDetector->PI->CrossRatioLine0
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1188,7 +1194,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->CrossRatioLine1
+//	BEGIN FiducialDetector->PI->CrossRatioLine1
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1220,7 +1226,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				}
 
 //************************************************************************************
-//	BEGIN FiducialDetector->ObjectDetectorParameters->Offset
+//	BEGIN FiducialDetector->PI->Offset
 //************************************************************************************
 				// Subtag element "ObjectDetectorParameters" of Xml Inifile
 				p_xmlElement_Child = NULL;
@@ -1229,7 +1235,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 				if ( p_xmlElement_Child )
 				{
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "x", &pi_parameters.offset.x) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "x", &pi_parameters.m_offset.x) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'x' of tag 'Offset'" << std::endl;
@@ -1237,7 +1243,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 					}
 
 					// read and save value of attribute
-					if ( p_xmlElement_Child->QueryValueAttribute( "y", &pi_parameters.offset.y) != TIXML_SUCCESS)
+					if ( p_xmlElement_Child->QueryValueAttribute( "y", &pi_parameters.m_offset.y) != TIXML_SUCCESS)
 					{
 						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
 						std::cerr << "\t ... Can't find attribute 'y' of tag 'Offset'" << std::endl;
@@ -1251,6 +1257,56 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 					return ipa_Utils::RET_FAILED;
 				}
 
+//************************************************************************************
+//	BEGIN FiducialDetector->PI->SharpnessArea
+//************************************************************************************
+				// Subtag element "ObjectDetectorParameters" of Xml Inifile
+				p_xmlElement_Child = NULL;
+				p_xmlElement_Child = p_xmlElement_Root_FI->FirstChildElement( "SharpnessArea" );
+
+				if ( p_xmlElement_Child )
+				{
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "x", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.x) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'x' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "y", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.y) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'y' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "width", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.width) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'width' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "height", &m_general_fiducial_parameters[pi_parameters.m_id].m_sharpness_pattern_area_rect3d.height) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'height' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+				}
+				else
+				{
+					std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
+					std::cerr << "\t ... Can't find tag 'SharpnessArea'" << std::endl;
+					return ipa_Utils::RET_FAILED;
+				}
+
+				m_general_fiducial_parameters[pi_parameters.m_id].m_offset = pi_parameters.m_offset;
+
 				vec_pi_parameters.push_back(pi_parameters);
 
 //************************************************************************************
@@ -1261,7 +1317,7 @@ unsigned long FiducialModelPi::LoadParameters(std::string directory_and_filename
 			if (vec_pi_parameters.empty())
 			{
 				std::cerr << "ERROR - FiducialModelPi::LoadParameters:" << std::endl;
-				std::cerr << "\t ... Could't find tag 'Fiducial'" << std::endl;
+				std::cerr << "\t ... Could't find tag 'PI'" << std::endl;
 				return ipa_Utils::RET_FAILED;
 			}
 
