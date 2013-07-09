@@ -321,6 +321,13 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 		sound_feedback_sound_proximity_.Play();
 	}
 
+	// display direction to closest position
+	cv::Mat display_image = color_image.clone();
+	tf::Vector3 translation_diff_C = fiducial_pose * recording_data_[closest_pose].pose_desired.getOrigin();
+	cv::circle(display_image, cv::Point(display_image.cols/2, display_image.rows/2), 10, cv::Scalar(0,1,0,0.5), -1);
+	cv::imshow("object recording", display_image);
+	cv::waitKey(10);
+
 	// display the markers indicating the already recorded perspectives and the missing
 	publishRecordingPoseMarkers(input_marker_detections_msg, fiducial_pose);
 }
