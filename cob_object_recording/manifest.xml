@@ -23,6 +23,8 @@
   <depend package="visualization_msgs"/>
   <depend package="cob_object_detection_msgs"/>
 
+  <rosdep name="boost"/>
+  <rosdep name="sfml"/>
 
 </package>
 
