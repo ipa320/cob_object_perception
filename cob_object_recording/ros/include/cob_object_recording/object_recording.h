@@ -38,6 +38,9 @@
 // boost
 #include <boost/bind.hpp>
 
+// SFML
+#include <SFML/Audio.hpp>
+
 // PCL
 #include <pcl/ModelCoefficients.h>
 #include <pcl/point_types.h>
@@ -156,6 +159,14 @@ protected:
 	visualization_msgs::MarkerArray marker_array_msg_;
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
+
+	// sound feedback
+	std::vector<sf::Int16> sound_feedback_samples_proximity_;
+	sf::SoundBuffer sound_feedback_buffer_proximity_;
+	sf::Sound sound_feedback_sound_proximity_;
+	std::vector<sf::Int16> sound_feedback_samples_hit_;
+	sf::SoundBuffer sound_feedback_buffer_hit_;
+	sf::Sound sound_feedback_sound_hit_;
 
 //	unsigned int pointcloud_width_;			///< width of the received point cloud
 //	unsigned int pointcloud_height_;			///< height of the received point cloud
