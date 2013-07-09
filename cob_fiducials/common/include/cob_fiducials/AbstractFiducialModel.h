@@ -42,7 +42,7 @@ public:
 	//*******************************************************************************
 	virtual ~AbstractFiducialModel(){};
 
-	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, cv::Mat extrinsic_matrix = cv::Mat())
+	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, bool log_or_calibrate_sharpness_measurements, cv::Mat extrinsic_matrix = cv::Mat())
 	{
 		if (camera_matrix.empty())
 		{
@@ -69,8 +69,7 @@ public:
 			m_extrinsic_XYfromC.at<double>(3,3) = 1.0;
 		}
 		
-		// todo: set to false for normal operation
-		m_log_sharpness_measurements = false;
+		m_log_or_calibrate_sharpness_measurements = log_or_calibrate_sharpness_measurements;
 
 		return LoadParameters(directory_and_filename);
 	};
@@ -119,7 +118,7 @@ public:
 	/// @param sharpness_measure Degree of image sharpness (in [0...1] = [blurry...sharp]) computed by the function.
 	/// @return <code>RET_FAILED</code> if the tag id is invalid
 	/// <code>RET_OK</code> on success
-	unsigned long GetSharpnessMeasure(const cv::Mat& image, t_pose pose_CfromO, const AbstractFiducialParameters& fiducial_parameters, double& sharpness_measure)
+	unsigned long GetSharpnessMeasure(const cv::Mat& image, t_pose pose_CfromO, const AbstractFiducialParameters& fiducial_parameters, double& sharpness_measure, double sharpness_calibration_parameter_m = 9139.749632393357, double sharpness_calibration_parameter_n = -2670187.875850272)
 	{
 		if (fiducial_parameters.m_id == -1)
 		{
@@ -195,13 +194,13 @@ public:
 			sharpness_score += (double)((int)gray_values[i]-(int)avg_gray)*((int)gray_values[i]-(int)avg_gray);
 //		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
 
-		double m = 9139.749632393357;	// these numbers come from measuring pixel_count and sharpness_score in all possible situations and interpolating a function (here: a linear function y=m*x+n) with that data
-		double n = -2670187.875850272;
-		sharpness_measure = std::min(1., sharpness_score / (m * pixel_count + n));	// how far is the score from the linear sharpness function
+//		double m = 9139.749632393357;	// these numbers come from measuring pixel_count and sharpness_score in all possible situations and interpolating a function (here: a linear function y=m*x+n) with that data
+//		double n = -2670187.875850272;
+		sharpness_measure = std::min(1., sharpness_score / (sharpness_calibration_parameter_m * pixel_count + sharpness_calibration_parameter_n));	// how far is the score from the linear sharpness function
 
 //		std::cout << "sharpness_score_normalized=" << sharpness_score_normalized << std::endl;
 
-		if (m_log_sharpness_measurements == true)
+		if (m_log_or_calibrate_sharpness_measurements == true)
 		{
 			SharpnessLogData log;
 			log.distance_to_camera= cv::norm(pose_CfromO.trans, cv::NORM_L2);
@@ -223,6 +222,24 @@ public:
 					file.close();
 					std::cout << "Info: AbstractFiducialModel::GetSharpnessMeasure: All data successfully written to disk." << std::endl;
 				}
+			}
+			else if (key == 'c')
+			{
+				// compute linear regression for calibration curve and output result on screen
+				// i.e. the m and n parameters come from measuring pixel_count and sharpness_score in all possible situations
+				// and interpolating a function (here: a linear function y=m*x+n) with that data
+				cv::Mat A = cv::Mat::ones(m_log_data.size(), 2, CV_64FC1);
+				cv::Mat b(m_log_data.size(), 1, CV_64FC1);
+				for (unsigned int i=0; i<m_log_data.size(); ++i)
+				{
+					A.at<double>(i,0) = m_log_data[i].pixel_count;
+					b.at<double>(i) = m_log_data[i].sharpness_score;
+				}
+				cv::Mat line_parameters;
+				cv::solve(A, b, line_parameters, cv::DECOMP_QR);
+
+				std::cout << "The line parameters for the sharpness measure calibration curve are:\n  m = " << std::setprecision(15) << line_parameters.at<double>(0) << "\n  n = " << line_parameters.at<double>(1) << "\n\nPress any key to record further data and calibrate again with the present the additional data.\n" << std::endl;
+				cv::waitKey();
 			}
 		}
 
@@ -301,7 +318,7 @@ protected:
 		double distance_to_camera;
 		double sharpness_score;
 	};
-	bool m_log_sharpness_measurements;	///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve
+	bool m_log_or_calibrate_sharpness_measurements;	///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve or directly calibrated within the program
 	std::vector<SharpnessLogData> m_log_data;	///< structure for logging measured data
 };
 

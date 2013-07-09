@@ -151,6 +151,9 @@ private:
     //dynamic_reconfigure::Server<cob_fiducials::fiducialsConfig> dynamic_reconfigure_server_;
 
     bool compute_sharpness_measure_;	///< computes a measure for image sharpness
+    bool log_or_calibrate_sharpness_measurements_;		///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve or directly calibrated within the program
+    double sharpness_calibration_parameter_m_;		///< the m and n parameters of the linear calibration function sharpness_score = m * pixel_count + n -> m,n can be determined with the 'log_or_calibrate_sharpness_measurements_' option
+    double sharpness_calibration_parameter_n_;
     bool publish_tf_;
     tf::TransformBroadcaster tf_broadcaster_; ///< Broadcast transforms of detected fiducials
     bool publish_2d_image_;
@@ -314,7 +317,7 @@ public:
 
                 ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix");
 		
-				if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_) & ipa_Utils::RET_FAILED)
+				if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_, log_or_calibrate_sharpness_measurements_) & ipa_Utils::RET_FAILED)
 				{
 					ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
 					return;
@@ -466,7 +469,7 @@ public:
                 if (compute_sharpness_measure_ == true)
                 {
                 	double sharpness_measure;
-                	tag_detector_->GetSharpnessMeasure(color_image, tags_vec[i], tag_detector_->GetGeneralFiducialParameters(tags_vec[i].id), sharpness_measure);
+                	tag_detector_->GetSharpnessMeasure(color_image, tags_vec[i], tag_detector_->GetGeneralFiducialParameters(tags_vec[i].id), sharpness_measure, sharpness_calibration_parameter_m_, sharpness_calibration_parameter_n_);
                 	fiducial_instance.score = sharpness_measure;
                 }
 
@@ -835,6 +838,36 @@ public:
             ROS_INFO("[fiducials] compute_sharpness_measure: true");
         else
             ROS_INFO("[fiducials] compute_sharpness_measure: false");
+        if (node_handle_.getParam("sharpness_calibration_parameter_m", sharpness_calibration_parameter_m_) == false)
+		{
+        	if (compute_sharpness_measure_ == true)
+        	{
+				ROS_ERROR("[fiducials] 'sharpness_calibration_parameter_m=<double>' not specified in yaml file");
+				return false;
+        	}
+        	else
+        		sharpness_calibration_parameter_m_ = 0.;
+		}
+		ROS_INFO("[fiducials] sharpness_calibration_parameter_m: %f", sharpness_calibration_parameter_m_);
+		if (node_handle_.getParam("sharpness_calibration_parameter_n", sharpness_calibration_parameter_n_) == false)
+		{
+			if (compute_sharpness_measure_ == true)
+			{
+				ROS_ERROR("[fiducials] 'sharpness_calibration_parameter_n=<double>' not specified in yaml file");
+				return false;
+			}
+			else
+				sharpness_calibration_parameter_n_ = 0.;
+		}
+		ROS_INFO("[fiducials] sharpness_calibration_parameter_n: %f", sharpness_calibration_parameter_n_);
+        if (node_handle_.getParam("log_or_calibrate_sharpness_measurements", log_or_calibrate_sharpness_measurements_) == false)
+        {
+        	log_or_calibrate_sharpness_measurements_ = false;
+        }
+		if (log_or_calibrate_sharpness_measurements_)
+			ROS_INFO("[fiducials] log_or_calibrate_sharpness_measurements: true");
+		else
+			ROS_INFO("[fiducials] log_or_calibrate_sharpness_measurements: false");
         if (node_handle_.getParam("publish_marker_array", publish_marker_array_) == false)
         {
             ROS_ERROR("[fiducials] 'publish_marker_array=[true/false]' not specified in yaml file");
