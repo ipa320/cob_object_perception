@@ -8,6 +8,11 @@ ros_node_mode: MODE_TOPIC_AND_SERVICE
 model_filename: arucoTagIni_0.xml
 # Compute a measure of image sharpness and publish it with each marker at the field 'score'
 compute_sharpness_measure: true
+# The m and n parameters of the linear calibration function sharpness_score = m * pixel_count + n -> m,n can be determined with the 'log_or_calibrate_sharpness_measurements' option 
+sharpness_calibration_parameter_m: 9139.749632393357
+sharpness_calibration_parameter_n: -2670187.875850272
+# if true, the sharpness measurements are logged and saved to disc for calibration of the curve or directly calibrated within the program (aee also parameters m and n above)
+log_or_calibrate_sharpness_measurements: false
 # Publish coordinate systems of detected fiducials as marker_array for rviz
 publish_marker_array: true
 # Publish TF

@@ -6,7 +6,7 @@ namespace fs = boost::filesystem;
 
 //ObjectRecording::ObjectRecording()
 //{
-//	it_ = 0;
+//	it_sub_ = 0;
 //	sync_input_ = 0;
 //}
 
@@ -16,13 +16,34 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	prev_marker_array_size_ = 0;
 	camera_matrix_received_ = false;
 
+	// prepare sounds
+	// for proximity
+	sound_feedback_samples_proximity_.resize(441*50);
+	for (unsigned int k=0; k<sound_feedback_samples_proximity_.size(); ++k)
+		sound_feedback_samples_proximity_[k] = 32767*sin((double)k*0.005 * 2*CV_PI);
+	sound_feedback_buffer_proximity_.LoadFromSamples(&sound_feedback_samples_proximity_[0], sound_feedback_samples_proximity_.size(), 2, 44100);
+	//sound_feedback_buffer_proximity_.LoadFromFile("censor-beep-1.wav");
+	sound_feedback_sound_proximity_.SetBuffer(sound_feedback_buffer_proximity_);
+//	sound_feedback_sound_proximity_.Play();
+	// for hit
+	sound_feedback_samples_hit_.resize(441*20);
+	for (unsigned int k=0; k<sound_feedback_samples_hit_.size(); ++k)
+		sound_feedback_samples_hit_[k] = 32767*sin((double)k*0.01 * 2*CV_PI);
+	sound_feedback_buffer_proximity_.LoadFromSamples(&sound_feedback_samples_hit_[0], sound_feedback_samples_hit_.size(), 2, 44100);
+	sound_feedback_sound_hit_.SetBuffer(sound_feedback_buffer_proximity_);
+	sound_feedback_sound_hit_.SetVolume(100.f);
+
 	// subscribers
 	input_marker_detection_sub_.subscribe(node_handle_, "input_marker_detections", 1);
-	it_ = new image_transport::ImageTransport(node_handle_);
-	color_image_sub_.subscribe(*it_, "input_color_image", 1);
+	it_sub_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
+	color_image_sub_.subscribe(*it_sub_, "input_color_image", 1);
 	//input_pointcloud_sub_ = node_handle_.subscribe("input_pointcloud_segments", 10, &ObjectRecording::inputCallback, this);
 	input_pointcloud_sub_.subscribe(node_handle_, "input_pointcloud", 1);
 	input_color_camera_info_sub_ = node_handle_.subscribe("input_color_camera_info", 1, &ObjectRecording::calibrationCallback, this);
+
+	// publishers
+	it_pub_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
+	display_image_pub_ = it_pub_->advertise("display_image", 1);
 
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >(10);
@@ -52,8 +73,8 @@ ObjectRecording::~ObjectRecording()
 {
 	recording_pose_marker_array_publisher_.shutdown();
 
-	if (it_ != 0) delete it_;
-	if (sync_input_ != 0) delete sync_input_;
+//	if (it_sub_ != 0) delete it_sub_;
+//	if (sync_input_ != 0) delete sync_input_;
 }
 
 
@@ -205,7 +226,7 @@ bool ObjectRecording::saveRecordedObject(cob_object_detection_msgs::SaveRecorded
 		pcl::io::savePCDFile(pcd_filename, pointcloud_segmented, false);
 
 		++saved_perspectives;
-		std::cout << ".";
+		std::cout << "." << std::flush;
 	}
 	std::cout << std::endl;
 
@@ -238,6 +259,32 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 
 	// compute mean coordinate system if multiple markers detected
 	tf::Transform fiducial_pose = computeMarkerPose(input_marker_detections_msg);
+	tf::Transform pose_recorded = fiducial_pose.inverse();
+
+	// compute the closest pose to the camera
+	double closest_pose_distance = 1e20;
+	double closest_translation_distance = 1e20;
+	double closest_orientation_distance = 1e20;
+	unsigned int closest_pose = 0;
+	bool playing_hit_sound = false;
+	for (unsigned int i=0; i<recording_data_.size(); ++i)
+	{
+		double distance_translation = recording_data_[i].pose_desired.getOrigin().distance(pose_recorded.getOrigin());
+		double distance_orientation = recording_data_[i].pose_desired.getRotation().angle(pose_recorded.getRotation());
+		double distance_pose = distance_translation + distance_orientation;
+
+//		std::cout << "  distance=" << distance_translation << "\t angle=" << distance_orientation << "(t=" << distance_threshold_orientation_ << ")" << std::endl;
+//		std::cout << "recording_data_[i].pose_desired: XYZ=(" << recording_data_[i].pose_desired.getOrigin().getX() << ", " << recording_data_[i].pose_desired.getOrigin().getY() << ", " << recording_data_[i].pose_desired.getOrigin().getZ() << "), WABC=(" << recording_data_[i].pose_desired.getRotation().getW() << ", " << recording_data_[i].pose_desired.getRotation().getX() << ", " << recording_data_[i].pose_desired.getRotation().getY() << ", " << recording_data_[i].pose_desired.getRotation().getZ() << "\n";
+//		std::cout << "                  pose_recorded: XYZ=(" << pose_recorded.getOrigin().getX() << ", " << pose_recorded.getOrigin().getY() << ", " << pose_recorded.getOrigin().getZ() << "), WABC=(" << pose_recorded.getRotation().getW() << ", " << pose_recorded.getRotation().getX() << ", " << pose_recorded.getRotation().getY() << ", " << pose_recorded.getRotation().getZ() << "\n";
+
+		if (distance_pose < closest_pose_distance)
+		{
+			closest_pose = i;
+			closest_pose_distance = distance_pose;
+			closest_translation_distance = distance_translation;
+			closest_orientation_distance = distance_orientation;
+		}
+	}
 
 	// check image quality (sharpness)
 	double avg_sharpness = 0.;
@@ -248,45 +295,55 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	if (avg_sharpness < sharpness_threshold_)
 	{
 		ROS_WARN("ObjectRecording::inputCallback: Image quality too low. Discarding image with sharpness %.3f (threshold = %.3f)", avg_sharpness, sharpness_threshold_);
-		return;
 	}
-
-	// compute whether the camera is close to one of the target perspectives
-	for (unsigned int i=0; i<recording_data_.size(); ++i)
+	else
 	{
-		tf::Transform pose_recorded = fiducial_pose.inverse();
+		// compute whether the camera is close enough to one of the target perspectives
+		if (closest_translation_distance <= distance_threshold_translation_ &&	// check translational distance to camera
+			closest_orientation_distance <= distance_threshold_orientation_ && 	// check rotational distance to camera frame
+			closest_pose_distance <= recording_data_[closest_pose].distance_to_desired_pose &&	// check that pose distance is at least as close as last time
+			avg_sharpness >= recording_data_[closest_pose].sharpness_score)		// check that sharpness score is at least as good as last time
+		{
+			// save data
+			recording_data_[closest_pose].image = color_image;
+			recording_data_[closest_pose].pointcloud = input_pointcloud;
+			recording_data_[closest_pose].pose_recorded = pose_recorded;
+			recording_data_[closest_pose].distance_to_desired_pose = closest_pose_distance;
+			recording_data_[closest_pose].sharpness_score = avg_sharpness;
+			recording_data_[closest_pose].perspective_recorded = true;
 
-		// check translational distance to camera
-		double distance_translation = recording_data_[i].pose_desired.getOrigin().distance(pose_recorded.getOrigin());
-		if (distance_translation > distance_threshold_translation_)
-			continue;
-
-		// check rotational distance to camera frame
-		double distance_orientation = recording_data_[i].pose_desired.getRotation().angle(pose_recorded.getRotation());
-		if (distance_orientation > distance_threshold_orientation_)
-			continue;
-
-//		std::cout << "  distance=" << distance_translation << "\t angle=" << distance_orientation << "(t=" << distance_threshold_orientation_ << ")" << std::endl;
-//		std::cout << "recording_data_[i].pose_desired: XYZ=(" << recording_data_[i].pose_desired.getOrigin().getX() << ", " << recording_data_[i].pose_desired.getOrigin().getY() << ", " << recording_data_[i].pose_desired.getOrigin().getZ() << "), WABC=(" << recording_data_[i].pose_desired.getRotation().getW() << ", " << recording_data_[i].pose_desired.getRotation().getX() << ", " << recording_data_[i].pose_desired.getRotation().getY() << ", " << recording_data_[i].pose_desired.getRotation().getZ() << "\n";
-//		std::cout << "                  pose_recorded: XYZ=(" << pose_recorded.getOrigin().getX() << ", " << pose_recorded.getOrigin().getY() << ", " << pose_recorded.getOrigin().getZ() << "), WABC=(" << pose_recorded.getRotation().getW() << ", " << pose_recorded.getRotation().getX() << ", " << pose_recorded.getRotation().getY() << ", " << pose_recorded.getRotation().getZ() << "\n";
-
-		// check that pose distance is at least as close as last time
-		double distance_pose = distance_translation + distance_orientation;
-		if (distance_pose > recording_data_[i].distance_to_desired_pose)
-			continue;
-
-		// check that sharpness score is at least as good as last time
-		if (avg_sharpness < recording_data_[i].sharpness_score)
-			continue;
-
-		// save data
-		recording_data_[i].image = color_image;
-		recording_data_[i].pointcloud = input_pointcloud;
-		recording_data_[i].pose_recorded = pose_recorded;
-		recording_data_[i].distance_to_desired_pose = distance_pose;
-		recording_data_[i].sharpness_score = avg_sharpness;
-		recording_data_[i].perspective_recorded = true;
+			// play hit sound
+			sound_feedback_sound_hit_.Play();
+			playing_hit_sound = true;
+		}
 	}
+
+//	// play proximity sound w.r.t. to target pose distance
+//	if (playing_hit_sound == false && closest_translation_distance < 2.*distance_threshold_translation_ && closest_orientation_distance < 2.*distance_threshold_orientation_);
+//	{
+//		sound_feedback_sound_proximity_.SetVolume(std::max(0., 100. - 50.*closest_translation_distance/(2.*distance_threshold_translation_) - 50.*closest_orientation_distance/(2.*distance_threshold_orientation_)));
+//		sound_feedback_sound_proximity_.Play();
+//	}
+
+	// display direction to closest position
+	cv::Mat display_image = color_image.clone();
+	tf::Vector3 translation_diff_C = fiducial_pose * recording_data_[closest_pose].pose_desired.getOrigin();
+	tf::Vector3 x_rotation_C = fiducial_pose * recording_data_[closest_pose].pose_desired * tf::Vector3(1., 0., 0.);
+	double cos_x_angle = x_rotation_C.x()/sqrt(x_rotation_C.x()*x_rotation_C.x()+x_rotation_C.y()*x_rotation_C.y());	// normalize without z-coordinate to suppress camera tilt influences
+	double sin_x_angle = sin(acos(cos_x_angle)) * (x_rotation_C.y()<0 ? 1. : -1.);
+	int du = 40 * translation_diff_C.getX()*5;	//0.20;
+	int dv = 40 * translation_diff_C.getY()*5.;	//0.20;
+	double dz = pow(2., -translation_diff_C.getZ()*5.);	//0.20);
+	cv::circle(display_image, cv::Point(display_image.cols/2 + du, display_image.rows/2 + dv), 10*dz, cv::Scalar(255,0,0,128), 2);
+	cv::line(display_image, cv::Point(display_image.cols/2+du-20*cos_x_angle, display_image.rows/2+dv+20*sin_x_angle), cv::Point(display_image.cols/2+du+20*cos_x_angle, display_image.rows/2+dv-20*sin_x_angle), cv::Scalar(255,0,0,128), 2);
+	cv::circle(display_image, cv::Point(display_image.cols/2, display_image.rows/2), 10, cv::Scalar(0,255,0,128), 2);
+	cv::line(display_image, cv::Point(display_image.cols/2-20, display_image.rows/2), cv::Point(display_image.cols/2+20, display_image.rows/2), cv::Scalar(0,255,0,128), 2);
+	cv_bridge::CvImage cv_ptr;
+	cv_ptr.image = display_image;
+	cv_ptr.encoding = "bgr8";
+	display_image_pub_.publish(cv_ptr.toImageMsg());
+//	cv::imshow("object recording", display_image);
+//	cv::waitKey(10);
 
 	// display the markers indicating the already recorded perspectives and the missing
 	publishRecordingPoseMarkers(input_marker_detections_msg, fiducial_pose);
@@ -394,7 +451,7 @@ void ObjectRecording::publishRecordingPoseMarkers(const cob_object_detection_msg
 			marker_array_msg_.markers[idx].pose.position.z = pose.getOrigin().getZ();
 			tf::quaternionTFToMsg(pose.getRotation(), marker_array_msg_.markers[idx].pose.orientation);
 
-			marker_array_msg_.markers[idx].lifetime = ros::Duration(1);
+			marker_array_msg_.markers[idx].lifetime = ros::Duration(10);
 			marker_array_msg_.markers[idx].scale.x = 0.01; // shaft diameter
 			marker_array_msg_.markers[idx].scale.y = 0.015; // head diameter
 			marker_array_msg_.markers[idx].scale.z = 0.0; // head length 0=default
