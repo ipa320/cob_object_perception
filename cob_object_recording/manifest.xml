@@ -1,0 +1,29 @@
+<package>
+  <description brief="cob_object_recording">
+
+     cob_object_recording
+
+  </description>
+  <author>Richard Bormann</author>
+  <license>LGPL</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/cob_object_recording</url>
+
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/>
+  <depend package="opencv2"/>
+  <depend package="roscpp"/>
+  <depend package="roslib"/>
+  <depend package="dynamic_reconfigure"/>
+  <depend package="cv_bridge"/>
+  <depend package="std_msgs"/>
+  <depend package="sensor_msgs"/>
+  <depend package="message_filters"/>
+  <depend package="image_transport"/>
+  <depend package="visualization_msgs"/>
+  <depend package="cob_object_detection_msgs"/>
+
+
+</package>
+
+

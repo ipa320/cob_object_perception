@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <include file="$(find cob_fiducials)/ros/launch/fiducials.launch"/>
+
+  <node ns="object_recording" name="object_recording" pkg="cob_object_recording" type="object_recording" output="screen">
+    <remap from="input_pointcloud" to="/camera/depth/points_xyzrgb"/>
+    <remap from="input_color_image" to="/camera/rgb/image"/>
+    <remap from="input_marker_detections" to="/fiducials/detect_fiducials"/>
+    <remap from="input_color_camera_info" to="/camera/rgb/camera_info"/> 
+  </node>
+
+</launch>
