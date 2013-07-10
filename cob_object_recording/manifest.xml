@@ -24,7 +24,7 @@
   <depend package="cob_object_detection_msgs"/>
 
   <rosdep name="boost"/>
-  <rosdep name="sfml"/>
+  <rosdep name="sfml-dev"/>
 
 </package>
 
