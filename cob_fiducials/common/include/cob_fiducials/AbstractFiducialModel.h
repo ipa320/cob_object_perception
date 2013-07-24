@@ -5,17 +5,24 @@
 #ifdef __LINUX__
 	#include "cob_vision_utils/VisionUtils.h"
 	#include "cob_fiducials/FiducialDefines.h"
+	#include "cob_fiducials/AbstractFiducialParameters.h"
 
 	#include "tinyxml.h"
 #else
 	#include "cob_perception_common/cob_vision_utils/common/include/cob_vision_utils/VisionUtils.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/FiducialDefines.h"
+	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/AbstractFiducialParameters.h"
 
 	#include "cob_object_perception_intern/windows/src/extern/TinyXml/tinyxml.h"	
 #endif
 
 #include <boost/shared_ptr.hpp>
 #include <opencv/cv.h>
+// todo: remove after debugging
+#include <opencv/highgui.h>
+
+#include <map>
+#include <fstream>
 
 namespace ipa_Fiducials
 {
@@ -35,7 +42,7 @@ public:
 	//*******************************************************************************
 	virtual ~AbstractFiducialModel(){};
 
-	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, cv::Mat extrinsic_matrix = cv::Mat())
+	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, bool log_or_calibrate_sharpness_measurements, cv::Mat extrinsic_matrix = cv::Mat())
 	{
 		if (camera_matrix.empty())
 		{
@@ -62,6 +69,8 @@ public:
 			m_extrinsic_XYfromC.at<double>(3,3) = 1.0;
 		}
 		
+		m_log_or_calibrate_sharpness_measurements = log_or_calibrate_sharpness_measurements;
+
 		return LoadParameters(directory_and_filename);
 	};
 
@@ -102,6 +111,144 @@ public:
 	/// <code>RET_OK</code> on success
 	virtual unsigned long GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose_CfromO) = 0;
 
+	/// Computes a measure of image sharpness by analyzing the marker region and the inserted Siemens star
+	/// @param image Scene image
+	/// @param pose_CfromO Pose of the detected tag relative to the camera
+	/// @param fiducial_parameters Container for several parameters of the utilized marker. Mainly the offsets are relevant to the function.
+	/// @param sharpness_measure Degree of image sharpness (in [0...1] = [blurry...sharp]) computed by the function.
+	/// @return <code>RET_FAILED</code> if the tag id is invalid
+	/// <code>RET_OK</code> on success
+	unsigned long GetSharpnessMeasure(const cv::Mat& image, t_pose pose_CfromO, const AbstractFiducialParameters& fiducial_parameters, double& sharpness_measure, double sharpness_calibration_parameter_m = 9139.749632393357, double sharpness_calibration_parameter_n = -2670187.875850272)
+	{
+		if (fiducial_parameters.m_id == -1)
+		{
+			std::cerr << "ERROR - AbstractFiducialModel::GetSharpnessMeasure" << std::endl;
+			std::cerr << "\t [FAILED] Could not find general fiducial parameters to the provided id." << std::endl;
+			return ipa_Utils::RET_FAILED;
+		}
+
+		// 1. select image region for sharpness analysis
+		cv::Mat point3d_marker = cv::Mat::zeros(4,3,CV_64FC1);
+		point3d_marker.at<double>(0,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_offset.x;	// upper left
+		point3d_marker.at<double>(0,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y + fiducial_parameters.m_offset.y;
+		point3d_marker.at<double>(1,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_sharpness_pattern_area_rect3d.width + fiducial_parameters.m_offset.x;	// upper right
+		point3d_marker.at<double>(1,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y + fiducial_parameters.m_offset.y;
+		point3d_marker.at<double>(2,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_sharpness_pattern_area_rect3d.width + fiducial_parameters.m_offset.x;	// lower right
+		point3d_marker.at<double>(2,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y - fiducial_parameters.m_sharpness_pattern_area_rect3d.height + fiducial_parameters.m_offset.y;
+		point3d_marker.at<double>(3,0) = fiducial_parameters.m_sharpness_pattern_area_rect3d.x + fiducial_parameters.m_offset.x;	// lower left
+		point3d_marker.at<double>(3,1) = -fiducial_parameters.m_sharpness_pattern_area_rect3d.y - fiducial_parameters.m_sharpness_pattern_area_rect3d.height + fiducial_parameters.m_offset.y;
+		std::vector<cv::Point> sharpness_area(4);
+		cv::Point min_point(image.cols-1, image.rows-1), max_point(0,0);
+		for (int i=0; i<4; ++i)
+		{
+			cv::Mat point3d_camera = pose_CfromO.rot * point3d_marker.row(i).t() + pose_CfromO.trans;
+			cv::Mat point2d_camera = m_camera_matrix * point3d_camera;
+			sharpness_area[i].x = std::max(0, std::min(image.cols-1, cvRound(point2d_camera.at<double>(0)/point2d_camera.at<double>(2))));
+			sharpness_area[i].y = std::max(0, std::min(image.rows-1, cvRound(point2d_camera.at<double>(1)/point2d_camera.at<double>(2))));
+			if (min_point.x > sharpness_area[i].x)
+				min_point.x = sharpness_area[i].x;
+			if (min_point.y > sharpness_area[i].y)
+				min_point.y = sharpness_area[i].y;
+			if (max_point.x < sharpness_area[i].x)
+				max_point.x = sharpness_area[i].x;
+			if (max_point.y < sharpness_area[i].y)
+				max_point.y = sharpness_area[i].y;
+		}
+		cv::Mat roi = image.rowRange(min_point.y, max_point.y);
+		roi = roi.colRange(min_point.x, max_point.x);
+
+		// 2. compute sharpness measure
+		cv::Mat temp, gray_image;
+		cv::cvtColor(roi, temp, CV_BGR2GRAY);
+		cv::normalize(temp, gray_image, 0, 255, cv::NORM_MINMAX);
+
+//		cv::imshow("gray_image", gray_image);
+//		cv::Mat image_copy = image.clone();
+//		for (int i=0; i<4; ++i)
+//			cv::line(image_copy, sharpness_area[i], sharpness_area[(i+1)%4], CV_RGB(0,255,0), 2);
+
+		// map sharpness_area into the roi
+		for (unsigned int i=0; i<sharpness_area.size(); ++i)
+			sharpness_area[i] -= min_point;
+
+		// variant M_V (std. dev. of gray values)
+		std::vector<uchar> gray_values;
+		double avg_gray = 0.;
+		for (int v=0; v<roi.rows; ++v)
+		{
+			for (int u=0; u<roi.cols; ++u)
+			{
+				if (cv::pointPolygonTest(sharpness_area, cv::Point2f(u,v), false) > 0)
+				{
+					uchar val = gray_image.at<uchar>(v,u);
+					gray_values.push_back(val);
+					avg_gray += (double)val;
+				}
+			}
+		}
+		int pixel_count = (int)gray_values.size();
+		if (pixel_count > 0)
+			avg_gray /= (double)pixel_count;
+		double sharpness_score = 0.;
+		for (int i=0; i<pixel_count; ++i)
+			sharpness_score += (double)((int)gray_values[i]-(int)avg_gray)*((int)gray_values[i]-(int)avg_gray);
+//		std::cout << "pixel_count=" << pixel_count << " \t sharpness score=" << sharpness_score << std::endl;
+
+//		double m = 9139.749632393357;	// these numbers come from measuring pixel_count and sharpness_score in all possible situations and interpolating a function (here: a linear function y=m*x+n) with that data
+//		double n = -2670187.875850272;
+		sharpness_measure = std::min(1., sharpness_score / (sharpness_calibration_parameter_m * pixel_count + sharpness_calibration_parameter_n));	// how far is the score from the linear sharpness function
+
+//		std::cout << "sharpness_score_normalized=" << sharpness_score_normalized << std::endl;
+
+		if (m_log_or_calibrate_sharpness_measurements == true)
+		{
+			SharpnessLogData log;
+			log.distance_to_camera= cv::norm(pose_CfromO.trans, cv::NORM_L2);
+			log.pixel_count = pixel_count;
+			log.sharpness_score = sharpness_score;
+			m_log_data.push_back(log);
+
+			cv::imshow("image", image);
+			int key = cv::waitKey(10);
+			if (key == 's')
+			{
+				std::ofstream file("sharpness_log_file.txt", std::ios::out);
+				if (file.is_open() == false)
+					std::cout << "Error: AbstractFiducialModel::GetSharpnessMeasure: Could not open file." << std::endl;
+				else
+				{
+					for (unsigned int i=0; i<m_log_data.size(); ++i)
+						file << m_log_data[i].pixel_count << "\t" << m_log_data[i].distance_to_camera << "\t" << m_log_data[i].sharpness_score << "\n";
+					file.close();
+					std::cout << "Info: AbstractFiducialModel::GetSharpnessMeasure: All data successfully written to disk." << std::endl;
+				}
+			}
+			else if (key == 'c')
+			{
+				// compute linear regression for calibration curve and output result on screen
+				// i.e. the m and n parameters come from measuring pixel_count and sharpness_score in all possible situations
+				// and interpolating a function (here: a linear function y=m*x+n) with that data
+				cv::Mat A = cv::Mat::ones(m_log_data.size(), 2, CV_64FC1);
+				cv::Mat b(m_log_data.size(), 1, CV_64FC1);
+				for (unsigned int i=0; i<m_log_data.size(); ++i)
+				{
+					A.at<double>(i,0) = m_log_data[i].pixel_count;
+					b.at<double>(i) = m_log_data[i].sharpness_score;
+				}
+				cv::Mat line_parameters;
+				cv::solve(A, b, line_parameters, cv::DECOMP_QR);
+
+				std::cout << "The line parameters for the sharpness measure calibration curve are:\n  m = " << std::setprecision(15) << line_parameters.at<double>(0) << "\n  n = " << line_parameters.at<double>(1) << "\n\nPress any key to record further data and calibrate again with the present the additional data.\n" << std::endl;
+				cv::waitKey();
+			}
+		}
+
+//		cv::imshow("sharpness area", image_copy);
+//		cv::waitKey(10);
+
+		return ipa_Utils::RET_OK;
+	}
+
 	// Gets the camera matrix
 	// @return 3x3 camera matrix (fx 0 cx, 0 fy cy, 0 0 1) 
 	cv::Mat GetCameraMatrix()
@@ -134,6 +281,20 @@ public:
 		return ipa_Utils::RET_OK;
 	}
 
+	// Gets the general fiducial parameters for a certain marker
+	// @return general fiducial parameters
+	AbstractFiducialParameters GetGeneralFiducialParameters(int marker_id)
+	{
+		std::map<int, AbstractFiducialParameters>::iterator it = m_general_fiducial_parameters.find(marker_id);
+		if (it==m_general_fiducial_parameters.end())
+		{
+			AbstractFiducialParameters empty;
+			empty.m_id = -1;
+			return empty;
+		}
+		return it->second;
+	};
+
 	/// Load fiducial-centric coordinates of markers from file
 	/// @param directory_and_filename Path to XML filename, where the parameters of all fiducials are stores.
 	/// When using ROS, this function is replaced by parsing a launch file
@@ -147,6 +308,18 @@ private:
 	cv::Mat m_camera_matrix; ///< Intrinsics of camera for PnP estimation
 	cv::Mat m_dist_coeffs; ///< Intrinsics of camera for PnP estimation
 	cv::Mat m_extrinsic_XYfromC; ///< Extrinsics 4x4 of camera to rotate and translate determined transformation before returning it
+
+protected:
+	std::map<int, AbstractFiducialParameters> m_general_fiducial_parameters;	///< map of marker id to some general parameters like offsets
+
+	struct SharpnessLogData
+	{
+		int pixel_count;
+		double distance_to_camera;
+		double sharpness_score;
+	};
+	bool m_log_or_calibrate_sharpness_measurements;	///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve or directly calibrated within the program
+	std::vector<SharpnessLogData> m_log_data;	///< structure for logging measured data
 };
 
 } // end namespace ipa_Fiducials
