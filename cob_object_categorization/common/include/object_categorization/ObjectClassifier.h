@@ -706,14 +706,16 @@ public:
 	int CaptureSegmentedPCD(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void CapturePointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 
-	int HermesDetect(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	// Hermes
+	int HermesDetectInit(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	int HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, SharedImage* pSourceImage, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams, double& pan, double& tilt, double& roll, Eigen::Matrix4f& pFinalTransform);
 	int HermesCapture(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void HermesPointcloudCallbackCapture(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	int HermesComputeRollHistogram(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, cv::Mat& pHistogram, bool pSmooth=true, bool pDisplay=false);
 	int HermesMatchRollHistogram(std::vector<float>& pReferenceHistogram, cv::Mat& pMatchHistogram, int pCoarseStep, int& pOffset, double& pMatchScore);
 	double HermesHistogramIntersectionKernel(std::vector<float>& pReferenceHistogram, cv::Mat& pMatchHistogram, int pOffset);
-	int HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll);
+	int HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform);
 	bool mFinishCapture;
 	double mPanAngle;
 	double mTiltAngle;

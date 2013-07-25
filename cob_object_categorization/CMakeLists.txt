@@ -64,7 +64,8 @@ rosbuild_add_executable(object_categorization
 				common/src/SharedImageJBK.cpp
 				common/src/SharedImageSequence.cpp
 				common/src/ThreeDUtils.cpp
-				common/src/timer.cpp)
+				common/src/timer.cpp
+				common/src/pcl/rsd.cpp)
 				#common/src/pcl/gfpfh.cpp)
 				
 rosbuild_add_executable(object_segmentation ros/src/segmentation_node.cpp)

@@ -82,6 +82,9 @@ protected:
 	cv::Mat projection_matrix_;	///< projection matrix of the calibrated camera that transforms points from 3D to image plane in homogeneous coordinates: [u,v,w]=P*[X,Y,Z,1]
 
 	ObjectClassifier object_classifier_;
+	ObjectClassifier::GlobalFeatureParams global_feature_params_;
+
+	int mode_of_operation_;		///< 1=normal, 2=hermes
 };
 
 #endif /* OBJECT_CATEGORIZATION_H_ */
