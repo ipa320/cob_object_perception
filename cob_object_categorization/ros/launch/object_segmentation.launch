@@ -8,7 +8,7 @@
     <rosparam>
       filter_field_name: z
       filter_limit_min: 0.0
-      filter_limit_max: 2.0
+      filter_limit_max: 1.0
       keep_organized: true
     </rosparam>
   </node>

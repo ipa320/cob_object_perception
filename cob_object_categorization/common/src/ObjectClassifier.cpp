@@ -32,7 +32,7 @@ namespace fs = boost::filesystem;
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/registration/icp.h>
-//#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #ifdef PCL_VERSION_COMPARE //fuerte
 	#ifndef __LINUX__
@@ -9041,17 +9041,18 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 	// C:\Users\rmb\Documents\Studienarbeit\Software\object_categorization\common\files\hermes>"C:\Program Files\PCL 1.4.0\bin\pcd_viewer.exe" -bc 255,255,255 -ps 3 -ax 0.01 output.pcd
 	// "C:\Program Files\PCL 1.4.0\bin\pcd_viewer.exe" -bc 255,255,255 -ps 3 -ax 0.01 C:\Users\rmb\Documents\Studienarbeit\Software\object_categorization\common\files\hermes\output.pcd
 
-	//boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-	//viewer->setBackgroundColor (255, 255, 255);
-	//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(fusedCloud);
-	//viewer->addPointCloud<pcl::PointXYZRGB> (fusedCloud, rgb, "sample cloud");
-	//viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-	//viewer->addCoordinateSystem (1.0);
-	//viewer->initCameraParameters ();
-	//while (!viewer->wasStopped ())
-	//{
-	//	viewer->spinOnce(100);
-	//}
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+	viewer->setBackgroundColor (255, 255, 255);
+	*fusedCloud += *alignedReferenceCloud;
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(fusedCloud);
+	viewer->addPointCloud<pcl::PointXYZRGB> (fusedCloud, rgb, "sample cloud");
+	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
+	viewer->addCoordinateSystem (1.0);
+	viewer->initCameraParameters ();
+	while (!viewer->wasStopped ())
+	{
+		viewer->spinOnce(100);
+	}
 
 	// output to file to check result
 //	*fusedCloud += *alignedReferenceCloud;

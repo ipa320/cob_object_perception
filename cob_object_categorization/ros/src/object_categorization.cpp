@@ -47,12 +47,12 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	// initialize special modes
 	if (mode_of_operation_ == 2)
 	{
-		object_classifier_.HermesLoadCameraCalibration("1", projection_matrix_);
+		object_classifier_.HermesLoadCameraCalibration("shoe_black", projection_matrix_);
 		object_classifier_.HermesDetectInit((ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
 	}
 	else if (mode_of_operation_ == 3)
 	{
-		object_classifier_.HermesLoadCameraCalibration("1", projection_matrix_);
+		object_classifier_.HermesLoadCameraCalibration("shoe_black", projection_matrix_);
 		object_classifier_.HermesBuildDetectionModelFromRecordedData("1", projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
 		std::cout << "training done.";
 		return;
@@ -155,7 +155,7 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 	}
 	cv::imshow("categorized objects", display_color);
 	cv::imshow("segmented image", display_segmentation);
-	cv::waitKey(10);
+	cv::waitKey(40);
 }
 
 /// Converts a color image message to cv::Mat format.
