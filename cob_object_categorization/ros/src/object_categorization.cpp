@@ -38,15 +38,25 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	global_feature_params_.useFullPCAPoseNormalization = false;
 	global_feature_params_.useRollPoseNormalization = true;
 
+	projection_matrix_ = (cv::Mat_<double>(3, 4) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	pointcloud_width_ = 640;
+	pointcloud_height_ = 480;
+
 	mode_of_operation_ = 2;
 
 	// initialize special modes
 	if (mode_of_operation_ == 2)
+	{
+		object_classifier_.HermesLoadCameraCalibration("1", projection_matrix_);
 		object_classifier_.HermesDetectInit((ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
-
-	projection_matrix_ = (cv::Mat_<double>(3, 4) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-	pointcloud_width_ = 640;
-	pointcloud_height_ = 480;
+	}
+	else if (mode_of_operation_ == 3)
+	{
+		object_classifier_.HermesLoadCameraCalibration("1", projection_matrix_);
+		object_classifier_.HermesBuildDetectionModelFromRecordedData("1", projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
+		std::cout << "training done.";
+		return;
+	}
 
 	// subscribers
 	it_ = new image_transport::ImageTransport(node_handle_);
@@ -83,8 +93,8 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 	for (int segmentIndex=0; segmentIndex<(int)input_pointcloud_segments_msg->segments.size(); segmentIndex++)
 	{
 		typedef pcl::PointXYZRGB PointType;
-		pcl::PointCloud<PointType> input_pointcloud;
-		pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], input_pointcloud);
+		pcl::PointCloud<PointType>::Ptr input_pointcloud(new pcl::PointCloud<PointType>);
+		pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], *input_pointcloud);
 
 		// convert to shared image
 		int umin=1e8, vmin=1e8;
@@ -93,24 +103,28 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 		IplImage* coordinate_image = cvCreateImage(cvSize(pointcloud_width_, pointcloud_height_), IPL_DEPTH_32F, 3);
 		cvSetZero(coordinate_image);
 		pcl::PointXYZ avgPoint(0., 0., 0.);
-		for (unsigned int i=0; i<input_pointcloud.size(); i++)
+		unsigned int number_valid_points = 0;
+		for (unsigned int i=0; i<input_pointcloud->size(); i++)
 		{
-			avgPoint.x += input_pointcloud[i].x;
-			avgPoint.y += input_pointcloud[i].y;
-			avgPoint.z += input_pointcloud[i].z;
-			cv::Mat X = (cv::Mat_<double>(4, 1) << input_pointcloud[i].x, input_pointcloud[i].y, input_pointcloud[i].z, 1.0);
+			if ((*input_pointcloud)[i].x==0 && (*input_pointcloud)[i].y==0 && (*input_pointcloud)[i].z==0)
+				continue;
+			++number_valid_points;
+			avgPoint.x += (*input_pointcloud)[i].x;
+			avgPoint.y += (*input_pointcloud)[i].y;
+			avgPoint.z += (*input_pointcloud)[i].z;
+			cv::Mat X = (cv::Mat_<double>(4, 1) << (*input_pointcloud)[i].x, (*input_pointcloud)[i].y, (*input_pointcloud)[i].z, 1.0);
 			cv::Mat x = projection_matrix_ * X;
 			int v = x.at<double>(1)/x.at<double>(2), u = x.at<double>(0)/x.at<double>(2);
-			cvSet2D(color_image, v, u, CV_RGB(input_pointcloud[i].r, input_pointcloud[i].g, input_pointcloud[i].b));
-			cvSet2D(coordinate_image, v, u, cvScalar(input_pointcloud[i].x, input_pointcloud[i].y, input_pointcloud[i].z));
-			display_segmentation.at< cv::Point3_<uchar> >(v,u) = cv::Point3_<uchar>(input_pointcloud[i].b, input_pointcloud[i].g, input_pointcloud[i].r);
+			cvSet2D(color_image, v, u, CV_RGB((*input_pointcloud)[i].r, (*input_pointcloud)[i].g, (*input_pointcloud)[i].b));
+			cvSet2D(coordinate_image, v, u, cvScalar((*input_pointcloud)[i].x, (*input_pointcloud)[i].y, (*input_pointcloud)[i].z));
+			display_segmentation.at< cv::Point3_<uchar> >(v,u) = cv::Point3_<uchar>((*input_pointcloud)[i].b, (*input_pointcloud)[i].g, (*input_pointcloud)[i].r);
 
 			if (u<umin) umin=u;
 			if (v<vmin) vmin=v;
 		}
-		avgPoint.x /= (double)input_pointcloud.size();
-		avgPoint.y /= (double)input_pointcloud.size();
-		avgPoint.z /= (double)input_pointcloud.size();
+		avgPoint.x /= (double)number_valid_points;
+		avgPoint.y /= (double)number_valid_points;
+		avgPoint.z /= (double)number_valid_points;
 
 		SharedImage si;
 		si.setCoord(coordinate_image);
@@ -134,8 +148,7 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 			// Hermes mode
 			double pan=0, tilt=0, roll=0;
 			Eigen::Matrix4f finalTransform;
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_pointcloud_ptr = boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGB> >(&input_pointcloud);
-			object_classifier_.HermesCategorizeObject(input_pointcloud_ptr, avgPoint, &si, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, pan, tilt, roll, finalTransform);
+			object_classifier_.HermesCategorizeObject(input_pointcloud, avgPoint, &si, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, pan, tilt, roll, finalTransform);
 		}
 		si.Release();
 

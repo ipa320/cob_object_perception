@@ -5571,7 +5571,9 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 					std::cout << "\n";
 				}*/
 			
-				std::ofstream timeFout(pTimingLogFileName.c_str(), std::ios::app);
+				std::ofstream timeFout;
+				if (pTimingLogFileName.compare("") != 0)
+					timeFout.open(pTimingLogFileName.c_str(), std::ios::app);
 				unsigned int numberOfPoints = 0;
 				Timer tim, tim1;
 				double elapsedTime = 0.0;
@@ -6737,12 +6739,15 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 				}
 				elapsedTime += tim.getElapsedTimeInMicroSec();
 
-				timeFout << numberOfPoints << "\t";
-				timeFout << elapsedTime;
-				for (int i=0; i<7; i++)
-					timeFout << "\t" << elapsedTime1[i];
-				timeFout << std::endl;
-				timeFout.close();
+				if (pTimingLogFileName.compare("") != 0)
+				{
+					timeFout << numberOfPoints << "\t";
+					timeFout << elapsedTime;
+					for (int i=0; i<7; i++)
+						timeFout << "\t" << elapsedTime1[i];
+					timeFout << std::endl;
+					timeFout.close();
+				}
 
 				cvReleaseMat(&BlobFPCoordinates);
 
@@ -8070,17 +8075,240 @@ void ObjectClassifier::HermesPointcloudCallbackCapture(const pcl::PointCloud<pcl
 }
 
 
+int ObjectClassifier::HermesBuildDetectionModelFromRecordedData(const std::string& object_name, const cv::Mat& projection_matrix, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
+{
+	// create subfolders for data storage
+	std::string data_storage_path = std::string(getenv("HOME")) + "/.ros/";
+
+	fs::path top_level_directory(data_storage_path);
+	if (fs::is_directory(top_level_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+		std::cerr << "\t ... Path '" << top_level_directory.string() << "' is not a directory." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_storage_directory = top_level_directory / fs::path("cob_object_recording/");
+	if (fs::is_directory(object_recording_data_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_instance_storage_directory = object_recording_data_storage_directory / fs::path(object_name);
+	if (fs::is_directory(object_recording_data_instance_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_instance_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	fs::path object_model_data_storage_directory_package = top_level_directory / fs::path("cob_object_categorization/");
+	if (fs::is_directory(object_model_data_storage_directory_package) == false)
+	{
+		// create subfolder
+		if (fs::create_directory(object_model_data_storage_directory_package) == false)
+		{
+			std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+			std::cerr << "\t ... Could not create path '" << object_model_data_storage_directory_package.string() << "'." << std::endl;
+			return false;
+		}
+	}
+
+	fs::path object_model_data_storage_directory_hermes = object_model_data_storage_directory_package / fs::path("hermes/");
+	if (fs::is_directory(object_model_data_storage_directory_hermes) == false)
+	{
+		// create subfolder
+		if (fs::create_directory(object_model_data_storage_directory_hermes) == false)
+		{
+			std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+			std::cerr << "\t ... Could not create path '" << object_model_data_storage_directory_hermes.string() << "'." << std::endl;
+			return false;
+		}
+	}
+
+	std::string metaFileName = object_name + "_labels.txt";
+	fs::path metaFilePath = object_model_data_storage_directory_hermes / fs::path(metaFileName);
+	mLabelFile.open(metaFilePath.string().c_str(), std::ios::out);
+	if (mLabelFile.is_open() == false)
+	{
+		std::cout << "ObjectClassifier::HermesCapture: Error: Could not open " << metaFilePath.string().c_str() << "." << std::endl;
+		return ipa_utils::RET_FAILED;
+	}
+
+	for (fs::directory_iterator classDirIter(object_recording_data_instance_storage_directory.string()); classDirIter!=fs::directory_iterator(); ++classDirIter)
+	{
+		std::string path = classDirIter->path().string();
+		std::string fileName = fs::basename(path);
+		std::string extension = fs::extension(path);
+
+		std::cout << "path=" << path << "    className=" << fileName << "     extension=" << extension << std::endl;
+
+		if (extension.compare(".pcd") != 0)
+			continue;
+
+		int image_width = 640;
+		int image_height = 480;
+
+		// load pointcloud
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::io::loadPCDFile(path, *pointcloud);
+
+		// compute pan and tilt
+		double pan = atan2(pointcloud->sensor_origin_[1], pointcloud->sensor_origin_[0]);
+		double tilt = asin(pointcloud->sensor_origin_[2]/sqrt(pointcloud->sensor_origin_[0]*pointcloud->sensor_origin_[0] + pointcloud->sensor_origin_[1]*pointcloud->sensor_origin_[1] + pointcloud->sensor_origin_[2]*pointcloud->sensor_origin_[2]));
+
+		mLabelFile << path << "\t" << pan << "\t" << tilt << std::endl;
+
+		// center pointcloud and convert to shared image
+		IplImage* color_image = cvCreateImage(cvSize(image_width, image_height), IPL_DEPTH_8U, 3);
+		cvSetZero(color_image);
+		IplImage* coordinate_image = cvCreateImage(cvSize(image_width, image_height), IPL_DEPTH_32F, 3);
+		cvSetZero(coordinate_image);
+		pcl::PointXYZ avgPoint(0., 0., 0.);
+		unsigned int numberValidPoints = 0;
+		for (unsigned int i=0; i<pointcloud->size(); i++)
+		{
+			if ((*pointcloud)[i].x==0 && (*pointcloud)[i].y==0 && (*pointcloud)[i].z==0)
+				continue;
+			++numberValidPoints;
+			avgPoint.x += (*pointcloud)[i].x;
+			avgPoint.y += (*pointcloud)[i].y;
+			avgPoint.z += (*pointcloud)[i].z;
+			cv::Mat X = (cv::Mat_<double>(4, 1) << (*pointcloud)[i].x, (*pointcloud)[i].y, (*pointcloud)[i].z, 1.0);
+			cv::Mat x = projection_matrix * X;
+			int v = x.at<double>(1)/x.at<double>(2), u = x.at<double>(0)/x.at<double>(2);
+			cvSet2D(color_image, v, u, CV_RGB((*pointcloud)[i].r, (*pointcloud)[i].g, (*pointcloud)[i].b));
+			cvSet2D(coordinate_image, v, u, cvScalar((*pointcloud)[i].x, (*pointcloud)[i].y, (*pointcloud)[i].z));
+		}
+		avgPoint.x /= (double)numberValidPoints;
+		avgPoint.y /= (double)numberValidPoints;
+		avgPoint.z /= (double)numberValidPoints;
+
+		SharedImage si;
+		si.setCoord(coordinate_image);
+		si.setShared(color_image);
+
+		/////////////////////
+		// create a pseudo blob
+		BlobFeatureRiB Blob;
+		BlobListRiB Blobs;
+		ipa_utils::IntVector Keys;
+
+		Blob.m_x = 0;
+		Blob.m_y = 0;
+		Blob.m_r = 2;
+		Blob.m_Phi = 0;
+		Blob.m_Res = 0;
+		Blob.m_Id = 1;
+		for (unsigned int j=0; j<64; j++) Blob.m_D.push_back(1);
+		Blob.m_D.push_back(1);		// min/max curvature approximate
+		Blob.m_D.push_back(1);
+		for (int i=0; i<10; i++) Blobs.push_back(Blob);
+
+		// Use Mask for global feature extraction
+		CvMat** featureVector = new CvMat*;
+		*featureVector = NULL;
+		IplImage* mask = cvCreateImage(cvGetSize(si.Shared()), si.Shared()->depth, 1);
+		cvCvtColor(si.Shared(), mask, CV_RGB2GRAY);
+
+		// SAP feature
+		pGlobalFeatureParams.useFeature["sap"] = true;
+		pGlobalFeatureParams.useFeature["vfh"] = false;
+		ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, NULL, false, "");
+		mLabelFile << "sap-" << pGlobalFeatureParams.numberLinesX[0] << "-" << pGlobalFeatureParams.numberLinesY[0] << "-" << pGlobalFeatureParams.polynomOrder[0] << "\t" << (*featureVector)->cols << "\t";
+		for (int i=0; i<(*featureVector)->cols; i++)
+			mLabelFile << cvGetReal1D(*featureVector, i) << "\t";
+		mLabelFile << std::endl;
+
+		// VFH
+		pGlobalFeatureParams.useFeature["sap"] = false;
+		pGlobalFeatureParams.useFeature["vfh"] = true;
+		ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, NULL, false, "");
+		mLabelFile << "vfh\t" << (*featureVector)->cols << "\t";
+		for (int i=0; i<(*featureVector)->cols; i++)
+			mLabelFile << cvGetReal1D(*featureVector, i) << "\t";
+		mLabelFile << std::endl;
+
+		// roll histogram
+		cv::Mat histogram;
+		HermesComputeRollHistogram(pointcloud, avgPoint, histogram, true, false);
+		mLabelFile << "rollhistogram\t" << histogram.cols << "\t";
+		for (int i=0; i<histogram.cols; i++)
+			mLabelFile << histogram.at<float>(i) << "\t";
+		mLabelFile << std::endl;
+
+		// free memory
+		cvReleaseImage(&mask);
+		si.Release();
+		cvReleaseMat(featureVector);
+
+		/////////////////////
+	}
+
+	mLabelFile.close();
+
+	return ipa_utils::RET_OK;
+}
+
+int ObjectClassifier::HermesLoadCameraCalibration(const std::string& object_name, cv::Mat& projection_matrix)
+{
+	std::string data_storage_path = std::string(getenv("HOME")) + "/.ros/";
+
+	fs::path top_level_directory(data_storage_path);
+	if (fs::is_directory(top_level_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Path '" << top_level_directory.string() << "' is not a directory." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_storage_directory = top_level_directory / fs::path("cob_object_recording/");
+	if (fs::is_directory(object_recording_data_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_instance_storage_directory = object_recording_data_storage_directory / fs::path(object_name);
+	if (fs::is_directory(object_recording_data_instance_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_instance_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	std::string calibration_filename = object_recording_data_instance_storage_directory.string() + "/camera_calibration.txt";
+	std::ifstream calibration_file(calibration_filename.c_str(), std::ios::in);
+	if (calibration_file.is_open() == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Could not create file '" << calibration_filename << "'." << std::endl;
+		return false;
+	}
+	projection_matrix.create(3, 4, CV_64FC1);
+	for (int v=0; v<3; ++v)
+		for (int u=0; u<4; ++u)
+			calibration_file >> projection_matrix.at<double>(v,u);
+	calibration_file.close();
+
+	return ipa_utils::RET_OK;
+}
+
+
 int ObjectClassifier::HermesDetectInit(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
 {
 	std::cout << "Input object name: ";
 	std::cin >> mFilePrefix;
 
-	std::stringstream metaFileName;
-	metaFileName << "common/files/hermes/" << mFilePrefix << "_labels.txt";
-	mLabelFile.open(metaFileName.str().c_str(), std::ios::in);
+	std::string metaFileName = std::string(getenv("HOME")) + "/.ros/cob_object_categorization/hermes/" + mFilePrefix + "_labels.txt";
+
+	mLabelFile.open(metaFileName.c_str(), std::ios::in);
 	if (mLabelFile.is_open() == false)
 	{
-		std::cout << "ObjectClassifier::HermesCapture: Error: Could not open " << metaFileName.str() << "." << std::endl;
+		std::cout << "ObjectClassifier::HermesCapture: Error: Could not open " << metaFileName << "." << std::endl;
 		return ipa_utils::RET_FAILED;
 	}
 
@@ -8173,6 +8401,8 @@ int ObjectClassifier::HermesDetectInit(ClusterMode pClusterMode, ClassifierType 
 			itInner->second.push_back(avgRollHistogram);
 		}
 	}
+
+	std::cout << "Data for object " << mFilePrefix << " loaded." << std::endl;
 
 #ifndef __LINUX__
 
@@ -8613,7 +8843,7 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	std::cout << "VFH response:" << std::endl;
 	pGlobalFeatureParams.useFeature["sap"] = false;
 	pGlobalFeatureParams.useFeature["vfh"] = true;
-	ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, pSourceImage->Coord(), mask, NULL, false, "common/files/timing.txt");
+	ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, pSourceImage->Coord(), mask, NULL, false, "");
 	for (itOuter = mVfhData.begin(); itOuter != mVfhData.end(); itOuter++)
 	{
 		for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
@@ -8638,6 +8868,7 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	double matchScore = 0;
 	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
 	roll = roll_i;
+	std::cout << "best matching roll angle: " << roll << std::endl;
 
 	// match full point clouds (ICP)
 	HermesMatchPointClouds(pPointCloud, pAvgPoint, pan, tilt, roll, pFinalTransform);
@@ -8733,22 +8964,35 @@ double ObjectClassifier::HermesHistogramIntersectionKernel(std::vector<float>& p
 int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform)
 {
 	// look up suitable file for reference point cloud
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr referenceCloudOriginal(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr referenceCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr alignedReferenceCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::io::loadPCDFile(mReferenceFilenames[pan][tilt], *referenceCloud);
+	std::cout << "ObjectClassifier::HermesMatchPointClouds: Loading pcd file... " << std::flush;
+	pcl::io::loadPCDFile(mReferenceFilenames[pan][tilt], *referenceCloudOriginal);
+	std::cout << "finished." << std::endl;
 	pcl::PointXYZ avgRefrencePoint(0,0,0);
-	for (int p=0; p<(int)referenceCloud->points.size(); p++)
+	for (int p=0; p<(int)referenceCloudOriginal->points.size(); p++)
 	{
-		avgRefrencePoint.x += referenceCloud->points[p].x;
-		avgRefrencePoint.y += referenceCloud->points[p].y;
-		avgRefrencePoint.z += referenceCloud->points[p].z;
-		referenceCloud->points[p].r = 255;
-		referenceCloud->points[p].g = 0;
-		referenceCloud->points[p].b = 0;
+		pcl::PointXYZRGB& point = referenceCloudOriginal->points[p];
+		if (point.x == 0 && point.y == 0 && point.z == 0)
+			continue;
+		avgRefrencePoint.x += point.x;
+		avgRefrencePoint.y += point.y;
+		avgRefrencePoint.z += point.z;
+		point.r = 255;
+		point.g = 0;
+		point.b = 0;
+		referenceCloud->push_back(point);
 	}
 	avgRefrencePoint.x /= referenceCloud->points.size();
 	avgRefrencePoint.y /= referenceCloud->points.size();
 	avgRefrencePoint.z /= referenceCloud->points.size();
+	referenceCloud->header = referenceCloudOriginal->header;
+	referenceCloud->height = referenceCloudOriginal->height;
+	referenceCloud->width = referenceCloudOriginal->width;
+	referenceCloud->is_dense = referenceCloudOriginal->is_dense;
+	referenceCloud->sensor_orientation_ = referenceCloudOriginal->sensor_orientation_;
+	referenceCloud->sensor_origin_ = referenceCloudOriginal->sensor_origin_;
 
 	Eigen::Matrix4f transform;
 	transform.setIdentity();
@@ -8782,12 +9026,13 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 	}
 
 	// icp
+	std::cout << "Starting ICP" << std::endl;
 	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
 	icp.setInputCloud(alignedCapturedCloud);
 	icp.setInputTarget(alignedReferenceCloud);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr fusedCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 	icp.align(*fusedCloud);
-	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+	std::cout << "ICP has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
 	std::cout << icp.getFinalTransformation() << std::endl;
 
 	pFinalTransform = icp.getFinalTransformation();
