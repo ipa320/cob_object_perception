@@ -12,7 +12,7 @@
 
 template <typename PointInT> void
 EdgeDetection<PointInT>::coordinatesMat
-(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step)
+(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step)
 {
 	/* consider depth coordinates along the line between dotIni and dotEnd
 	 * write them into a matrix
@@ -121,7 +121,7 @@ EdgeDetection<PointInT>::coordinatesMat
 
 template <typename PointInT> void
 EdgeDetection<PointInT>::approximateLine
-(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc, cv::Mat& n, cv::Mat& coordinates, bool& step)
+(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc, cv::Mat& n, cv::Mat& coordinates, bool& step)
 {
 	//Achtung: coordinates-Matrix wird durch SVD verändert
 
@@ -263,7 +263,7 @@ EdgeDetection<PointInT>::approximateLine
 
 template <typename PointInT> void
 EdgeDetection<PointInT>::approximateLine
-(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc)
+(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc)
 {
 
 	//step-detection in den Koordinaten hier nicht mehr nötig, da durch Vergleichen der zwei Geraden für jede Seite schon auffällt, ob man auf Kante oder direkt daneben ist (?)
@@ -404,7 +404,7 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 
 template <typename PointInT> void
 EdgeDetection<PointInT>::approximateLineFullAndHalfDist
-(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc)
+(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc)
 {
 	/*cv::Point2f dot1 = dotIni;
 	cv::Point2f dot2 = dotEnd;
@@ -744,7 +744,7 @@ EdgeDetection<PointInT>::deriv2nd5pts
 
 template <typename PointInT> void
 EdgeDetection<PointInT>::deriv2nd
-(cv::Mat depth_image,PointCloudInPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv)
+(cv::Mat depth_image,PointCloudInConstPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv)
 {
 	cv::Mat coordinates;
 	bool step; //sinnlos
@@ -759,7 +759,7 @@ EdgeDetection<PointInT>::deriv2nd
 
 template <typename PointInT> void
 EdgeDetection<PointInT>::computeDepthEdges
-(cv::Mat depth_image, PointCloudInPtr pointcloud, cv::Mat& edgeImage)
+(cv::Mat depth_image, PointCloudInConstPtr pointcloud, cv::Mat& edgeImage)
 {
 
 	bool decide_curv = DECIDE_CURV;

@@ -29,7 +29,7 @@ class EdgeDetection
 public:
 
 	typedef pcl::PointCloud<PointInT> PointCloudIn;
-	typedef typename PointCloudIn::Ptr PointCloudInPtr;
+	typedef typename PointCloudIn::ConstPtr PointCloudInConstPtr;
 
 	EdgeDetection ():
 		edgeThreshold_(0.5),
@@ -62,16 +62,16 @@ public:
 		windowY_ = y;
 	}
 
-	void computeDepthEdges(cv::Mat depth_image, PointCloudInPtr pointcloud, cv::Mat& edgeImage);
+	void computeDepthEdges(cv::Mat depth_image, PointCloudInConstPtr pointcloud, cv::Mat& edgeImage);
 
 
 private:
 
-	void coordinatesMat(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step);
-	void approximateLine(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc,cv::Mat& n, cv::Mat& coordinates, bool& step);
-	void approximateLine(cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
+	void coordinatesMat(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step);
+	void approximateLine(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc,cv::Mat& n, cv::Mat& coordinates, bool& step);
+	void approximateLine(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
 	void scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalarProduct, int& concaveConvex, bool& step);
-	void approximateLineFullAndHalfDist (cv::Mat& depth_image, PointCloudInPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
+	void approximateLineFullAndHalfDist (cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
 
 	void thinEdges(cv::Mat& edgePicture, int xy);
 	void drawLines(cv::Mat& plotXY, cv::Mat& coordinates, cv::Mat& abc);
@@ -79,7 +79,7 @@ private:
 
 	void deriv2nd3pts (cv::Mat threePoints, float& deriv);
 	void deriv2nd5pts (cv::Mat threePoints, float& deriv);
-	void deriv2nd (cv::Mat depth_image,PointCloudInPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv);
+	void deriv2nd (cv::Mat depth_image,PointCloudInConstPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv);
 
 
 	float edgeThreshold_;	//scalarproduct > edgeThreshold is set to 1 and thus not detected as edge. the larger the threshold, the more lines are detected as edges.

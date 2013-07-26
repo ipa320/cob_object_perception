@@ -47,6 +47,8 @@ rosbuild_add_executable(surface_classification ros/src/surface_classification_no
 												common/src/surface_classification.cpp)
 rosbuild_add_executable(surface_classification ros/src/surface_classification_node.cpp
 												ros/src/scene_recording.cpp)
+rosbuild_add_executable(surface_classification ros/src/surface_classification_node.cpp
+												ros/src/Evaluation.cpp)
 #target_link_libraries(surface_classification cob_3d_mapping_common)
 target_link_libraries(surface_classification cob_3d_curvatureSegmentation)
 rosbuild_link_boost(surface_classification system)

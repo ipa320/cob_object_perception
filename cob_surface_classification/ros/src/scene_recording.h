@@ -27,7 +27,7 @@ class Scene_recording {
 public:
 	Scene_recording();
 	virtual ~Scene_recording();
-	void saveImage(cv::Mat color_image, pcl::PointCloud<pcl::PointXYZRGB> pointcloud);
+	void saveImage(cv::Mat color_image, pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pointcloud);
 
 
 private:

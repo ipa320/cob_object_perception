@@ -59,10 +59,12 @@
 
 /*switches for execution of processing steps*/
 
-#define RECORD_MODE					true
-#define COMPUTATION_MODE			false
+#define RECORD_MODE					false
+#define COMPUTATION_MODE			true
+#define EVALUATION_OFFLINE_MODE		false
+#define EVALUATION_ONLINE_MODE		false
 
-//steps in computation mode:
+//steps in computation/evaluation_online mode:
 
 #define SEG 						true 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
@@ -121,6 +123,8 @@
 
 //records
 #include "scene_recording.h"
+//evaluation
+#include "Evaluation.h"
 
 
 
@@ -209,38 +213,70 @@ public:
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
 
+		//compute depth_image: greyvalue represents depth z
+		cv::Mat depth_image = cv::Mat::zeros(cloud->height, cloud->width, CV_32FC1);
+		for (unsigned int v=0; v<cloud->height; v++)
+		{
+			for (unsigned int u=0; u<cloud->width; u++)
+			{
+				//bei Aufruf aus der Matrix ist der Index (Zeile,Spalte), also (y-Wert,x-Wert)!!!
+				pcl::PointXYZRGB point = cloud->at(u,v);
+				//if(std::isnan(point.z) == false)
+//				if(point.z == point.z)
+					depth_image.at< float >(v,u) = point.z;
+/*				if (u==320 && v==100)
+					std::cout << "320, 100 : " << point.z << std::endl;
+				if (u==320 && v==240)
+					std::cout << "320, 240 : " << point.z << std::endl;
+				if (u==320 && v==380)
+					std::cout << "320, 380 : " << point.z << std::endl;*/
+			}
+		}
+
+		cv::Mat depth_im_scaled;
+		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
+
+		cv::imshow("depth_image", depth_im_scaled);
+		cv::waitKey(10);
+
+
+		//visualization
+		//zeichne Fadenkreuz
+		int lineLength = 30;
+		//cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
+		//cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
+		cv::imshow("image", color_image);
+		cv::waitKey(10);
+
+
+
+
 
 		//record scene
 		//----------------------------------------
 		if(RECORD_MODE)
 		{
-			cv::imshow("image", color_image);
+			cv::Mat im_flipped;
+			cv::flip(color_image, im_flipped,-1);
+			cv::imshow("image", im_flipped);
 			int key = cv::waitKey(50);
-			std::cout <<key<<"\n";
 			//record if "r" is pressed while "image"-window is activated
 			if(key == 1048690)
 			{
-				rec_.saveImage(color_image,*cloud);
+				rec_.saveImage(im_flipped,cloud);
 			}
 
 		}
 
 		//----------------------------------------
 
-		else if(COMPUTATION_MODE)
+		int key;
+		if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
+		//record if "e" is pressed while "image"-window is activated
+		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
 		{
 
 
-
-
-
-			//visualization
-			//zeichne Fadenkreuz
-			int lineLength = 30;
-			cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
-			cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
-			cv::imshow("image", color_image);
-			cv::waitKey(10);
 
 			// get color image from point cloud
 			/*pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
@@ -270,21 +306,7 @@ public:
 			//			}
 			//		}
 
-			//compute depth_image: greyvalue represents depth z
-			cv::Mat depth_image = cv::Mat::zeros(cloud->height, cloud->width, CV_32FC1);
-			for (unsigned int v=0; v<cloud->height; v++)
-			{
-				for (unsigned int u=0; u<cloud->width; u++)
-				{
-					//bei Aufruf aus der Matrix ist der Index (Zeile,Spalte), also (y-Wert,x-Wert)!!!
-					pcl::PointXYZRGB point = cloud->at(u,v);
-					if(std::isnan(point.z) == false)
-						depth_image.at< float >(v,u) = point.z;
-				}
-			}
 
-			cv::imshow("depth_image", depth_image);
-			cv::waitKey(10);
 
 
 
@@ -339,8 +361,7 @@ public:
 				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
 				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
 				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
-				//viewer.addCoordinateSystem (1.0);
-				//viewer.initCameraParameters ();
+
 
 				while (!viewerNormals.wasStopped ())
 				{
@@ -479,7 +500,25 @@ public:
 				viewerClass.removePointCloud("class");
 			}
 
-		}//if(comp_mode)
+			if(EVALUATION_ONLINE_MODE)
+			{
+				eval_.setClusterHandler(graph->clusters());
+				eval_.compareClassification(cloud);
+			}
+
+
+		}
+		if(EVALUATION_OFFLINE_MODE)
+		{
+			/*eval_.setClusterHandler(graph->clusters());
+			std::string path = std::string(getenv("HOME")) + "/rmb-ce/records/cloud2.pcd";
+			eval_.compareClassification(path);*/
+		}
+
+
+
+
+
 	}//inputCallback()
 
 
@@ -509,6 +548,10 @@ private:
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segWithoutEdges_;
 
 	cob_3d_segmentation::ClusterClassifier<ST::CH, ST::Point, ST::Normal, ST::Label> cc_;
+
+
+	//evaluation
+	Evaluation eval_;
 
 };
 

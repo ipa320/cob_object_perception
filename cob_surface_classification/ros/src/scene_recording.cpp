@@ -16,7 +16,7 @@ Scene_recording::Scene_recording() {
 Scene_recording::~Scene_recording() {
 }
 
-void Scene_recording::saveImage(cv::Mat color_image, pcl::PointCloud<pcl::PointXYZRGB> pointcloud)
+void Scene_recording::saveImage(cv::Mat color_image, pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pointcloud)
 {
 
 	//specify path
@@ -29,7 +29,7 @@ void Scene_recording::saveImage(cv::Mat color_image, pcl::PointCloud<pcl::PointX
 
 	//save pointcloud
 	std::string pcd_filename = data_storage_path + "/records/cloud" + nr.str() + ".pcd";
-	pcl::io::savePCDFile(pcd_filename, pointcloud, false);
+	pcl::io::savePCDFile(pcd_filename, *pointcloud, false);
 
 
 	std::cout << "path: " << image_filename << "\n";
