@@ -485,9 +485,6 @@ void ObjectRecording::computePerspective(const double& pan, const double& tilt, 
 
 unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_OfromC, cv::Scalar& xyzr_learning_coordinates, cv::Scalar& uv_learning_boundaries)
 {
-//	cv::Mat xyzImage = coloredPointCloud->GetXYZImage();
-//	cv::Mat colorImage = coloredPointCloud->GetColorImage();
-
 	if (camera_matrix_received_ == false)
 	{
 		std::cerr << "ERROR - ObjectRecording::DoRangeSegmentation:" << std::endl;
@@ -503,6 +500,57 @@ unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, p
 	}
 
 	tf::Transform pose_CfromO = pose_OfromC.inverse();
+
+	// determine floor plane
+	double ground_plane_min_z = 1e10;
+	bool found_fitting_plane = false;
+
+	double start_dx = 0.02;
+	double end_dx = 0.10;
+	double start_dy = 0.10;
+	double end_dy = 0.18;
+	double mean_z = 0.;
+	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
+	{
+		found_fitting_plane = true;
+		if (mean_z < ground_plane_min_z)
+			ground_plane_min_z = mean_z;
+	}
+	start_dx = -0.115;
+	end_dx = -0.035;
+	start_dy = 0.085;
+	end_dy = 0.165;
+	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
+	{
+		found_fitting_plane = true;
+		if (mean_z < ground_plane_min_z)
+			ground_plane_min_z = mean_z;
+	}
+	start_dx = 0.035;
+	end_dx = 0.115;
+	start_dy = -0.165;
+	end_dy = -0.085;
+	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
+	{
+		found_fitting_plane = true;
+		if (mean_z < ground_plane_min_z)
+			ground_plane_min_z = mean_z;
+	}
+	start_dx = -0.10;
+	end_dx = -0.02;
+	start_dy = -0.18;
+	end_dy = -0.10;
+	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
+	{
+		found_fitting_plane = true;
+		if (mean_z < ground_plane_min_z)
+			ground_plane_min_z = mean_z;
+	}
+	if (found_fitting_plane == false)
+		ground_plane_min_z = 0.;
+
+
+
 
 //	if (xyzrLearningCoordinates->val[3] <= 0)
 //	{
@@ -608,7 +656,7 @@ unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, p
 //				cv::Mat pt_in_O = rot_3x3_OfromC * pt_in_C;
 
 				if (std::abs<double>(pt_in_O.getX()) <= xyzr_learning_coordinates.val[0] && std::abs<double>(pt_in_O.getY()) <= xyzr_learning_coordinates.val[1] &&
-					pt_in_O.getZ() >= xyzr_learning_coordinates.val[3] && pt_in_O.getZ() <= xyzr_learning_coordinates.val[2])
+					pt_in_O.getZ() >= ground_plane_min_z+xyzr_learning_coordinates.val[3] && pt_in_O.getZ() <= xyzr_learning_coordinates.val[2])
 					maskDepthValues = false;
 			}
 
@@ -635,6 +683,55 @@ unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, p
 
 	return 0;
 }
+
+
+bool ObjectRecording::FitGroundPlane(const pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_CfromO, double start_dx, double end_dx, double start_dy, double end_dy, double& mean_z)
+{
+	pcl::PointCloud<pcl::PointXYZ> plane_points;
+	for (double dx = start_dx; dx < end_dx; dx += 0.01)
+	{
+		for (double dy = start_dy; dy < end_dy; dy += 0.01)
+		{
+			tf::Vector3 point_O(dx, dy, 0.);
+			tf::Vector3 point_C = pose_CfromO * point_O;
+			int u=0, v=0;
+			ProjectXYZ(point_C.getX(), point_C.getY(), point_C.getZ(), u, v);
+			pcl::PointXYZRGB point = pointcloud.at(u, v);
+			plane_points.push_back(pcl::PointXYZ(point.x, point.y, point.z));
+		}
+	}
+	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+	pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+	// Create the segmentation object
+	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	// Optional
+	seg.setOptimizeCoefficients(true);
+	// Mandatory
+	seg.setModelType(pcl::SACMODEL_PLANE);
+	seg.setMethodType(pcl::SAC_RANSAC);
+	seg.setDistanceThreshold(0.01);
+	seg.setInputCloud(plane_points.makeShared());
+	seg.segment(*inliers, *coefficients);
+
+	// check direction of plane normal vector
+	tf::Vector3 z_vector_object(0., 0., 1.);
+	tf::Vector3 z_vector_plane(coefficients->values[0], coefficients->values[1], coefficients->values[2]);
+	z_vector_plane.normalize();
+	//(z_vector_object * z_vector_plane)/norm(z_vector_plane);
+	if (z_vector_plane.getZ() > 0.9)
+	{
+		// compute mean z value
+		mean_z = 0.;
+		for (unsigned int i=0; i<inliers->indices.size(); ++i)
+			mean_z += plane_points.points[inliers->indices[i]].z;
+		mean_z /= (double)inliers->indices.size();
+
+		return true;
+	}
+	else
+		return false;
+}
+
 
 unsigned long ObjectRecording::ProjectXYZ(double x, double y, double z, int& u, int& v)
 {

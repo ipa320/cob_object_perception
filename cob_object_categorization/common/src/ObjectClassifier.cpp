@@ -8143,7 +8143,7 @@ int ObjectClassifier::HermesBuildDetectionModelFromRecordedData(const std::strin
 		std::string fileName = fs::basename(path);
 		std::string extension = fs::extension(path);
 
-		std::cout << "path=" << path << "    className=" << fileName << "     extension=" << extension << std::endl;
+		//std::cout << "path=" << path << "    className=" << fileName << "     extension=" << extension << std::endl;
 
 		if (extension.compare(".pcd") != 0)
 			continue;
@@ -8160,6 +8160,7 @@ int ObjectClassifier::HermesBuildDetectionModelFromRecordedData(const std::strin
 		double tilt = asin(pointcloud->sensor_origin_[2]/sqrt(pointcloud->sensor_origin_[0]*pointcloud->sensor_origin_[0] + pointcloud->sensor_origin_[1]*pointcloud->sensor_origin_[1] + pointcloud->sensor_origin_[2]*pointcloud->sensor_origin_[2]));
 
 		mLabelFile << path << "\t" << pan << "\t" << tilt << std::endl;
+		std::cout << path << "\t" << pan << "\t" << tilt << std::endl;
 
 		// center pointcloud and convert to shared image
 		IplImage* color_image = cvCreateImage(cvSize(image_width, image_height), IPL_DEPTH_8U, 3);
@@ -8868,6 +8869,7 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	double matchScore = 0;
 	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
 	roll = roll_i;
+	roll = 0; // hack
 	std::cout << "best matching roll angle: " << roll << std::endl;
 
 	// match full point clouds (ICP)

@@ -42,7 +42,8 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	pointcloud_width_ = 640;
 	pointcloud_height_ = 480;
 
-	mode_of_operation_ = 2;
+	node_handle_.param("/object_categorization/object_categorization/mode_of_operation", mode_of_operation_, 1);
+	std::cout<< "mode_of_operation: " << mode_of_operation_ << "\n";
 
 	// initialize special modes
 	if (mode_of_operation_ == 2)
@@ -53,7 +54,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	else if (mode_of_operation_ == 3)
 	{
 		object_classifier_.HermesLoadCameraCalibration("shoe_black", projection_matrix_);
-		object_classifier_.HermesBuildDetectionModelFromRecordedData("1", projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
+		object_classifier_.HermesBuildDetectionModelFromRecordedData("shoe_black", projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
 		std::cout << "training done.";
 		return;
 	}

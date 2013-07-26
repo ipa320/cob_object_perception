@@ -130,6 +130,9 @@ protected:
 	/// @return 0 if everything went well.
 	unsigned long ImageAndRangeSegmentation(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_OfromC, cv::Scalar& xyzr_learning_coordinates, cv::Scalar& uv_learning_boundaries);
 
+	/// fits a ground plane at the provided area of the marker board
+	bool FitGroundPlane(const pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_CfromO, double start_dx, double end_dx, double start_dy, double end_dy, double& mean_z);
+
 	/// Projects a 3D point into the coordinates of the color camera image.
 	unsigned long ProjectXYZ(double x, double y, double z, int& u, int& v);
 
