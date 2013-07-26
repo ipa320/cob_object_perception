@@ -501,55 +501,26 @@ unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, p
 
 	tf::Transform pose_CfromO = pose_OfromC.inverse();
 
-	// determine floor plane
+	// determine min_z coordinate of floor plane
 	double ground_plane_min_z = 1e10;
 	bool found_fitting_plane = false;
 
-	double start_dx = 0.02;
-	double end_dx = 0.10;
-	double start_dy = 0.10;
-	double end_dy = 0.18;
-	double mean_z = 0.;
-	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
+	double start_dx[4] = {0.02, -0.115, 0.035, -0.10};
+	double end_dx[4] = {0.10, -0.035, 0.115, -0.02};
+	double start_dy[4] = {0.10, 0.085, -0.165, -0.18};
+	double end_dy[4] = {0.18, 0.165, -0.085, -0.10};
+	for (int i=0; i<4; ++i)
 	{
-		found_fitting_plane = true;
-		if (mean_z < ground_plane_min_z)
-			ground_plane_min_z = mean_z;
-	}
-	start_dx = -0.115;
-	end_dx = -0.035;
-	start_dy = 0.085;
-	end_dy = 0.165;
-	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
-	{
-		found_fitting_plane = true;
-		if (mean_z < ground_plane_min_z)
-			ground_plane_min_z = mean_z;
-	}
-	start_dx = 0.035;
-	end_dx = 0.115;
-	start_dy = -0.165;
-	end_dy = -0.085;
-	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
-	{
-		found_fitting_plane = true;
-		if (mean_z < ground_plane_min_z)
-			ground_plane_min_z = mean_z;
-	}
-	start_dx = -0.10;
-	end_dx = -0.02;
-	start_dy = -0.18;
-	end_dy = -0.10;
-	if (FitGroundPlane(pointcloud, pose_CfromO, start_dx, end_dx, start_dy, end_dy, mean_z) == true)
-	{
-		found_fitting_plane = true;
-		if (mean_z < ground_plane_min_z)
-			ground_plane_min_z = mean_z;
+		double mean_z = 0.;
+		if (FitGroundPlane(pointcloud, pose_CfromO, start_dx[i], end_dx[i], start_dy[i], end_dy[i], mean_z) == true)
+		{
+			found_fitting_plane = true;
+			if (mean_z < ground_plane_min_z)
+				ground_plane_min_z = mean_z;
+		}
 	}
 	if (found_fitting_plane == false)
 		ground_plane_min_z = 0.;
-
-
 
 
 //	if (xyzrLearningCoordinates->val[3] <= 0)
