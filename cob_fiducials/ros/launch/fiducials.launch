@@ -3,9 +3,9 @@
 
   <!-- topic identifying the rgb source -->
   <!-- arg name="rgb_topic" default="/cam3d/rgb/" /-->
-  <arg name="rgb_topic" default="/camera/rgb/" />
+  <!-- arg name="rgb_topic" default="/camera/rgb/" /-->
   <!--arg name="rgb_topic" default="/stereo/left/" /-->
-  <!--arg name="rgb_topic" default="/stereo/right/" /-->
+  <arg name="rgb_topic" default="/stereo/right/" />
   
   <!-- send parameters to parameter server -->
   <rosparam command="load" ns="fiducials" file="$(find cob_fiducials)/ros/launch/fiducials_0.yaml"/>
