@@ -36,7 +36,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	global_feature_params_.useFeature["grsd"] = false;
 	global_feature_params_.useFeature["gfpfh"] = false;
 	global_feature_params_.useFullPCAPoseNormalization = false;
-	global_feature_params_.useRollPoseNormalization = true;
+	global_feature_params_.useRollPoseNormalization = false;
 
 	projection_matrix_ = (cv::Mat_<double>(3, 4) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 	pointcloud_width_ = 640;
@@ -45,16 +45,18 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	node_handle_.param("/object_categorization/object_categorization/mode_of_operation", mode_of_operation_, 1);
 	std::cout<< "mode_of_operation: " << mode_of_operation_ << "\n";
 
+	std::string object_name = "shoe_green";
+
 	// initialize special modes
 	if (mode_of_operation_ == 2)
 	{
-		object_classifier_.HermesLoadCameraCalibration("shoe_black", projection_matrix_);
+		object_classifier_.HermesLoadCameraCalibration(object_name, projection_matrix_);
 		object_classifier_.HermesDetectInit((ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
 	}
 	else if (mode_of_operation_ == 3)
 	{
-		object_classifier_.HermesLoadCameraCalibration("shoe_black", projection_matrix_);
-		object_classifier_.HermesBuildDetectionModelFromRecordedData("shoe_black", projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
+		object_classifier_.HermesLoadCameraCalibration(object_name, projection_matrix_);
+		object_classifier_.HermesBuildDetectionModelFromRecordedData(object_name, projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
 		std::cout << "training done.";
 		return;
 	}

@@ -84,7 +84,7 @@ protected:
 	ObjectClassifier object_classifier_;
 	ObjectClassifier::GlobalFeatureParams global_feature_params_;
 
-	int mode_of_operation_;		///< 1=normal, 2=hermes
+	int mode_of_operation_;		///< 1=normal, 2=hermes recognize 3=hermes train
 };
 
 #endif /* OBJECT_CATEGORIZATION_H_ */

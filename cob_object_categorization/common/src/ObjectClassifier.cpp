@@ -8154,13 +8154,15 @@ int ObjectClassifier::HermesBuildDetectionModelFromRecordedData(const std::strin
 		// load pointcloud
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::io::loadPCDFile(path, *pointcloud);
+		std::string pcd_path = object_model_data_storage_directory_hermes.string() + object_name + "_" + fileName + extension;
+		pcl::io::savePCDFile(pcd_path, *pointcloud, true);
 
 		// compute pan and tilt
 		double pan = atan2(pointcloud->sensor_origin_[1], pointcloud->sensor_origin_[0]);
 		double tilt = asin(pointcloud->sensor_origin_[2]/sqrt(pointcloud->sensor_origin_[0]*pointcloud->sensor_origin_[0] + pointcloud->sensor_origin_[1]*pointcloud->sensor_origin_[1] + pointcloud->sensor_origin_[2]*pointcloud->sensor_origin_[2]));
 
-		mLabelFile << path << "\t" << pan << "\t" << tilt << std::endl;
-		std::cout << path << "\t" << pan << "\t" << tilt << std::endl;
+		mLabelFile << pcd_path << "\t" << pan << "\t" << tilt << std::endl;
+		std::cout << pcd_path << "\t" << pan << "\t" << tilt << std::endl;
 
 		// center pointcloud and convert to shared image
 		IplImage* color_image = cvCreateImage(cvSize(image_width, image_height), IPL_DEPTH_8U, 3);
@@ -8981,9 +8983,9 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 		avgRefrencePoint.x += point.x;
 		avgRefrencePoint.y += point.y;
 		avgRefrencePoint.z += point.z;
-		point.r = 255;
-		point.g = 0;
-		point.b = 0;
+//		point.r = 255;
+//		point.g = 0;
+//		point.b = 0;
 		referenceCloud->push_back(point);
 	}
 	avgRefrencePoint.x /= referenceCloud->points.size();
@@ -9047,9 +9049,9 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 	viewer->setBackgroundColor (255, 255, 255);
 	*fusedCloud += *alignedReferenceCloud;
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(fusedCloud);
-	viewer->addPointCloud<pcl::PointXYZRGB> (fusedCloud, rgb, "sample cloud");
-	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-	viewer->addCoordinateSystem (1.0);
+	viewer->addPointCloud<pcl::PointXYZRGB>(fusedCloud, rgb, "sample cloud");
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
+	viewer->addCoordinateSystem(1.0);
 	viewer->initCameraParameters ();
 	while (!viewer->wasStopped ())
 	{
