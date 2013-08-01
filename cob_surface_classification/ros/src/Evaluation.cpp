@@ -8,6 +8,7 @@
 #include "Evaluation.h"
 
 
+
 Evaluation::Evaluation() {
 	search_directory = std::string(getenv("HOME")) + "/records/";
 

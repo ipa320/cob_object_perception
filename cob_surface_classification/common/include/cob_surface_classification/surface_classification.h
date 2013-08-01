@@ -57,6 +57,25 @@
 *
 ****************************************************************/
 
+
+
+
+
+
+
+
+
+
+
+
+
+//TO DELETE----------------------------------------------
+
+
+
+
+
+
 #ifndef SURFACE_CLASSIFICATION_H_
 #define SURFACE_CLASSIFICATION_H_
 
@@ -70,7 +89,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/pcl_base.h>
 #include <pcl/features/pfh.h>
-#include <pcl_ros/features/normal_3d.h>
+//#include <pcl_ros/features/normal_3d.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/histogram_visualizer.h>
 #include <pcl/features/fpfh.h>

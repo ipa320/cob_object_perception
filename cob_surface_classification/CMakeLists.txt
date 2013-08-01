@@ -41,7 +41,7 @@ rosbuild_add_library(cob_3d_curvatureSegmentation
 	
 target_link_libraries(cob_3d_curvatureSegmentation cob_3d_segmentation cob_3d_mapping_common)
 
-
+target_link_libraries(cob_3d_curvatureSegmentation	 /usr/lib/libvtkCommon.so.5.8	/usr/lib/libvtkFiltering.so.5.8	/usr/lib/libvtkRendering.so.5.8)
 
 rosbuild_add_executable(surface_classification ros/src/surface_classification_node.cpp
 												common/src/surface_classification.cpp)

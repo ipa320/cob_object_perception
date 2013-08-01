@@ -70,6 +70,10 @@ public:
 	void refineUsingCurvature();
 	void printCurvature(cv::Mat& color_image);
 
+    /// convert to ROS message
+    virtual operator cob_3d_mapping_msgs::ShapeArray() const {ROS_ERROR("TODO: do it"); return cob_3d_mapping_msgs::ShapeArray();}
+
+
 private:
 	bool similarCurvature(ClusterPtr c1, ClusterPtr c2);
 

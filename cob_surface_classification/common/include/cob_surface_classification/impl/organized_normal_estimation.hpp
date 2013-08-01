@@ -375,7 +375,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 		} // end loop of circles
 	}
 
-	//average all computed normals
+	//average all computed normals (= mittlere Normale)
 	n_idx /= (float)n_normals;
 	n_idx = n_idx.normalized();
 	n_x = n_idx(0);
