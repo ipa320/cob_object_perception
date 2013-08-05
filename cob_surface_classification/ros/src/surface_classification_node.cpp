@@ -66,16 +66,16 @@
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						true 	//segmentation
+#define SEG 						false 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement
-#define CLASSIFY 					true	//classification
+#define CLASSIFY 					false	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
 #define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					true 	//visualisation of classification
+#define CLASS_VIS 					false 	//visualisation of classification
 
 
 
@@ -176,34 +176,6 @@ public:
 
 		ROS_INFO("Input Callback");
 
-		struct switches
-		{
-			bool rec_mode;
-			bool comp_mode;
-
-			bool seg;
-			bool seg_without_edges;
-			bool seg_refine;
-			bool classify;
-
-			bool normal_vis;
-			bool seg_vis;
-			bool seg_without_edges_vis;
-			bool class_vis;
-
-		};
-
-		switches s;
-		s.rec_mode = RECORD_MODE;
-		s.comp_mode = COMPUTATION_MODE;
-		s.seg = SEG;
-		s.seg_without_edges = SEG_WITHOUT_EDGES;
-		s.seg_refine = SEG_REFINE;
-		s.classify = CLASSIFY;
-		s.normal_vis = NORMAL_VIS;
-		s.seg_vis = SEG_VIS;
-		s.seg_without_edges_vis= SEG_WITHOUT_EDGES_VIS;
-		s.class_vis = CLASS_VIS;
 
 		// convert color image to cv::Mat
 		cv_bridge::CvImageConstPtr color_image_ptr;
@@ -236,15 +208,15 @@ public:
 		cv::Mat depth_im_scaled;
 		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
 
-		cv::imshow("depth_image", depth_im_scaled);
-		cv::waitKey(10);
+		//cv::imshow("depth_image", depth_im_scaled);
+		//cv::waitKey(10);
 
 
 		//visualization
 		//zeichne Fadenkreuz
 		int lineLength = 30;
-		//cv::line(color_image,cv::Point2f(color_image.cols/2 -lineLength/2, color_image.rows/2),cv::Point2f(color_image.cols/2 +lineLength/2, color_image.rows/2),CV_RGB(0,1,0),1);
-		//cv::line(color_image,cv::Point2f(color_image.cols/2 , color_image.rows/2 +lineLength/2),cv::Point2f(color_image.cols/2 , color_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
+		cv::line(color_image,cv::Point2f(depth_image.cols/2 -lineLength/2, depth_image.rows/2),cv::Point2f(depth_image.cols/2 +lineLength/2, depth_image.rows/2),CV_RGB(0,1,0),1);
+		cv::line(color_image,cv::Point2f(depth_image.cols/2 , depth_image.rows/2 +lineLength/2),cv::Point2f(depth_image.cols/2 , depth_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
 		cv::waitKey(10);
 
@@ -324,7 +296,10 @@ public:
 
 
 			cv::Mat edgeImage = cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1);
+			edgeImage *= 0.5;
 			edge_detection_.computeDepthEdges( depth_image, cloud, edgeImage);
+
+
 			//cv::imshow("edge_image", edgeImage);
 			//cv::waitKey(10);
 
@@ -349,7 +324,7 @@ public:
 
 
 
-			if(s.normal_vis)
+			if(NORMAL_VIS)
 			{
 
 				// visualize normals
@@ -371,7 +346,7 @@ public:
 				viewerNormals.removePointCloud("cloud");
 			}
 
-			if(s.seg)
+			if(SEG)
 			{
 				seg_.setInputCloud(cloud);
 				seg_.setNormalCloudIn(normals);
@@ -379,7 +354,7 @@ public:
 				seg_.setClusterGraphOut(graph);
 				seg_.performInitialSegmentation();
 			}
-			if(s.seg_without_edges)
+			if(SEG_WITHOUT_EDGES)
 			{
 				segWithoutEdges_.setInputCloud(cloud);
 				segWithoutEdges_.setNormalCloudIn(normalsWithoutEdges);
@@ -388,7 +363,7 @@ public:
 				segWithoutEdges_.performInitialSegmentation();
 			}
 
-			if(s.seg_vis)
+			if(SEG_VIS)
 			{
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented(new pcl::PointCloud<pcl::PointXYZRGB>);
 				*segmented = *cloud;
@@ -410,7 +385,7 @@ public:
 				}
 				viewer.removePointCloud("seg");
 			}
-			if(s.seg_without_edges_vis)
+			if(SEG_WITHOUT_EDGES_VIS)
 			{
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedWithoutEdges(new pcl::PointCloud<pcl::PointXYZRGB>);
 				pcl::copyPointCloud<pcl::PointXYZRGB,pcl::PointXYZRGB>(*cloud, *segmentedWithoutEdges);
@@ -432,7 +407,7 @@ public:
 
 
 
-			if(s.seg_refine)
+			if(SEG_REFINE)
 			{
 				//merge segments with similar curvature characteristics
 				segRefined_.setInputCloud(cloud);
@@ -466,7 +441,7 @@ public:
 		viewer.removePointCloud("seg");*/
 
 
-			if(s.classify)
+			if(CLASSIFY)
 			{
 				//classification
 
@@ -477,7 +452,7 @@ public:
 				cc_.setMaskSizeSmooth(14);
 				cc_.classify();
 			}
-			if(s.class_vis)
+			if(CLASS_VIS)
 			{
 
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr classified(new pcl::PointCloud<pcl::PointXYZRGB>);
