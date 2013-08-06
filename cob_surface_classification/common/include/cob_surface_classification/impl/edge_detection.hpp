@@ -92,7 +92,6 @@ EdgeDetection<PointInT>::coordinatesMat
 			}
 			coordinates.at<float>(iCoord,0) = (pointcloud->at(xIter[iX],yIter[iY]).x - x0)
 													+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
-			//coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);	//depth coordinate
 			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);// - z0;
 			coordinates.at<float>(iCoord,2) = 1.0;
 
@@ -269,7 +268,6 @@ template <typename PointInT> void
 EdgeDetection<PointInT>::approximateLine
 (cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc)
 {
-	//hier keine relativen z-Koordinaten
 
 	//step-detection in den Koordinaten hier nicht mehr nötig, da durch Vergleichen der zwei Geraden für jede Seite schon auffällt, ob man auf Kante oder direkt daneben ist (?)
 
@@ -344,8 +342,6 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 	{*/
 
 
-	//std::cout << "scalarProduct()\n";
-
 	//detect steps
 	//------------------------------------------------------------
 
@@ -363,7 +359,7 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 		float zRight = -abc2.at<float>(2)/abc2.at<float>(1);
 
 		//there truly is a step at the central point only if there is none in the coordinates to its left and right
-		if(/*!step && */((zRight - zLeft) > stepThreshold_ || (zRight - zLeft) < -stepThreshold_))
+		if((zRight - zLeft) > stepThreshold_ || (zRight - zLeft) < -stepThreshold_)
 		{
 			//mark step as edge in depth data
 			//scalarProduct = 0;
@@ -375,16 +371,14 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 			//if depth data is continuous: compute scalar product
 			//--------------------------------------------------------
 
-			//normal vector n1=[-1,(-c+a)/b ]
-			//normal vector n1=[1,(-c-a)/b ]
-			//subtract  y-Achsenabschnitt from second coordinates because z-coordinates might not be relative (c != 0)
+			//normal vector n1=[-1,(-c+a)/b -c/b]
+			//normal vector n1=[1,(-c-a)/b -c/b]
+			//subtract  "y-Achsenabschnitt" c/b from second coordinates because z-coordinates might not be relative (c != 0)
 			float b1 =  (abc1.at<float>(0) - abc1.at<float>(2))/abc1.at<float>(1) - zLeft;
 			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1) -zRight;
 
 
-			//Richtungsvektoren der Geraden (zeigen beide von links nach rechts): veraltet
-
-			//cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
+			//directional vectors of the lines: point from central point outwards
 			cv::Mat n1 = (cv::Mat_<float>(1,2) << -1, b1);
 			cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
 
@@ -392,13 +386,10 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 			cv::normalize(n1,n1Norm,1);
 			cv::normalize(n2,n2Norm,1);
 
-			//std::cout <<"n1"<< n1Norm <<"\n";
-			//std::cout <<"n2"<< n2Norm <<"\n";
-
-			//Skalarprodukt liegt zwischen 0 und 1
 			scalarProduct = n1Norm.at<float>(0) * n2Norm.at<float>(0) + n1Norm.at<float>(1) * n2Norm.at<float>(1);
 
 			/*
+			 * Achtung hier noch beachten, dass das VZ von n1 umgedreht wurde!!
 			//recognize inner EDGES (not surfaces) as concave or convex
 			//convex: gradient of right line is larger than gradient of left line
 			//concave: gradient of right line is smaller than gradient of left line
@@ -491,7 +482,7 @@ EdgeDetection<PointInT>::approximateLineFullAndHalfDist
 			abc = cv::Mat::zeros(1,3,CV_32FC1);*/
 
 		//compare the gradients of the lines:
-		if(std::abs(abc2.at<float>(0)) - std::abs(abc1.at<float>(0)) < 0.01)
+		if(std::abs(abc2.at<float>(0)) - std::abs(abc1.at<float>(0)) < 0.001)
 		//if(std::abs(abc2.at<float>(0) - abc1.at<float>(0)) < 0.01)
 			abc = abc1;
 		else
@@ -514,10 +505,10 @@ EdgeDetection<PointInT>::approximateLineFullAndHalfDist
 template <typename PointInT> void
 EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 {
-	//detect edges as local maxima of scalarProduct
-	//--------------------------------------------------------------------------------
+	//detect edges as local maxima of scalarProduct (smaller than plane threshold s_{th,plane}
+	//-----------------------------------------------------------------------------------------
 
-	int neighboursOnOneSide = 10;
+	int neighboursOnOneSide =40;//9;
 	int neighbourhoodSize = neighboursOnOneSide*2 +1;
 	cv::Mat neighbourhood = cv::Mat::zeros(1,neighbourhoodSize,CV_32FC1);
 
@@ -544,7 +535,7 @@ EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 				{
 					//check if current value is larger than hitherto assumed maximum
 					//if(edgePicture.at<float>(iY,iX + iNeigh) < min)
-					if(edgePicture.at<float>(iY,iX + iNeigh) > max)
+					if((edgePicture.at<float>(iY,iX + iNeigh) > max) && (edgePicture.at<float>(iY,iX + iNeigh) < th_plane_))
 					{
 						//minIdx = iX + iNeigh;
 						//min = edgePicture.at<float>(iY,minIdx);
@@ -556,7 +547,7 @@ EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 				else if (xy == 1)
 				{
 					//if(edgePicture.at<float>(iY + iNeigh,iX) < min)
-					if(edgePicture.at<float>(iY + iNeigh,iX) > max)
+					if((edgePicture.at<float>(iY + iNeigh,iX) > max) && (edgePicture.at<float>(iY + iNeigh,iX) < th_plane_))
 					{
 						//minIdx = iY + iNeigh;
 						//min = edgePicture.at<float>(minIdx,iX);
@@ -848,7 +839,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			cv::Mat n2;
 			bool step = false;
 
-
+/*
 
 			// line approximation using SVD
 			// ----------------------------------------------------------
@@ -875,9 +866,9 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//besser den Pixel rechts bzw.links von dotMiddle betrachten, damit dotMiddle nicht zu beiden Seiten dazu gerechnet wird (sonst ungenau bei Sprung)
 			approximateLine(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2,n2, coordinates2,step);
+*/
 
 
-/*
 
 
 			//	approximate line using only two points
@@ -895,7 +886,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			//std::cout << "abc1 (left):\n " << abc1 << "\n";
 			//std::cout << "abc2 (right):\n " << abc2 << "\n";
 
-*/
+
 			/* -------------------------------------------------------------------*/
 
 
@@ -978,7 +969,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//timer.start();
 
-
+/*
 
 			// approximate lines using SVD
 			 // -----------------------------------------------------------
@@ -999,7 +990,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 
 			//std::cout << "step: " << step << "\n";
-/*
+*/
 
 			//	approximate line using only two points
 			// -------------------------------------------------------------------//
@@ -1011,7 +1002,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX,iY+1),dotUp, abc2Y);
 
 
-*/
+
 			// -------------------------------------------------------------------//
 
 			//drawLines(plotZW,coordinates1Y,abc1Y);
@@ -1078,7 +1069,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			//edgeImage.at<float>(iY,iX) = scalarProductsX.at<float>(iY,iX);
 			//if(edgeImage.at<float>(iY,iX) > edgeThreshold_ )
 
-			if(edgeImage.at<float>(iY,iX) > -0.5 && edgeImage.at<float>(iY,iX) < 0.8)
+			if(edgeImage.at<float>(iY,iX) > th_edge_ && edgeImage.at<float>(iY,iX) < th_plane_)
 				edgeImage.at<float>(iY,iX) = 1;
 			else
 				edgeImage.at<float>(iY,iX) = 0;

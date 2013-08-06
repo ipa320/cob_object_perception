@@ -37,7 +37,9 @@ public:
 		offsetConcConv_(1.5),
 		lineLength_(20),
 		windowX_(600),
-		windowY_(600)
+		windowY_(600),
+		th_plane_(0.8),
+		th_edge_(-0.5)
 	{};
 
 	inline void setEdgeThreshold(float th)
@@ -88,6 +90,8 @@ private:
 	int lineLength_;	//depth coordinates along two lines with length lineLength/2 are considered
 	int windowX_;	//size of visualization windows in x-direction
 	int windowY_;
+	float th_plane_;	//threshold of scalarproduct. Only smaller values are taken into account for edges.
+	float th_edge_;		//threshold of scalarproduct. Only larger values are taken into account for edges. Should be negative.
 };
 
 
