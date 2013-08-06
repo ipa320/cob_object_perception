@@ -93,7 +93,7 @@ EdgeDetection<PointInT>::coordinatesMat
 			coordinates.at<float>(iCoord,0) = (pointcloud->at(xIter[iX],yIter[iY]).x - x0)
 													+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
 			//coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);	//depth coordinate
-			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]) - z0;
+			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);// - z0;
 			coordinates.at<float>(iCoord,2) = 1.0;
 
 
@@ -269,7 +269,7 @@ template <typename PointInT> void
 EdgeDetection<PointInT>::approximateLine
 (cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc)
 {
-	//hier keine relativen z-Koordinaten (?)
+	//hier keine relativen z-Koordinaten
 
 	//step-detection in den Koordinaten hier nicht mehr nötig, da durch Vergleichen der zwei Geraden für jede Seite schon auffällt, ob man auf Kante oder direkt daneben ist (?)
 
@@ -288,8 +288,7 @@ EdgeDetection<PointInT>::approximateLine
 	float z2 = depth_image.at<float>(dotEnd.y, dotEnd.x);
 
 
-	// c = -z1 -a*w1 with w1=0
-	//c= 0 because of relative coordinates to dotIni --veraltet
+	// c = -z1 -a*w1   with w1=0
 	abc.at<float>(2) = -z1;
 
 	float w2;
@@ -850,7 +849,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			bool step = false;
 
 
-/*
+
 			// line approximation using SVD
 			// ----------------------------------------------------------
 
@@ -878,7 +877,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			approximateLine(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2,n2, coordinates2,step);
 
 
-*/
+/*
 
 
 			//	approximate line using only two points
@@ -896,7 +895,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			//std::cout << "abc1 (left):\n " << abc1 << "\n";
 			//std::cout << "abc2 (right):\n " << abc2 << "\n";
 
-
+*/
 			/* -------------------------------------------------------------------*/
 
 
@@ -979,7 +978,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//timer.start();
 
-/*
+
 
 			// approximate lines using SVD
 			 // -----------------------------------------------------------
@@ -1000,7 +999,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 
 			//std::cout << "step: " << step << "\n";
-*/
+/*
 
 			//	approximate line using only two points
 			// -------------------------------------------------------------------//
@@ -1012,7 +1011,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX,iY+1),dotUp, abc2Y);
 
 
-
+*/
 			// -------------------------------------------------------------------//
 
 			//drawLines(plotZW,coordinates1Y,abc1Y);
