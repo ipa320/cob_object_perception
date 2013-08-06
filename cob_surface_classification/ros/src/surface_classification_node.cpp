@@ -296,7 +296,7 @@ public:
 
 
 			cv::Mat edgeImage = cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1);
-			edgeImage *= 0.5;
+			//edgeImage *= 0.5;
 			edge_detection_.computeDepthEdges( depth_image, cloud, edgeImage);
 
 

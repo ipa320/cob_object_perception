@@ -269,6 +269,7 @@ template <typename PointInT> void
 EdgeDetection<PointInT>::approximateLine
 (cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc)
 {
+	//hier keine relativen z-Koordinaten (?)
 
 	//step-detection in den Koordinaten hier nicht mehr nötig, da durch Vergleichen der zwei Geraden für jede Seite schon auffällt, ob man auf Kante oder direkt daneben ist (?)
 
@@ -287,8 +288,9 @@ EdgeDetection<PointInT>::approximateLine
 	float z2 = depth_image.at<float>(dotEnd.y, dotEnd.x);
 
 
-	// c = -z1
-	abc.at<float>(2) = -z1;
+	// c = -z1 -a*w1 with w1=0 veraltet
+	//c= 0 because of relative coordinates to dotIni
+	abc.at<float>(2) = 0;//-z1;
 
 	float w2;
 
@@ -313,6 +315,7 @@ EdgeDetection<PointInT>::approximateLine
 		if(w2 != 0)
 		{
 			// a = -(z2-z1) /(w2-w1);
+			// with w1=0
 			abc.at<float>(0) = (z1-z2) /w2;
 		}
 		else
@@ -373,13 +376,14 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 			//if depth data is continuous: compute scalar product
 			//--------------------------------------------------------
 
-			//normal vector n1=[-1,(-c+a)/b]
-			//normal vector n1=[1,(-c-a)/b]
-			float b1 =  (abc1.at<float>(0) - abc1.at<float>(2))/abc1.at<float>(1);
-			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);
+			//normal vector n1=[-1,(-c+a)/b ]
+			//normal vector n1=[1,(-c-a)/b ]
+			//subtract c (y-Achsenabschnitt) from second coordinates because z-coordinates might not be relative (c != 0)
+			float b1 =  (abc1.at<float>(0) - abc1.at<float>(2))/abc1.at<float>(1);// - abc1.at<float>(2);
+			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);// - abc1.at<float>(2);
 
 
-			//Richtungsvektoren der Geraden (zeigen beide von links nach rechts):
+			//Richtungsvektoren der Geraden (zeigen beide von links nach rechts): veraltet
 
 			//cv::Mat n1 = (cv::Mat_<float>(1,2) << 1, b1);
 			cv::Mat n1 = (cv::Mat_<float>(1,2) << -1, b1);
@@ -489,6 +493,7 @@ EdgeDetection<PointInT>::approximateLineFullAndHalfDist
 
 		//compare the gradients of the lines:
 		if(std::abs(abc2.at<float>(0)) - std::abs(abc1.at<float>(0)) < 0.01)
+		//if(std::abs(abc2.at<float>(0) - abc1.at<float>(0)) < 0.01)
 			abc = abc1;
 		else
 			//just beside an edge -> do not mark as edge
@@ -513,7 +518,7 @@ EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 	//detect edges as local maxima of scalarProduct
 	//--------------------------------------------------------------------------------
 
-	int neighboursOnOneSide = 9;
+	int neighboursOnOneSide = 10;
 	int neighbourhoodSize = neighboursOnOneSide*2 +1;
 	cv::Mat neighbourhood = cv::Mat::zeros(1,neighbourhoodSize,CV_32FC1);
 
@@ -565,7 +570,7 @@ EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 			//if(min != 2 && minIdx != -1)
 			if(max != 2 && maxIdx != -1)
 			{
-				//set all values in neighbourhood to -1, except for maximum value
+				//set all values in neighbourhood to -1 (=no edge), except for maximum value
 				for(int iNeigh= - neighboursOnOneSide ; iNeigh <= neighboursOnOneSide; iNeigh++)
 				{
 					if(xy == 0)
@@ -845,7 +850,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			bool step = false;
 
 
-
+/*
 			// line approximation using SVD
 			// ----------------------------------------------------------
 
@@ -872,7 +877,10 @@ EdgeDetection<PointInT>::computeDepthEdges
 			//besser den Pixel rechts bzw.links von dotMiddle betrachten, damit dotMiddle nicht zu beiden Seiten dazu gerechnet wird (sonst ungenau bei Sprung)
 			approximateLine(depth_image,pointcloud, cv::Point2f(iX+1,iY),dotRight, abc2,n2, coordinates2,step);
 
-			/*
+
+*/
+
+
 			//	approximate line using only two points
 			// -------------------------------------------------------------------
 
@@ -887,7 +895,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//std::cout << "abc1 (left):\n " << abc1 << "\n";
 			//std::cout << "abc2 (right):\n " << abc2 << "\n";
-			 */
+
 
 			/* -------------------------------------------------------------------*/
 
@@ -900,15 +908,15 @@ EdgeDetection<PointInT>::computeDepthEdges
 			//drawLineAlongN(plotZW,coordinates2,n2);
 
 //float scalProdX = 1;
-			float scalProdX = 0;
+			float scalProdX = -1;
 			int concConv = 0;
 
 
-			if(abc1.at<float>(0,2) == 0 || abc2.at<float>(0,2) == 0)
+			if(abc1.at<float>(0,1) == 0 || abc2.at<float>(0,1) == 0)
 			{
 				//abc could not be approximated or no edge (see approximateLineFullAndHalfDist())
 				//scalProdX = 1;
-				edgeImage.at<float>(iY,iX) = 0;
+				//edgeImage.at<float>(iY,iX) = 0;
 				scalProdX = -1;
 				//std::cout << "no edge";
 			}
@@ -916,7 +924,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			{
 				//if nan at center point, mark as edge
 				//scalProdX = 0;
-				edgeImage.at<float>(iY,iX) = 1;
+				//edgeImage.at<float>(iY,iX) = 1;
 				scalProdX = 0.5;
 				//std::cout << "edge";
 			}
@@ -971,6 +979,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//timer.start();
 
+/*
+
 			// approximate lines using SVD
 			 // -----------------------------------------------------------
 
@@ -990,7 +1000,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 
 			//std::cout << "step: " << step << "\n";
-/*
+*/
 
 			//	approximate line using only two points
 			// -------------------------------------------------------------------//
@@ -999,7 +1009,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			step = false;
 
 			approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX,iY-1),dotDown, abc1Y);
-			approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX,iY+1),dotUp, abc2Y);*/
+			approximateLineFullAndHalfDist(depth_image,pointcloud, cv::Point2f(iX,iY+1),dotUp, abc2Y);
 
 
 
@@ -1010,18 +1020,18 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			float scalProdY = 1;
 			int concConvY = 0;
-			if(abc1Y.at<float>(0,2) == 0 || abc2Y.at<float>(0,2) == 0)
+			if(abc1Y.at<float>(0,1) == 0 || abc2Y.at<float>(0,1) == 0)
 			{
 				//abc could not be approximated or no edge (see approximateLineFullAndHalfDist())
 				//scalProdY = 1;
-				edgeImage.at<float>(iY,iX) = 0;
+				//edgeImage.at<float>(iY,iX) = 0;
 				scalProdY = -1;
 			}
 			else if (isnan(abc1Y.at<float>(0,0)) || isnan(abc2Y.at<float>(0,0)) )
 			{
 				//if nan at center point, mark as edge
 				//scalProdY = 0;
-				edgeImage.at<float>(iY,iX) = 1;
+				//edgeImage.at<float>(iY,iX) = 1;
 				scalProdY = 0.5;
 			}
 			else
