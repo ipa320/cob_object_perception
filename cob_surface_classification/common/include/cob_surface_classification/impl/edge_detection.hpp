@@ -288,9 +288,9 @@ EdgeDetection<PointInT>::approximateLine
 	float z2 = depth_image.at<float>(dotEnd.y, dotEnd.x);
 
 
-	// c = -z1 -a*w1 with w1=0 veraltet
-	//c= 0 because of relative coordinates to dotIni
-	abc.at<float>(2) = 0;//-z1;
+	// c = -z1 -a*w1 with w1=0
+	//c= 0 because of relative coordinates to dotIni --veraltet
+	abc.at<float>(2) = -z1;
 
 	float w2;
 
@@ -378,9 +378,9 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 
 			//normal vector n1=[-1,(-c+a)/b ]
 			//normal vector n1=[1,(-c-a)/b ]
-			//subtract c (y-Achsenabschnitt) from second coordinates because z-coordinates might not be relative (c != 0)
-			float b1 =  (abc1.at<float>(0) - abc1.at<float>(2))/abc1.at<float>(1);// - abc1.at<float>(2);
-			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1);// - abc1.at<float>(2);
+			//subtract  y-Achsenabschnitt from second coordinates because z-coordinates might not be relative (c != 0)
+			float b1 =  (abc1.at<float>(0) - abc1.at<float>(2))/abc1.at<float>(1) - zLeft;
+			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1) -zRight;
 
 
 			//Richtungsvektoren der Geraden (zeigen beide von links nach rechts): veraltet
