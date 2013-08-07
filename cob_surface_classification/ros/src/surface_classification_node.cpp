@@ -68,7 +68,7 @@
 
 #define SEG 						true 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
-#define SEG_REFINE					false 	//segmentation refinement
+#define SEG_REFINE					true 	//segmentation refinement
 #define CLASSIFY 					true	//classification
 
 
@@ -185,31 +185,40 @@ public:
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
 
+		if(cloud->height == 1 && cloud->points.size() == 307200)
+		{
+			cloud->height = 480;
+			cloud->width = 640;
+		}
+
 		//compute depth_image: greyvalue represents depth z
 		cv::Mat depth_image = cv::Mat::zeros(cloud->height, cloud->width, CV_32FC1);
+		int i=0;
 		for (unsigned int v=0; v<cloud->height; v++)
 		{
-			for (unsigned int u=0; u<cloud->width; u++)
+			for (unsigned int u=0; u<cloud->width; u++, i++)
 			{
 				//bei Aufruf aus der Matrix ist der Index (Zeile,Spalte), also (y-Wert,x-Wert)!!!
-				pcl::PointXYZRGB point = cloud->at(u,v);
-				//if(std::isnan(point.z) == false)
+				pcl::PointXYZRGB& point = cloud->at(u,v);
 //				if(point.z == point.z)
 					depth_image.at< float >(v,u) = point.z;
-/*				if (u==320 && v==100)
-					std::cout << "320, 100 : " << point.z << std::endl;
-				if (u==320 && v==240)
-					std::cout << "320, 240 : " << point.z << std::endl;
-				if (u==320 && v==380)
-					std::cout << "320, 380 : " << point.z << std::endl;*/
+////				if (u==320 && v==100)
+//					std::cout << "320, 100 : " << point.z << std::endl;
+//				if (u==320 && v==240)
+//					std::cout << "320, 240 : " << point.z << std::endl;
+//				if (u==320 && v==380)
+//					std::cout << "320, 380 : " << point.z << std::endl;
 			}
 		}
+
+		//std::cout <<"nach depth_image erstellung\n" <<std::flush;
+
 
 		cv::Mat depth_im_scaled;
 		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
 
 		//cv::imshow("depth_image", depth_im_scaled);
-		//cv::waitKey(10);
+		//cv::waitKey();
 
 
 		//visualization
