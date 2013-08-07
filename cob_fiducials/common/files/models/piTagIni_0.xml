@@ -5,8 +5,9 @@
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.040" AC="0.060" />
-		<CrossRatioLine1 AB="0.020" AC="0.080" />
+		<!-- Measurements in % relative to the tag size-->
+		<CrossRatioLine0 AB="0.40" AC="0.60" />
+		<CrossRatioLine1 AB="0.20" AC="0.80" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
@@ -21,8 +22,9 @@
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.030" AC="0.055" />
-		<CrossRatioLine1 AB="0.025" AC="0.070" />
+		<!-- Measurements in % relative to the tag size-->
+		<CrossRatioLine0 AB="0.30" AC="0.55" />
+		<CrossRatioLine1 AB="0.25" AC="0.70" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
@@ -38,8 +40,9 @@
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.025" AC="0.052" />
-		<CrossRatioLine1 AB="0.025" AC="0.062" />
+		<!-- Measurements in % relative to the tag size-->
+		<CrossRatioLine0 AB="0.25" AC="0.52" />
+		<CrossRatioLine1 AB="0.25" AC="0.62" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
@@ -54,8 +57,9 @@
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.045" AC="0.075" />
-		<CrossRatioLine1 AB="0.040" AC="0.074" />
+		<!-- Measurements in % relative to the tag size-->
+		<CrossRatioLine0 AB="0.45" AC="0.75" />
+		<CrossRatioLine1 AB="0.40" AC="0.74" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->

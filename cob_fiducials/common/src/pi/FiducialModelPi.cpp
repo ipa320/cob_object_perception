@@ -1048,16 +1048,16 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 
 		ref_tag.parameters = pi_tags[i];
 
-		double d_line0_AB = pi_tags[i].d_line0_AB; //AB
-		double d_line0_BD = tag_size - pi_tags[i].d_line0_AB; //BD
-		double d_line0_AC = pi_tags[i].d_line0_AC;//AC
-		double d_line0_CD = tag_size - pi_tags[i].d_line0_AC;//CD
+		double d_line0_AB = tag_size * pi_tags[i].d_line0_AB; //AB
+		double d_line0_BD = tag_size - tag_size * pi_tags[i].d_line0_AB; //BD
+		double d_line0_AC = tag_size * pi_tags[i].d_line0_AC;//AC
+		double d_line0_CD = tag_size - tag_size * pi_tags[i].d_line0_AC;//CD
 		ref_tag.cross_ration_0 = (d_line0_AB/d_line0_BD)/(d_line0_AC/d_line0_CD);
 
-		double d_line1_AB = pi_tags[i].d_line1_AB;
-		double d_line1_BD = tag_size - pi_tags[i].d_line1_AB;
-		double d_line1_AC = pi_tags[i].d_line1_AC;
-		double d_line1_CD = tag_size - pi_tags[i].d_line1_AC;
+		double d_line1_AB = tag_size * pi_tags[i].d_line1_AB;
+		double d_line1_BD = tag_size - tag_size * pi_tags[i].d_line1_AB;
+		double d_line1_AC = tag_size * pi_tags[i].d_line1_AC;
+		double d_line1_CD = tag_size - tag_size * pi_tags[i].d_line1_AC;
 		ref_tag.cross_ration_1 = (d_line1_AB/d_line1_BD)/(d_line1_AC/d_line1_CD);
 	
 		// Marker coordinates
