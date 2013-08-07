@@ -167,7 +167,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 
 
 	Eigen::Vector3f p = cloud.points[index].getVector3fMap();	//query point
-	if (pcl_isnan(p(2)))
+	if (isnan(p(2)))
 	{
 		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
 	    label_out = I_NAN;
@@ -184,7 +184,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 	if(!edgeImage_.empty() && edgeImage_.at<float>(idx_y,idx_x) == 0)
 	{
 		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
-	    label_out = I_NAN;
+	    //label_out = I_NAN;
+		label_out = I_EDGE;
 		return;
 	}
 
@@ -235,7 +236,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 			{
 				idx = index + *it_ci;
 				Eigen::Vector3f p_i = cloud.points[idx].getVector3fMap();
-				if ( pcl_isnan(p_i(2)) )                        { ++gab; continue; }               // count as gab point
+				if ( isnan(p_i(2)) )                        { ++gab; continue; }               // count as gab point
 
 
 				ignorePoint = false;

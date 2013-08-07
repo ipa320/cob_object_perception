@@ -66,16 +66,16 @@
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						false 	//segmentation
+#define SEG 						true 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement
-#define CLASSIFY 					false	//classification
+#define CLASSIFY 					true	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
 #define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					false 	//visualisation of classification
+#define CLASS_VIS 					true 	//visualisation of classification
 
 
 
@@ -214,9 +214,9 @@ public:
 
 		//visualization
 		//zeichne Fadenkreuz
-		int lineLength = 30;
-		cv::line(color_image,cv::Point2f(depth_image.cols/2 -lineLength/2, depth_image.rows/2),cv::Point2f(depth_image.cols/2 +lineLength/2, depth_image.rows/2),CV_RGB(0,1,0),1);
-		cv::line(color_image,cv::Point2f(depth_image.cols/2 , depth_image.rows/2 +lineLength/2),cv::Point2f(depth_image.cols/2 , depth_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
+		//int lineLength = 30;
+		//cv::line(color_image,cv::Point2f(depth_image.cols/2 -lineLength/2, depth_image.rows/2),cv::Point2f(depth_image.cols/2 +lineLength/2, depth_image.rows/2),CV_RGB(0,1,0),1);
+		//cv::line(color_image,cv::Point2f(depth_image.cols/2 , depth_image.rows/2 +lineLength/2),cv::Point2f(depth_image.cols/2 , depth_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
 		cv::waitKey(10);
 

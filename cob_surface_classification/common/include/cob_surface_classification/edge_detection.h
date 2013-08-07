@@ -32,7 +32,6 @@ public:
 	typedef typename PointCloudIn::ConstPtr PointCloudInConstPtr;
 
 	EdgeDetection ():
-		edgeThreshold_(0.5),
 		stepThreshold_(0.05),
 		offsetConcConv_(1.5),
 		lineLength_(20),
@@ -42,10 +41,6 @@ public:
 		th_edge_(-0.5)
 	{};
 
-	inline void setEdgeThreshold(float th)
-	{
-		edgeThreshold_ = th;
-	}
 	inline void setStepThreshold(float th)
 	{
 		stepThreshold_ = th;
@@ -84,7 +79,7 @@ private:
 	void deriv2nd (cv::Mat depth_image,PointCloudInConstPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv);
 
 
-	float edgeThreshold_;	//scalarproduct > edgeThreshold is set to 1 and thus not detected as edge. the larger the threshold, the more lines are detected as edges.
+
 	float stepThreshold_;	//minimum distance which is detected as a step in depth coordinates
 	float offsetConcConv_;	//how much the gradients need to differ
 	int lineLength_;	//depth coordinates along two lines with length lineLength/2 are considered
