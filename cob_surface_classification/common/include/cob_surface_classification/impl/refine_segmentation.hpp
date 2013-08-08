@@ -97,7 +97,7 @@ cob_3d_segmentation::RefineSegmentation<ClusterGraphT,PointT,PointNT,PointLabelT
 	  {
 	    //std::cout << c_it->size() << std::endl;
 	    //if (c_it->size() < 20) continue;
-	    if (c_it->type == I_EDGE || c_it->type == I_NAN) continue; //|| c_it->type == I_BORDER) continue;
+	    if (c_it->type == I_EDGE || c_it->type == I_NAN || c_it->type == I_BORDER) continue;
 		graph_->clusters()->computeCurvature(c_it);
 
 
@@ -109,7 +109,7 @@ cob_3d_segmentation::RefineSegmentation<ClusterGraphT,PointT,PointNT,PointLabelT
 	  for ( --c_end; c_end != graph_->clusters()->begin(); --c_end) // iterate from back to front
 	  {
 	    //if ( c_end->size() < 5 ) continue;
-	    if ( c_end->type == I_EDGE || c_end->type == I_NAN) continue;// || c_end->type == I_BORDER) continue;
+	    if ( c_end->type == I_EDGE || c_end->type == I_NAN || c_end->type == I_BORDER) continue;
 	    std::vector<ClusterPtr> adj_list;
 	    //graph_->getConnectedClusters(c_end->id(), adj_list, graph_->edges()->edge_validator);
 	    graph_->getAdjacentClusters(c_end->id(), adj_list);

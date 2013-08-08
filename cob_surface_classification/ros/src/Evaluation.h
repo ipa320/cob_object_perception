@@ -17,6 +17,8 @@
 //pcl
 #include <iostream>
 #include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/point_types_conversion.h>
 
 
 #include <boost/tuple/tuple.hpp>

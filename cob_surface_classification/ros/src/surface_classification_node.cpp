@@ -60,15 +60,15 @@
 /*switches for execution of processing steps*/
 
 #define RECORD_MODE					false
-#define COMPUTATION_MODE			true
+#define COMPUTATION_MODE			false
 #define EVALUATION_OFFLINE_MODE		false
-#define EVALUATION_ONLINE_MODE		false
+#define EVALUATION_ONLINE_MODE		true
 
 //steps in computation/evaluation_online mode:
 
 #define SEG 						true 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
-#define SEG_REFINE					true 	//segmentation refinement
+#define SEG_REFINE					false 	//segmentation refinement
 #define CLASSIFY 					true	//classification
 
 
@@ -214,9 +214,8 @@ public:
 		//std::cout <<"nach depth_image erstellung\n" <<std::flush;
 
 
-		cv::Mat depth_im_scaled;
-		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
-
+		//cv::Mat depth_im_scaled;
+		//cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
 		//cv::imshow("depth_image", depth_im_scaled);
 		//cv::waitKey();
 
@@ -251,10 +250,11 @@ public:
 
 		//----------------------------------------
 
-		int key;
+		int key = 0;
 		if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
+		//std::cout << key <<endl;
 		//record if "e" is pressed while "image"-window is activated
-		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
+		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 101))//1048677))
 		{
 
 
@@ -355,7 +355,7 @@ public:
 				viewerNormals.removePointCloud("cloud");
 			}
 
-			if(SEG)
+			if(SEG || EVALUATION_ONLINE_MODE)
 			{
 				seg_.setInputCloud(cloud);
 				seg_.setNormalCloudIn(normals);
@@ -450,7 +450,7 @@ public:
 		viewer.removePointCloud("seg");*/
 
 
-			if(CLASSIFY)
+			if(CLASSIFY|| EVALUATION_ONLINE_MODE)
 			{
 				//classification
 
