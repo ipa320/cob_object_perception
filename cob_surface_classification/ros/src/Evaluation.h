@@ -20,6 +20,10 @@
 #include <pcl/point_types.h>
 #include <pcl/point_types_conversion.h>
 
+// opencv
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
 
 #include <boost/tuple/tuple.hpp>
 
@@ -33,7 +37,7 @@ public:
     inline void setClusterHandler(ST::CH::Ptr cHdl) { clusterHandler = cHdl; }
 
 	int compareClassification(std::string gt_filename);
-	int compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr gt);
+	int compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr gt, cv::Mat gt_color_image);
 
 private:
 	std::string search_directory;

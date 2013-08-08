@@ -7,6 +7,11 @@
 
 #include "Evaluation.h"
 
+#define HUE_GREEN 		113
+#define HUE_MAGENTA 	0
+#define HUE_YELLOW 		55
+
+
 
 
 Evaluation::Evaluation() {
@@ -22,7 +27,7 @@ Evaluation::Evaluation() {
 
 Evaluation::~Evaluation() {
 }
-
+/*
 int Evaluation::compareClassification(std::string gt_filename)
 {
 
@@ -35,12 +40,12 @@ int Evaluation::compareClassification(std::string gt_filename)
 		return (-1);
 	}
 
-	compareClassification(gt);
+	compareClassification(gt,...colorimage...);
 }
 
+*/
 
-
-int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr gt)
+int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr gt, cv::Mat gt_color_image)
 {
 	//compare all points in clusters of type edge,plane,concave,convex to the colors of the ground truth
 
@@ -56,6 +61,8 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	int countConc = 0;
 	int countConv = 0;
 
+	cv::Mat test_image = cv::Mat::zeros(gt->height, gt->width, CV_8UC3);
+
 
 	//comparison
 	ST::CH::ClusterPtr c_it,c_end;
@@ -65,9 +72,22 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 		if(c_it->type == I_EDGE || c_it->type == I_PLANE || c_it->type == I_CONCAVE || c_it->type == I_CONVEX )
 		{
 			uint32_t rgb = color_tab[c_it->type];
+
+
+
 			for (ST::CH::ClusterType::iterator idx=c_it->begin(); idx != c_it->end(); ++idx)
 			{
 				countCompared++;
+				int v = *idx/gt->width;	//row in image
+				int u = *idx%gt->width;	//column
+				//test_image.at<unsigned char>(v,u) = cvScalarAll(rgb);
+				unsigned char r = rgb >> 16;
+				unsigned char g = rgb >> 8 & 0xFF;
+				unsigned char b = rgb & 0xFF;
+				test_image.at<cv::Vec3b>(v,u)[0] = b;
+				test_image.at<cv::Vec3b>(v,u)[1] = g;
+				test_image.at<cv::Vec3b>(v,u)[2] = r;
+
 				switch(c_it->type)
 				{
 					case I_EDGE: countEdge++; break;
@@ -85,7 +105,7 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 
 				pcl::PointXYZRGBtoXYZHSV ( 	rgb_test, hsv_test);
 				pcl::PointXYZRGBtoXYZHSV ( 	rgb_gt, hsv_gt);
-				if((hsv_test.h - hsv_gt.h) < 2)	//same color (independent from light conditions)
+				if((hsv_test.h - hsv_gt.h) < 3)	//same color (independent from light conditions)
 				{
 					countCorrect++;
 					switch(c_it->type)
@@ -108,7 +128,82 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	std::cout <<"Precision:\n ------------------------\n";
 	std::cout << "compared points: "<< countCompared << ", correctly classified points: " << countCorrect << "\n";
 	std::cout << "Overall number of points in cloud: " << gt->size() << ", number of points not taken into account: " << countNoColorAssigned<<std::endl;
-	std::cout << "correctly classified points of type\n -plane:   \t" << countCorrectPlane <<" out of " <<countPlane <<"\n -concave:\t" << countCorrectConc <<" out of " <<countConc <<"\n -convex:\t" << countCorrectConv <<" out of " <<countConv <<"\n -edge:\t" << countCorrectEdge <<" out of " <<countEdge << std::endl;
-	std::cout <<"Recall:\n ------------------------\n";
+	std::cout << "correctly classified points of type\n -plane:   \t" << countCorrectPlane <<" out of " <<countPlane <<"\n -concave:\t" << countCorrectConc <<" out of " <<countConc <<"\n -convex:\t" << countCorrectConv <<" out of " <<countConv <<"\n -edge: \t" << countCorrectEdge <<" out of " <<countEdge << std::endl;
+
+	cv::imshow("classification",test_image);
+	cv::waitKey(30);
+
+	//recall evaluation
+	//----------------------------------
+	int countCorrect_recall = 0;
+	int countCorrectEdge_recall = 0;
+	int countCorrectPlane_recall = 0;
+	int countCorrectConc_recall = 0;
+	int countCorrectConv_recall = 0;
+	int countCompared_recall = 0;
+	int countNoColorAssigned_recall = 0;
+	int countEdge_recall = 0;
+	int countPlane_recall = 0;
+	int countConc_recall = 0;
+	int countConv_recall = 0;
+
+
+	//compare images
+	for (unsigned int v=0; v<test_image.rows; v++)
+	{
+		for (unsigned int u=0; u<test_image.cols; u++)
+		{
+
+			pcl::PointXYZHSV hsv_gt;	//Point of ground truth
+			pcl::PointXYZHSV hsv_test;	//Point of classified cloud
+			pcl::PointXYZRGB rgb_gt;
+			pcl::PointXYZRGB rgb_test;
+			rgb_gt.b = gt_color_image.at<cv::Vec3b>(v,u)[0];
+			rgb_gt.g = gt_color_image.at<cv::Vec3b>(v,u)[1];
+			rgb_gt.r = gt_color_image.at<cv::Vec3b>(v,u)[2];
+			rgb_test.b = test_image.at<cv::Vec3b>(v,u)[0];
+			rgb_test.g = test_image.at<cv::Vec3b>(v,u)[1];
+			rgb_test.r = test_image.at<cv::Vec3b>(v,u)[2];
+
+			//check for black first (no determining hue value)
+			//if(rgb_gt.r < 40 && rgb_gt.g < 5 && rgb_gt.b < 40 && rgb_test.r < 40 && rgb_test.g < 5 && rgb_test.b < 5)
+//			//{
+//				countCorrectEdge++;
+//				countCorrect_recall++;
+//			}
+			//check for other colors
+//			else
+//			{
+				pcl::PointXYZRGBtoXYZHSV ( 	rgb_test, hsv_test);
+				pcl::PointXYZRGBtoXYZHSV ( 	rgb_gt, hsv_gt);
+				if((hsv_test.h - hsv_gt.h) <3)
+				{
+
+					//black
+					if((hsv_gt.v < 20) && (hsv_test.v < 20))
+					{
+						countCorrect_recall++;
+						countCorrectEdge++;
+					}
+					//other colors
+					else
+					{
+					switch((int)hsv_gt.h)
+					{
+					case HUE_GREEN: countCorrectPlane++; break;
+					case HUE_YELLOW: countCorrectConc++; break;
+					case HUE_MAGENTA: countCorrectConv++; break;
+					}
+					}
+
+				}
+			//}
+
+		}
+	}
+
+	std::cout << "recall:\n-------------------------------------\n";
+	std::cout << "correctly classified points: " << countCorrect_recall;
+
 	return 0;
 }

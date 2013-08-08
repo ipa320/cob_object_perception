@@ -487,7 +487,7 @@ public:
 			if(EVALUATION_ONLINE_MODE)
 			{
 				eval_.setClusterHandler(graph->clusters());
-				eval_.compareClassification(cloud);
+				eval_.compareClassification(cloud,color_image);
 			}
 
 
