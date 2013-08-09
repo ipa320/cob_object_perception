@@ -48,7 +48,32 @@ private:
 
     std::vector<int> color_tab;
 
-    void compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp);
+	struct count
+	{
+		int countCorrect ;
+		int countCorrectEdge;
+		int countCorrectPlane ;
+		int countCorrectConc ;
+		int countCorrectConv ;
+		int countCompared ;
+		int countNoColorAssigned ;
+		int countEdge ;
+		int countPlane ;
+		int countConc ;
+		int countConv ;
+	} ;
+
+	struct percentages
+	{
+		float plane;
+		float edge;
+		float conc;
+		float conv;
+	};
+
+
+	void compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp, Evaluation::count& c);
+    void clusterTypesToColorImage(cv::Mat& test_image, unsigned int height,unsigned int width);
 
 
 
