@@ -38,7 +38,7 @@ public:
 		windowX_(600),
 		windowY_(600),
 		th_plane_(0.8),
-		th_edge_(-0.5)
+		th_edge_(-0.4)
 	{};
 
 	inline void setStepThreshold(float th)

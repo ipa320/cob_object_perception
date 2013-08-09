@@ -39,6 +39,7 @@ public:
 	int compareClassification(std::string gt_filename);
 	int compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr gt, cv::Mat gt_color_image);
 
+
 private:
 	std::string search_directory;
 
@@ -47,6 +48,7 @@ private:
 
     std::vector<int> color_tab;
 
+    void compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp);
 
 
 
