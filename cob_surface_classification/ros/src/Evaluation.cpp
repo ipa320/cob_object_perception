@@ -46,6 +46,18 @@ int Evaluation::compareClassification(std::string gt_filename)
 
  */
 
+float Evaluation::divide(float a, float b)
+{
+	//compute a/b
+	if (b == 0)
+		if(a == 0)
+			return 100;
+		else
+			return 0;
+	else
+		return (a  / b)  * 100;
+}
+
 
 void Evaluation::clusterTypesToColorImage(cv::Mat& test_image, unsigned int height,unsigned int width)
 {
@@ -84,6 +96,8 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 		for (unsigned int u=10; u<imOrigin.cols-10; u++)
 		{
 
+			bool prob=true;
+
 			c.countCompared++;
 			pcl::PointXYZHSV hsv_gt;	//Point of ground truth
 			pcl::PointXYZHSV hsv_test;	//Point of classified cloud
@@ -109,7 +123,7 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 			{
 				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countPlane++;
 				else if (std::abs((int)(hsv_gt.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countConc++;
-				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countConv++;
+				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	{c.countConv++; prob = false;}
 			}
 
 			//comparisons
@@ -120,12 +134,13 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 				c.countCorrectEdge++;
 			}
 			//other colors
-			else if(std::abs((int)(hsv_test.h - hsv_gt.h)) < HUE_DIFF_TH)
+			//hsv_gt.h = -1 if rgb_gt = {0,0,0} black
+			else if((hsv_gt.h != -1) && (std::abs((int)(hsv_test.h - hsv_gt.h)) < HUE_DIFF_TH))
 			{
 				c.countCorrect++;
 				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countCorrectPlane++;
 				else if (std::abs((int)(hsv_gt.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countCorrectConc++;
-				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countCorrectConv++;
+				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	{c.countCorrectConv++; if(prob) std::cout <<"gt: "<<hsv_gt.h <<", "<<hsv_gt.v<<", test: "<<hsv_test.h <<", "<<hsv_test.v<<std::endl;}
 			}
 		}
 	}
@@ -233,13 +248,13 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	compareImagesUsingColor(test_image, gt_color_image, c_p);
 
 	struct percentages p_p = {0,0,0,0};
-	if (c_p.countConc == 0) p_p.conc = 0;  else p_p.conc  = (c_p.countCorrectConc  / c_p.countConc)  * 100;
-	if (c_p.countConv == 0) p_p.conv = 0;  else p_p.conv  = (c_p.countCorrectConv  / c_p.countConv)  * 100;
-	if (c_p.countEdge == 0) p_p.edge = 0;  else p_p.edge  = (c_p.countCorrectEdge  / c_p.countEdge)  * 100;
-	if (c_p.countPlane == 0) p_p.plane = 0;  else p_p.plane = (c_p.countCorrectPlane / c_p.countPlane) * 100;
+	p_p.conc = divide((float) c_p.countCorrectConc, (float) c_p.countConc);
+	p_p.conv  = divide((float)c_p.countCorrectConv ,(float)c_p.countConv);
+	p_p.edge  = divide((float)c_p.countCorrectEdge, (float) c_p.countEdge);
+	p_p.plane = divide((float)c_p.countCorrectPlane, (float)c_p.countPlane);
 
-	std::cout <<"Precision:\n ------------------------\n";
-	std::cout <<  "correctly classified points: " << c_p.countCorrect << " out of: "<< c_p.countCompared << " compared points\n";
+	std::cout <<"\nPrecision:\n ------------------------\n";
+	std::cout <<  "correctly classified points: " << c_p.countCorrect << " out of "<< c_p.countCompared << " compared points\n";
 	std::cout << "Overall number of points in cloud: " << gt->size() << std::endl;
 	std::cout << "correctly classified points of type\n -plane:   \t" << c_p.countCorrectPlane <<" out of " <<c_p.countPlane <<"\n -concave:\t" << c_p.countCorrectConc <<" out of " <<c_p.countConc <<"\n -convex:\t" << c_p.countCorrectConv <<" out of " <<c_p.countConv <<"\n -edge: \t" << c_p.countCorrectEdge <<" out of " <<c_p.countEdge << std::endl;
 
@@ -250,13 +265,13 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	compareImagesUsingColor(gt_color_image, test_image, c_r);
 
 	struct percentages p_r = {0,0,0,0};
-	if (c_r.countConc == 0) p_r.conc = 0;  else p_r.conc  = (c_r.countCorrectConc  / c_r.countConc)  * 100;
-	if (c_r.countConv == 0) p_r.conv = 0;  else p_r.conv  = (c_r.countCorrectConv  / c_r.countConv)  * 100;
-	if (c_r.countEdge == 0) p_r.edge = 0;  else p_r.edge  = (c_r.countCorrectEdge  / c_r.countEdge)  * 100;
-	if (c_r.countPlane == 0) p_r.plane = 0;  else p_r.plane = (c_r.countCorrectPlane / c_r.countPlane) * 100;
+	p_r.conc  = divide((float)c_r.countCorrectConc, (float)c_r.countConc);
+	p_r.conv  = divide((float)c_r.countCorrectConv, (float)c_r.countConv);
+	p_r.edge  = divide((float)c_r.countCorrectEdge, (float)c_r.countEdge);
+	p_r.plane = divide((float)c_r.countCorrectPlane, (float)c_r.countPlane);
 
-	std::cout <<"Recall:\n ------------------------\n";
-	std::cout <<  "correctly classified points: " << c_r.countCorrect << " out of: "<< c_r.countCompared << " compared points\n";
+	std::cout <<"\nRecall:\n ------------------------\n";
+	std::cout <<  "correctly classified points: " << c_r.countCorrect << " out of "<< c_r.countCompared << " compared points\n";
 	std::cout << "Overall number of points in cloud: " << gt->size() << std::endl;
 	std::cout << "correctly classified points of type\n -plane:   \t" << c_r.countCorrectPlane <<" out of " <<c_r.countPlane <<"\n -concave:\t" << c_r.countCorrectConc <<" out of " <<c_r.countConc <<"\n -convex:\t" << c_r.countCorrectConv <<" out of " <<c_r.countConv <<"\n -edge: \t" << c_r.countCorrectEdge <<" out of " <<c_r.countEdge << std::endl;
 

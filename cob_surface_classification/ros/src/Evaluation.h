@@ -71,7 +71,7 @@ private:
 		float conv;
 	};
 
-
+	float divide(float a, float b);
 	void compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp, Evaluation::count& c);
     void clusterTypesToColorImage(cv::Mat& test_image, unsigned int height,unsigned int width);
 
