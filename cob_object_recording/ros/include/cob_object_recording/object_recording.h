@@ -39,7 +39,10 @@
 #include <boost/bind.hpp>
 
 // SFML
-#include <SFML/Audio.hpp>
+//#define WITH_AUDIO_FEEDBACK
+#ifdef WITH_AUDIO_FEEDBACK
+	#include <SFML/Audio.hpp>
+#endif
 
 // PCL
 #include <pcl/ModelCoefficients.h>
@@ -165,6 +168,7 @@ protected:
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 
+#ifdef WITH_AUDIO_FEEDBACK
 	// sound feedback
 	std::vector<sf::Int16> sound_feedback_samples_proximity_;
 	sf::SoundBuffer sound_feedback_buffer_proximity_;
@@ -172,6 +176,7 @@ protected:
 	std::vector<sf::Int16> sound_feedback_samples_hit_;
 	sf::SoundBuffer sound_feedback_buffer_hit_;
 	sf::Sound sound_feedback_sound_hit_;
+#endif
 
 //	unsigned int pointcloud_width_;			///< width of the received point cloud
 //	unsigned int pointcloud_height_;			///< height of the received point cloud

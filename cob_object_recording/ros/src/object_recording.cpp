@@ -16,6 +16,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	prev_marker_array_size_ = 0;
 	camera_matrix_received_ = false;
 
+#ifdef WITH_AUDIO_FEEDBACK
 	// prepare sounds
 	// for proximity
 	sound_feedback_samples_proximity_.resize(441*50);
@@ -32,6 +33,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	sound_feedback_buffer_proximity_.LoadFromSamples(&sound_feedback_samples_hit_[0], sound_feedback_samples_hit_.size(), 2, 44100);
 	sound_feedback_sound_hit_.SetBuffer(sound_feedback_buffer_proximity_);
 	sound_feedback_sound_hit_.SetVolume(100.f);
+#endif
 
 	// subscribers
 	input_marker_detection_sub_.subscribe(node_handle_, "input_marker_detections", 1);
@@ -312,9 +314,11 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 			recording_data_[closest_pose].sharpness_score = avg_sharpness;
 			recording_data_[closest_pose].perspective_recorded = true;
 
+#ifdef WITH_AUDIO_FEEDBACK
 			// play hit sound
 			sound_feedback_sound_hit_.Play();
 			playing_hit_sound = true;
+#endif
 		}
 	}
 
