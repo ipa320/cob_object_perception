@@ -113,16 +113,34 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		cv::RotatedRect box = cv::fitEllipse(pointsf);
 
 		// Plausibility checks
-		if( std::max(box.size.width, box.size.height) > std::min(box.size.width, box.size.height)*max_ellipse_aspect_ratio )
+		double box_max = std::max(box.size.width, box.size.height);
+		double box_min = std::min(box.size.width, box.size.height);
+		if( box_max > box_min*max_ellipse_aspect_ratio )
 			continue;
-		if (std::max(box.size.width, box.size.height) > std::min(src_mat_8U1.rows, src_mat_8U1.cols)*0.2)
+		if (box_max > std::min(src_mat_8U1.rows, src_mat_8U1.cols)*0.2)
 			continue;
-		if (std::min(box.size.width, box.size.height) < 0.5*min_ellipse_size)
+		if (box_min < 0.5*min_ellipse_size)
 			continue;
-		if (std::max(box.size.width, box.size.height) < min_ellipse_size)
+		if (box_max < min_ellipse_size)
 			continue;
 
-		ellipses.push_back(box);
+		// Check for double borders on circles and keep only larger ones
+		bool add_ellipse = true;
+		for(unsigned int i = 0; i < ellipses.size(); i++)
+		{
+			double dist_thresh = box_min*0.1;
+			double dist = std::abs(box.center.x - ellipses[i].center.x) + 
+				std::abs(box.center.y - ellipses[i].center.y);
+			if (dist < dist_thresh)
+			{
+				add_ellipse = false;
+				ellipses[i] = box;
+				break;
+			}
+		}
+		
+		if (add_ellipse)
+			ellipses.push_back(box);
 	}
 
 	if (debug)
@@ -255,7 +273,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 
 // ------------ Fiducial line association --------------------------------------
-	double cross_ratio_max_dist = 0.03;
+	double cross_ratio_max_dist = 0.03; //0.03
 	std::vector<t_pi> final_tag_vec;
 
 	for (unsigned int i = 0; i < m_ref_tag_vec.size(); i++)
@@ -285,6 +303,25 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			else if (std::abs(cross_ratio_i - m_ref_tag_vec[j].cross_ration_1) < cross_ratio_max_dist)
 				m_ref_tag_vec[j].fitting_image_lines_1.push_back(marker_lines[i]);
 		}
+	}
+	
+	if (debug)
+	{
+		//cv::Mat line_image = cv::Mat::zeros(src_mat_8U1.size(), CV_8UC3);
+		cv::Mat line_image = m_debug_img.clone();
+		for (unsigned int j = 0; j < m_ref_tag_vec.size(); j++)
+		{
+			for(unsigned int i = 0; i < m_ref_tag_vec[j].fitting_image_lines_0.size(); i++)
+			{
+				cv::line(line_image, m_ref_tag_vec[j].fitting_image_lines_0[i][0], m_ref_tag_vec[j].fitting_image_lines_0[i][3], cv::Scalar(255, 255, 0), 1, 8);
+			}
+			for(unsigned int i = 0; i < m_ref_tag_vec[j].fitting_image_lines_1.size(); i++)
+			{
+				cv::line(line_image, m_ref_tag_vec[j].fitting_image_lines_1[i][0], m_ref_tag_vec[j].fitting_image_lines_1[i][3], cv::Scalar(255, 0, 255), 1, 8);
+			}
+		}
+		cv::imshow("51 Valid Lines", line_image);
+		cv::waitKey(10);
 	}
 
 	// Search for all tag types independently
@@ -1011,16 +1048,16 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
 
 		ref_tag.parameters = pi_tags[i];
 
-		double d_line0_AB = pi_tags[i].d_line0_AB; //AB
-		double d_line0_BD = tag_size - pi_tags[i].d_line0_AB; //BD
-		double d_line0_AC = pi_tags[i].d_line0_AC;//AC
-		double d_line0_CD = tag_size - pi_tags[i].d_line0_AC;//CD
+		double d_line0_AB = tag_size * pi_tags[i].d_line0_AB; //AB
+		double d_line0_BD = tag_size - tag_size * pi_tags[i].d_line0_AB; //BD
+		double d_line0_AC = tag_size * pi_tags[i].d_line0_AC;//AC
+		double d_line0_CD = tag_size - tag_size * pi_tags[i].d_line0_AC;//CD
 		ref_tag.cross_ration_0 = (d_line0_AB/d_line0_BD)/(d_line0_AC/d_line0_CD);
 
-		double d_line1_AB = pi_tags[i].d_line1_AB;
-		double d_line1_BD = tag_size - pi_tags[i].d_line1_AB;
-		double d_line1_AC = pi_tags[i].d_line1_AC;
-		double d_line1_CD = tag_size - pi_tags[i].d_line1_AC;
+		double d_line1_AB = tag_size * pi_tags[i].d_line1_AB;
+		double d_line1_BD = tag_size - tag_size * pi_tags[i].d_line1_AB;
+		double d_line1_AC = tag_size * pi_tags[i].d_line1_AC;
+		double d_line1_CD = tag_size - tag_size * pi_tags[i].d_line1_AC;
 		ref_tag.cross_ration_1 = (d_line1_AB/d_line1_BD)/(d_line1_AC/d_line1_CD);
 	
 		// Marker coordinates

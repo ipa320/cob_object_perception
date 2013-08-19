@@ -110,7 +110,8 @@ unsigned long FiducialModelAruco::GetPose(cv::Mat& image, std::vector<t_pose>& v
 			cv::Rodrigues(tag_pose.rot, R);
 			//create a rotation matrix for x axis
 			cv::Mat RX=cv::Mat::eye(3,3,CV_64F);
-			float angleRad=M_PI/2;
+			double my_pi = 3.14159265359;
+			float angleRad=my_pi/2;
 			RX.at<float>(1,1)=cos(angleRad);
 			RX.at<float>(1,2)=-sin(angleRad);
 			RX.at<float>(2,1)=sin(angleRad);

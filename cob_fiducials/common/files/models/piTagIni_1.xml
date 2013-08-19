@@ -2,7 +2,7 @@
 	<PI>
 		<ID value="0" />
 		<!-- Tag size in [m] -->
-		<LineWidthHeight value="0.100" />
+		<LineWidthHeight value="0.05" />
 		
 		<!-- Cross ratios line 0 and 1-->
 		<!-- Measurements in % relative to the tag size-->
@@ -11,7 +11,7 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="-0.125" y="0.175" />
+		<Offset x="0" y="0" />
 		
 		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
 		<SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
@@ -19,7 +19,7 @@
 	<PI>
 		<ID value="1" />
 		<!-- Tag size in [m] -->
-		<LineWidthHeight value="0.100" />
+		<LineWidthHeight value="0.05" />
 		
 		<!-- Cross ratios line 0 and 1-->
 		<!-- Measurements in % relative to the tag size-->
@@ -28,7 +28,7 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="0.025" y="-0.075" />
+		<Offset x="0" y="0" />
 		<!--Offset x="-0.05" y="0.05" /-->
 		
 		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
@@ -37,7 +37,7 @@
 	<PI>
 		<ID value="2" />
 		<!-- Tag size in [m] -->
-		<LineWidthHeight value="0.100" />
+		<LineWidthHeight value="0.05" />
 		
 		<!-- Cross ratios line 0 and 1-->
 		<!-- Measurements in % relative to the tag size-->
@@ -46,7 +46,7 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="-0.109" y="-0.090" />
+		<Offset x="0" y="0" />
 		
 		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
 		<SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
@@ -54,7 +54,7 @@
 	<PI>
 		<ID value="3" />
 		<!-- Tag size in [m] -->
-		<LineWidthHeight value="0.100" />
+		<LineWidthHeight value="0.05" />
 		
 		<!-- Cross ratios line 0 and 1-->
 		<!-- Measurements in % relative to the tag size-->
@@ -63,7 +63,7 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="0.009" y="0.190" />
+		<Offset x="0" y="0" />
 		<!--Offset x="-0.05" y="0.05" /-->
 		
 		<!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
