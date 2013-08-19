@@ -284,16 +284,17 @@ public:
     /// Unsubscribe from camera topics if possible.
     void disconnectCallback()
     {
-        if (sub_counter_ > 0)
+    	if (sub_counter_ > 0)
+            sub_counter_--;
+
+    	if (sub_counter_ == 0)
         {
             ROS_INFO("[fiducials] Unsubscribing from camera topics");
 
             color_camera_image_sub_.unsubscribe();
             color_camera_info_sub_.unsubscribe();
-
-            sub_counter_--;
-            ROS_INFO("[fiducials] %i subscribers on camera topics [OK]", sub_counter_);
         }
+    	ROS_INFO("[fiducials] %i subscribers on camera topics [OK]", sub_counter_);
     }
 
     /// Callback is executed, when shared mode is selected

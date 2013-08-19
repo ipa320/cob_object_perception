@@ -39,7 +39,10 @@
 #include <boost/bind.hpp>
 
 // SFML
-#include <SFML/Audio.hpp>
+//#define WITH_AUDIO_FEEDBACK
+#ifdef WITH_AUDIO_FEEDBACK
+	#include <SFML/Audio.hpp>
+#endif
 
 // PCL
 #include <pcl/ModelCoefficients.h>
@@ -124,11 +127,14 @@ protected:
 	/// Segmentation function for removing all parts from the color image and the point cloud that do not belong to the object.
 	/// @param color_image A color image.
 	/// @param pointcloud A point cloud.
-	/// @param pose_OfromC The transform from the object coordinate system to the camera, i.e. that transform which converts from camera coordinates to object coordinates.
+	/// @param pose_OfromC The transform from the object coordinate system to the camera, i.e. that transform which converts from camera coordinates to object coordinates. This transform might be changed with regard to the z-axis using the results from ground plane fitting.
 	/// @param xyzr_learning_coordinates The bounding box of the recording area, all data inside this box is considered part of the object. Attention: val[0]=half length, val[1]=half width, val[2]=full height, val[3]=offset to minimal height 0 (to exclude outliers of the ground plane)
 	/// @param uv_learning_boundaries Returned 2D bounding box of the recorded area in the color image, val[0]=minU, val[1]=maxU, val[2]=minV, val[3]=maxV
 	/// @return 0 if everything went well.
-	unsigned long ImageAndRangeSegmentation(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_OfromC, cv::Scalar& xyzr_learning_coordinates, cv::Scalar& uv_learning_boundaries);
+	unsigned long ImageAndRangeSegmentation(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, tf::Transform& pose_OfromC, cv::Scalar& xyzr_learning_coordinates, cv::Scalar& uv_learning_boundaries);
+
+	/// fits a ground plane at the provided area of the marker board
+	bool FitGroundPlane(const pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_CfromO, double start_dx, double end_dx, double start_dy, double end_dy, pcl::ModelCoefficients& coefficients/*, double& mean_z*/);
 
 	/// Projects a 3D point into the coordinates of the color camera image.
 	unsigned long ProjectXYZ(double x, double y, double z, int& u, int& v);
@@ -162,6 +168,7 @@ protected:
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 
+#ifdef WITH_AUDIO_FEEDBACK
 	// sound feedback
 	std::vector<sf::Int16> sound_feedback_samples_proximity_;
 	sf::SoundBuffer sound_feedback_buffer_proximity_;
@@ -169,6 +176,7 @@ protected:
 	std::vector<sf::Int16> sound_feedback_samples_hit_;
 	sf::SoundBuffer sound_feedback_buffer_hit_;
 	sf::Sound sound_feedback_sound_hit_;
+#endif
 
 //	unsigned int pointcloud_width_;			///< width of the received point cloud
 //	unsigned int pointcloud_height_;			///< height of the received point cloud
