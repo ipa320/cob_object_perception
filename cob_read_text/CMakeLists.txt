@@ -20,6 +20,19 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 INCLUDE_DIRECTORIES(	${PROJECT_SOURCE_DIR}/ros/include
 			${PROJECT_SOURCE_DIR}/common/include)
 
+find_package(Eigen REQUIRED)
+include_directories(${EIGEN_INCLUDE_DIRS})
+add_definitions(${EIGEN_DEFINITIONS})
+
+find_package(VTK REQUIRED)
+include_directories(${VTK_INCLUDE_DIRS})
+
+# external pcl
+#find_package(PCL 1.4 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
 #uncomment if you have defined messages
 #rosbuild_genmsg()
 #uncomment if you have defined services
@@ -55,4 +68,7 @@ rosbuild_link_boost(record_kinect_prosilica filesystem system thread)
 rosbuild_add_executable(script_for_imglist common/src/convertXML.cpp)
 
 rosbuild_add_executable(showPCD common/src/showPCD.cpp)
+target_link_libraries(showPCD ${PCL_LIBRARIES} vtkCommon vtkFiltering)
 rosbuild_link_boost(showPCD thread)
+
+rosbuild_add_roslaunch_check(launch)
