@@ -16,6 +16,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	prev_marker_array_size_ = 0;
 	camera_matrix_received_ = false;
 
+#ifdef WITH_AUDIO_FEEDBACK
 	// prepare sounds
 	// for proximity
 	sound_feedback_samples_proximity_.resize(441*50);
@@ -32,6 +33,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	sound_feedback_buffer_proximity_.LoadFromSamples(&sound_feedback_samples_hit_[0], sound_feedback_samples_hit_.size(), 2, 44100);
 	sound_feedback_sound_hit_.SetBuffer(sound_feedback_buffer_proximity_);
 	sound_feedback_sound_hit_.SetVolume(100.f);
+#endif
 
 	// subscribers
 	input_marker_detection_sub_.subscribe(node_handle_, "input_marker_detections", 1);
@@ -312,9 +314,11 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 			recording_data_[closest_pose].sharpness_score = avg_sharpness;
 			recording_data_[closest_pose].perspective_recorded = true;
 
+#ifdef WITH_AUDIO_FEEDBACK
 			// play hit sound
 			sound_feedback_sound_hit_.Play();
 			playing_hit_sound = true;
+#endif
 		}
 	}
 
@@ -483,11 +487,8 @@ void ObjectRecording::computePerspective(const double& pan, const double& tilt, 
 }
 
 
-unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_OfromC, cv::Scalar& xyzr_learning_coordinates, cv::Scalar& uv_learning_boundaries)
+unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, tf::Transform& pose_OfromC, cv::Scalar& xyzr_learning_coordinates, cv::Scalar& uv_learning_boundaries)
 {
-//	cv::Mat xyzImage = coloredPointCloud->GetXYZImage();
-//	cv::Mat colorImage = coloredPointCloud->GetColorImage();
-
 	if (camera_matrix_received_ == false)
 	{
 		std::cerr << "ERROR - ObjectRecording::DoRangeSegmentation:" << std::endl;
@@ -504,81 +505,117 @@ unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, p
 
 	tf::Transform pose_CfromO = pose_OfromC.inverse();
 
-//	if (xyzrLearningCoordinates->val[3] <= 0)
+//	// determine min_z coordinate of floor plane
+//	double ground_plane_min_z = 1e10;
+//	bool found_fitting_plane = false;
+//
+//	double start_dx[4] = {0.02, -0.115, 0.035, -0.10};
+//	double end_dx[4] = {0.10, -0.035, 0.115, -0.02};
+//	double start_dy[4] = {0.10, 0.085, -0.165, -0.18};
+//	double end_dy[4] = {0.18, 0.165, -0.085, -0.10};
+//	for (int i=0; i<4; ++i)
 //	{
-//		std::cout << "WARNING - ColoredPointCloudToolbox::DoRangeSegmentation:" << std::endl;
-//		std::cout << "\t ... Segmentation radius is smaller or equal 0 \n";
-//		std::cout << "\t ... Setting radius to 0.1 meter \n";
+//		double mean_z = 0.;
+//		if (FitGroundPlane(pointcloud, pose_CfromO, start_dx[i], end_dx[i], start_dy[i], end_dy[i], mean_z) == true)
+//		{
+//			found_fitting_plane = true;
+//			if (mean_z < ground_plane_min_z)
+//				ground_plane_min_z = mean_z;
+//		}
+//	}
+//	if (found_fitting_plane == false)
+//		ground_plane_min_z = 0.;
+//
+////	std::cout << "ground_plane_min_z=" << ground_plane_min_z << std::endl;
+//
+//	tf::Transform pointcloud_correction_PCfromO;
+//	pointcloud_correction_PCfromO.setIdentity();
+//	if (ground_plane_min_z != 0.)
+//	{
+////		std::cout << "before: pose_CfromO (x,y,z): (" << pose_CfromO.getOrigin().getX() << ", " << pose_CfromO.getOrigin().getY() << ", " << pose_CfromO.getOrigin().getZ() << ")" << std::endl;
+//
+//		tf::Vector3 z_offset_O(0., 0., ground_plane_min_z);
+//		tf::Transform temp;
+//		temp.setIdentity();
+//		temp.setOrigin(z_offset_O);
+//		pointcloud_correction_PCfromO = temp.inverse();
+//
+////		std::cout << "after: pose_CfromO (x,y,z): (" << (pose_CfromO*pointcloud_correction_PCfromO.inverse()).getOrigin().getX() << ", " << (pose_CfromO*pointcloud_correction_PCfromO.inverse()).getOrigin().getY() << ", " << (pose_CfromO*pointcloud_correction_PCfromO.inverse()).getOrigin().getZ() << ")" << std::endl;
 //	}
 
-//	if (rot_3x3_CfromO.empty())
-//	{
-//		rot_3x3_CfromO = cv::Mat::zeros(3, 3, CV_64FC1);
-//		rot_3x3_CfromO.at<double>(0, 0) = 1;
-//		rot_3x3_CfromO.at<double>(1, 1) = 1;
-//		rot_3x3_CfromO.at<double>(2, 2) = 1;
-//	}
-//	if (trans_3x1_CfromO.empty())
-//		trans_3x1_CfromO = cv::Mat::zeros(3, 1, CV_64FC1);
 
+	// remove ground plane points
+	pcl::ModelCoefficients plane_model, avg_plane_model;
+	int number_found_planes = 0;
+	double start_dx[4] = {0.02, -0.115, 0.035, -0.10};
+	double end_dx[4] = {0.10, -0.035, 0.115, -0.02};
+	double start_dy[4] = {0.10, 0.085, -0.165, -0.18};
+	double end_dy[4] = {0.18, 0.165, -0.085, -0.10};
+	for (int i=0; i<4; ++i)
 	{
-		int minU = std::numeric_limits<int>::max();
-		int maxU = -std::numeric_limits<int>::max();
-		int minV = std::numeric_limits<int>::max();
-		int maxV = -std::numeric_limits<int>::max();
-
-		int u = 0;
-		int v = 0;
-
-		// Compute minimal and maximal image coordinates based on all 8 corners of the
-		// segmentation cube
-//		cv::Mat pt_cube(3, 1, CV_64FC1);
-//		double* p_pt_cube = pt_cube.ptr<double>(0);
-//		double dx, dy, dz;
-//		dx = xyzrLearningCoordinates.val[0];
-		tf::Vector3 pt_cube_O;
-		pt_cube_O.setX(xyzr_learning_coordinates.val[0]);
-		for (int i = 0; i < 2; i++)
+		if (FitGroundPlane(pointcloud, pose_CfromO, start_dx[i], end_dx[i], start_dy[i], end_dy[i], plane_model) == true)
 		{
-//			dy = xyzrLearningCoordinates.val[1];
-			pt_cube_O.setY(xyzr_learning_coordinates.val[1]);
-			for (int j = 0; j < 2; j++)
+			if (number_found_planes == 0)
+				avg_plane_model = plane_model;
+			else
 			{
-//				dz = 0;
-				pt_cube_O.setZ(0);
-				for (int k = 0; k < 2; k++)
-				{
-//					p_pt_cube[0] = dx;
-//					p_pt_cube[1] = dy;
-//					p_pt_cube[2] = dz;
-
-					tf::Vector3 pt_cube_C = pose_CfromO*pt_cube_O;
-//					cv::Mat pt_in_C = rot_3x3_CfromO * pt_cube;
-//					pt_in_C += trans_3x1_CfromO;
-//					double* p_pt_in_C = pt_in_C.ptr<double>(0);
-					ProjectXYZ(pt_cube_C.getX(), pt_cube_C.getY(), pt_cube_C.getZ(), u, v);	// todo:
-
-					minU = std::min(minU, u);
-					maxU = std::max(maxU, u);
-					minV = std::min(minV, v);
-					maxV = std::max(maxV, v);
-
-//					dz = xyzrLearningCoordinates.val[2];
-					pt_cube_O.setZ(xyzr_learning_coordinates.val[2]);
-				}
-//				dy *= -1;
-				pt_cube_O.setY(-pt_cube_O.getY());
+				for (int i=0; i<4; ++i)
+					avg_plane_model.values[i] += plane_model.values[i];
 			}
-//			dx *= -1;
-			pt_cube_O.setX(-pt_cube_O.getX());
+			++number_found_planes;
 		}
+	}
+	if (number_found_planes > 0)
+	{
+		for (int i=0; i<4; ++i)
+			avg_plane_model.values[i] /= (double)number_found_planes;
 
-		uv_learning_boundaries = cv::Scalar(minU, maxU, minV, maxV);
+		for (unsigned int i=0; i<pointcloud.points.size(); ++i)
+		{
+			pcl::PointXYZRGB& point = pointcloud.points[i];
+			if (abs(point.x*avg_plane_model.values[0]+point.y*avg_plane_model.values[1]+point.z*avg_plane_model.values[2]+avg_plane_model.values[3]) < 0.01)
+				point.x = point.y = point.z = 0.;
+		}
 	}
 
+	int minU = std::numeric_limits<int>::max();
+	int maxU = -std::numeric_limits<int>::max();
+	int minV = std::numeric_limits<int>::max();
+	int maxV = -std::numeric_limits<int>::max();
+
+	int u = 0;
+	int v = 0;
+
+	// Compute minimal and maximal image coordinates based on all 8 corners of the
+	// segmentation cube
+	tf::Vector3 pt_cube_O;
+	pt_cube_O.setX(xyzr_learning_coordinates.val[0]);
+	for (int i = 0; i < 2; i++)
+	{
+		pt_cube_O.setY(xyzr_learning_coordinates.val[1]);
+		for (int j = 0; j < 2; j++)
+		{
+			pt_cube_O.setZ(0);
+			for (int k = 0; k < 2; k++)
+			{
+				tf::Vector3 pt_cube_C = pose_CfromO*pt_cube_O;
+				ProjectXYZ(pt_cube_C.getX(), pt_cube_C.getY(), pt_cube_C.getZ(), u, v);
+
+				minU = std::min(minU, u);
+				maxU = std::max(maxU, u);
+				minV = std::min(minV, v);
+				maxV = std::max(maxV, v);
+
+				pt_cube_O.setZ(xyzr_learning_coordinates.val[2]);
+			}
+			pt_cube_O.setY(-pt_cube_O.getY());
+		}
+		pt_cube_O.setX(-pt_cube_O.getX());
+	}
+
+	uv_learning_boundaries = cv::Scalar(minU, maxU, minV, maxV);
+
 	// write all image pixels and 3D points within the 2D and 3D bounding boxes, respectively
-//	cv::Mat rot_3x3_OfromC = rot_3x3_CfromO.inv();
-//	cv::Mat pt_in_C(3, 1, CV_64FC1);
 	tf::Vector3 pt_in_C;
 	for (unsigned j = 0; j < pointcloud.height; j++)
 	{
@@ -599,13 +636,7 @@ unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, p
 			if (point.x == point.x && point.y == point.y && point.z == point.z)		// test for NaN
 			{
 				tf::Vector3 pt_in_C(point.x, point.y, point.z);
-				tf::Vector3 pt_in_O = pose_OfromC * pt_in_C;
-//				double* p_pt_in_C = pt_in_C.ptr<double>(0);
-//				p_pt_in_C[0] = point.x;	//f_coord_ptr[iTimes3];
-//				p_pt_in_C[1] = point.y;	//f_coord_ptr[iTimes3 + 1];
-//				p_pt_in_C[2] = point.z;	//f_coord_ptr[iTimes3 + 2];
-//				pt_in_C -= trans_3x1_CfromO;
-//				cv::Mat pt_in_O = rot_3x3_OfromC * pt_in_C;
+				tf::Vector3 pt_in_O = /*pointcloud_correction_PCfromO * */ pose_OfromC * pt_in_C;
 
 				if (std::abs<double>(pt_in_O.getX()) <= xyzr_learning_coordinates.val[0] && std::abs<double>(pt_in_O.getY()) <= xyzr_learning_coordinates.val[1] &&
 					pt_in_O.getZ() >= xyzr_learning_coordinates.val[3] && pt_in_O.getZ() <= xyzr_learning_coordinates.val[2])
@@ -626,15 +657,71 @@ unsigned long ObjectRecording::ImageAndRangeSegmentation(cv::Mat& color_image, p
 				point.x = 0;
 				point.y = 0;
 				point.z = 0;
-//				f_coord_ptr[iTimes3] = 0;
-//				f_coord_ptr[iTimes3 + 1] = 0;
-//				f_coord_ptr[iTimes3 + 2] = 0;
 			}
 		}
 	}
 
 	return 0;
 }
+
+
+bool ObjectRecording::FitGroundPlane(const pcl::PointCloud<pcl::PointXYZRGB>& pointcloud, const tf::Transform& pose_CfromO, double start_dx, double end_dx, double start_dy, double end_dy, pcl::ModelCoefficients& coefficients/*, double& mean_z*/)
+{
+	pcl::PointCloud<pcl::PointXYZ> plane_points;
+	for (double dx = start_dx; dx < end_dx; dx += 0.01)
+	{
+		for (double dy = start_dy; dy < end_dy; dy += 0.01)
+		{
+			tf::Vector3 point_O(dx, dy, 0.);
+			tf::Vector3 point_C = pose_CfromO * point_O;
+			int u=0, v=0;
+			ProjectXYZ(point_C.getX(), point_C.getY(), point_C.getZ(), u, v);
+			pcl::PointXYZRGB point = pointcloud.at(u, v);
+			plane_points.push_back(pcl::PointXYZ(point.x, point.y, point.z));
+		}
+	}
+	pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+	// Create the segmentation object
+	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	// Optional
+	seg.setOptimizeCoefficients(true);
+	// Mandatory
+	seg.setModelType(pcl::SACMODEL_PLANE);
+	seg.setMethodType(pcl::SAC_RANSAC);
+	seg.setDistanceThreshold(0.015);
+	seg.setInputCloud(plane_points.makeShared());
+	seg.segment(*inliers, coefficients);
+	if (inliers->indices.size() < 4)
+		return false;
+
+	// check direction of plane normal vector
+	tf::Transform pose_OfromC = pose_CfromO.inverse();
+	tf::Vector3 z_vector_object_O(0., 0., 1.);
+	tf::Vector3 z_vector_plane_C(coefficients.values[0], coefficients.values[1], coefficients.values[2]);
+	tf::Vector3 z_vector_plane_O = pose_OfromC.getBasis() * z_vector_plane_C;
+//	std::cout << "z_vector_plane_C     : (" << z_vector_plane_C.getX() << ", " << z_vector_plane_C.getY() << ", " << z_vector_plane_C.getZ() << ")" << std::endl;
+//	std::cout << "z_vector_plane_O     : (" << z_vector_plane_O.getX() << ", " << z_vector_plane_O.getY() << ", " << z_vector_plane_O.getZ() << ")" << std::endl;
+	z_vector_plane_O.normalize();
+	//(z_vector_object * z_vector_plane)/norm(z_vector_plane);
+	if (abs(z_vector_plane_O.getZ()) > 0.98)	// todo: might be a parameter
+	{
+//		// compute mean z value
+//		mean_z = 0.;
+//		for (unsigned int i=0; i<inliers->indices.size(); ++i)
+//		{
+//			pcl::PointXYZ& point_C_pcl = plane_points.points[inliers->indices[i]];
+//			tf::Vector3 point_C(point_C_pcl.x, point_C_pcl.y, point_C_pcl.z);
+//			tf::Vector3 point_O = pose_OfromC * point_C;
+//			mean_z += point_O.getZ();
+//		}
+//		mean_z /= (double)inliers->indices.size();
+
+		return true;
+	}
+	else
+		return false;
+}
+
 
 unsigned long ObjectRecording::ProjectXYZ(double x, double y, double z, int& u, int& v)
 {
