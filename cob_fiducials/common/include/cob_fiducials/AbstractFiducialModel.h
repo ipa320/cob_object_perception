@@ -37,6 +37,13 @@ public:
 
 	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, cv::Mat extrinsic_matrix = cv::Mat())
 	{
+		if(SetExtrinsics(camera_matrix, extrinsic_matrix) & ipa_Utils::RET_FAILED)
+			return ipa_Utils::RET_FAILED;
+		
+		return LoadParameters(directory_and_filename);
+	};
+
+	unsigned long SetExtrinsics(cv::Mat& camera_matrix, cv::Mat extrinsic_matrix = cv::Mat()) {
 		if (camera_matrix.empty())
 		{
 			std::cerr << "ERROR - AbstractFiducialModel::Init" << std::endl;
@@ -61,9 +68,7 @@ public:
 				}
 			m_extrinsic_XYfromC.at<double>(3,3) = 1.0;
 		}
-		
-		return LoadParameters(directory_and_filename);
-	};
+	}
 
 	unsigned long ApplyExtrinsics(cv::Mat& rot_CfromO, cv::Mat& trans_CfromO)
 	{
