@@ -44,6 +44,13 @@ public:
 
 	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, bool log_or_calibrate_sharpness_measurements, cv::Mat extrinsic_matrix = cv::Mat())
 	{
+		if(SetExtrinsics(camera_matrix, extrinsic_matrix) & ipa_Utils::RET_FAILED)
+			return ipa_Utils::RET_FAILED;
+		
+		return LoadParameters(directory_and_filename);
+	};
+
+	unsigned long SetExtrinsics(cv::Mat& camera_matrix, cv::Mat extrinsic_matrix = cv::Mat()) {
 		if (camera_matrix.empty())
 		{
 			std::cerr << "ERROR - AbstractFiducialModel::Init" << std::endl;
