@@ -788,11 +788,11 @@ void DetectText::pipeline()
 	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
 	std::cout << "[" << time_in_seconds << " s] in chainPairs: " << textRegions_.size() << " chains found" << std::endl;
 
-	//  start_time = clock();
-	//  combineNeighborBoxes(boundingBoxes);
-	//  time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
-	//  std::cout << "[" << time_in_seconds << " s] in combineNeighborBoxes: " << boundingBoxes.size() << " chains remain"
-	//      << std::endl;
+//	  start_time = clock();
+//	  combineNeighborBoxes(boundingBoxes);
+//	  time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//	  std::cout << "[" << time_in_seconds << " s] in combineNeighborBoxes: " << boundingBoxes.size() << " chains remain"
+//	      << std::endl;
 
 	if (firstPass_)
 		ccmapBright_ = ccmap.clone();
@@ -927,7 +927,7 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 {
 	cv::Mat edgemap;
 
-//	// edgemap with color segmentation
+//	// ===== edgemap with color segmentation =====
 //	cv::Mat segmentation_(grayImage_.size(), CV_32FC1, cv::Scalar(-1));
 //	std::vector<cv::Point3d> meanColorOfSegment;
 //	std::vector<int> numberPixelsInSegment;
@@ -1114,12 +1114,14 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 //		cv::imshow("segmentation gray scale", gray_segmentation);
 //		cv::imshow("segmentation original colors", color_segmentation);
 //	}
-//	Sobel(gray_segmentation, dx_, CV_32FC1, 1, 0, 3);
-//	Sobel(gray_segmentation, dy_, CV_32FC1, 0, 1, 3);
+////	Sobel(gray_segmentation, dx_, CV_32FC1, 1, 0, 3);
+////	Sobel(gray_segmentation, dy_, CV_32FC1, 0, 1, 3);
+//
+//	return edgemap;
 
 
 
-//	// edgemap with toggle-mapping
+//	// ===== edgemap with toggle-mapping =====
 //	int minimalContrast = 16;
 //	double p = 0.8;
 //	cv::Mat dilation, erosion, segmentation(grayImage_.rows, grayImage_.cols, CV_8UC1);
