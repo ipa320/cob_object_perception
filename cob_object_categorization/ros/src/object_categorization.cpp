@@ -10,9 +10,56 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 : node_handle_(nh),
   object_classifier_(ros::package::getPath("cob_object_categorization") + "/common/files/classifier/EMClusterer5.txt", ros::package::getPath("cob_object_categorization") + "/common/files/classifier/")
 {
+	// Parameters
+	global_feature_params_.minNumber3DPixels = 50;
+	global_feature_params_.numberLinesX.push_back(7);
+//	global_feature_params_.numberLinesX.push_back(2);
+	global_feature_params_.numberLinesY.push_back(7);
+//	global_feature_params_.numberLinesY.push_back(2);
+	global_feature_params_.polynomOrder.push_back(2);
+//	global_feature_params_.polynomOrder.push_back(2);
+	global_feature_params_.pointDataExcess = 0;	//int(3.01*(globalFeatureParams.polynomOrder+1));	// excess decreases the accuracy
+	global_feature_params_.cellCount[0] = 5;
+	global_feature_params_.cellCount[1] = 5;
+	global_feature_params_.cellSize[0] = 0.5;
+	global_feature_params_.cellSize[1] = 0.5;
+	global_feature_params_.vocabularySize = 5;
+	//global_feature_params_.additionalArtificialTiltedViewAngle.push_back(0.);
+	//global_feature_params_.additionalArtificialTiltedViewAngle.push_back(45.);
+	global_feature_params_.thinningFactor = 1.0;
+	global_feature_params_.useFeature["bow"] = false;
+	global_feature_params_.useFeature["sap"] = true;
+	global_feature_params_.useFeature["sap2"] = false;
+	global_feature_params_.useFeature["pointdistribution"] = false;
+	global_feature_params_.useFeature["normalstatistics"] = false;
+	global_feature_params_.useFeature["vfh"] = false;
+	global_feature_params_.useFeature["grsd"] = false;
+	global_feature_params_.useFeature["gfpfh"] = false;
+	global_feature_params_.useFullPCAPoseNormalization = false;
+	global_feature_params_.useRollPoseNormalization = false;
+
 	projection_matrix_ = (cv::Mat_<double>(3, 4) << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 	pointcloud_width_ = 640;
 	pointcloud_height_ = 480;
+
+	node_handle_.param("/object_categorization/object_categorization/mode_of_operation", mode_of_operation_, 1);
+	std::cout<< "mode_of_operation: " << mode_of_operation_ << "\n";
+
+	std::string object_name = "shoe_green";
+
+	// initialize special modes
+	if (mode_of_operation_ == 2)
+	{
+		object_classifier_.HermesLoadCameraCalibration(object_name, projection_matrix_);
+		object_classifier_.HermesDetectInit((ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
+	}
+	else if (mode_of_operation_ == 3)
+	{
+		object_classifier_.HermesLoadCameraCalibration(object_name, projection_matrix_);
+		object_classifier_.HermesBuildDetectionModelFromRecordedData(object_name, projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
+		std::cout << "training done.";
+		return;
+	}
 
 	// subscribers
 	it_ = new image_transport::ImageTransport(node_handle_);
@@ -49,8 +96,8 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 	for (int segmentIndex=0; segmentIndex<(int)input_pointcloud_segments_msg->segments.size(); segmentIndex++)
 	{
 		typedef pcl::PointXYZRGB PointType;
-		pcl::PointCloud<PointType> input_pointcloud;
-		pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], input_pointcloud);
+		pcl::PointCloud<PointType>::Ptr input_pointcloud(new pcl::PointCloud<PointType>);
+		pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], *input_pointcloud);
 
 		// convert to shared image
 		int umin=1e8, vmin=1e8;
@@ -58,67 +105,60 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 		cvSetZero(color_image);
 		IplImage* coordinate_image = cvCreateImage(cvSize(pointcloud_width_, pointcloud_height_), IPL_DEPTH_32F, 3);
 		cvSetZero(coordinate_image);
-		for (unsigned int i=0; i<input_pointcloud.size(); i++)
+		pcl::PointXYZ avgPoint(0., 0., 0.);
+		unsigned int number_valid_points = 0;
+		for (unsigned int i=0; i<input_pointcloud->size(); i++)
 		{
-			cv::Mat X = (cv::Mat_<double>(4, 1) << input_pointcloud[i].x, input_pointcloud[i].y, input_pointcloud[i].z, 1.0);
+			if ((*input_pointcloud)[i].x==0 && (*input_pointcloud)[i].y==0 && (*input_pointcloud)[i].z==0)
+				continue;
+			++number_valid_points;
+			avgPoint.x += (*input_pointcloud)[i].x;
+			avgPoint.y += (*input_pointcloud)[i].y;
+			avgPoint.z += (*input_pointcloud)[i].z;
+			cv::Mat X = (cv::Mat_<double>(4, 1) << (*input_pointcloud)[i].x, (*input_pointcloud)[i].y, (*input_pointcloud)[i].z, 1.0);
 			cv::Mat x = projection_matrix_ * X;
 			int v = x.at<double>(1)/x.at<double>(2), u = x.at<double>(0)/x.at<double>(2);
-			cvSet2D(color_image, v, u, CV_RGB(input_pointcloud[i].r, input_pointcloud[i].g, input_pointcloud[i].b));
-			cvSet2D(coordinate_image, v, u, cvScalar(input_pointcloud[i].x, input_pointcloud[i].y, input_pointcloud[i].z));
-			display_segmentation.at< cv::Point3_<uchar> >(v,u) = cv::Point3_<uchar>(input_pointcloud[i].b, input_pointcloud[i].g, input_pointcloud[i].r);
+			cvSet2D(color_image, v, u, CV_RGB((*input_pointcloud)[i].r, (*input_pointcloud)[i].g, (*input_pointcloud)[i].b));
+			cvSet2D(coordinate_image, v, u, cvScalar((*input_pointcloud)[i].x, (*input_pointcloud)[i].y, (*input_pointcloud)[i].z));
+			display_segmentation.at< cv::Point3_<uchar> >(v,u) = cv::Point3_<uchar>((*input_pointcloud)[i].b, (*input_pointcloud)[i].g, (*input_pointcloud)[i].r);
 
 			if (u<umin) umin=u;
 			if (v<vmin) vmin=v;
 		}
-
-		// Parameters
-		ObjectClassifier::GlobalFeatureParams globalFeatureParams;
-		globalFeatureParams.minNumber3DPixels = 50;
-		globalFeatureParams.numberLinesX.push_back(7);
-	//	globalFeatureParams.numberLinesX.push_back(2);
-		globalFeatureParams.numberLinesY.push_back(7);
-	//	globalFeatureParams.numberLinesY.push_back(2);
-		globalFeatureParams.polynomOrder.push_back(2);
-	//	globalFeatureParams.polynomOrder.push_back(2);
-		globalFeatureParams.pointDataExcess = 0;	//int(3.01*(globalFeatureParams.polynomOrder+1));	// excess decreases the accuracy
-		globalFeatureParams.cellCount[0] = 5;
-		globalFeatureParams.cellCount[1] = 5;
-		globalFeatureParams.cellSize[0] = 0.5;
-		globalFeatureParams.cellSize[1] = 0.5;
-		globalFeatureParams.vocabularySize = 5;
-		//globalFeatureParams.additionalArtificialTiltedViewAngle.push_back(0.);
-		//globalFeatureParams.additionalArtificialTiltedViewAngle.push_back(45.);
-		double factorSamplesTrainData = 1.;		// for each object, this ratio of samples should go to the training set, the rest is for testing
-		globalFeatureParams.useFeature["bow"] = false;
-		globalFeatureParams.useFeature["sap"] = true;
-		globalFeatureParams.useFeature["sap2"] = false;
-		globalFeatureParams.useFeature["pointdistribution"] = false;
-		globalFeatureParams.useFeature["normalstatistics"] = false;
-		globalFeatureParams.useFeature["vfh"] = false;
-		globalFeatureParams.useFeature["grsd"] = false;
-		globalFeatureParams.useFeature["gfpfh"] = false;
-		globalFeatureParams.useFullPCAPoseNormalization = false;
-		globalFeatureParams.useRollPoseNormalization = true;
+		avgPoint.x /= (double)number_valid_points;
+		avgPoint.y /= (double)number_valid_points;
+		avgPoint.z /= (double)number_valid_points;
 
 		SharedImage si;
 		si.setCoord(coordinate_image);
 		si.setShared(color_image);
-		std::map<double, std::string> resultsOrdered;
-		std::map<std::string, double> results;
-		object_classifier_.CategorizeObject(&si, results, resultsOrdered, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, globalFeatureParams);
+		if (mode_of_operation_ == 1)
+		{
+			// normal mode of operation
+			std::map<double, std::string> resultsOrdered;
+			std::map<std::string, double> results;
+			object_classifier_.CategorizeObject(&si, results, resultsOrdered, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
+			std::map<double, std::string>::iterator it = resultsOrdered.end();
+			it--;
+			std::stringstream label;
+			label << it->second;
+			label << " (" << setprecision(3) << 100*it->first << "%)";
+			cv::putText(display_color, label.str().c_str(), cvPoint(umin, max(0,vmin-20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(0, 255, 0));
+			cv::putText(display_segmentation, label.str().c_str(), cvPoint(umin, max(0,vmin-20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(0, 255, 0));
+		}
+		else if (mode_of_operation_ == 2)
+		{
+			// Hermes mode
+			double pan=0, tilt=0, roll=0;
+			Eigen::Matrix4f finalTransform;
+			object_classifier_.HermesCategorizeObject(input_pointcloud, avgPoint, &si, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, pan, tilt, roll, finalTransform);
+		}
 		si.Release();
 
-		std::map<double, std::string>::iterator it = resultsOrdered.end();
-		it--;
-		std::stringstream label;
-		label << it->second;
-		label << " (" << setprecision(3) << 100*it->first << "%)";
-		cv::putText(display_color, label.str().c_str(), cvPoint(umin, max(0,vmin-20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(0, 255, 0));
-		cv::putText(display_segmentation, label.str().c_str(), cvPoint(umin, max(0,vmin-20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(0, 255, 0));
 	}
 	cv::imshow("categorized objects", display_color);
 	cv::imshow("segmented image", display_segmentation);
-	cv::waitKey(10);
+	cv::waitKey(40);
 }
 
 /// Converts a color image message to cv::Mat format.
@@ -151,6 +191,8 @@ void ObjectCategorization::calibrationCallback(const sensor_msgs::CameraInfo::Co
 //				std::cout << temp.at<double>(v,u) << " ";
 //		std::cout << "]" << std::endl;
 	projection_matrix_ = temp;
+
+	input_pointcloud_camera_info_sub_.shutdown();
 }
 
 namespace fs = boost::filesystem;
