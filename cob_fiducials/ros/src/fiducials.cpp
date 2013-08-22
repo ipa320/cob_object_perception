@@ -504,7 +504,7 @@ public:
                 // Broadcast transform of fiducial
                 tf::Transform transform;
                 std::stringstream tf_name;
-                tf_name << "pi_tag" <<"_" << "0";
+                tf_name << "pi_tag" <<"_" << i;
                 transform.setOrigin(tf::Vector3(vec_vec7d[i][0], vec_vec7d[i][1], vec_vec7d[i][2]));
                 transform.setRotation(tf::Quaternion(vec_vec7d[i][4], vec_vec7d[i][5], vec_vec7d[i][6], vec_vec7d[i][3]));
                 tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, tf_name.str()));
