@@ -42,10 +42,12 @@ public:
 	//*******************************************************************************
 	virtual ~AbstractFiducialModel(){};
 
-	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, bool log_or_calibrate_sharpness_measurements, cv::Mat extrinsic_matrix = cv::Mat())
+	unsigned long Init(cv::Mat& camera_matrix, std::string directory_and_filename, bool log_or_calibrate_sharpness_measurements = false, cv::Mat extrinsic_matrix = cv::Mat())
 	{
 		if(SetExtrinsics(camera_matrix, extrinsic_matrix) & ipa_Utils::RET_FAILED)
 			return ipa_Utils::RET_FAILED;
+
+		m_log_or_calibrate_sharpness_measurements = log_or_calibrate_sharpness_measurements;
 		
 		return LoadParameters(directory_and_filename);
 	};
@@ -76,9 +78,7 @@ public:
 			m_extrinsic_XYfromC.at<double>(3,3) = 1.0;
 		}
 		
-		m_log_or_calibrate_sharpness_measurements = log_or_calibrate_sharpness_measurements;
-
-		return LoadParameters(directory_and_filename);
+		return ipa_Utils::RET_OK;
 	};
 
 	unsigned long ApplyExtrinsics(cv::Mat& rot_CfromO, cv::Mat& trans_CfromO)
