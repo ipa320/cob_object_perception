@@ -37,7 +37,7 @@ public:
 		lineLength_(20),
 		windowX_(600),
 		windowY_(600),
-		th_plane_(0.8),
+		th_plane_(0.7),
 		th_edge_(-0.4)
 	{};
 
@@ -61,8 +61,12 @@ public:
 
 	void computeDepthEdges(cv::Mat depth_image, PointCloudInConstPtr pointcloud, cv::Mat& edgeImage);
 
+	void sobelLaplace(cv::Mat& color_image, cv::Mat& depth_image);
+
 
 private:
+
+
 
 	void coordinatesMat(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step);
 	void approximateLine(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc,cv::Mat& n, cv::Mat& coordinates, bool& step);

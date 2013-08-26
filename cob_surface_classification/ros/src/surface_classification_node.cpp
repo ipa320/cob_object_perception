@@ -60,9 +60,9 @@
 /*switches for execution of processing steps*/
 
 #define RECORD_MODE					false
-#define COMPUTATION_MODE			false
+#define COMPUTATION_MODE			true
 #define EVALUATION_OFFLINE_MODE		false
-#define EVALUATION_ONLINE_MODE		true
+#define EVALUATION_ONLINE_MODE		false
 
 //steps in computation/evaluation_online mode:
 
@@ -75,7 +75,7 @@
 #define NORMAL_VIS 					false 	//visualisation of normals
 #define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					true 	//visualisation of classification
+#define CLASS_VIS 					false 	//visualisation of classification
 
 
 
@@ -107,6 +107,9 @@
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/io/io.h>
+#include <pcl/io/pcd_io.h>
 
 
 //internal includes
@@ -180,10 +183,13 @@ public:
 		// convert color image to cv::Mat
 		cv_bridge::CvImageConstPtr color_image_ptr;
 		cv::Mat color_image;
+		//std::cout << "before convertMessage"<<std::endl;
 		convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
 
+		//std::cout << "before defining color cloud"<<std::endl;
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
+
 
 		if(cloud->height == 1 && cloud->points.size() == 307200)
 		{
@@ -232,6 +238,7 @@ public:
 
 
 
+
 		//record scene
 		//----------------------------------------
 		if(RECORD_MODE)
@@ -259,10 +266,10 @@ public:
 
 
 
-			// get color image from point cloud
-			/*pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
-		pcl::fromROSMsg(*pointcloud_msg, point_cloud_src);
-		pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pc_ptr(&point_cloud_src);*/
+//			// get color image from point cloud
+//			pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
+//		pcl::fromROSMsg(*pointcloud_msg, point_cloud_src);
+//		pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pc_ptr(&point_cloud_src);
 
 
 			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
@@ -295,18 +302,19 @@ public:
 
 
 
-			/*
-
-		oneWithoutEdges_.setInputCloud(cloud);
-		oneWithoutEdges_.setPixelSearchRadius(8,1,1);
-		oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
-		oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-		oneWithoutEdges_.compute(*normalsWithoutEdges);*/
+//
+//
+//		oneWithoutEdges_.setInputCloud(cloud);
+//		oneWithoutEdges_.setPixelSearchRadius(8,1,1);
+//		oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
+//		oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+//		oneWithoutEdges_.compute(*normalsWithoutEdges);
 
 
 			cv::Mat edgeImage = cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1);
-			//edgeImage *= 0.5;
 			edge_detection_.computeDepthEdges( depth_image, cloud, edgeImage);
+
+			//edge_detection_.sobelLaplace(color_image,depth_image);
 
 
 			//cv::imshow("edge_image", edgeImage);
@@ -429,25 +437,25 @@ public:
 			}
 
 
-			/*	pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedRef(new pcl::PointCloud<pcl::PointXYZRGB>);
-			 *segmentedRef = *cloud;
-		graph->clusters()->mapClusterColor(segmentedRef);
-
-
-		// visualize segmentation
-		pcl::visualization::PCLVisualizer viewerRef("segmentationRef");
-		viewerRef.setBackgroundColor (0.0, 0.0, 0);
-		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbRef(segmentedRef);
-		viewerRef.addPointCloud<pcl::PointXYZRGB> (segmentedRef,rgbRef,"segRef");
-
-		while (!viewer.wasStopped ())
-		{
-			viewer.spinOnce();
-			viewerRef.spinOnce();
-
-		}
-		viewerRef.removePointCloud("segRef");
-		viewer.removePointCloud("seg");*/
+//				pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedRef(new pcl::PointCloud<pcl::PointXYZRGB>);
+//			 *segmentedRef = *cloud;
+//		graph->clusters()->mapClusterColor(segmentedRef);
+//
+//
+//		// visualize segmentation
+//		pcl::visualization::PCLVisualizer viewerRef("segmentationRef");
+//		viewerRef.setBackgroundColor (0.0, 0.0, 0);
+//		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbRef(segmentedRef);
+//		viewerRef.addPointCloud<pcl::PointXYZRGB> (segmentedRef,rgbRef,"segRef");
+//
+//		while (!viewer.wasStopped ())
+//		{
+//			viewer.spinOnce();
+//			viewerRef.spinOnce();
+//
+//		}
+//		viewerRef.removePointCloud("segRef");
+//		viewer.removePointCloud("seg");
 
 
 			if(CLASSIFY|| EVALUATION_ONLINE_MODE)
@@ -494,9 +502,9 @@ public:
 		}
 		if(EVALUATION_OFFLINE_MODE)
 		{
-			/*eval_.setClusterHandler(graph->clusters());
-			std::string path = std::string(getenv("HOME")) + "/rmb-ce/records/cloud2.pcd";
-			eval_.compareClassification(path);*/
+//			eval_.setClusterHandler(graph->clusters());
+//			std::string path = std::string(getenv("HOME")) + "/rmb-ce/records/cloud2.pcd";
+//			eval_.compareClassification(path);
 		}
 
 

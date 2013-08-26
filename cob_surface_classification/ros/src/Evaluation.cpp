@@ -123,7 +123,7 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 			{
 				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countPlane++;
 				else if (std::abs((int)(hsv_gt.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countConc++;
-				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	{c.countConv++; prob = false;}
+				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countConv++;
 			}
 
 			//comparisons
@@ -140,7 +140,7 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 				c.countCorrect++;
 				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countCorrectPlane++;
 				else if (std::abs((int)(hsv_gt.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countCorrectConc++;
-				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	{c.countCorrectConv++; if(prob) std::cout <<"gt: "<<hsv_gt.h <<", "<<hsv_gt.v<<", test: "<<hsv_test.h <<", "<<hsv_test.v<<std::endl;}
+				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countCorrectConv++;
 			}
 		}
 	}

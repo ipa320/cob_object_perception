@@ -63,6 +63,8 @@
 #ifndef __IMPL_ORGANIZED_NORMAL_ESTIMATION_H__
 #define __IMPL_ORGANIZED_NORMAL_ESTIMATION_H__
 
+#define NEIGHBOURH_VIS false	//display neighbourhoods taken into account for normal estimation
+
 template <typename PointInT, typename PointOutT, typename LabelOutT> bool
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::compareCoordToEdgeCoord(
 		int idx, int idx_x, int idx_y, std::vector<Eigen::Vector2f>& directionsOfEdges)
@@ -134,7 +136,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::checkDire
 	for(it_dirOfEd = directionsOfEdges.begin(); it_dirOfEd != directionsOfEdges.end(); ++it_dirOfEd)
 	{
 		scalProd = (*it_dirOfEd)(0) * p_curr(0) + (*it_dirOfEd)(1) * p_curr(1); // + (*it_dirOfEd)(2) * p_curr(2);
-		if(std::abs(scalProd) > sameDirectionThres_)
+		//NICHT den Betrag des Skalarprodukts nehmen!
+		if(scalProd > sameDirectionThres_)
 		{
 
 			//check if both vectors point the same direction (not in the opposite one)
@@ -170,7 +173,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 	if (isnan(p(2)))
 	{
 		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
-	    label_out = I_NAN;
+		label_out = I_NAN;
 		return;
 	}
 
@@ -184,7 +187,6 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 	if(!edgeImage_.empty() && edgeImage_.at<float>(idx_y,idx_x) == 0)
 	{
 		n_x = n_y = n_z = std::numeric_limits<float>::quiet_NaN();
-	    //label_out = I_NAN;
 		label_out = I_EDGE;
 		return;
 	}
@@ -219,9 +221,11 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 	if (idx_y >= pixel_search_radius_ && idx_y < (int)cloud.height - pixel_search_radius_ &&
 			idx_x >= pixel_search_radius_ && idx_x < (int)cloud.width - pixel_search_radius_)
 	{
-/*
-		controlImage.at<cv::Point3_<unsigned char> >(idx_y,idx_x) = cv::Point3_<unsigned char>(0,0,255);
-		cv::circle(controlImage,cv::Point2f(idx_x,idx_y),pixel_search_radius_,CV_RGB(255,0,0),1);*/
+		if(NEIGHBOURH_VIS)
+		{
+			controlImage.at<cv::Point3_<unsigned char> >(idx_y,idx_x) = cv::Point3_<unsigned char>(0,0,255);
+			cv::circle(controlImage,cv::Point2f(idx_x,idx_y),pixel_search_radius_,CV_RGB(255,0,0),1);
+		}
 
 		//iterate over circles with decreasing radius (from pixel_search_radius to 0) -> cover entire circular neighbourhood from outside border to inside
 		//compute normal for every pair of points on every circle (that is a specific distance to query point)
@@ -274,9 +278,12 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 
 				if ( gab <= max_gab && has_prev_point ) // check if gab is small enough and a previous point exists
 				{
-					/*idx_inDepIm_x = idx % input_->width;
-					idx_inDepIm_y = idx * inv_width_;
-					controlImage.at<cv::Point3_<unsigned char> >(idx_inDepIm_y,idx_inDepIm_x) = cv::Point3_<unsigned char>(0,255,0);*/
+					if(NEIGHBOURH_VIS)
+					{
+						idx_inDepIm_x = idx % input_->width;
+						idx_inDepIm_y = idx * inv_width_;
+						controlImage.at<cv::Point3_<unsigned char> >(idx_inDepIm_y,idx_inDepIm_x) = cv::Point3_<unsigned char>(0,255,0);
+					}
 
 					p_curr = p_i - p;
 					n_idx += (p_prev.cross(p_curr)).normalized(); // compute normal of p_prev and p_curr
@@ -387,47 +394,55 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 	std::cout << timer.getElapsedTimeInMilliSec() << " ms for one normalEstimation, averaged over 10 iterations\n";*/
 
 
-}
+		}
 
 template <typename PointInT, typename PointOutT, typename LabelOutT> void
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computeFeature (PointCloudOut &output)
 {
-	/*controlImage = cv::Mat::ones(edgeImage_.rows,edgeImage_.cols,CV_8UC3) ;	//draw neighbourhood taken into account for computations
 
-	for(int i= 0; i< edgeImage_.rows; i++)
-		for(int j=0; j<edgeImage_.cols; j++)
-			for(int c=0; c<3;c++)
-			{
-				if(edgeImage_.at<float>(i,j) == 0)
-					controlImage.at<cv::Vec3b>(i,j)[c] = 0;
-				else
-					controlImage.at<cv::Vec3b>(i,j)[c] = 255;
-			}
+	if(NEIGHBOURH_VIS)
+	{
+		controlImage = cv::Mat::ones(edgeImage_.rows,edgeImage_.cols,CV_8UC3) ;	//draw neighbourhood taken into account for computations
 
-	int count = 0;*/
+		for(int i= 0; i< edgeImage_.rows; i++)
+			for(int j=0; j<edgeImage_.cols; j++)
+				for(int c=0; c<3;c++)
+				{
+					if(edgeImage_.at<float>(i,j) == 0)
+						controlImage.at<cv::Vec3b>(i,j)[c] = 0;
+					else
+						controlImage.at<cv::Vec3b>(i,j)[c] = 255;
+				}
+	}
+	int count = 0;
 
 
-	  if (labels_->points.size() != input_->size())
-	  {
-	    labels_->points.resize(input_->size());
-	    labels_->height = input_->height;
-	    labels_->width = input_->width;
-	  }
+
+
+	if (labels_->points.size() != input_->size())
+	{
+		labels_->points.resize(input_->size());
+		labels_->height = input_->height;
+		labels_->width = input_->width;
+	}
 
 	for (std::vector<int>::iterator it=indices_->begin(); it != indices_->end(); ++it)
 	{
 
-		/*if(count % 660== 0)	//computations only at every 660th point
-		{*/
-	    labels_->points[*it].label = I_UNDEF;
-		computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2], labels_->points[*it].label);
-		/*}
-		count++;*/
+		if(!NEIGHBOURH_VIS || count % 660== 0)	//computations only at every 660th point
+		{
+			labels_->points[*it].label = I_UNDEF;
+			computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2], labels_->points[*it].label);
+		}
+		if(NEIGHBOURH_VIS) count++;
 
 	}
+	if(NEIGHBOURH_VIS)
+	{
+		cv::imshow("controlImage", controlImage);
+		cv::waitKey(10);
+	}
 
-	/*cv::imshow("controlImage", controlImage);
-	cv::waitKey(10);*/
 }
 
 

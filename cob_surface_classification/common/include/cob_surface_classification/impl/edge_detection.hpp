@@ -11,6 +11,117 @@
 #define DECIDE_CURV 	false	//mark points on SURFACES (not only edges) as concave or convex, using scalarproduct
 #define COMP_SVD 		true	//approximate lines using SVD. otherwise line approximation using only two points.
 
+
+template <typename PointInT> void
+EdgeDetection<PointInT>::sobelLaplace(cv::Mat& color_image, cv::Mat& depth_image)
+{
+	//smooth image
+	cv::Mat depth_image_smooth = depth_image.clone();
+	//cv::GaussianBlur( depth_image, depth_image_smooth, cv::Size(13,13), -1, -1);
+
+	//first derivatives with Sobel operator
+	//-----------------------------------------------------------------------
+	cv::Mat x_deriv;
+	cv::Mat y_deriv;
+
+
+	int scale = 1;
+	int delta = 0;
+	int ddepth = CV_32F;//CV_16S; //depth (format) of output data
+	//x-derivative:
+	cv::Sobel(depth_image_smooth,x_deriv,ddepth,1,0,11,scale,delta);	//order of derivative in x-direction: 1, in y-direction: 0
+
+	//y-derivative
+	cv::Sobel(depth_image_smooth,y_deriv,ddepth,0,1,11,scale,delta);	//order of derivative in y-direction: 1, in x-direction: 0
+
+	//compute gradient magnitude
+	cv::Mat  x_pow2, y_pow2, grad;
+	//cv::magnitude(x_deriv,y_deriv,grad);
+	cv::pow(x_deriv,2.0, x_pow2);
+	cv::pow(y_deriv,2.0, y_pow2);
+	cv::sqrt(x_pow2 + y_pow2, grad);
+
+	cv::Mat depth_im_show;
+	cv::normalize(depth_image_smooth,depth_im_show,0,1,cv::NORM_MINMAX);
+	cv::imshow("depth image", depth_im_show);
+	cv::waitKey(10);
+
+	/*	cv::imshow("x gradient",x_deriv);
+		cv::waitKey(10);
+
+		cv::imshow("y gradient",y_deriv);
+		cv::waitKey(10);*/
+
+
+	cv::normalize(grad,grad,0,1,cv::NORM_MINMAX);
+	cv::imshow("Sobel", grad);
+	cv::waitKey(10);
+
+
+
+	//second derivatives with Laplace operator
+	//------------------------------------------------------------------------
+	cv::Mat deriv_2,temp;
+	int kernel_size = 7;
+
+	//cv::Laplacian( depth_image_smooth, temp, ddepth, kernel_size, scale, delta );
+	//cv::normalize(deriv_2,deriv_2,-1,2,cv::NORM_MINMAX);
+
+/*	cv::Mat kernel = (cv::Mat_<float>(5,5) <<  0,          0,          1,          0,          0,
+			0,          2,         -8,         2,          0,
+			1,         -8,         20,         -8,          1,
+			0,          2,         -8,          2,          0,
+			0,          0,          1,          0,          0);*/
+
+
+	cv::Mat kernel = (cv::Mat_< float >(7,7) << 0.1, 0.2, 0.5, 0.8, 0.5, 0.2, 0.1,
+			0.2, 1.1, 2.5, 2.7, 2.5, 1.1, 0.2,
+			0.5, 2.5, 0, -6.1, 0, 2.5, 0.5,
+			0.8, 2.7, -6.1, -20, -6.1, 2.7, 0.8,
+			0.5, 2.5, 0, -6.1, 0, 2.5, 0.5,
+			0.2, 1.1, 2.5, 2.7, 2.5, 1.1, 0.2,
+			0.1, 0.2, 0.5, 0.8, 0.5, 0.2, 0.1);
+	//LoG (Laplacian and Gaussian) with sigma = 1.4
+	/*cv::Mat kernel = (cv::Mat_< float >(9,9) << 0,0,3,2, 2, 2,3,0,0,
+													0,2,3,5, 5, 5,3,2,0,
+													3,3,5,3, 0, 3,5,3,3,
+													2,5,3,-12, -23, -12,3,5,2,
+													2,5,0,-23, -40, -23,0,5,2,
+													2,5,3,-12, -23, -12,3,5,2,
+													3,3,5,3, 0, 3,5,3,3,
+													0,2,3,5, 5, 5,3,2,0,
+													0,0,3,2, 2, 2,3,0,0);*/
+
+
+	cv::filter2D(depth_image_smooth, temp, ddepth, kernel);
+
+	float sat = 0.5;
+
+	//Bild immer zeilenweise durchgehen
+	for(int v=0; v<temp.rows; v++ )
+	{
+		for(int u=0; u< temp.cols; u++)
+		{
+			if(temp.at<float>(v,u) < -sat)
+			{
+				temp.at<float>(v,u) = - sat;
+			}
+			else if(temp.at<float>(v,u) > sat)
+			{
+				temp.at<float>(v,u) =  sat;
+			}
+		}
+	}
+	//normalize values to range between 0 and 1, so that all values can be depicted in an image
+	cv::normalize(temp,deriv_2,0,1,cv::NORM_MINMAX);
+
+	cv::imshow("Laplacian", deriv_2);
+	cv::waitKey(10);
+}
+
+
+
+
 template <typename PointInT> void
 EdgeDetection<PointInT>::coordinatesMat
 (cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step)
@@ -385,15 +496,14 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 			scalarProduct = n1Norm.at<float>(0) * n2Norm.at<float>(0) + n1Norm.at<float>(1) * n2Norm.at<float>(1);
 
 			/*
-			 * Achtung hier noch beachten, dass das VZ von n1 umgedreht wurde!!
 			//recognize inner EDGES (not surfaces) as concave or convex
 			//convex: gradient of right line is larger than gradient of left line
 			//concave: gradient of right line is smaller than gradient of left line
 			setOffsetConcConv(0.35);
-			if(b2 > (b1 + offsetConcConv_))
+			if(b2 > (-b1 + offsetConcConv_))
 				//convex
 				concaveConvex = 255;
-			else if (b1 > b2 + offsetConcConv_)
+			else if (-b1 > b2 + offsetConcConv_)
 				//concave
 				concaveConvex = 125;
 			 */
@@ -918,7 +1028,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 				float deriv = 0;
 				deriv2nd(depth_image,pointcloud,dotStart, dotStop,deriv);
 
-				float curv_threshold = 0;//0.003;
+				float curv_threshold = 0.005;//0.003;
 				if(deriv < -curv_threshold)
 					concConv = 125;
 				else if(deriv > curv_threshold)
@@ -1037,14 +1147,14 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//int lineLength = 30;
 	//cv::line(depth_image,cv::Point2f(depth_image.cols/2 -lineLength/2, depth_image.rows/2),cv::Point2f(depth_image.cols/2 +lineLength/2, depth_image.rows/2),CV_RGB(0,1,0),1);
 	//cv::line(depth_image,cv::Point2f(depth_image.cols/2 , depth_image.rows/2 +lineLength/2),cv::Point2f(depth_image.cols/2 , depth_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
-	cv::imshow("depthImage", depth_image);
+	//cv::imshow("depthImage", depth_image);
 
 
 	//cv::imshow("depth over coordinate along line", plotZW);
 	//cv::waitKey(10);
 
-	cv::imshow("edge image", edgeImage);
-	cv::waitKey(10);
+	//cv::imshow("edge image", edgeImage);
+	//cv::waitKey(10);
 
 	if(DECIDE_CURV)
 	{

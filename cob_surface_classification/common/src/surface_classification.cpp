@@ -188,7 +188,7 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 
 
 		//don't save points with nan-entries (no data available)
-		if(!std::isnan(pointcloud->at(xIter[iX],yIter[iY]).x))
+		if(!isnan(pointcloud->at(xIter[iX],yIter[iY]).x))
 		{
 
 			if(first)
