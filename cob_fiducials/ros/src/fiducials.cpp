@@ -78,6 +78,8 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include <std_srvs/Empty.h>
+
 // external includes
 //#include <cob_fiducials/fiducialsConfig.h>
 //#include <dynamic_reconfigure/server.h>
@@ -133,6 +135,7 @@ private:
 
     // Service definitions
     ros::ServiceServer detect_fiducials_service_; ///< Service server to request fidcuial detection
+    ros::ServiceServer stop_tf_service_; 
     // Publisher definitions
     ros::Publisher detect_fiducials_pub_;
     ros::Publisher fiducials_marker_array_publisher_;
@@ -174,6 +177,9 @@ private:
     t_FiducialType fiducial_type_;
     boost::shared_ptr<ipa_Fiducials::AbstractFiducialModel> tag_detector_;
     
+    boost::mutex tf_lock_;
+    ros::Timer tf_pub_timer_;
+    tf::StampedTransform marker_tf_;
 
 public:
     /// Constructor.
@@ -254,10 +260,26 @@ public:
 		return false;
 	}
 
+	if(publish_tf_) {
+		tf_pub_timer_.stop();
+		tf_pub_timer_ = node_handle_.createTimer(ros::Duration(0.1), &CobFiducialsNode::callback_pub_tf, this);
+		stop_tf_service_ = node_handle_.advertiseService("stop_tf", &CobFiducialsNode::stopTfServiceCallback, this);
+	}
+
         ROS_INFO("[fiducials] Initializing [OK]");
         ROS_INFO("[fiducials] Up and running");
         return true;
     }
+
+	void callback_pub_tf(const ros::TimerEvent& event)
+	{
+		if(marker_tf_.frame_id_.size()>0) {
+			tf_lock_.lock();
+			marker_tf_.stamp_ = ros::Time::now();
+                	tf_broadcaster_.sendTransform(marker_tf_);
+			tf_lock_.unlock();
+		}
+	}
 
     //void dynamicReconfigureCallback(cob_fiducials::fiducialsConfig &config, uint32_t level)
     //{
@@ -360,6 +382,17 @@ public:
         condQ_.notify_one();
     }
 
+    bool stopTfServiceCallback(std_srvs::Empty::Request &req,
+                                        std_srvs::Empty::Response &res)
+    {
+        ROS_DEBUG("[fiducials] Service Callback");
+
+	tf_lock_.lock();
+	marker_tf_.frame_id_ = "";
+	tf_lock_.unlock();
+
+	return true;
+    }
 
 
     bool detectFiducialsServiceCallback(cob_object_detection_msgs::DetectObjects::Request &req,
@@ -443,6 +476,10 @@ public:
         // Detect fiducials and assign results
         std::vector<ipa_Fiducials::t_pose> tags_vec;
         std::vector<std::vector<double> >vec_vec7d;
+
+	tf_lock_.lock();
+	marker_tf_.frame_id_ = "";
+	tf_lock_.unlock();
 
 	unsigned long ret_val = ipa_Utils::RET_OK;
 	ret_val = tag_detector_->GetPose(color_image, tags_vec);
@@ -528,11 +565,13 @@ public:
             {
                 // Broadcast transform of fiducial
                 tf::Transform transform;
-                std::stringstream tf_name;
-                tf_name << detection_array.detections[i].label;
+                //std::stringstream tf_name;
+                //tf_name << detection_array.detections[i].label;
                 transform.setOrigin(tf::Vector3(vec_vec7d[i][0], vec_vec7d[i][1], vec_vec7d[i][2]));
                 transform.setRotation(tf::Quaternion(vec_vec7d[i][4], vec_vec7d[i][5], vec_vec7d[i][6], vec_vec7d[i][3]));
-                tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, tf_name.str()));
+		tf_lock_.lock();
+		marker_tf_ = tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, "marker");	//TODO: make parameter
+		tf_lock_.unlock();
             }
         }
 
