@@ -209,7 +209,7 @@ EdgeDetection<PointInT>::coordinatesMat
 
 			//detect steps in depth coordinates (not directly at the center)
 			//if(iCoord != 0 && std::abs(coordinates.at<float>(iCoord,1) - coordinates.at<float>(iCoord-1,1)) > 0.05)
-			if(iCoord  > 1 && std::abs(coordinates.at<float>(iCoord,1) - coordinates.at<float>(iCoord-1,1)) > 0.05)
+			if(iCoord  > 1 && abs(coordinates.at<float>(iCoord,1) - coordinates.at<float>(iCoord-1,1)) > 0.05)
 			{
 				step = true;
 			}
@@ -224,6 +224,8 @@ EdgeDetection<PointInT>::coordinatesMat
 	{
 		coordinates.resize(iCoord);
 	}
+
+
 
 }
 
@@ -256,6 +258,11 @@ EdgeDetection<PointInT>::approximateLine
 		abc = cv::Mat::zeros(1,3,CV_32FC1);
 	else
 	{
+		/*
+		//-------------------------------------------------------
+		//SVD
+		//-------------------------------------------------------
+
 		cv::Mat sv;	//singular values
 		cv::Mat u;	//left singular vectors
 		cv::Mat vt;	//right singular vectors, transposed, 3x3
@@ -263,7 +270,33 @@ EdgeDetection<PointInT>::approximateLine
 		//if there have been valid coordinates available, perform SVD for linear regression of coordinates
 		//cv::SVD::compute(coordinates,sv,u,vt,cv::SVD::MODIFY_A);
 		cv::SVD::compute(coordinates,sv,u,vt);
-		abc =  vt.row(2);
+		abc =  vt.row(2);*/
+
+		//------------------------------------------------------
+		//QR
+		//------------------------------------------------------
+
+		//y = mx + n
+		//b=1; a= -m; c= -n
+		//E = [x 1 ; ...]
+		//d = [y ; ...]
+		//E* mn - d -> 0
+
+		cv::Mat E (cv::Mat::zeros(coordinates.rows,2,CV_32FC1));
+		for(unsigned int i=0; i<E.rows; ++i)
+		{
+			E.at<float>(i,0) = coordinates.at<float>(i,0);
+			E.at<float>(i,1) = 1;
+		}
+
+		cv::Mat d = coordinates.col(1);
+		cv::Mat mn (cv::Mat::zeros(2,1,CV_32FC1));
+
+		cv::solve(E,d,mn, cv::DECOMP_QR);
+
+		abc.at<float>(0) = -mn.at<float>(0);
+		abc.at<float>(1) = 1;
+		abc.at<float>(2) = -mn.at<float>(1);
 
 	}
 	/*}
@@ -470,7 +503,7 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 		if((zRight - zLeft) > stepThreshold_ || (zRight - zLeft) < -stepThreshold_)
 		{
 			//mark step as edge in depth data
-			//scalarProduct = 0;
+			std::cout <<"step " << zRight - zLeft <<endl;
 			scalarProduct = 0.5;
 		}
 
@@ -486,9 +519,12 @@ EdgeDetection<PointInT>::scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalar
 			float b2 = -(abc2.at<float>(0) + abc2.at<float>(2))/abc2.at<float>(1) -zRight;
 
 
+
 			//directional vectors of the lines: point from central point outwards
 			cv::Mat n1 = (cv::Mat_<float>(1,2) << -1, b1);
 			cv::Mat n2 = (cv::Mat_<float>(1,2) << 1, b2);
+
+			std::cout << "n1 " <<n1 << " n2 " <<n2 <<endl;
 
 			cv::Mat n1Norm, n2Norm;
 			cv::normalize(n1,n1Norm,1);
@@ -732,9 +768,10 @@ EdgeDetection<PointInT>::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Ma
 		std::cout << "coordinates rows,cols " << coordinates.rows <<" , "<< coordinates.cols<< endl;
 	}
 
+	std::cout << "coord: " <<endl;
 	for(int v=0; v< coordinates.rows; v++)
 	{
-		std::cout << "coord: "<< coordinates.row(v) << endl;
+		std::cout <<  coordinates.at<float>(v,0) <<", "<< coordinates.at<float>(v,1) <<", " <<coordinates.at<float>(v,2) <<";"<< endl;
 
 		//project w-coordinates on interval [0,windowX/2] and then shift to the middle windowX/2
 		w = (coordinates.at<float>(v,0) / maxW) * windowX_/2 + windowX_/2;
@@ -944,8 +981,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 	//	cout << timerFunc.getElapsedTimeInMilliSec() << " ms for initial definitions before loop\n";
 
-/*
 
+/*
 	//loop over rows
 	for(int iY = lineLength_/2; iY< depth_image.rows-lineLength_/2; iY++)
 	{
@@ -1043,6 +1080,9 @@ EdgeDetection<PointInT>::computeDepthEdges
 				//if nan at center point, mark as edge
 				scalProdX = 0.5;
 			}
+			else if((pointcloud->at(dotMiddle.x-1,dotMiddle.y).z -pointcloud->at(dotMiddle.x+1,dotMiddle.y).z) > stepThreshold_)
+				//direct step detection
+				scalProdX = 0.5;
 			else
 			{
 				scalarProduct(abc1,abc2,scalProdX,concConv,step);
@@ -1138,12 +1178,15 @@ EdgeDetection<PointInT>::computeDepthEdges
 			{
 				//if nan at center point, mark as edge
 				scalProdY = 0.5;
+				std::cout << "nan at center\n";
 			}
 			else
 			{
 				scalarProduct(abc1Y,abc2Y,scalProdY,concConv,step);
 			}
 
+			std::cout <<"abc1 "<< abc1Y <<", abc2" << abc2Y <<endl;
+			std::cout << "scalProd " << scalProdY <<endl;
 
 			//std::cout << "concave 125 grau, konvex 255 weiß: " <<concConv << "\n";
 
@@ -1165,8 +1208,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 	cv::waitKey(10);
 
 	//thin edges in x- and y-direction separately
-	thinEdges(scalarProductsX, 0);
-	thinEdges(scalarProductsY, 1);
+	//thinEdges(scalarProductsX, 0);
+	//thinEdges(scalarProductsY, 1);
 
 
 	cv::normalize(scalarProductsX, scalProdX_scaled,0,1,cv::NORM_MINMAX);
