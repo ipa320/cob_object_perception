@@ -261,7 +261,8 @@ EdgeDetection<PointInT>::approximateLine
 		cv::Mat vt;	//right singular vectors, transposed, 3x3
 
 		//if there have been valid coordinates available, perform SVD for linear regression of coordinates
-		cv::SVD::compute(coordinates,sv,u,vt,cv::SVD::MODIFY_A);
+		//cv::SVD::compute(coordinates,sv,u,vt,cv::SVD::MODIFY_A);
+		cv::SVD::compute(coordinates,sv,u,vt);
 		abc =  vt.row(2);
 
 	}
@@ -614,21 +615,23 @@ EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 	//detect edges as local maxima of scalarProduct (smaller than plane threshold s_{th,plane}
 	//-----------------------------------------------------------------------------------------
 
-	int neighboursOnOneSide = 9;//40;
+	int neighboursOnOneSide = 4;
 	int neighbourhoodSize = neighboursOnOneSide*2 +1;
 	cv::Mat neighbourhood = cv::Mat::zeros(1,neighbourhoodSize,CV_32FC1);
 
 
 	float max;
-	float maxIdx;
+	int maxIdx;
+	int maxIdx2;
 	//loop over rows of edgePicture
 	for(int iY = neighbourhoodSize; iY< edgePicture.rows - neighbourhoodSize; iY++)
 	{
 		//loop over columns of edgePicture
 		for(int iX = neighbourhoodSize; iX< edgePicture.cols- neighbourhoodSize; iX++)
 		{
-			max = 2;
+			max = -2;
 			maxIdx = -1;
+			maxIdx2 = -1;
 
 			//loop over neighbourhood
 			for(int iNeigh= - neighboursOnOneSide ; iNeigh <= neighboursOnOneSide; iNeigh++)
@@ -640,7 +643,12 @@ EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 					if((edgePicture.at<float>(iY,iX + iNeigh) > max) && (edgePicture.at<float>(iY,iX + iNeigh) < th_plane_))
 					{
 						maxIdx = iX + iNeigh;
+						maxIdx2 = iX + iNeigh;
 						max = edgePicture.at<float>(iY,maxIdx);
+					}
+					else if((edgePicture.at<float>(iY,iX + iNeigh) == max)&& (edgePicture.at<float>(iY,iX + iNeigh) < th_plane_))
+					{
+						maxIdx2 = iX + iNeigh;
 					}
 				}
 				//or loop over y-coordinate
@@ -649,13 +657,22 @@ EdgeDetection<PointInT>::thinEdges(cv::Mat& edgePicture, int xy)
 					if((edgePicture.at<float>(iY + iNeigh,iX) > max) && (edgePicture.at<float>(iY + iNeigh,iX) < th_plane_))
 					{
 						maxIdx = iY + iNeigh;
+						maxIdx2 = iY + iNeigh;
 						max = edgePicture.at<float>(maxIdx,iX);
+					}
+					if((edgePicture.at<float>(iY + iNeigh,iX) == max) && (edgePicture.at<float>(iY + iNeigh,iX) < th_plane_))
+					{
+						maxIdx2 = iY + iNeigh;
 					}
 				}
 			}
 			//if valid maximum has been found
-			if(max != 2 && maxIdx != -1)
+			if(max != -2 && maxIdx != -1)
 			{
+				//if maximum value appears at several adjacent points, mark edge at the middle
+				if(maxIdx != maxIdx2)
+					maxIdx = (int) ((maxIdx + maxIdx2)/2);
+
 				//set all values in neighbourhood to -1 (=no edge), except for maximum value
 				for(int iNeigh= - neighboursOnOneSide ; iNeigh <= neighboursOnOneSide; iNeigh++)
 				{
@@ -712,10 +729,13 @@ EdgeDetection<PointInT>::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Ma
 	{
 		maxW = 1;
 		std::cout << "SurfaceClassification::drawLines(): Prevented division by 0\n";
+		std::cout << "coordinates rows,cols " << coordinates.rows <<" , "<< coordinates.cols<< endl;
 	}
 
 	for(int v=0; v< coordinates.rows; v++)
 	{
+		std::cout << "coord: "<< coordinates.row(v) << endl;
+
 		//project w-coordinates on interval [0,windowX/2] and then shift to the middle windowX/2
 		w = (coordinates.at<float>(v,0) / maxW) * windowX_/2 + windowX_/2;
 		//scale z-value for visualization
@@ -725,7 +745,18 @@ EdgeDetection<PointInT>::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Ma
 		//whereas we want our coordinate system to be at the bottom with the positive z-axis going upward
 		z = windowY_ - z;
 		cv::circle(plotZW,cv::Point2f(w,z),1,CV_RGB(255,255,255),2);
+		if(z> windowY_)
+		{
+			std::cout<< "z:" << z <<endl;
+			cv::circle(plotZW,cv::Point2f(w,windowY_-10),1,CV_RGB(255,255,255),2);
+		}
+		if(z <0)
+		{
+			std::cout<< "z:" << z <<endl;
+			cv::circle(plotZW,cv::Point2f(w,10),1,CV_RGB(255,255,255),2);
+		}
 	}
+	std::cout << "------------------------------------------"<<endl;
 
 	//compute first and last point of the line using the parameters abc
 	// P1(0,-c/b)
@@ -901,9 +932,11 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//cv::Mat scalarProductsX (cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1));
 	cv::Mat scalarProductsY (cv::Mat::zeros(depth_image.rows,depth_image.cols,CV_32FC1));
 	cv::Mat scalarProductsX (cv::Mat::zeros(depth_image.rows,depth_image.cols,CV_32FC1));
+	int concConv = 0;
+	bool step;
 
-	int iX=depth_image.cols/2;
-	int iY=depth_image.rows/2;
+	int iX=2*depth_image.cols/3;
+	int iY=2*depth_image.rows/3;
 
 
 	Timer timer;
@@ -911,7 +944,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 	//	cout << timerFunc.getElapsedTimeInMilliSec() << " ms for initial definitions before loop\n";
 
-
+/*
 
 	//loop over rows
 	for(int iY = lineLength_/2; iY< depth_image.rows-lineLength_/2; iY++)
@@ -985,7 +1018,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 				//std::cout << "abc2 (right):\n " << abc2 << "\n";
 
 			}
-			/* -------------------------------------------------------------------*/
+			// -------------------------------------------------------------------
 
 
 
@@ -997,7 +1030,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			//float scalProdX = 1;
 			float scalProdX = -1;
-			int concConv = 0;
+
 
 
 			if(abc1.at<float>(0,1) == 0 || abc2.at<float>(0,1) == 0)
@@ -1039,7 +1072,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 				concaveConvex.at<unsigned char>(iY,iX) = concConv;
 			}
 
-
+*/
 
 			//scalarProduct of depth along lines in y-direction
 			//------------------------------------------------------------------------
@@ -1091,8 +1124,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 				// -------------------------------------------------------------------//
 			}
-			//drawLines(plotZW,coordinates1Y,abc1Y);
-			//drawLines(plotZW,coordinates2Y,abc2Y);
+			drawLines(plotZW,coordinates1Y,abc1Y);
+			drawLines(plotZW,coordinates2Y,abc2Y);
 
 			float scalProdY = 1;
 			int concConvY = 0;
@@ -1118,14 +1151,30 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 
 			//concaveConvexY.at<unsigned char>(iY,iX) = concConvY;
-
+/*
 		}
-	}	//loop over image
+	}	//loop over image*/
 
+/*	cv::Mat scalProdX_scaled;
+	cv::normalize(scalarProductsX, scalProdX_scaled,0,1,cv::NORM_MINMAX);
+	cv::imshow("x-direction", scalProdX_scaled);
+	cv::waitKey(10);
+	cv::Mat scalProdY_scaled;
+	cv::normalize(scalarProductsY, scalProdY_scaled,0,1,cv::NORM_MINMAX);
+	cv::imshow("y-direction", scalProdY_scaled);
+	cv::waitKey(10);
 
 	//thin edges in x- and y-direction separately
 	thinEdges(scalarProductsX, 0);
 	thinEdges(scalarProductsY, 1);
+
+
+	cv::normalize(scalarProductsX, scalProdX_scaled,0,1,cv::NORM_MINMAX);
+	cv::imshow("x-direction thinned", scalProdX_scaled);
+	cv::waitKey(10);
+	cv::normalize(scalarProductsY, scalProdY_scaled,0,1,cv::NORM_MINMAX);
+	cv::imshow("y-direction thinned", scalProdY_scaled);
+	cv::waitKey(10);
 
 	//thresholding according to edge criterium:
 	//if ((s > -s_(th,edge)) && (s < s_(th,plane)): edge
@@ -1141,7 +1190,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 			else
 				edgeImage.at<float>(iY,iX) = 1;
 		}
-	}
+	}*/
 
 
 	//int lineLength = 30;
@@ -1150,8 +1199,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//cv::imshow("depthImage", depth_image);
 
 
-	//cv::imshow("depth over coordinate along line", plotZW);
-	//cv::waitKey(10);
+	cv::imshow("depth over coordinate along line", plotZW);
+	cv::waitKey(10);
 
 	//cv::imshow("edge image", edgeImage);
 	//cv::waitKey(10);

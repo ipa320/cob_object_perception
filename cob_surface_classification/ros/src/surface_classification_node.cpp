@@ -66,10 +66,10 @@
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						true 	//segmentation
+#define SEG 						false 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement
-#define CLASSIFY 					true	//classification
+#define CLASSIFY 					false	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
@@ -191,6 +191,7 @@ public:
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
 
 
+
 		if(cloud->height == 1 && cloud->points.size() == 307200)
 		{
 			cloud->height = 480;
@@ -220,17 +221,17 @@ public:
 		//std::cout <<"nach depth_image erstellung\n" <<std::flush;
 
 
-		//cv::Mat depth_im_scaled;
-		//cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
-		//cv::imshow("depth_image", depth_im_scaled);
-		//cv::waitKey();
+//		cv::Mat depth_im_scaled;
+//		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
+//		cv::imshow("depth_image", depth_im_scaled);
+//		cv::waitKey(10);
 
 
 		//visualization
 		//zeichne Fadenkreuz
-		//int lineLength = 30;
-		//cv::line(color_image,cv::Point2f(depth_image.cols/2 -lineLength/2, depth_image.rows/2),cv::Point2f(depth_image.cols/2 +lineLength/2, depth_image.rows/2),CV_RGB(0,1,0),1);
-		//cv::line(color_image,cv::Point2f(depth_image.cols/2 , depth_image.rows/2 +lineLength/2),cv::Point2f(depth_image.cols/2 , depth_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
+		int lineLength = 20;
+		cv::line(color_image,cv::Point2f(2*depth_image.cols/3 -lineLength/2, 2*depth_image.rows/3),cv::Point2f(2*depth_image.cols/3 +lineLength/2, 2*depth_image.rows/3),CV_RGB(0,1,0),1);
+		cv::line(color_image,cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 +lineLength/2),cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
 		cv::waitKey(10);
 
