@@ -7,6 +7,7 @@
 
 #include "Evaluation.h"
 
+
 #define HUE_GREEN 		113
 #define HUE_MAGENTA 	0
 #define HUE_YELLOW 		55
@@ -158,6 +159,11 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	cv::Mat test_image = cv::Mat::ones(gt->height, gt->width, CV_8UC3);
 	clusterTypesToColorImage(test_image, gt->height, gt->width);
 
+
+	rec.saveImage(test_image,"prediction");
+	rec.saveImage(gt_color_image,"gt");
+
+
 /*
 	int countCorrect = 0;
 	int countCorrectEdge = 0;
@@ -245,6 +251,8 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 
 	//precision
 	//--------------------------------------------------------
+	std::stringstream txt;
+
 	compareImagesUsingColor(test_image, gt_color_image, c_p);
 
 	struct percentages p_p = {0,0,0,0};
@@ -253,15 +261,18 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	p_p.edge  = divide((float)c_p.countCorrectEdge, (float) c_p.countEdge);
 	p_p.plane = divide((float)c_p.countCorrectPlane, (float)c_p.countPlane);
 
-	std::cout <<"\nPrecision:\n ------------------------\n";
-	std::cout <<  "correctly classified points: " << c_p.countCorrect << " out of "<< c_p.countCompared << " compared points\n";
-	std::cout << "Overall number of points in cloud: " << gt->size() << std::endl;
-	std::cout << "correctly classified points of type\n -plane:   \t" << c_p.countCorrectPlane <<" out of " <<c_p.countPlane <<"\n -concave:\t" << c_p.countCorrectConc <<" out of " <<c_p.countConc <<"\n -convex:\t" << c_p.countCorrectConv <<" out of " <<c_p.countConv <<"\n -edge: \t" << c_p.countCorrectEdge <<" out of " <<c_p.countEdge << std::endl;
+	txt <<"\nPrecision:\n ------------------------\n";
+	txt <<  "correctly classified points: " << c_p.countCorrect << " out of "<< c_p.countCompared << " compared points\n";
+	txt << "Overall number of points in cloud: " << gt->size() << std::endl;
+	txt << "correctly classified points of type\n -plane:   \t" << c_p.countCorrectPlane <<" out of " <<c_p.countPlane <<"\n -concave:\t" << c_p.countCorrectConc <<" out of " <<c_p.countConc <<"\n -convex:\t" << c_p.countCorrectConv <<" out of " <<c_p.countConv <<"\n -edge: \t" << c_p.countCorrectEdge <<" out of " <<c_p.countEdge << std::endl;
 
-	std::cout <<"Concave " << p_p.conc << " %\nConvex " << p_p.conv << " %\nEdge "<< p_p.edge << " %\nPlane " << p_p.plane << " %\n";
+	txt <<"Concave " << p_p.conc << " %\nConvex " << p_p.conv << " %\nEdge "<< p_p.edge << " %\nPlane " << p_p.plane << " %\n";
+
+
 
 	//recall
 	//----------------------------------------------------------
+
 	compareImagesUsingColor(gt_color_image, test_image, c_r);
 
 	struct percentages p_r = {0,0,0,0};
@@ -270,12 +281,15 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	p_r.edge  = divide((float)c_r.countCorrectEdge, (float)c_r.countEdge);
 	p_r.plane = divide((float)c_r.countCorrectPlane, (float)c_r.countPlane);
 
-	std::cout <<"\nRecall:\n ------------------------\n";
-	std::cout <<  "correctly classified points: " << c_r.countCorrect << " out of "<< c_r.countCompared << " compared points\n";
-	std::cout << "Overall number of points in cloud: " << gt->size() << std::endl;
-	std::cout << "correctly classified points of type\n -plane:   \t" << c_r.countCorrectPlane <<" out of " <<c_r.countPlane <<"\n -concave:\t" << c_r.countCorrectConc <<" out of " <<c_r.countConc <<"\n -convex:\t" << c_r.countCorrectConv <<" out of " <<c_r.countConv <<"\n -edge: \t" << c_r.countCorrectEdge <<" out of " <<c_r.countEdge << std::endl;
+	txt <<"\nRecall:\n ------------------------\n";
+	txt <<  "correctly classified points: " << c_r.countCorrect << " out of "<< c_r.countCompared << " compared points\n";
+	txt << "Overall number of points in cloud: " << gt->size() << std::endl;
+	txt << "correctly classified points of type\n -plane:   \t" << c_r.countCorrectPlane <<" out of " <<c_r.countPlane <<"\n -concave:\t" << c_r.countCorrectConc <<" out of " <<c_r.countConc <<"\n -convex:\t" << c_r.countCorrectConv <<" out of " <<c_r.countConv <<"\n -edge: \t" << c_r.countCorrectEdge <<" out of " <<c_r.countEdge << std::endl;
 
-	std::cout <<"Concave " << p_r.conc << " %\nConvex " << p_r.conv << " %\nEdge "<< p_r.edge << " %\nPlane " << p_r.plane << " %\n";
+	txt <<"Concave " << p_r.conc << " %\nConvex " << p_r.conv << " %\nEdge "<< p_r.edge << " %\nPlane " << p_r.plane << " %\n";
+
+	rec.saveText(txt.str(), "eval");
+	rec.saveCloud(gt, "cloud");
 
 	return 0;
 }

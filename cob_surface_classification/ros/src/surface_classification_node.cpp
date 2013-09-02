@@ -60,16 +60,16 @@
 /*switches for execution of processing steps*/
 
 #define RECORD_MODE					false
-#define COMPUTATION_MODE			true
+#define COMPUTATION_MODE			false
 #define EVALUATION_OFFLINE_MODE		false
-#define EVALUATION_ONLINE_MODE		false
+#define EVALUATION_ONLINE_MODE		true
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						false 	//segmentation
+#define SEG 						true 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement
-#define CLASSIFY 					false	//classification
+#define CLASSIFY 					true	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
@@ -229,11 +229,11 @@ public:
 
 		//visualization
 		//zeichne Fadenkreuz
-		int lineLength = 20;
-		cv::line(color_image,cv::Point2f(2*depth_image.cols/3 -lineLength/2, 2*depth_image.rows/3),cv::Point2f(2*depth_image.cols/3 +lineLength/2, 2*depth_image.rows/3),CV_RGB(0,1,0),1);
-		cv::line(color_image,cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 +lineLength/2),cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 -lineLength/2),CV_RGB(0,1,0),1);
+		//int lineLength = 20;
+		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 -lineLength/2, 2*depth_image.rows/3),cv::Point2f(2*depth_image.cols/3 +lineLength/2, 2*depth_image.rows/3),CV_RGB(0,1,0),1);
+		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 +lineLength/2),cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
-		cv::waitKey(10);
+		if(!EVALUATION_ONLINE_MODE) cv::waitKey(10);
 
 
 
@@ -251,7 +251,8 @@ public:
 			//record if "r" is pressed while "image"-window is activated
 			if(key == 1048690)
 			{
-				rec_.saveImage(im_flipped,cloud);
+				rec_.saveImage(im_flipped,"color");
+				rec_.saveCloud(cloud,"cloud");
 			}
 
 		}

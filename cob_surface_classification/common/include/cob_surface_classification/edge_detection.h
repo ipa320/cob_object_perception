@@ -34,7 +34,7 @@ public:
 	EdgeDetection ():
 		stepThreshold_(0.05),
 		offsetConcConv_(1.5),
-		lineLength_(40),
+		lineLength_(20),
 		windowX_(600),
 		windowY_(600),
 		th_plane_(0.7),	//0.7

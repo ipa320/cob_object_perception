@@ -13,6 +13,7 @@
 #include <cob_3d_segmentation/cluster_classifier.h>
 #include <cob_3d_segmentation/depth_segmentation.h>
 #include <cob_3d_mapping_common/label_defines.h>
+#include "scene_recording.h"
 
 //pcl
 #include <iostream>
@@ -42,6 +43,7 @@ public:
 
 private:
 	std::string search_directory;
+	Scene_recording rec;
 
 
 	ST::CH::Ptr clusterHandler;
