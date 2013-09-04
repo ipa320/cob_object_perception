@@ -2311,10 +2311,6 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 		{
 			cv::Rect itr = labeledRegions_[chains[i][j]];
 
-
-			if (itr.x==630 && itr.y==95 && itr.width==33 && itr.height==67)
-				std::cout << "e: i=" << i << " j=" << j << std::endl;
-
 			letterAreaSum += itr.width * itr.height;
 			minX = std::min(minX, itr.x);
 			minY = std::min(minY, itr.y);
@@ -2358,13 +2354,10 @@ bool DetectText::sameTextline(const TextRegion& a, const TextRegion& b)
 
 bool DetectText::pairsInLine(const Pair& a, const Pair& b)
 {
-	std::cout << "a.left=" << a.left << "  a.right=" << a.right << "  b.left=" << b.left << "  b.right=" << b.right;
-	std::cout << "  a.dx=" << a.dx << "  a.dy=" << a.dy << "  b.dx=" << b.dx << "  b.dy=" << b.dy;
 	if (a.left==b.left || a.right==b.right)		// todo: use arbitrary angles
 	{
 		int tn = a.dy * b.dx - a.dx * b.dy;		// sine between both vectors without normalization (sine(a) = cos(90-a))
 		int td = a.dx * b.dx + a.dy * b.dy;		// cosine between both vectors without normalization
-		std::cout << "   opposite  tn=" << tn << "  td=" << td << "  tn/td=" << tn/(double)td << std::endl;
 		// share the same end, opposite direction
 		if ((td < 0) && (tn*7 > td*4) && (tn*7 < -td*4))		// tan(30deg)=4/7 -> tan(-30) < tan(a) < tan(30) && scalar product between both vectors is negative
 			return true;
@@ -2373,7 +2366,6 @@ bool DetectText::pairsInLine(const Pair& a, const Pair& b)
 	{
 		int tn = a.dy * b.dx - a.dx * b.dy;
 		int td = a.dx * b.dx + a.dy * b.dy;
-		std::cout << "  same  tn=" << tn << "  td=" << td << "  tn/td=" << tn/(double)td << std::endl;
 		// share the other end, same direction
 		if ((td > 0) && (tn*7 < td*4) && (tn*7 > -td*4))		// tan(30deg)=4/7 -> tan(-30) < tan(a) < tan(30) && scalar product between both vectors is positive
 			return true;
@@ -2391,8 +2383,6 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 		nodes[i].parent = -1;
 		nodes[i].rank = 0;
 		nodes[i].element = i;
-
-		std::cout << "g: l=" << groups[i].left << "  r=" << groups[i].right << "  xl=" << labeledRegions_[groups[i].left].x << "  xr=" << labeledRegions_[groups[i].right].x << std::endl;
 	}
 
 	for (unsigned int i=0; i<groups.size(); i++)
@@ -2402,11 +2392,8 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			root = nodes[root].parent;
 		for (unsigned int j=0; j<groups.size(); j++)
 		{
-			std::cout << "\nm: (i,j)=" << i << ", " << j << std::endl;
 			if (i!=j && pairsInLine(groups[nodes[i].element], groups[nodes[j].element])==true)
 			{
-				std::cout << "m-->: (i,j)=" << i << ", " << j << std::endl;
-
 				int root2 = j;
 				while (nodes[root2].parent != -1)
 					root2 = nodes[root2].parent;
@@ -2473,14 +2460,6 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			chains[insertIndex].push_back(groups[i].left);
 			chains[insertIndex].push_back(groups[i].right);
 		}
-	}
-
-	for (unsigned int i=0; i<chains.size(); i++)
-	{
-		std::cout << "chain[" << i << "]:\n";
-		for (unsigned int j=0; j<chains[i].size(); j++)
-			std::cout << "\t" << chains[i][j];
-		std::cout << std::endl;
 	}
 
 //	// ------------ old code (does not obey direction of merged pairs) --------------
