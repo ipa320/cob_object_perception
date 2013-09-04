@@ -120,6 +120,7 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 				c.countEdge++;
 			}
 			//other colors
+			//hsv_gt.h = -1 if rgb_gt = {0,0,0} black
 			else
 			{
 				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countPlane++;
@@ -136,7 +137,7 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 			}
 			//other colors
 			//hsv_gt.h = -1 if rgb_gt = {0,0,0} black
-			else if((hsv_gt.h != -1) && (std::abs((int)(hsv_test.h - hsv_gt.h)) < HUE_DIFF_TH))
+			else if((hsv_gt.h != -1) && (hsv_test.h != -1)  && (std::abs((int)(hsv_test.h - hsv_gt.h)) < HUE_DIFF_TH))
 			{
 				c.countCorrect++;
 				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countCorrectPlane++;

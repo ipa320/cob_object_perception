@@ -1247,8 +1247,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//cv::imshow("depth over coordinate along line", plotZW);
 	//cv::waitKey(10);
 
-	//cv::imshow("edge image", edgeImage);
-	//cv::waitKey(10);
+	cv::imshow("edge image", edgeImage);
+	cv::waitKey(10);
 
 	if(DECIDE_CURV)
 	{

@@ -22,7 +22,7 @@ void Scene_recording::saveImage(cv::Mat color_image, std::string name)
 	//specify path
 	std::stringstream nr;//create a stringstream
 	nr << nr_records;//add number to the stream
-	std::string image_filename = data_storage_path + "/records/" + name + nr.str() + ".png";
+	std::string image_filename = data_storage_path + "/records/"  + nr.str() + name + ".png";
 
 	// save image
 	cv::imwrite(image_filename, color_image);
@@ -37,7 +37,7 @@ void Scene_recording::saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr poin
 	//specify path
 		std::stringstream nr;//create a stringstream
 		nr << nr_records;//add number to the stream
-		std::string pcd_filename = data_storage_path + "/records/" + name + nr.str() + ".pcd";
+		std::string pcd_filename = data_storage_path + "/records/"  + nr.str() + name + ".pcd";
 
 		//save pointcloud
 		pcl::io::savePCDFile(pcd_filename, *pointcloud, false);
@@ -51,7 +51,7 @@ void Scene_recording::saveText(std::string txt, std::string name)
   const char* s;
   std::stringstream nr;//create a stringstream
   nr << nr_records;//add number to the stream
-  std::string filename = data_storage_path + "/records/" + name + nr.str() + ".txt";
+  std::string filename = data_storage_path + "/records/" +  nr.str() + name + ".txt";
   s = filename.c_str();
 
   file.open (s);
