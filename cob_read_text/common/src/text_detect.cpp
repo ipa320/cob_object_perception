@@ -1766,8 +1766,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #2: aspect ratio has to be within 0.1 and 10
 		if (processing_method_ == ORIGINAL_EPSHTEIN)
 		{
-			double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
-			isLetter = isLetter && (aspectRatio <= 10.0/*7.0*/);
+			//double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
+			isLetter = isLetter && ((double)std::max(itr.height, itr.width) <= 10.0/*7.0*/ * (double)std::min(itr.height, itr.width));
 		}
 
 		float maxY = itr.y + itr.height;
@@ -1834,7 +1834,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 //		isLetter = isLetter && (pixelCount > 0.2*itr.area() || sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) > medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
 
 		// rule #4: pixelCount has to be bigger than maxStrokeWidth * x:
-		if (processing_method_==BORMANN)
+//		if (processing_method_==BORMANN)
 			isLetter = isLetter && (pixelCount > maxStrokeWidth * pixelCountParameter);
 
 		// rule #5: width has to be smaller than x * height (x>1)
@@ -2067,8 +2067,8 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			cv::Rect jRect = labeledRegions_[j];
 
 			// rule 1: distance between components
-			double dx = (iRect.x+iRect.width/2 - jRect.x-jRect.width/2);
-			double dy = (iRect.y+iRect.height/2 - jRect.y-jRect.height/2);
+			double dx = (jRect.x-jRect.width/2 - iRect.x+iRect.width/2);
+			double dy = (jRect.y-jRect.height/2 - iRect.y+iRect.height/2);
 			double distance = sqrt(dx*dx + dy*dy);
 
 			double iDiagonal = sqrt(iRect.height * iRect.height + iRect.width * iRect.width);
@@ -2197,7 +2197,15 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 
 			if (isGroup==true)
+			{
+				if (iRect.x==630 && iRect.y==95 && iRect.width==33 && iRect.height==67)
+					std::cout << "i: i=" << i << " j=" << j << std::endl;
+				if (jRect.x==630 && jRect.y==95 && jRect.width==33 && jRect.height==67)
+					std::cout << "j: i=" << i << " j=" << j << std::endl;
+				std::cout << "---\n";
+
 				letterGroups_.push_back(Pair(i, j, dx, dy));
+			}
 
 		}// end for loop j
 	}// end for loop i
@@ -2302,6 +2310,11 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 		for (size_t j = 0; j < chains[i].size(); j++)
 		{
 			cv::Rect itr = labeledRegions_[chains[i][j]];
+
+
+			if (itr.x==630 && itr.y==95 && itr.width==33 && itr.height==67)
+				std::cout << "e: i=" << i << " j=" << j << std::endl;
+
 			letterAreaSum += itr.width * itr.height;
 			minX = std::min(minX, itr.x);
 			minY = std::min(minY, itr.y);
@@ -2345,20 +2358,24 @@ bool DetectText::sameTextline(const TextRegion& a, const TextRegion& b)
 
 bool DetectText::pairsInLine(const Pair& a, const Pair& b)
 {
+	std::cout << "a.left=" << a.left << "  a.right=" << a.right << "  b.left=" << b.left << "  b.right=" << b.right;
+	std::cout << "  a.dx=" << a.dx << "  a.dy=" << a.dy << "  b.dx=" << b.dx << "  b.dy=" << b.dy;
 	if (a.left==b.left || a.right==b.right)		// todo: use arbitrary angles
 	{
-		int tn = a.dy * b.dx - a.dx * b.dy;
-		int td = a.dx * b.dx + a.dy * b.dy;
+		int tn = a.dy * b.dx - a.dx * b.dy;		// sine between both vectors without normalization (sine(a) = cos(90-a))
+		int td = a.dx * b.dx + a.dy * b.dy;		// cosine between both vectors without normalization
+		std::cout << "   opposite  tn=" << tn << "  td=" << td << "  tn/td=" << tn/(double)td << std::endl;
 		// share the same end, opposite direction
-		if (tn * 7 < -td * 4 && tn * 7 > td * 4)
+		if ((td < 0) && (tn*7 > td*4) && (tn*7 < -td*4))		// tan(30deg)=4/7 -> tan(-30) < tan(a) < tan(30) && scalar product between both vectors is negative
 			return true;
 	}
 	else if (a.left==b.right || a.right==b.left)
 	{
 		int tn = a.dy * b.dx - a.dx * b.dy;
 		int td = a.dx * b.dx + a.dy * b.dy;
+		std::cout << "  same  tn=" << tn << "  td=" << td << "  tn/td=" << tn/(double)td << std::endl;
 		// share the other end, same direction
-		if (tn * 7 < td * 4 && tn * 7 > -td * 4)
+		if ((td > 0) && (tn*7 < td*4) && (tn*7 > -td*4))		// tan(30deg)=4/7 -> tan(-30) < tan(a) < tan(30) && scalar product between both vectors is positive
 			return true;
 	}
 	return false;
@@ -2374,6 +2391,8 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 		nodes[i].parent = -1;
 		nodes[i].rank = 0;
 		nodes[i].element = i;
+
+		std::cout << "g: l=" << groups[i].left << "  r=" << groups[i].right << "  xl=" << labeledRegions_[groups[i].left].x << "  xr=" << labeledRegions_[groups[i].right].x << std::endl;
 	}
 
 	for (unsigned int i=0; i<groups.size(); i++)
@@ -2383,8 +2402,11 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			root = nodes[root].parent;
 		for (unsigned int j=0; j<groups.size(); j++)
 		{
+			std::cout << "\nm: (i,j)=" << i << ", " << j << std::endl;
 			if (i!=j && pairsInLine(groups[nodes[i].element], groups[nodes[j].element])==true)
 			{
+				std::cout << "m-->: (i,j)=" << i << ", " << j << std::endl;
+
 				int root2 = j;
 				while (nodes[root2].parent != -1)
 					root2 = nodes[root2].parent;
@@ -2430,7 +2452,7 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			nodes[root].rank = ~classIndex++;
 
 		int insertIndex = ~nodes[root].rank;
-		if (insertIndex+1 < (int)chains.size())
+		if (insertIndex/*+1*/ < (int)chains.size())
 		{
 			// add new letters to chain (do not add if the letter is already in the list)
 			for (int letterNumber=0; letterNumber<2; letterNumber++)
@@ -2451,6 +2473,14 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			chains[insertIndex].push_back(groups[i].left);
 			chains[insertIndex].push_back(groups[i].right);
 		}
+	}
+
+	for (unsigned int i=0; i<chains.size(); i++)
+	{
+		std::cout << "chain[" << i << "]:\n";
+		for (unsigned int j=0; j<chains[i].size(); j++)
+			std::cout << "\t" << chains[i][j];
+		std::cout << std::endl;
 	}
 
 //	// ------------ old code (does not obey direction of merged pairs) --------------
@@ -5942,7 +5972,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 	// break text into separate lines without destroying letter boxes
 	cv::Mat output;
 	if (debug["showWords"])
-		output = originalImage_.clone();		// todo: make this a debug parameter
+		output = originalImage_.clone();
 
 	std::vector<TextRegion> wordRegions;
 
@@ -5960,6 +5990,9 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 	//For every boundingBox:
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
+		if (debug["showWords"])
+			output = originalImage_.clone();		// todo: make this a debug parameter
+
 		std::vector<Letter>& letters = textRegions[textRegionIndex].letters;
 
 		//which Letters belong to the current boundingBox, average letter size, stddev letter size
@@ -6006,6 +6039,9 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 					smallestDistanceEdgeIndex = j;
 				}
 			}
+
+			if (letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x == 722)
+				std::cout << "i=" << i << "   letters[currentLetters[i]].boundingBox.x=" << letters[currentLetters[i]].boundingBox.x << "   letters[currentLetters[i]].boundingBox.y=" << letters[currentLetters[i]].boundingBox.y << "   letters[currentLetters[i]].boundingBox.width=" << letters[currentLetters[i]].boundingBox.width << "   letters[currentLetters[i]].boundingBox.height=" << letters[currentLetters[i]].boundingBox.height << "   letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x = 722\n";
 
 			if (smallestDistanceEdge != 100000) //100000 distance means there is no other letter on the right, its the last letter of a line
 				letterDistances.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x, smallestDistanceEdge, 0., 0.));

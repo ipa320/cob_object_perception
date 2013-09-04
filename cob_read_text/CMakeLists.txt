@@ -56,6 +56,8 @@ rosbuild_link_boost(cob_read_text thread)
 
 rosbuild_add_executable(read_evaluation ros/src/read_evaluation.cpp)
 
+rosbuild_add_executable(letter_evaluation ros/src/letter_evaluation.cpp)
+
 rosbuild_add_executable(labelBox ros/src/labelBox.cpp)
 rosbuild_link_boost(labelBox filesystem system)
 

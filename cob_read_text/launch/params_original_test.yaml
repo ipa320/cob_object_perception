@@ -23,7 +23,7 @@ smoothImage: true
 #default: maxStrokeWidthParameter = 50, good for big text: <50, good for careobot/small texts: >50
 # int
 # important: this parameter is not specified in the original paper
-maxStrokeWidthParameter: 70 #70 #75 #180
+maxStrokeWidthParameter: 40 #70 #75 #180
 
 
 #strokeWidthTransform
@@ -193,19 +193,19 @@ result_: 2
 
 # show gray colored edgemap image
 # bool
-showEdge: false
+showEdge: true
 
 # show swt map
 # bool
-showSWT: false
+showSWT: true
 
 # show connected components
 # bool
-showLetterCandidates: false
+showLetterCandidates: true
 
 # show connected components recognized as letters
 # bool
-showLetters: false
+showLetters: true
 
 # show pairs (2 letters belonging together)
 # bool
@@ -217,9 +217,9 @@ showChains: false
 
 # breaks text block into several lines
 # bool
-showBreakLines: false
+showBreakLines: true
 
-showWords: false
+showWords: true
 
 showCriterions: false
 

@@ -39,7 +39,7 @@
 #include <boost/bind.hpp>
 
 // SFML
-//#define WITH_AUDIO_FEEDBACK
+#define WITH_AUDIO_FEEDBACK
 #ifdef WITH_AUDIO_FEEDBACK
 	#include <SFML/Audio.hpp>
 #endif
