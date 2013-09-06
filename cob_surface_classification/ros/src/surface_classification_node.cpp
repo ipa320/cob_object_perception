@@ -66,14 +66,14 @@
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						false 	//segmentation
+#define SEG 						true 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement
 #define CLASSIFY 					false	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
-#define SEG_VIS 					false 	//visualisation of segmentation
+#define SEG_VIS 					true 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	//visualisation of classification
 
@@ -428,10 +428,8 @@ public:
 //		if(EVALUATION_OFFLINE_MODE)
 //		{
 //			TODO
-//			//read cloud from file
-//			...
-//			//evaluation
-//			eval_.compareClassification();
+//			std::string gt_filename = ...; //path to ground truth cloud
+//			eval_.compareClassification(gt_filename);
 //		}
 
 	}//inputCallback()

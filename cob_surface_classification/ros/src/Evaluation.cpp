@@ -1,3 +1,63 @@
+/*!
+ *****************************************************************
+ * \file
+ *
+ * \note
+ * Copyright (c) 2013 \n
+ * Fraunhofer Institute for Manufacturing Engineering
+ * and Automation (IPA) \n\n
+ *
+ *****************************************************************
+ *
+ * \note
+ * Project name: Care-O-bot
+ * \note
+ * ROS stack name: cob_object_perception
+ * \note
+ * ROS package name: cob_surface_classification
+ *
+ * \author
+ * Author: Richard Bormann
+ * \author
+ * Supervised by:
+ *
+ * \date Date of creation: 07.08.2012
+ *
+ * \brief
+ * functions for display of people detections
+ *
+ *****************************************************************
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. \n
+ * - Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution. \n
+ * - Neither the name of the Fraunhofer Institute for Manufacturing
+ * Engineering and Automation (IPA) nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission. \n
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License LGPL as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License LGPL for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License LGPL along with this program.
+ * If not, see <http://www.gnu.org/licenses/>.
+ *
+ ****************************************************************/
+
+
 /*
  * Evaluation.cpp
  *
@@ -88,7 +148,8 @@ void Evaluation::clusterTypesToColorImage(cv::Mat& test_image, unsigned int heig
 
 void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Evaluation::count& c)
 {
-	//check all pixels in imOrigin according to their color: how many of them have been colored as in imComp?
+	//check color of all pixels in imOrigin: determine how many of them have been colored as in imComp
+	//-----------------------------------------------------------------------------------------------------
 
 
 	//dont't consider border of image because of inaccurate computations due to cut neighbourhood.
@@ -97,52 +158,50 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 		for (unsigned int u=10; u<imOrigin.cols-10; u++)
 		{
 
-			bool prob=true;
-
 			c.countCompared++;
-			pcl::PointXYZHSV hsv_gt;	//Point of ground truth
-			pcl::PointXYZHSV hsv_test;	//Point of classified cloud
-			pcl::PointXYZRGB rgb_gt;
-			pcl::PointXYZRGB rgb_test;
-			rgb_gt.b = imOrigin.at<cv::Vec3b>(v,u)[0];
-			rgb_gt.g = imOrigin.at<cv::Vec3b>(v,u)[1];
-			rgb_gt.r = imOrigin.at<cv::Vec3b>(v,u)[2];
-			rgb_test.b = imComp.at<cv::Vec3b>(v,u)[0];
-			rgb_test.g = imComp.at<cv::Vec3b>(v,u)[1];
-			rgb_test.r = imComp.at<cv::Vec3b>(v,u)[2];
+			pcl::PointXYZHSV hsv_origin;
+			pcl::PointXYZHSV hsv_comp;
+			pcl::PointXYZRGB rgb_origin;
+			pcl::PointXYZRGB rgb_comp;
+			rgb_origin.b = imOrigin.at<cv::Vec3b>(v,u)[0];
+			rgb_origin.g = imOrigin.at<cv::Vec3b>(v,u)[1];
+			rgb_origin.r = imOrigin.at<cv::Vec3b>(v,u)[2];
+			rgb_comp.b = imComp.at<cv::Vec3b>(v,u)[0];
+			rgb_comp.g = imComp.at<cv::Vec3b>(v,u)[1];
+			rgb_comp.r = imComp.at<cv::Vec3b>(v,u)[2];
 
-			pcl::PointXYZRGBtoXYZHSV ( 	rgb_test, hsv_test);
-			pcl::PointXYZRGBtoXYZHSV ( 	rgb_gt, hsv_gt);
+			pcl::PointXYZRGBtoXYZHSV ( 	rgb_comp, hsv_comp);
+			pcl::PointXYZRGBtoXYZHSV ( 	rgb_origin, hsv_origin);
 
 			//black (no determining hue value)
-			if(hsv_gt.v < 20)
+			if(hsv_origin.v < 20)
 			{
 				c.countEdge++;
 			}
 			//other colors
-			//hsv_gt.h = -1 if rgb_gt = {0,0,0} black
+			//hsv_origin.h = -1 if rgb_origin = {0,0,0} black
 			else
 			{
-				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countPlane++;
-				else if (std::abs((int)(hsv_gt.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countConc++;
-				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countConv++;
+				if(std::abs((int)(hsv_origin.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countPlane++;
+				else if (std::abs((int)(hsv_origin.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countConc++;
+				else if (std::abs((int)(hsv_origin.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countConv++;
 			}
 
 			//comparisons
 			//both black
-			if((hsv_gt.v < 20) && (hsv_test.v < 20))
+			if((hsv_origin.v < 20) && (hsv_comp.v < 20))
 			{
 				c.countCorrect++;
 				c.countCorrectEdge++;
 			}
 			//other colors
-			//hsv_gt.h = -1 if rgb_gt = {0,0,0} black
-			else if((hsv_gt.h != -1) && (hsv_test.h != -1)  && (std::abs((int)(hsv_test.h - hsv_gt.h)) < HUE_DIFF_TH))
+			//hsv_origin.h = -1 if rgb_origin = {0,0,0} black
+			else if((hsv_origin.h != -1) && (hsv_comp.h != -1)  && (std::abs((int)(hsv_comp.h - hsv_origin.h)) < HUE_DIFF_TH))
 			{
 				c.countCorrect++;
-				if(std::abs((int)(hsv_gt.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countCorrectPlane++;
-				else if (std::abs((int)(hsv_gt.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countCorrectConc++;
-				else if (std::abs((int)(hsv_gt.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countCorrectConv++;
+				if(std::abs((int)(hsv_origin.h - HUE_GREEN)) < HUE_DIFF_TH)			c.countCorrectPlane++;
+				else if (std::abs((int)(hsv_origin.h - HUE_YELLOW)) < HUE_DIFF_TH) 	c.countCorrectConc++;
+				else if (std::abs((int)(hsv_origin.h - HUE_MAGENTA)) < HUE_DIFF_TH)	c.countCorrectConv++;
 			}
 		}
 	}
@@ -150,22 +209,25 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 
 int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr gt, cv::Mat gt_color_image)
 {
-	//compare all points in clusters of type edge,plane,concave,convex to the colors of the ground truth
+	//compare all points of type edge,plane,concave,convex to the colors of the ground truth (which has to be colored according to class label, see label_defines.h)
+	//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 	struct count c_r = {0,0,0,0,0,0,0,0,0,0,0};
 	struct count c_p = {0,0,0,0,0,0,0,0,0,0,0};
 
-	//points not taken into account until the end (no class assigned) remain white
+	//points not taken into account until the end remain white (->no class assigned)
 	cv::Mat test_image = cv::Mat::ones(gt->height, gt->width, CV_8UC3);
 	clusterTypesToColorImage(test_image, gt->height, gt->width);
-
 
 	rec.saveImage(test_image,"prediction");
 	rec.saveImage(gt_color_image,"gt");
 
 
 /*
+	//comparison using the clusters
+	//------------------------------------
+
 	int countCorrect = 0;
 	int countCorrectEdge = 0;
 	int countCorrectPlane = 0;
@@ -179,7 +241,6 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	int countConv = 0;
 
 
-	//comparison using the clusters
 	ST::CH::ClusterPtr c_it,c_end;
 	for ( boost::tie(c_it,c_end) = clusterHandler->getClusters(); c_it != c_end; ++c_it)
 	{

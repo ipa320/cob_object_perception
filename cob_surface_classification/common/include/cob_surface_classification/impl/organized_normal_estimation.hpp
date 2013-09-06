@@ -18,6 +18,7 @@
  *
  * \author
  *  Author: Steffen Fuchs, email:georg.arbeiter@ipa.fhg.de
+ *  		Carolin Eckard
  * \author
  *  Supervised by: Georg Arbeiter, email:georg.arbeiter@ipa.fhg.de
  *
@@ -68,8 +69,9 @@
 template <typename PointInT, typename PointOutT, typename LabelOutT> bool
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::compareCoordToEdgeCoord(
 		int idx, int idx_x, int idx_y, std::vector<Eigen::Vector2f>& directionsOfEdges)
-		{
+{
 	//ignore points with coordinates x,y larger than coordinates of any edge point detected so far
+	//-----------------------------------------------------------------------------------------------
 
 
 	bool ignorePoint = false;
@@ -103,15 +105,16 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::compareCo
 			ignorePoint = true;
 	}
 	return ignorePoint;
-		}
+}
 
 
 template <typename PointInT, typename PointOutT, typename LabelOutT> bool
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::checkDirectionForEdge(
 		int idx,	Eigen::Vector2f p_curr, std::vector<Eigen::Vector2f>&  directionsOfEdges)
-		{
+{
 	//ignore points if in direction of an edge. Edge directions detected so far are stored in "directionsOfEdges".
 	//Directions are compared by computing the scalarproduct.
+	//----------------------------------------------------------------------------------------------------------------
 
 	bool ignorePoint = false;
 
@@ -136,10 +139,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::checkDire
 	for(it_dirOfEd = directionsOfEdges.begin(); it_dirOfEd != directionsOfEdges.end(); ++it_dirOfEd)
 	{
 		scalProd = (*it_dirOfEd)(0) * p_curr(0) + (*it_dirOfEd)(1) * p_curr(1); // + (*it_dirOfEd)(2) * p_curr(2);
-		//NICHT den Betrag des Skalarprodukts nehmen!
 		if(scalProd > sameDirectionThres_)
 		{
-
 			//check if both vectors point the same direction (not in the opposite one)
 			if(((*it_dirOfEd)(0) * p_curr(0) >= 0) && ( (*it_dirOfEd)(1) * p_curr(1) >= 0)) //&& ((*it_dirOfEd)(2) * p_curr(2) > 0))
 			{
@@ -149,24 +150,27 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::checkDire
 		}
 	}
 	return ignorePoint;
-		}
+}
 
 
 
 template <typename PointInT, typename PointOutT, typename LabelOutT> void
 cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePointNormal (
 		const PointCloudIn &cloud, int index,  float &n_x, float &n_y, float &n_z, int& label_out)
-		{
+{
+	//two vectors computed in the tangential plane: origin of vectors = query point,
+	//end points are two points at the boundary of the neighbourhood.
+	//the normal is the cross product of those two vectors
+	//
+	//input: index - index of point in input_ cloud
+	//output: n_x, n_y, n_z - coordinates of normal vector
+	//---------------------------------------------------------------------------------------------------------
+
+
 	/*Timer timer;
 	timer.start();
 	for(int i=0; i<10; i++)
 	{*/
-
-	//input: index - index of point in input_ cloud
-	//output: n_x, n_y, n_z - coordinates of normal vector
-
-	//two vectors computed in the tangential plane: origin of vectors = query point, end points are two points at the boundary of the neighbourhood
-	//the normal is the cross product of those two vectors
 
 
 	Eigen::Vector3f p = cloud.points[index].getVector3fMap();	//query point
@@ -191,9 +195,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 		return;
 	}
 
-
-	//Quantisierungsstufen werden mit zunehmendem Abstand von der Kamera größer
-	//Schwellwert für den Abstand, der in der Nachbarschaft bestehen darf, wird entsprechend angepasst
+	//quantisation steps larger with increasing distance from camera
+	//distance threshold for selecting neighourhood pixels is adapted accordingly
 	float distance_threshold = skip_distant_point_threshold_ * 0.003 * p(2) * p(2);
 
 	bool has_prev_point;	//true if a vector to a point in the neighbourhood has been computed before -> only then the normal can be computed
@@ -240,7 +243,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 			{
 				idx = index + *it_ci;
 				Eigen::Vector3f p_i = cloud.points[idx].getVector3fMap();
-				if ( isnan(p_i(2)) )                        { ++gab; continue; }               // count as gab point
+				if ( p_i(2) != p_i(2) )                        { ++gab; continue; }               // count as gab point
 
 
 				ignorePoint = false;
@@ -251,7 +254,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 
 					//ignorePoint = compareCoordToEdgeCoord(idx, idx_x,idx_y,directionsOfEdges);
 
-					/*//reale Koordinaten:
+					/*//real coordinates:
 					 * Eigen::Vector3f xy3 = p_i - p;
 					xy3.resize(2);
 					Eigen::Vector2f xy = xy3;*/
@@ -262,6 +265,8 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 					Eigen::Vector2f xy;
 					xy(0) = idx_inDepIm_x - idx_x;
 					xy(1) = idx_inDepIm_y - idx_y;
+
+					//ignore points if in direction of an edge detected so far
 					ignorePoint = checkDirectionForEdge(idx, xy, directionsOfEdges);
 				}
 
@@ -383,7 +388,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computePo
 		} // end loop of circles
 	}
 
-	//average all computed normals (= mittlere Normale)
+	//average all computed normals (= "mittlere Normale")
 	n_idx /= (float)n_normals;
 	n_idx = n_idx.normalized();
 	n_x = n_idx(0);
@@ -416,9 +421,6 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computeFe
 	}
 	int count = 0;
 
-
-
-
 	if (labels_->points.size() != input_->size())
 	{
 		labels_->points.resize(input_->size());
@@ -429,7 +431,7 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computeFe
 	for (std::vector<int>::iterator it=indices_->begin(); it != indices_->end(); ++it)
 	{
 
-		if(!NEIGHBOURH_VIS || count % 660== 0)	//computations only at every 660th point
+		if(!NEIGHBOURH_VIS || count % 660== 0)	//computations for visualization only at every 660th point
 		{
 			labels_->points[*it].label = I_UNDEF;
 			computePointNormal(*surface_, *it, output.points[*it].normal[0], output.points[*it].normal[1], output.points[*it].normal[2], labels_->points[*it].label);
@@ -444,9 +446,5 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computeFe
 	}
 
 }
-
-
-
-
 
 #endif
