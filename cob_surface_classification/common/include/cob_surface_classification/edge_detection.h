@@ -35,6 +35,7 @@ public:
 		stepThreshold_(0.05),
 		offsetConcConv_(1.5),
 		lineLength_(20),
+		thinSizeHalf_(4),
 		windowX_(600),
 		windowY_(600),
 		th_plane_(0.7),	//0.7
@@ -69,9 +70,11 @@ private:
 
 
 	void coordinatesMat(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& coordinates, bool& step);
-	void approximateLine(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc,cv::Mat& n, cv::Mat& coordinates, bool& step);
+	void approximateLineSVD(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotLeft, cv::Point2f dotRight, cv::Mat& abc, cv::Mat& coordinates, bool& step);
+	void approximateLinePCA (cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& n, cv::Mat& coordinates, bool& step);
 	void approximateLine(cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
-	void scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalarProduct, int& concaveConvex, bool& step);
+	void scalarProduct(cv::Mat& abc1,cv::Mat& abc2,float& scalarProduct, bool& step);
+	void curvatureType(cv::Mat& abc1,cv::Mat& abc2, int& concaveConvex);
 	void approximateLineFullAndHalfDist (cv::Mat& depth_image, PointCloudInConstPtr pointcloud, cv::Point2f dotIni, cv::Point2f dotEnd, cv::Mat& abc);
 
 	void thinEdges(cv::Mat& edgePicture, int xy);
@@ -87,10 +90,12 @@ private:
 	float stepThreshold_;	//minimum distance which is detected as a step in depth coordinates
 	float offsetConcConv_;	//how much the gradients need to differ
 	int lineLength_;	//depth coordinates along two lines with length lineLength/2 are considered
+	int thinSizeHalf_; //thinning of edges along line of length 2*thinSizeHalf_
 	int windowX_;	//size of visualization windows in x-direction
 	int windowY_;
 	float th_plane_;	//threshold of scalarproduct. Only smaller values are taken into account for edges.
 	float th_edge_;		//threshold of scalarproduct. Only larger values are taken into account for edges. Should be negative.
+
 };
 
 

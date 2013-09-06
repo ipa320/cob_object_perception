@@ -59,17 +59,17 @@
 
 /*switches for execution of processing steps*/
 
-#define RECORD_MODE					false
-#define COMPUTATION_MODE			false
-#define EVALUATION_OFFLINE_MODE		false
-#define EVALUATION_ONLINE_MODE		true
+#define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
+#define COMPUTATION_MODE			true		//computations without record
+#define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
+#define EVALUATION_ONLINE_MODE		false		//computations plus evaluation of current computations plus record of evaluation
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						true 	//segmentation
+#define SEG 						false 	//segmentation
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement
-#define CLASSIFY 					true	//classification
+#define CLASSIFY 					false	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
@@ -179,19 +179,13 @@ public:
 
 		ROS_INFO("Input Callback");
 
-
 		// convert color image to cv::Mat
 		cv_bridge::CvImageConstPtr color_image_ptr;
 		cv::Mat color_image;
-		//std::cout << "before convertMessage"<<std::endl;
 		convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
 
-		//std::cout << "before defining color cloud"<<std::endl;
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::fromROSMsg(*pointcloud_msg, *cloud);
-
-
-
 		if(cloud->height == 1 && cloud->points.size() == 307200)
 		{
 			cloud->height = 480;
@@ -205,39 +199,26 @@ public:
 		{
 			for (unsigned int u=0; u<cloud->width; u++, i++)
 			{
-				//bei Aufruf aus der Matrix ist der Index (Zeile,Spalte), also (y-Wert,x-Wert)!!!
+				//matrix indices: row y, column x!
 				pcl::PointXYZRGB& point = cloud->at(u,v);
-//				if(point.z == point.z)
+//				if(point.z == point.z)	//test nan
 					depth_image.at< float >(v,u) = point.z;
-////				if (u==320 && v==100)
-//					std::cout << "320, 100 : " << point.z << std::endl;
-//				if (u==320 && v==240)
-//					std::cout << "320, 240 : " << point.z << std::endl;
-//				if (u==320 && v==380)
-//					std::cout << "320, 380 : " << point.z << std::endl;
+
 			}
 		}
 
-		//std::cout <<"nach depth_image erstellung\n" <<std::flush;
-
-
+		//visualization
 //		cv::Mat depth_im_scaled;
 //		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
 //		cv::imshow("depth_image", depth_im_scaled);
 //		cv::waitKey(10);
 
-
-		//visualization
-		//zeichne Fadenkreuz
+		//draw crossline
 		//int lineLength = 20;
 		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 -lineLength/2, 2*depth_image.rows/3),cv::Point2f(2*depth_image.cols/3 +lineLength/2, 2*depth_image.rows/3),CV_RGB(0,1,0),1);
 		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 +lineLength/2),cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 -lineLength/2),CV_RGB(0,1,0),1);
 		cv::imshow("image", color_image);
 		if(!EVALUATION_ONLINE_MODE) cv::waitKey(10);
-
-
-
-
 
 
 		//record scene
@@ -263,17 +244,8 @@ public:
 		if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
 		//std::cout << key <<endl;
 		//record if "e" is pressed while "image"-window is activated
-		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 101))//1048677))
+		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 101))
 		{
-
-
-
-//			// get color image from point cloud
-//			pcl::PointCloud<pcl::PointXYZRGB> point_cloud_src;
-//		pcl::fromROSMsg(*pointcloud_msg, point_cloud_src);
-//		pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pc_ptr(&point_cloud_src);
-
-
 			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 			pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdges(new pcl::PointCloud<pcl::Normal>);
 			pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
@@ -282,42 +254,16 @@ public:
 			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 
 
-
-
-
-			//		cv::Mat color_image = cv::Mat::zeros(point_cloud_src.height, point_cloud_src.width, CV_8UC3);
-			//		for (unsigned int v=0; v<point_cloud_src.height; v++)
-			//		{
-			//			for (unsigned int u=0; u<point_cloud_src.width; u++)
-			//			{
-			//				pcl::PointXYZRGB point = point_cloud_src(u,v);
-			//				if (isnan_(point.z) == false)
-			//					color_image.at<cv::Point3_<unsigned char> >(v,u) = cv::Point3_<unsigned char>(point.b, point.g, point.r);
-			//			}
-			//		}
-
-
-
-
-
-
-
-
-
-//
-//
 //		oneWithoutEdges_.setInputCloud(cloud);
 //		oneWithoutEdges_.setPixelSearchRadius(8,1,1);
 //		oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
 //		oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 //		oneWithoutEdges_.compute(*normalsWithoutEdges);
 
-
 			cv::Mat edgeImage = cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1);
 			edge_detection_.computeDepthEdges( depth_image, cloud, edgeImage);
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
-
 
 			//cv::imshow("edge_image", edgeImage);
 			//cv::waitKey(10);
@@ -327,15 +273,13 @@ public:
 			//for(int i=0; i<10; i++)
 			//{
 
-
-
 			one_.setInputCloud(cloud);
 			one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
 			one_.computeMaskManually_increasing(cloud->width);
 			one_.setEdgeImage(edgeImage);
 			one_.setOutputLabels(labels);
 			one_.setSameDirectionThres(0.94);
-			one_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
 			one_.compute(*normals);
 
 			//}timer.stop();
@@ -345,22 +289,18 @@ public:
 
 			if(NORMAL_VIS)
 			{
-
 				// visualize normals
 				pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
 				viewerNormals.setBackgroundColor (0.0, 0.0, 0);
 				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(cloud);
 
-
 				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
 				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
 				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 
-
 				while (!viewerNormals.wasStopped ())
 				{
 					viewerNormals.spinOnce();
-
 				}
 				viewerNormals.removePointCloud("cloud");
 			}
@@ -388,9 +328,6 @@ public:
 				*segmented = *cloud;
 				graph->clusters()->mapClusterColor(segmented);
 
-
-
-
 				// visualize segmentation
 				pcl::visualization::PCLVisualizer viewer("segmentation");
 				viewer.setBackgroundColor (0.0, 0.0, 0);
@@ -399,8 +336,6 @@ public:
 				while (!viewer.wasStopped ())
 				{
 					viewer.spinOnce();
-
-
 				}
 				viewer.removePointCloud("seg");
 			}
@@ -418,14 +353,8 @@ public:
 				while (!viewerWithoutEdges.wasStopped ())
 				{
 					viewerWithoutEdges.spinOnce();
-
 				}
-
 			}
-
-
-
-
 			if(SEG_REFINE)
 			{
 				//merge segments with similar curvature characteristics
@@ -436,28 +365,24 @@ public:
 				//segRefined_.setCurvThres()
 				segRefined_.refineUsingCurvature();
 				//segRefined_.printCurvature(color_image);
+
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedRef(new pcl::PointCloud<pcl::PointXYZRGB>);
+				*segmentedRef = *cloud;
+				graph->clusters()->mapClusterColor(segmentedRef);
+
+				// visualize refined segmentation
+				pcl::visualization::PCLVisualizer viewerRef("segmentationRef");
+				viewerRef.setBackgroundColor (0.0, 0.0, 0);
+				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbRef(segmentedRef);
+				viewerRef.addPointCloud<pcl::PointXYZRGB> (segmentedRef,rgbRef,"segRef");
+
+				while (!viewerRef.wasStopped ())
+				{
+					viewerRef.spinOnce();
+				}
+				viewerRef.removePointCloud("segRef");
 			}
 
-
-//				pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentedRef(new pcl::PointCloud<pcl::PointXYZRGB>);
-//			 *segmentedRef = *cloud;
-//		graph->clusters()->mapClusterColor(segmentedRef);
-//
-//
-//		// visualize segmentation
-//		pcl::visualization::PCLVisualizer viewerRef("segmentationRef");
-//		viewerRef.setBackgroundColor (0.0, 0.0, 0);
-//		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbRef(segmentedRef);
-//		viewerRef.addPointCloud<pcl::PointXYZRGB> (segmentedRef,rgbRef,"segRef");
-//
-//		while (!viewer.wasStopped ())
-//		{
-//			viewer.spinOnce();
-//			viewerRef.spinOnce();
-//
-//		}
-//		viewerRef.removePointCloud("segRef");
-//		viewer.removePointCloud("seg");
 
 
 			if(CLASSIFY|| EVALUATION_ONLINE_MODE)
@@ -488,8 +413,6 @@ public:
 				while (!viewerClass.wasStopped ())
 				{
 					viewerClass.spinOnce();
-
-
 				}
 				viewerClass.removePointCloud("class");
 			}
@@ -502,16 +425,14 @@ public:
 
 
 		}
-		if(EVALUATION_OFFLINE_MODE)
-		{
-//			eval_.setClusterHandler(graph->clusters());
-//			std::string path = std::string(getenv("HOME")) + "/rmb-ce/records/cloud2.pcd";
-//			eval_.compareClassification(path);
-		}
-
-
-
-
+//		if(EVALUATION_OFFLINE_MODE)
+//		{
+//			TODO
+//			//read cloud from file
+//			...
+//			//evaluation
+//			eval_.compareClassification();
+//		}
 
 	}//inputCallback()
 
@@ -525,13 +446,9 @@ private:
 	message_filters::Subscriber<sensor_msgs::PointCloud2> pointcloud_sub_;
 	message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >* sync_input_;
 
-
 	//records
 	Scene_recording rec_;
 
-
-
-	//SurfaceClassification surface_classification_;
 	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
 	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> oneWithoutEdges_;
 
@@ -542,7 +459,6 @@ private:
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segWithoutEdges_;
 
 	cob_3d_segmentation::ClusterClassifier<ST::CH, ST::Point, ST::Normal, ST::Label> cc_;
-
 
 	//evaluation
 	Evaluation eval_;

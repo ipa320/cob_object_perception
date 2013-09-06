@@ -71,6 +71,7 @@ private:
 		float edge;
 		float conc;
 		float conv;
+		float overall;
 	};
 
 	float divide(float a, float b);

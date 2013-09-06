@@ -262,8 +262,9 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	p_p.edge  = divide((float)c_p.countCorrectEdge, (float) c_p.countEdge);
 	p_p.plane = divide((float)c_p.countCorrectPlane, (float)c_p.countPlane);
 
+
 	txt <<"\nPrecision:\n ------------------------\n";
-	txt <<  "correctly classified points: " << c_p.countCorrect << " out of "<< c_p.countCompared << " compared points\n";
+
 	txt << "Overall number of points in cloud: " << gt->size() << std::endl;
 	txt << "correctly classified points of type\n -plane:   \t" << c_p.countCorrectPlane <<" out of " <<c_p.countPlane <<"\n -concave:\t" << c_p.countCorrectConc <<" out of " <<c_p.countConc <<"\n -convex:\t" << c_p.countCorrectConv <<" out of " <<c_p.countConv <<"\n -edge: \t" << c_p.countCorrectEdge <<" out of " <<c_p.countEdge << std::endl;
 
@@ -281,9 +282,10 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	p_r.conv  = divide((float)c_r.countCorrectConv, (float)c_r.countConv);
 	p_r.edge  = divide((float)c_r.countCorrectEdge, (float)c_r.countEdge);
 	p_r.plane = divide((float)c_r.countCorrectPlane, (float)c_r.countPlane);
+	p_r.overall =  divide((float)c_r.countCorrect, (float)c_r.countCompared);
 
 	txt <<"\nRecall:\n ------------------------\n";
-	txt <<  "correctly classified points: " << c_r.countCorrect << " out of "<< c_r.countCompared << " compared points\n";
+	txt <<  "correctly classified points: " << c_r.countCorrect << " out of "<< c_r.countCompared << " compared points, that is " << p_r.overall <<"%\n";
 	txt << "Overall number of points in cloud: " << gt->size() << std::endl;
 	txt << "correctly classified points of type\n -plane:   \t" << c_r.countCorrectPlane <<" out of " <<c_r.countPlane <<"\n -concave:\t" << c_r.countCorrectConc <<" out of " <<c_r.countConc <<"\n -convex:\t" << c_r.countCorrectConv <<" out of " <<c_r.countConv <<"\n -edge: \t" << c_r.countCorrectEdge <<" out of " <<c_r.countEdge << std::endl;
 

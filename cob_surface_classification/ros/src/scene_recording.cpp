@@ -16,6 +16,10 @@ Scene_recording::Scene_recording() {
 Scene_recording::~Scene_recording() {
 }
 
+//save files to data_storage_path/records/
+//----------------------------------------------------------------
+
+
 void Scene_recording::saveImage(cv::Mat color_image, std::string name)
 {
 

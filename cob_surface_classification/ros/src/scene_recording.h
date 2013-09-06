@@ -31,6 +31,8 @@ public:
 	void saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pointcloud, std::string name);
 	void saveText(std::string txt, std::string name);
 
+	inline void setPath(std::string p) { data_storage_path = p; }
+
 
 private:
 	std::string data_storage_path;
