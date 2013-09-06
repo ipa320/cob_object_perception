@@ -39,7 +39,7 @@ useColorEdge: false
 
 # edgemap threshold #default: 120  #90  #160
 # int
-cannyThreshold1: 250 #208 #214 #204
+cannyThreshold1: 250 #250 #208 #214 #204
 
 # cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
@@ -109,7 +109,7 @@ distanceRatioParameter: 3.0 #3.1 #2.9 #3.0  #2.9 #2.5
 
 # comparison between median sw of components, default: 2.5
 # double
-medianSwParameter: 2.0 #1.8 #1.5 #2.0
+medianSwParameter: 2.1 #2.0 #1.8 #1.5 #2.0
 
 # maximum diagonal ratio, default 2.0
 # double
@@ -190,6 +190,9 @@ result_: 2
 
 # debug
 # ----------
+# turns all debug outputs off
+# bool
+debugAllOff: true
 
 # show gray colored edgemap image
 # bool

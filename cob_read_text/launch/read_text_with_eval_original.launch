@@ -7,7 +7,7 @@
 	<rosparam command="load" file="$(find cob_read_text)/launch/params_original_test.yaml" />
 
 	<!--node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="$(find cob_read_text)/common/files/haushaltsgegenstaende/stereo_left/rotated/g.xml"-->
-	<node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="$(find cob_read_text)/common/files/competitions/2003/03-Robust-Reading-and-Text-Locating/TrialTest/words_short2.xml">
+	<node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="$(find cob_read_text)/common/files/competitions/2003/03-Robust-Reading-and-Text-Locating/TrialTest/words.xml">
 	<!--node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="$(find cob_read_text)/common/files/competitions/train2/train.xml"-->
 	<!--node name="read_evaluation" pkg="cob_read_text" type="read_evaluation" output="screen" args="$(arg xmlfile)"-->
 	</node>

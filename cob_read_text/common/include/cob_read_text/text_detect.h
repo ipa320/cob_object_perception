@@ -208,10 +208,10 @@ private:
 	float getMedianStrokeWidth(const cv::Mat& ccmap, const cv::Mat& swtmap, const cv::Rect& rect, int element);
 
 	// merges letterGroups_ to chains of letters, finds bounding box of these chains
-	void chainPairs(std::vector<TextRegion>& textRegions);
+	void chainPairs(std::vector<TextRegion>& textRegions, const cv::Mat& ccmap);
 
 	// finds bounding box of a chain
-	void chainToBox(std::vector< std::vector<int> >& chain, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions);
+	void chainToBox(std::vector< std::vector<int> >& chain, const cv::Mat& ccmap, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions);
 
 	bool sameTextline(const TextRegion& a, const TextRegion& b);
 
