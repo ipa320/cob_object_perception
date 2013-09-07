@@ -2246,6 +2246,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if (isGroup==true)
 			{
 				letterGroups_.push_back(Pair(i, j, dx, dy));
+				//std::cout << "new pair index=" << letterGroups_.size()-1 << std::endl;
 
 				if (debug["showPairs"])
 				{
@@ -2327,6 +2328,8 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 		if (chains[i].size() < 3) //Only words with more than 2 letters	// todo: param
 			continue;
 
+		//std::cout << "chainToBox on chain " << i << std::endl;
+
 		int minX = grayImage_.cols, minY = grayImage_.rows, maxX = 0, maxY = 0;
 		int letterAreaSum = 0;
 		int padding = 0;		// todo: param
@@ -2399,7 +2402,8 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 		//boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 		textRegion.boundingBox = cv::Rect(minX, minY, maxX - minX, maxY - minY);
 
-		if (textRegion.boundingBox.width > 2.0/*1.9*/ * textRegion.boundingBox.height)
+		//std::cout << "textRegion.boundingBox.width=" << textRegion.boundingBox.width << "  textRegion.boundingBox.height=" << textRegion.boundingBox.height << std::endl;
+		if (textRegion.boundingBox.width > std::min(textRegion.letters.size()*0.5,2.0) /*2.0/*1.9*/ * textRegion.boundingBox.height)
 			textRegions.push_back(textRegion);
 	}
 
@@ -2456,6 +2460,8 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			root = nodes[root].parent;
 		for (unsigned int j=0; j<groups.size(); j++)
 		{
+			//std::cout << "group i=" << i << " j=" << j << "  groups[i].left=" << groups[i].left << "  groups[i].right=" << groups[i].right << "  groups[j].left=" << groups[j].left << "  groups[j].right=" << groups[j].right << std::endl;
+
 			if (i!=j && pairsInLine(groups[nodes[i].element], groups[nodes[j].element])==true)
 			{
 				int root2 = j;
@@ -2487,6 +2493,7 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 						nodes[node].parent = root;
 						node = temp;
 					}
+					//std::cout << "   parent=" << root<<std::endl;
 				}
 			}
 		}
@@ -2503,6 +2510,9 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			nodes[root].rank = ~classIndex++;
 
 		int insertIndex = ~nodes[root].rank;
+
+		//std::cout << "group=" << i << "   root=" << root << "  insertIndex=" << insertIndex << std::endl;
+
 		if (insertIndex/*+1*/ < (int)chains.size())
 		{
 			// add new letters to chain (do not add if the letter is already in the list)
@@ -2525,6 +2535,15 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			chains[insertIndex].push_back(groups[i].right);
 		}
 	}
+
+//	std::cout << "chains:\n";
+//	for (unsigned int i=0; i<chains.size(); ++i)
+//	{
+//		std::cout << i << ":";
+//		for (unsigned int j=0; j<chains[i].size(); ++j)
+//			std::cout << "\t" << chains[i][j];
+//		std::cout << "\n";
+//	}
 
 //	// ------------ old code (does not obey direction of merged pairs) --------------
 //
