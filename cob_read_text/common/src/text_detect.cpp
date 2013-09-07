@@ -1465,10 +1465,9 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 	//			for (int i = 0; i < pointStack.size(); i++)
 	//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 255, 0), 1, 1, 0);
 
-				float newSwtVal;
 				if (purpose == UPDATE)// update swt based on dist between edges
 				{
-					newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix)) + 0.5);
+					float newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix)) + 0.5);
 					strokePointsOrderedByLength.insert(std::pair<double, cv::Point>(newSwtVal, cv::Point(ix, iy)));
 					for (size_t i = 0; i < pointStack.size(); i++)
 						swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
@@ -1476,7 +1475,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 				else if (purpose == REFINE) // refine swt based on median
 				{
 					nth_element(SwtValues.begin(), SwtValues.begin() + SwtValues.size() / 2, SwtValues.end());
-					newSwtVal = SwtValues[SwtValues.size() / 2];
+					float newSwtVal = SwtValues[SwtValues.size() / 2];
 					for (size_t i = 0; i < pointStack.size(); i++)
 						swtmap.at<float>(pointStack[i]) = newSwtVal;
 				}
@@ -1506,8 +1505,8 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 		// set initial values back to 0
 		for (int y = 0; y < swtmap.rows; y++)
 			for (int x = 0; x < swtmap.cols; x++)
-				if (swtmap.at<float> (y, x) == initialStrokeWidth_)
-					swtmap.at<float> (y, x) = 0;						// todo: check whether this may cause problems when grouping
+				if (swtmap.at<float>(y, x) == initialStrokeWidth_)
+					swtmap.at<float>(y, x) = 0;						// todo: check whether this may cause problems when grouping
 	}
 
 }
@@ -1550,11 +1549,11 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 	// Check all 8 neighbor pixels of each pixel for similar stroke width and for similar color, then form components with enumerative labels
 
 	int ccmapInitialVal = ccmap.at<float>(0, 0);
-	int offsetX8[] = {-1, 1, -1, 0, 1, -1, 0, 1};
+	int offsetX8[] = {-1, 1, -1, 0, 1, -1, 0, 1};	//{-1, 1, 0, 0};
 	//{ -2, -1,  0,  1,  2, -2, -1,  0,  1,  2, -2, -1,  1,  2, -2, -1,  0,  1,  2, -2, -1,  0,  1,  2 };
-	int offsetY8[] = {0, 0, -1, -1, -1, 1, 1, 1};
+	int offsetY8[] = {0, 0, -1, -1, -1, 1, 1, 1};	//{0, 0, -1, 1};
 	//{ -2, -2, -2, -2, -2, -1, -1, -1, -1, -1,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2 };
-	int nNeighbors = 8;//24;//8;
+	int nNeighbors = 8;	//8;//24;//8;
 	int label = 0;
 
 	int vectorSize = ccmap.rows * ccmap.cols;
@@ -1572,7 +1571,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 	{
 		for (int x = 0; x < ccmap.cols; x++)
 		{
-			bool connected = false;
+			int connected = 0;
 			if (ccmap.at<float>(y, x) == ccmapInitialVal) // if pixel wasn't processed up to now
 			{
 				vectorPointer = 0;
@@ -1584,8 +1583,17 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 				cv::Point3d componentMeanColor(0.,0.,0.);
 //				int addedPixels = 0;
 
+//				if (edgemap_.at<unsigned char>(y, x) == 255)
+//				{
+//					//std::cout << "start on edge at " << x << "," << y << std::endl;
+//					stackPointer = -1;
+//					connected = -1;
+//				}
+
 				while (stackPointer >= 0)
 				{
+//					do
+//					{
 					currentPointX = pStack[stackPointer];
 					currentPointY = pStack[stackPointer + 1];
 					stackPointer -= 2;
@@ -1593,6 +1601,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 					pVector[vectorPointer] = currentPointX;
 					pVector[vectorPointer + 1] = currentPointY;
 					vectorPointer += 2;
+//					} while (stackPointer>=0 && edgemap_.at<unsigned char>(currentPointY, currentPointX) == 255);
 
 					//check which one of the neighbors have similar sw and then label the regions belonging together
 					float meanStrokeWidth = swtmap.at<float>(currentPointY, currentPointX);
@@ -1648,7 +1657,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 									stackPointer += 2;
 									pStack[stackPointer] = nx;
 									pStack[stackPointer + 1] = ny;
-									connected = true;
+									connected = 1;
 
 									// update mean stroke width
 									meanStrokeWidth = (meanStrokeWidth*addedNeighbors + sw1)/(float)(addedNeighbors+1);
@@ -1691,7 +1700,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 //										stackPointer += 2;
 //										pStack[stackPointer] = nx;
 //										pStack[stackPointer + 1] = ny;
-//										connected = true;
+//										connected = 1;
 //									}
 //								}
 							}
@@ -1699,7 +1708,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 					}// loop through neighbors
 				}
 
-				if (connected)
+				if (connected == 1)
 				{
 					ccmap.at<float>(y, x) = label;
 					int minY = ccmap.rows, minX = ccmap.cols, maxY = 0, maxX = 0;
@@ -1718,12 +1727,19 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 					labeledRegions_.push_back(letterRoi);
 					label++;
 				}
-				else
+				else //if (connected == 0)
 					// pixel had no neighbor with similar color and sw
 					ccmap.at<float>(y, x) = -2;
 			}
 		}// loop through ccmap
 	}
+
+//	// clear remaining unset pixels in ccmap (may only happen on unassigned border pixels)
+//	for (int y = 0; y < ccmap.rows; y++)
+//		for (int x = 0; x < ccmap.cols; x++)
+//			if (ccmap.at<float>(y, x) == ccmapInitialVal)
+//				ccmap.at<float>(y, x) = -2;
+
 	return label;
 }
 
@@ -1731,7 +1747,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 {
 	// todo: parameter
 	if (processing_method_ == ORIGINAL_EPSHTEIN)
-		minLetterHeight_ = 14; //10;//8;
+		minLetterHeight_ = 11; //14; //10;//8;
 	else
 		minLetterHeight_ = std::max(10, 3 + (originalImage_.rows)/480); //default: 10
 
@@ -1766,7 +1782,10 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high.
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
 		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 75/*38/*50*/))
+		{
+//			std::cout << "rule 1\n";
 			continue;
+		}
 
 		// rule #2: aspect ratio has to be within 0.1 and 10
 		if (processing_method_ == ORIGINAL_EPSHTEIN)
@@ -1774,6 +1793,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			//double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
 			isLetter = isLetter && ((double)std::max(itr.height, itr.width) <= 10.0/*7.0*/ * (double)std::min(itr.height, itr.width));
 		}
+//		if (isLetter==false)
+//			std::cout << "rule 2\n";
 
 		float maxY = itr.y + itr.height;
 		float minY = itr.y;
@@ -1818,11 +1839,17 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		double momentsRatio = sqrt(std::max(af + cf + delta, af + cf - delta) / std::min(af + cf + delta, af + cf - delta));
 		// rule #3: moments ratio
 		if (momentsRatio > 10.0/*8.0*/)
+		{
+//			std::cout << "rule 3\n";
 			continue;
+		}
 
 		// rule #4: remove components that are too small/thin		// todo: reactivate
 //		if (pixelCount < 0.1*itr.area())
 //			continue;
+//		if (isLetter==false)
+//			std::cout << "rule 4\n";
+
 
 		double meanStrokeWidth = sumStrokeWidth / pixelCount;
 		double varianceStrokeWidth = 0;
@@ -1833,6 +1860,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #5: variance of stroke width of pixels in region that are part of component
 		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
 //		isLetter = isLetter && (varianceStrokeWidth <= varianceParameter*meanStrokeWidth); (almost no effect on precision, but negative on recall)
+//		if (isLetter==false)
+//			std::cout << "rule 5\n";
 
 		// rule #6: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
 		// std::sort(iComponentStrokeWidth.begin(), iComponentStrokeWidth.end());
@@ -1845,6 +1874,9 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #7: pixelCount has to be bigger than maxStrokeWidth * x:
 //		if (processing_method_==BORMANN)
 			isLetter = isLetter && (pixelCount > maxStrokeWidth * pixelCountParameter);
+//		if (isLetter==false)
+//			std::cout << "rule 7\n";
+
 
 		// rule #8: width has to be smaller than x * height (x>1)
 		//  isLetter = isLetter && (itr.width < heightParameter * itr.height);
@@ -1865,7 +1897,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 						isLetter = false;
 		}
 
-		// rule #8 fg gray has to correspond to actual font color
+		// rule #11 fg gray has to correspond to actual font color
 		//    if (isLetter)
 		//      if (firstPass_)
 		//        if (meanRGB_[i][3] < 75 || meanBgRGB_[i][3] > 175)
@@ -1878,7 +1910,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			nLetter_++;
 	}
 
-	// rule #6: number of inner components must be small
+	// rule #12: number of inner components must be small
 	for (unsigned int i=0; i<nComponent_; i++)
 	{
 		if (isLetterRegion_[i] == false)
@@ -1910,6 +1942,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 		if (countInnerLetterCandidates(innerComponents) > innerLetterCandidatesParameter)
 		{
+//			std::cout << "rule 12\n";
 			isLetterRegion_[i] = false;
 			nLetter_--;
 		}
