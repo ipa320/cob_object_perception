@@ -359,6 +359,8 @@ private:
 
 	// Connect Component
 	std::vector<cv::Rect> labeledRegions_; // all regions (with label) that could be a letter
+	std::vector<int> labeledRegionPixelCount_;	// the number of foreground (letter) pixels for each region
+	std::vector<cv::Point2d> labeledRegionCentroids_;	// foreground pixel centroids of labeled regions
 	std::size_t nComponent_; // =labeledRegions_.size()
 	cv::Mat ccmapBright_, ccmapDark_; // copy of whole cc map
 	std::vector<TextRegion> textRegions_; // contains several region of letters that putatively belong to the same word or word group
@@ -440,7 +442,7 @@ private:
 	// ---  groupLetters ---
 	double distanceRatioParameter; // default: 2.0
 	double medianSwParameter; // default: 2.5
-	double diagonalRatioParamter; // default 2.0
+	double diagonalRatioParameter_; // default 2.0
 	double grayClrParameter; //default: 10.0
 	double clrSingleParameter; // better 15 default: 35
 	double areaParameter; // better: 1.5 ; default: 5

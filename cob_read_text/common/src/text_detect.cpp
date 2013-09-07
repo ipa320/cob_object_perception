@@ -768,6 +768,8 @@ void DetectText::pipeline()
 	start_time = clock();
 	cv::Mat ccmap(grayImage_.size(), CV_32FC1, cv::Scalar(-1));
 	labeledRegions_.clear();
+	labeledRegionPixelCount_.clear();
+	labeledRegionCentroids_.clear();
 	nComponent_ = connectComponentAnalysis(swtmap, ccmap);
 	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
 	std::cout << "[" << time_in_seconds << " s] in connectComponentAnalysis: " << nComponent_ << " components found" << std::endl;
@@ -1745,6 +1747,9 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 	nLetter_ = 0;
 
+	labeledRegionPixelCount_.resize(labeledRegions_.size(), 0);
+	labeledRegionCentroids_.resize(labeledRegions_.size());
+
 	// For every found component
 	for (size_t i = 0; i < nComponent_; i++)
 	{
@@ -1801,9 +1806,11 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			}
 		}
 		double pixelCount = static_cast<double>(iComponentStrokeWidth.size());
+		labeledRegionPixelCount_[i] = static_cast<int>(iComponentStrokeWidth.size());
 
 		double xc = m10/pixelCount;
 		double yc = m01/pixelCount;
+		labeledRegionCentroids_[i] = cv::Point2d(xc,yc);
 		double af = m20/pixelCount - xc*xc;
 		double bf = 2*m11/pixelCount - xc*yc;
 		double cf = m02/pixelCount - yc*yc;
@@ -1824,7 +1831,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		varianceStrokeWidth = varianceStrokeWidth / pixelCount;
 
 		// rule #5: variance of stroke width of pixels in region that are part of component
-//		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
+		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
+//		isLetter = isLetter && (varianceStrokeWidth <= varianceParameter*meanStrokeWidth); (almost no effect on precision, but negative on recall)
 
 		// rule #6: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
 		// std::sort(iComponentStrokeWidth.begin(), iComponentStrokeWidth.end());
@@ -2073,8 +2081,8 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				output = originalImage_.clone();
 
 			// rule 1: distance between components
-			double dx = (jRect.x-jRect.width/2 - iRect.x+iRect.width/2);
-			double dy = (jRect.y-jRect.height/2 - iRect.y+iRect.height/2);
+			double dx = labeledRegionCentroids_[j].x-labeledRegionCentroids_[i].x;	//(jRect.x-jRect.width/2 - iRect.x+iRect.width/2);
+			double dy = labeledRegionCentroids_[j].y-labeledRegionCentroids_[i].y;	//(jRect.y-jRect.height/2 - iRect.y+iRect.height/2);
 			double distance = sqrt(dx*dx + dy*dy);
 
 			double iDiagonal = sqrt(iRect.height * iRect.height + iRect.width * iRect.width);
@@ -2098,9 +2106,18 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 					continue;
 			}
 
+			// special thresholds for narrow letters like i
+			double heightRatioThreshold = 2.0;
+			double diagonalRatioParameter = diagonalRatioParameter_;
+			if (labeledRegionPixelCount_[i]>0.8*iRect.area() || labeledRegionPixelCount_[j]>0.8*jRect.area())
+			{
+				heightRatioThreshold = 2.3;
+				diagonalRatioParameter = 2.75;
+			}
+
 			// rule 1b: height ratio between two letters must be small enough
 			if (processing_method_==ORIGINAL_EPSHTEIN)
-				if ((double)std::max(iRect.height, jRect.height) > /*1.7*//*2.2*/2.0 * (double)std::min(iRect.height, jRect.height))
+				if ((double)std::max(iRect.height, jRect.height) > /*1.7*//*2.2*/ heightRatioThreshold * (double)std::min(iRect.height, jRect.height))
 				{
 //					if (debug["showPairs"])
 //						std::cout << "rule 1b violated\n";
@@ -2134,7 +2151,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			}
 
 			// rule 3: diagonal ratio
-			if (std::max(iDiagonal, jDiagonal) > diagonalRatioParamter * std::min(iDiagonal, jDiagonal))
+			if (std::max(iDiagonal, jDiagonal) > diagonalRatioParameter * std::min(iDiagonal, jDiagonal))
 			{
 //				if (debug["showPairs"])
 //					std::cout << "rule 3 violated\n";
@@ -2155,7 +2172,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if (processing_method_==BORMANN)
 			{
 //				// rule 3: diagonal ratio
-//				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParamter)
+//				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParameter_)
 //					negativeScore++;
 
 //				// rule 4: average gray color of letters
@@ -2332,7 +2349,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 			Letter letter;
 			letter.boundingBox = itr;
 			letter.diameter = sqrt(itr.width*itr.width + itr.height*itr.height);
-			letter.centerPoint = cv::Point2d(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
+			letter.centerPoint = labeledRegionCentroids_[chains[i][j]]; //cv::Point2d(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
 			if (firstPass_)
 				letter.fontColor = BRIGHT;
 			else
@@ -5805,7 +5822,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	nh.getParam("clrComponentParameter", this->clrComponentParameter);
 	nh.getParam("distanceRatioParameter", this->distanceRatioParameter);
 	nh.getParam("medianSwParameter", this->medianSwParameter);
-	nh.getParam("diagonalRatioParamter", this->diagonalRatioParamter);
+	nh.getParam("diagonalRatioParamter", this->diagonalRatioParameter_);
 	nh.getParam("grayClrParameter", this->grayClrParameter);
 	nh.getParam("clrSingleParameter", this->clrSingleParameter);
 	nh.getParam("areaParameter", this->areaParameter);
@@ -5859,7 +5876,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	std::cout << "clrComponentParameter:" << clrComponentParameter << std::endl;
 	std::cout << "distanceRatioParameter:" << distanceRatioParameter << std::endl;
 	std::cout << "medianSwParameter:" << medianSwParameter << std::endl;
-	std::cout << "diagonalRatioParamter:" << diagonalRatioParamter << std::endl;
+	std::cout << "diagonalRatioParamter:" << diagonalRatioParameter_ << std::endl;
 	std::cout << "grayClrParameter:" << grayClrParameter << std::endl;
 	std::cout << "clrSingleParameter:" << clrSingleParameter << std::endl;
 	std::cout << "areaParameter:" << areaParameter << std::endl;

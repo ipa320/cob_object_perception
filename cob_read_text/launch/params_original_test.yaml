@@ -113,7 +113,7 @@ medianSwParameter: 2.1 #2.0 #1.8 #1.5 #2.0
 
 # maximum diagonal ratio, default 2.0
 # double
-diagonalRatioParamter: 2.0 
+diagonalRatioParamter: 2.0  #2.0
 
 # maximum gray color value difference between components, default: 10.0
 # double
@@ -216,7 +216,7 @@ showPairs: false
 
 # show all words/text segments after pairs were fused together
 # bool
-showChains: false
+showChains: true
 
 # breaks text block into several lines
 # bool
