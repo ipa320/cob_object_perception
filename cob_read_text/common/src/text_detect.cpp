@@ -2417,6 +2417,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 			textRegion.letters.push_back(letter);
 		}
 		// ---------------------------------------------------------
+		// remove chains who have the same foreground color as most of the background has
 		for (unsigned int c=0; c<meanRGB.size(); ++c)
 		{
 			meanRGB[c] /= (float)chains[i].size();
@@ -2449,6 +2450,107 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 		if ((double)numberSimilarBgPixels > 0.3*numberBgPixels)		// todo: increase 0.3 if little more recall needed
 			continue;
 		// ---------------------------------------------------------
+
+//		// ---------------------------------------------------------
+//		// remove chains that belong to a regular pattern
+//		// 1. bounding box height/width grouping
+//		std::vector<cv::Point2f> appearanceGroupsWh;
+//		std::vector<int> appearanceGroupsCount;
+//		std::vector<std::vector<int> > appearanceGroupsIndices;
+//		double whThreshold = 0.4;	// in [pixel deviation/pixel width]
+//		for (unsigned int l=0; l<textRegion.letters.size(); ++l)
+//		{
+//			cv::Rect& bb = textRegion.letters[l].boundingBox;
+//			bool found = false;
+//			for (unsigned int a=0; a<appearanceGroupsWh.size(); ++a)
+//			{
+//				if ((appearanceGroupsWh[a].x-bb.width)*(appearanceGroupsWh[a].x-bb.width)+(appearanceGroupsWh[a].y-bb.height)*(appearanceGroupsWh[a].y-bb.height) < (whThreshold*appearanceGroupsWh[a].x)*(whThreshold*appearanceGroupsWh[a].x))
+//				{
+//					appearanceGroupsWh[a].x = (appearanceGroupsWh[a].x*appearanceGroupsCount[a]+bb.width)/(float)(appearanceGroupsCount[a]+1);
+//					appearanceGroupsWh[a].y = (appearanceGroupsWh[a].y*appearanceGroupsCount[a]+bb.height)/(float)(appearanceGroupsCount[a]+1);
+//					++(appearanceGroupsCount[a]);
+//					appearanceGroupsIndices[a].push_back(l);
+//					found = true;
+//					break;
+//				}
+//			}
+//			if (found == false)
+//			{
+//				appearanceGroupsWh.push_back(cv::Point2f(bb.width, bb.height));
+//				appearanceGroupsCount.push_back(1);
+//				appearanceGroupsIndices.push_back(std::vector<int>(1,l));
+//			}
+//		}
+//		bool validBox = true;
+//		for (unsigned int a=0; a<appearanceGroupsCount.size(); ++a)
+//		{
+//			if (appearanceGroupsCount[a] > 0.75*textRegion.letters.size())
+//			{
+//				// 2. color grouping
+//				std::vector<std::vector<float> > appearanceGroupsColor;
+//				std::vector<int> appearanceGroupsColorCount;
+//				for (unsigned int l=0; l<appearanceGroupsIndices[a].size(); ++l)
+//				{
+//					cv::Rect& bb = textRegion.letters[appearanceGroupsIndices[a][l]].boundingBox;
+//
+//					// compute color descriptor for letter
+//					double step=0.2;
+//					std::vector<float> meanRGB2(25*3, 0.f);
+//					int insertPosition = 0;
+//					for (double sy=0.; sy<1.; sy+=step)
+//					{
+//						for (double sx=0.; sx<1.; sx+=step)
+//						{
+//							int pixels = 0;
+//							for (int v=bb.y+sy*bb.height; v<bb.y+(sy+step)*bb.height; ++v)
+//							{
+//								for (int u=bb.x+sx*bb.width; u<bb.x+(sx+step)*bb.width; ++u)
+//								{
+//									bgr clr = originalImage_.at<bgr>(v, u);
+//									meanRGB2[insertPosition] += clr.r;
+//									meanRGB2[insertPosition+1] += clr.g;
+//									meanRGB2[insertPosition+2] += clr.b;
+//									pixels++;
+//								}
+//							}
+//							for (int i=0; i<3; ++i)
+//								meanRGB2[insertPosition+i] /= (float)pixels;
+//							insertPosition += 3;
+//						}
+//					}
+//
+//					// compare to existing groups
+//					bool found = false;
+//					for (unsigned int a2=0; a2<appearanceGroupsColor.size(); ++a2)
+//					{
+//						double dist = 0.;
+//						for (unsigned int c=0; c<meanRGB2.size(); c++)
+//							dist += (meanRGB2[c]-appearanceGroupsColor[a2][c])*(meanRGB2[c]-appearanceGroupsColor[a2][c]);
+//						if (dist < (3*meanRGB2.size())*(3*meanRGB2.size()))
+//						{
+//							for (unsigned int c=0; c<meanRGB2.size(); c++)
+//								appearanceGroupsColor[a2][c] = (appearanceGroupsColor[a2][c]*appearanceGroupsColorCount[a2]+meanRGB2[c])/(float)(appearanceGroupsColorCount[a2]+1);
+//							appearanceGroupsColorCount[a2]++;
+//							found=true;
+//							break;
+//						}
+//					}
+//					if (found==false)
+//					{
+//						appearanceGroupsColor.push_back(meanRGB2);
+//						appearanceGroupsColorCount.push_back(1);
+//					}
+//				}
+//				for (unsigned int b=0; b<appearanceGroupsColorCount.size(); ++b)
+//				{
+//					if (appearanceGroupsColorCount[b] > 0.75*textRegion.letters.size())
+//						validBox = false;
+//				}
+//			}
+//		}
+//		if (validBox == false)
+//			continue;
+//		// ---------------------------------------------------------
 
 		// add padding around each box
 		minX = std::max(0, minX - padding);
