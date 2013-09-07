@@ -1897,6 +1897,30 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 						isLetter = false;
 		}
 
+		// rule 10b: foreground color should not occur too often in background
+		// ---------------------------------------------------------
+		float similarityThreshold = 30.f;
+		int numberSimilarBgPixels = 0;
+		int numberBgPixels = 0;
+		for (int v=minY; v<maxY; ++v)
+		{
+			for (int u=minX; u<maxX; ++u)
+			{
+				if (ccmap.at<float>(v, u)!=static_cast<int>(i))
+				{
+					numberBgPixels++;
+					bgr clr = originalImage_.at<bgr>(v, u);
+					//std::cout << "\nr=" << (float)clr.r << "\tg=" << (float)clr.g << "\tb=" << (float)clr.b;
+					if (std::abs((float)clr.r-meanRGB_[i][0])<similarityThreshold && std::abs((float)clr.g-meanRGB_[i][1])<similarityThreshold && std::abs((float)clr.b-meanRGB_[i][2])<similarityThreshold)
+						numberSimilarBgPixels++;
+				}
+			}
+		}
+//		std::cout << "\n numberSimilarBgPixels=" << numberSimilarBgPixels << "\tnumberBgPixels=" << numberBgPixels << "\tboxPixels=" << (maxX-minX)*(maxY-minY) << std::endl;
+		if ((double)numberSimilarBgPixels > 0.5*numberBgPixels)
+			isLetter=false;
+		// ---------------------------------------------------------
+
 		// rule #11 fg gray has to correspond to actual font color
 		//    if (isLetter)
 		//      if (firstPass_)
