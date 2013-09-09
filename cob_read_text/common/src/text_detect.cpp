@@ -150,6 +150,68 @@ std::vector<cv::RotatedRect>& DetectText::getBoxes()
 	return finalBoxes_;
 }
 
+double DetectText::computeLetterDistanceStddev(const std::vector<Letter>& letters)
+{
+	// stddev of letter distances
+	double maxDist = 0.;
+	cv::Point2i maxDistPair(0,1);
+	cv::Mat letterDistances = cv::Mat::zeros(letters.size(), letters.size(), CV_32FC3);	// letter distance differences in x and y (1st index=letters from i, 2nd index= letters from j)
+	for (unsigned int li=0; li<letters.size(); ++li)
+		for (unsigned int li2=li+1; li2<letters.size(); ++li2)
+		{
+			double dx = (letters[li2].centerPoint.x-letters[li].centerPoint.x);
+			double dy = (letters[li2].centerPoint.y-letters[li].centerPoint.y);
+			double dist = sqrt(dx*dx+dy*dy);
+			letterDistances.at<cv::Vec3f>(li,li2)=cv::Vec3f(dx,dy,dist);
+			letterDistances.at<cv::Vec3f>(li2,li)=cv::Vec3f(-dx,-dy,dist);
+			if (dist > maxDist)
+			{
+				maxDist = dist;
+				maxDistPair.x = li;
+				maxDistPair.y = li2;
+			}
+		}
+	cv::Point2d lineDirection(letters[maxDistPair.y].centerPoint.x-letters[maxDistPair.x].centerPoint.x, letters[maxDistPair.y].centerPoint.y-letters[maxDistPair.x].centerPoint.y);  // direction of the text line
+	for (unsigned int li=0; li<letters.size(); ++li)
+		for (unsigned int li2=li+1; li2<letters.size(); ++li2)
+		{
+			cv::Vec3f& v = letterDistances.at<cv::Vec3f>(li,li2);
+			cv::Point2d letterDirection(v.val[0],v.val[1]);
+			if (letterDirection.x*lineDirection.x+letterDirection.y*lineDirection.y > 0.)
+			{
+				// directing in same direction
+				//letterDistances.at<cv::Vec3f>(li2,li).val[2] *= -1;
+				letterDistances.at<cv::Vec3f>(li2,li).val[2] = 1e10;
+			}
+			else
+			{
+				//v.val[2] *= -1;
+				v.val[2] = 1e10;
+			}
+		}
+	std::vector<float> shortestLetterDistances;
+	double avgLetterDistance = 0.;
+	for (unsigned int li=0; li<letters.size(); ++li)
+	{
+		double minDist = 1e10;
+		for (unsigned int li2=0; li2<letters.size(); ++li2)
+			if (minDist > letterDistances.at<cv::Vec3f>(li,li2).val[2])
+				minDist = letterDistances.at<cv::Vec3f>(li,li2).val[2];
+		if (minDist < 1e10)
+		{
+			shortestLetterDistances.push_back(minDist);
+			avgLetterDistance += minDist;
+		}
+	}
+	avgLetterDistance /= (double)shortestLetterDistances.size();
+	double stddevLetterDistance = 0.;
+	for (unsigned int i=0; i<shortestLetterDistances.size(); ++i)
+		stddevLetterDistance += (shortestLetterDistances[i]-avgLetterDistance)*(shortestLetterDistances[i]-avgLetterDistance);
+	stddevLetterDistance = sqrt(stddevLetterDistance/(double)shortestLetterDistances.size());
+
+	return stddevLetterDistance;
+}
+
 void DetectText::detect()
 {
 	// === pre-processing ===
@@ -200,6 +262,108 @@ void DetectText::detect()
 		cv::destroyAllWindows();
 	}
 	originalImage_ = original_image_copy;
+
+//	// filter overlapping boxes
+//	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
+//	{
+//		for (int j=(int)finalTextRegions_.size()-1; j>=0; --j)
+//		{
+//			if (i==j)
+//				continue;
+//
+//			TextRegion& itr = finalTextRegions_[i];
+//			TextRegion& jtr = finalTextRegions_[j];
+//
+////			std::cout << "---------------"  << " i=" << i << " j=" << j << "\n";
+////			cv::Mat output = originalImage_.clone();
+////			for (unsigned int li=0; li<itr.letters.size(); ++li)
+////				cv::rectangle(output, itr.letters[li].boundingBox, cv::Scalar(255,0,0), 1, 1, 0);
+////			cv::rectangle(output, itr.boundingBox, cv::Scalar(255,0,0), 2, 1, 0);
+////			cv::rectangle(output, jtr.boundingBox, cv::Scalar(255,255,255), 2, 1, 0);
+////			cv::imshow("final regions", output);
+////			cv::waitKey(0);
+//
+//			// if both regions have similar dimension, accept both
+//			double commonArea = (itr.boundingBox & jtr.boundingBox).area();
+//			if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.boundingBox.area())
+//			{
+////				std::cout << "  similar size, accept both\n";
+//				continue;
+//			}
+//
+//			double commonAreaLetters = 0.;
+//			for (unsigned int li=0; li<itr.letters.size(); ++li)
+//				commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
+//
+////			std::cout << "  commonArea/jtr.boundingBox.area()=" << commonArea/jtr.boundingBox.area() << "  commonAreaLetters/jtr.boundingBox.area()=" << commonAreaLetters/jtr.boundingBox.area() << "\n";
+//
+//			// j lies mostly in i
+//			if (commonArea > 0.85*jtr.boundingBox.area() && commonAreaLetters > 0.5*jtr.boundingBox.area())
+//			{
+////				std::cout << "  j lies in i: ";
+//
+//				// if originalChain is similar to the bigger bounding box, delete the bigger one (which was apparently not broken down into its words)
+//				commonArea = (itr.boundingBox & jtr.originalChainBoundingBox).area();
+////				std::cout << "common area i-jo/itr.boundingBox.area()=" << commonArea/itr.boundingBox.area() << "  commonArea/jtr.originalChainBoundingBox.area()=" << commonArea/jtr.originalChainBoundingBox.area() << "  ";
+//				if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
+//				{
+////					std::cout << "erase i\n";
+//					//finalTextRegions_.erase(finalTextRegions_.begin()+i);
+//					//i--;
+//					break;
+//				}
+//
+//				double iScore=0., jScore=0.;
+//
+//				// number of letters
+//				if (itr.letters.size()>jtr.letters.size())
+//					iScore += 1.;
+//				else if (itr.letters.size()<jtr.letters.size())
+//					jScore += 1.;
+//				else
+//				{
+//					// same number of letters -> are they the same?
+//				}
+//
+//				// stddev of letter distances
+//				double iAvgDiameter=0., jAvgDiameter=0.;
+//				for (unsigned int d=0; d<itr.letters.size(); ++d)
+//					iAvgDiameter += itr.letters[d].diameter;
+//				iAvgDiameter /= (double)itr.letters.size();
+//				for (unsigned int d=0; d<jtr.letters.size(); ++d)
+//					jAvgDiameter += jtr.letters[d].diameter;
+//				jAvgDiameter /= (double)jtr.letters.size();
+//				double iStddevLetterDistance = computeLetterDistanceStddev(itr.letters);
+//				double jStddevLetterDistance = computeLetterDistanceStddev(jtr.letters);
+//				if (iStddevLetterDistance/iAvgDiameter <= jStddevLetterDistance/jAvgDiameter)
+//					iScore+=1.;
+//				else
+//					jScore+=1.;
+//
+//				if (commonAreaLetters > 0.75*jtr.boundingBox.area())
+//					iScore+=1.;
+//
+////				std::cout << "iScore=" << iScore << " jScore=" << jScore << "  ";
+//				if (iScore > jScore)
+//				{
+////					std::cout << "erase j\n";
+//					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+//					if (i>j)
+//						i--;
+//				}
+//			}
+//		}
+//	}
+
+	// write found bounding boxes into the respective structures
+	for (unsigned int i=0; i<finalTextRegions_.size(); i++)
+	{
+		// compute coordinates on original image size
+		finalBoundingBoxes_.push_back(finalTextRegions_[i].boundingBox);
+		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(finalTextRegions_[i].boundingBox.x+0.5*finalTextRegions_[i].boundingBox.width, finalTextRegions_[i].boundingBox.y+0.5*finalTextRegions_[i].boundingBox.height),
+				cv::Size2f(finalTextRegions_[i].boundingBox.width, finalTextRegions_[i].boundingBox.height), 0.f));
+		finalBoundingBoxesQualityScore_.push_back(finalTextRegions_[i].qualityScore);
+	}
 
 	// === Post-processing ===
 	// filter boxes that lie completely inside others
@@ -415,6 +579,7 @@ void DetectText::detect_original_epshtein(cv::Mat& image, double scale_factor)
 
 //		cv::bilateralFilter(dummy, image, 7, 20, 50); // sensor noise
 		cv::bilateralFilter(dummy, image, 13, 40, 10); // sensor noise
+
 //		image = sharpenImage(image);
 //		dummy = image.clone();
 //		cv::bilateralFilter(dummy, image, 9, 30, 10); // sensor noise
@@ -585,17 +750,30 @@ void DetectText::detect_original_epshtein(cv::Mat& image, double scale_factor)
 	std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
 
 	// write found bounding boxes into the respective structures
-	for (unsigned int i=0; i<textRegions_.size(); i++)
+	for (unsigned int i=0; i<textRegions_.size(); ++i)
 	{
 		// compute coordinates on original image size
 		textRegions_[i].boundingBox.x *= scale_factor;
 		textRegions_[i].boundingBox.y *= scale_factor;
 		textRegions_[i].boundingBox.width *= scale_factor;
 		textRegions_[i].boundingBox.height *= scale_factor;
-		finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
-		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
-				cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
-		finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
+		textRegions_[i].originalChainBoundingBox.x *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.y *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.width *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.height *= scale_factor;
+		textRegions_[i].originalChainID += int(scale_factor*10000);
+		for (unsigned int l=0; l<textRegions_[i].letters.size(); ++l)
+		{
+			textRegions_[i].letters[l].boundingBox.x *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.y *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.width *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.height *= scale_factor;
+		}
+		finalTextRegions_.push_back(textRegions_[i]);
+//		finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
+//		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
+//				cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
+//		finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
 	}
 }
 
@@ -1778,6 +1956,13 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 		cv::Rect itr = labeledRegions_[i];
 
+//		cv::Mat output = originalImage_.clone();
+//		cv::rectangle(output, cv::Point(labeledRegions_[i].x, labeledRegions_[i].y),
+//				cv::Point(labeledRegions_[i].x + labeledRegions_[i].width, labeledRegions_[i].y + labeledRegions_[i].height),
+//				cv::Scalar((255), (255), (255)), 1);
+//		cv::imshow("current letter candidate", output);
+//		cv::waitKey(0);
+
 		// rule #1: height of component [not used atm]
 		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high.
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
@@ -1858,6 +2043,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		varianceStrokeWidth = varianceStrokeWidth / pixelCount;
 
 		// rule #5: variance of stroke width of pixels in region that are part of component
+
+//		std::cout << "varianceStrokeWidth=" << std::sqrt(varianceStrokeWidth) << "   meanStrokeWidth=" << meanStrokeWidth << std::endl;
 		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
 //		isLetter = isLetter && (varianceStrokeWidth <= varianceParameter*meanStrokeWidth); (almost no effect on precision, but negative on recall)
 //		if (isLetter==false)
@@ -2199,6 +2386,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			int negativeScore = 0; //high score is bad
 
 			// rule 2: median of stroke width ratio
+//			std::cout << "medianStrokeWidth_[i]=" << medianStrokeWidth_[i] << "  medianStrokeWidth_[j]=" << medianStrokeWidth_[j] << std::endl;
 			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])) // &&
 					//(std::abs(meanRGB_[i][3] - meanRGB_[j][3]) < 0.4*grayClrParameter && std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > 2.5 * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])))
 			{
@@ -2560,6 +2748,8 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 
 		//boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 		textRegion.boundingBox = cv::Rect(minX, minY, maxX - minX, maxY - minY);
+		textRegion.originalChainBoundingBox = textRegion.boundingBox;
+		textRegion.originalChainID = i;
 
 		//std::cout << "textRegion.boundingBox.width=" << textRegion.boundingBox.width << "  textRegion.boundingBox.height=" << textRegion.boundingBox.height << std::endl;
 		if (textRegion.boundingBox.width > std::min(textRegion.letters.size()*0.5,2.0) /*2.0/*1.9*/ * textRegion.boundingBox.height)
@@ -6269,9 +6459,6 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 				}
 			}
 
-			if (letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x == 722)
-				std::cout << "i=" << i << "   letters[currentLetters[i]].boundingBox.x=" << letters[currentLetters[i]].boundingBox.x << "   letters[currentLetters[i]].boundingBox.y=" << letters[currentLetters[i]].boundingBox.y << "   letters[currentLetters[i]].boundingBox.width=" << letters[currentLetters[i]].boundingBox.width << "   letters[currentLetters[i]].boundingBox.height=" << letters[currentLetters[i]].boundingBox.height << "   letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x = 722\n";
-
 			if (smallestDistanceEdge != 100000) //100000 distance means there is no other letter on the right, its the last letter of a line
 				letterDistances.push_back(Pair(letters[currentLetters[smallestDistanceEdgeIndex]].boundingBox.x, smallestDistanceEdge, 0., 0.));
 
@@ -6479,6 +6666,8 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
 					word.qualityScore = textRegions[textRegionIndex].qualityScore;
+					word.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
+					word.originalChainID = textRegions[textRegionIndex].originalChainID;
 					// word.letters = ; --> see below
 					wordRegions.push_back(word);
 				}
@@ -6490,6 +6679,8 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
 					word.qualityScore = textRegions[textRegionIndex].qualityScore;
+					word.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
+					word.originalChainID = textRegions[textRegionIndex].originalChainID;
 					// word.letters = ; --> see below
 					wordRegions.push_back(word);
 				}
