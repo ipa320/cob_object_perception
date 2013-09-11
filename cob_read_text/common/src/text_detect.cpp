@@ -278,7 +278,7 @@ void DetectText::detect()
 			if (commonArea > 0.9*itr.boundingBox.area() && commonArea > 0.9*jtr.boundingBox.area())
 				deleteRegion = false;
 		}
-		if (deleteRegion == true && !(itr.originalChainID < scale*10000 && itr.boundingBox.height < 20))
+		if (deleteRegion == true && !(itr.originalChainID < scale*10000 && itr.boundingBox.height < 40))//20))
 		{
 			finalTextRegions_.erase(finalTextRegions_.begin()+i);
 			i--;
