@@ -1966,6 +1966,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 	labeledRegionPixelCount_.resize(labeledRegions_.size(), 0);
 	labeledRegionCentroids_.resize(labeledRegions_.size());
 
+	bool show_texts = false;
+
 	// For every found component
 	for (size_t compIdx = 0; compIdx < nComponent_; compIdx++)
 	{
@@ -1978,19 +1980,23 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 		cv::Rect itr = labeledRegions_[compIdx];
 
-//		cv::Mat output = originalImage_.clone();
-//		cv::rectangle(output, cv::Point(labeledRegions_[i].x, labeledRegions_[i].y),
-//				cv::Point(labeledRegions_[i].x + labeledRegions_[i].width, labeledRegions_[i].y + labeledRegions_[i].height),
-//				cv::Scalar((255), (255), (255)), 1);
-//		cv::imshow("current letter candidate", output);
-//		cv::waitKey(0);
+		if (show_texts == true)
+		{
+			cv::Mat output = originalImage_.clone();
+			cv::rectangle(output, cv::Point(labeledRegions_[compIdx].x, labeledRegions_[compIdx].y),
+					cv::Point(labeledRegions_[compIdx].x + labeledRegions_[compIdx].width, labeledRegions_[compIdx].y + labeledRegions_[compIdx].height),
+					cv::Scalar((255), (255), (255)), 1);
+			cv::imshow("current letter candidate", output);
+			cv::waitKey(0);
+		}
 
 		// rule #1: height of component [not used atm]
 		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high.
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
-		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 75/*38/*50*/))
+		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 60/*75*//*38/*50*/))
 		{
-//			std::cout << "rule 1\n";
+			if (show_texts == true)
+				std::cout << "rule 1\n";
 			continue;
 		}
 
@@ -2000,8 +2006,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			//double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
 			isLetter = isLetter && ((double)std::max(itr.height, itr.width) <= 10.0/*7.0*/ * (double)std::min(itr.height, itr.width));
 		}
-//		if (isLetter==false)
-//			std::cout << "rule 2\n";
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 2\n";
 
 		float maxY = itr.y + itr.height;
 		float minY = itr.y;
@@ -2062,15 +2068,16 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #3: moments ratio
 		if (momentsRatio > 10.0/*8.0*/)
 		{
-//			std::cout << "rule 3\n";
+			if (show_texts == true)
+				std::cout << "rule 3\n";
 			continue;
 		}
 
 		// rule #4: remove components that are too small/thin		// todo: reactivate
 		if (pixelCount < 0.1*itr.area())
 			continue;
-//		if (isLetter==false)
-//			std::cout << "rule 4\n";
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 4\n";
 
 
 		double meanStrokeWidth = sumStrokeWidth / pixelCount;
@@ -2083,8 +2090,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 //		std::cout << "varianceStrokeWidth=" << std::sqrt(varianceStrokeWidth) << "   meanStrokeWidth=" << meanStrokeWidth << std::endl;
 		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
 //		isLetter = isLetter && (varianceStrokeWidth <= varianceParameter*meanStrokeWidth); (almost no effect on precision, but negative on recall)
-//		if (isLetter==false)
-//			std::cout << "rule 5\n";
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 5\n";
 
 		// rule #6: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
 		// std::sort(iComponentStrokeWidth.begin(), iComponentStrokeWidth.end());
@@ -2101,8 +2108,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #7: pixelCount has to be bigger than maxStrokeWidth * x:
 //		if (processing_method_==BORMANN)
 			isLetter = isLetter && (pixelCount > maxStrokeWidth * pixelCountParameter);
-//		if (isLetter==false)
-//			std::cout << "rule 7\n";
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 7\n";
 
 
 		// rule #8: width has to be smaller than x * height (x>1)
@@ -2146,6 +2153,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 //		std::cout << "\n numberSimilarBgPixels=" << numberSimilarBgPixels << "\tnumberBgPixels=" << numberBgPixels << "\tboxPixels=" << (maxX-minX)*(maxY-minY) << std::endl;
 		if ((double)numberSimilarBgPixels > 0.5*numberBgPixels)
 			isLetter=false;
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 10b\n";
 		// ---------------------------------------------------------
 
 		// rule #11 fg gray has to correspond to actual font color
@@ -2193,7 +2202,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 		if (countInnerLetterCandidates(innerComponents) > innerLetterCandidatesParameter)
 		{
-//			std::cout << "rule 12\n";
+			if (show_texts == true)
+				std::cout << "rule 12\n";
 			isLetterRegion_[i] = false;
 			nLetter_--;
 		}
