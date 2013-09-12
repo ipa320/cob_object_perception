@@ -245,7 +245,7 @@ EdgeDetection<PointInT>::coordinatesMat
 	while(iX < lineLength && iY < lineLength)
 	{
 		//don't save points with nan-entries (no data available)
-		if(!std::isnan(pointcloud->at(xIter[iX],yIter[iY]).x))
+		if((pointcloud->at(xIter[iX],yIter[iY]).z)==(pointcloud->at(xIter[iX],yIter[iY]).z))
 		{
 			if(first)
 			{
@@ -271,7 +271,9 @@ EdgeDetection<PointInT>::coordinatesMat
 		iY++;
 	}
 
-	if(iCoord != 0 && iCoord<lineLength)
+	if(iCoord == 0)
+		coordinates =cv::Mat::zeros(1,3,CV_32FC1);
+	else if(iCoord<lineLength)
 	{
 		coordinates.resize(iCoord);
 	}
@@ -819,6 +821,40 @@ EdgeDetection<PointInT>::drawLines(cv::Mat& plotZW, cv::Mat& coordinates, cv::Ma
 //-----------------------------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------------------------
 
+template <typename PointInT> void
+EdgeDetection<PointInT>::printNeigh(PointCloudInConstPtr cloud, int x, int y)
+{
+
+	int size = 10;
+	std::stringstream xs,ys,zs;
+	//loop over rows
+	for(int iY = y-size; iY< y+size; iY++)
+	{
+		//loop over columns
+		for(int iX = x-size; iX< x+size; iX++)
+		{
+			xs << cloud->at(iX,iY).x << " ; " ;
+			ys << cloud->at(iX,iY).y << " ; " ;
+			zs << cloud->at(iX,iY).z << " ; " ;
+		}
+	}
+
+	/*std::ofstream file;
+	const char* s;
+	std::string data_storage_path = std::string(getenv("HOME"));
+	std::string filename = data_storage_path + "/neigh/" +  "neigh.txt";
+	s = filename.c_str();
+
+	file.open (s);
+	file << xs.str()<<"\n" <<ys.str()<<"\n"<<zs.str()<<"\n";
+	file << "\n";
+	file.close();*/
+
+	std::cout << xs.str()<<"------------------------------------------------\n" <<ys.str()<<"------------------------------------------------\n"<<zs.str()<<"\n";
+
+
+}
+
 
 template <typename PointInT> void
 EdgeDetection<PointInT>::drawLineAlongN(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& n)
@@ -916,9 +952,9 @@ EdgeDetection<PointInT>::deriv2nd5pts
 	//std::cout << "fivepoints: " <<fivePoints <<endl;
 
 	//use stencil of width 5
-	//f''(x) = (-f(x-2h) + 16f(x-h) -f(x)  + 16f(x+h) -f(x+2h)) / (12*h²)
+	//f''(x) = (-f(x-2h) + 16f(x-h) -30f(x)  + 16f(x+h) -f(x+2h)) / (12*h²)
 	float dx = fivePoints.at<float>(2,0) - fivePoints.at<float>(1,0);
-	deriv = (-fivePoints.at<float>(0,1) + 16* fivePoints.at<float>(1,1) - fivePoints.at<float>(2,1) + 16* fivePoints.at<float>(3,1) -fivePoints.at<float>(4,1))	/ (dx * dx);
+	deriv = (-fivePoints.at<float>(0,1) + 16* fivePoints.at<float>(1,1) - 30*fivePoints.at<float>(2,1) + 16* fivePoints.at<float>(3,1) -fivePoints.at<float>(4,1))	/ (dx * dx);
 }
 //-----------------------------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -961,8 +997,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 	cv::Mat scalarProductsX (cv::Mat::zeros(depth_image.rows,depth_image.cols,CV_32FC1));
 	int concConv = 0;
 
-	//int iX=2*depth_image.cols/3;		//for visualisation of approximated lines in only one point
-	//int iY=2*depth_image.rows/3;
+	int iX=2*depth_image.cols/3;		//for visualisation of approximated lines in only one point
+	int iY=2*depth_image.rows/3;
 
 
 	Timer timer;
@@ -1078,6 +1114,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 
 
+
 			//scalarProduct of depth along lines in y-direction
 			//------------------------------------------------------------------------
 			cv::Point2f dotDown(iX , iY-lineLength_/2);
@@ -1127,6 +1164,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 			//drawLines(plotZW,coordinates1Y,abc1Y);
 			//drawLines(plotZW,coordinates2Y,abc2Y);
 
+
+
 			float scalProdY = 1;
 
 			if(abc1Y.at<float>(0,1) == 0 || abc2Y.at<float>(0,1) == 0)
@@ -1147,6 +1186,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 
 			scalarProductsY.at<float>(iY,iX) = scalProdY;
 
+
+
 			//int concConvY = 0;
 			//curvatureType(abc1Y,abc2Y,concConvY);
 			//concaveConvexY.at<unsigned char>(iY,iX) = concConvY;
@@ -1154,27 +1195,11 @@ EdgeDetection<PointInT>::computeDepthEdges
 		}
 	}	//loop over image
 
-	/*
-	cv::Mat scalProdX_scaled;
-	cv::normalize(scalarProductsX, scalProdX_scaled,0,1,cv::NORM_MINMAX);
-	cv::imshow("x-direction", scalProdX_scaled);
-	cv::waitKey(10);
-	cv::Mat scalProdY_scaled;
-	cv::normalize(scalarProductsY, scalProdY_scaled,0,1,cv::NORM_MINMAX);
-	cv::imshow("y-direction", scalProdY_scaled);
-	cv::waitKey(10);*/
 
 	//thin edges in x- and y-direction separately
 	//thinEdges(scalarProductsX, 0);
 	//thinEdges(scalarProductsY, 1);
 
-
-	/*cv::normalize(scalarProductsX, scalProdX_scaled,0,1,cv::NORM_MINMAX);
-	cv::imshow("x-direction thinned", scalProdX_scaled);
-	cv::waitKey(10);
-	cv::normalize(scalarProductsY, scalProdY_scaled,0,1,cv::NORM_MINMAX);
-	cv::imshow("y-direction thinned", scalProdY_scaled);
-	cv::waitKey(10);*/
 
 	//thresholding according to edge criterium:
 	//if ((s > -s_(th,edge)) && (s < s_(th,plane)): edge
@@ -1193,14 +1218,14 @@ EdgeDetection<PointInT>::computeDepthEdges
 	}
 
 
-	//int lineLength = 30;
-	//cv::line(depth_image,cv::Point2f(depth_image.cols/2 -lineLength/2, depth_image.rows/2),cv::Point2f(depth_image.cols/2 +lineLength/2, depth_image.rows/2),CV_RGB(0,1,0),1);
-	//cv::line(depth_image,cv::Point2f(depth_image.cols/2 , depth_image.rows/2 +lineLength/2),cv::Point2f(depth_image.cols/2 , depth_image.rows/2 -lineLength/2),CV_RGB(0,1,0),1);
-	//cv::imshow("depthImage", depth_image);
-
-
-	//cv::imshow("depth over coordinate along line", plotZW);
-	//cv::waitKey(10);
+/*
+	if(scalProdY > th_edge_ && scalProdY < th_plane_)
+		std::cout << "Kante " <<std::endl;
+	cv::imshow("depth over coordinate along line", plotZW);
+	int key = cv::waitKey(1000);
+	std::cout << key<<std::endl;
+	if(key==1048677)	//"e"
+		printNeigh(pointcloud, iX,iY);*/
 
 	cv::imshow("edge image", edgeImage);
 	cv::waitKey(10);

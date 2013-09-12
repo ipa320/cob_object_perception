@@ -123,11 +123,13 @@ float Evaluation::divide(float a, float b)
 void Evaluation::clusterTypesToColorImage(cv::Mat& test_image, unsigned int height,unsigned int width)
 {
 	ST::CH::ClusterPtr c_it,c_end;
+
 	for ( boost::tie(c_it,c_end) = clusterHandler->getClusters(); c_it != c_end; ++c_it)
 	{
 
 		if(c_it->type == I_EDGE || c_it->type == I_PLANE || c_it->type == I_CONCAVE || c_it->type == I_CONVEX )
 		{
+
 			uint32_t rgb = color_tab[c_it->type];
 
 			for (ST::CH::ClusterType::iterator idx=c_it->begin(); idx != c_it->end(); ++idx)
@@ -143,6 +145,7 @@ void Evaluation::clusterTypesToColorImage(cv::Mat& test_image, unsigned int heig
 			}
 		}
 	}
+
 }
 
 

@@ -138,11 +138,14 @@ private:
 
 	void thinEdges(cv::Mat& edgePicture, int xy);
 	void drawLines(cv::Mat& plotXY, cv::Mat& coordinates, cv::Mat& abc);
+	void printNeigh(PointCloudInConstPtr cloud, int x, int y);
 	void drawLineAlongN(cv::Mat& plotZW, cv::Mat& coordinates, cv::Mat& n);
 
 	void deriv2nd3pts (cv::Mat threePoints, float& deriv);
 	void deriv2nd5pts (cv::Mat threePoints, float& deriv);
 	void deriv2nd (cv::Mat depth_image,PointCloudInConstPtr cloud, cv::Point2f dotStart, cv::Point2f dotStop, float& deriv);
+
+
 
 
 

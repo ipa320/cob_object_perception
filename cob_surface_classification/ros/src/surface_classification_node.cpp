@@ -3,7 +3,7 @@
  * \file
  *
  * \note
- * Copyright (c) 2013 \n
+ * Copyright (c) 2013 \n+
  * Fraunhofer Institute for Manufacturing Engineering
  * and Automation (IPA) \n\n
  *
@@ -60,20 +60,20 @@
 /*switches for execution of processing steps*/
 
 #define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
-#define COMPUTATION_MODE			true		//computations without record
+#define COMPUTATION_MODE			false		//computations without record
 #define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
-#define EVALUATION_ONLINE_MODE		false		//computations plus evaluation of current computations plus record of evaluation
+#define EVALUATION_ONLINE_MODE		true		//computations plus evaluation of current computations plus record of evaluation
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						true 	//segmentation
+#define SEG 						true 	//segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
-#define SEG_REFINE					false 	//segmentation refinement
-#define CLASSIFY 					false	//classification
+#define SEG_REFINE					false 	//segmentation refinement according to curvatures (outdated)
+#define CLASSIFY 					true	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
-#define SEG_VIS 					true 	//visualisation of segmentation
+#define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	//visualisation of classification
 
@@ -217,8 +217,7 @@ public:
 		//int lineLength = 20;
 		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 -lineLength/2, 2*depth_image.rows/3),cv::Point2f(2*depth_image.cols/3 +lineLength/2, 2*depth_image.rows/3),CV_RGB(0,1,0),1);
 		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 +lineLength/2),cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 -lineLength/2),CV_RGB(0,1,0),1);
-		cv::imshow("image", color_image);
-		if(!EVALUATION_ONLINE_MODE) cv::waitKey(10);
+
 
 
 		//record scene
@@ -241,10 +240,12 @@ public:
 		//----------------------------------------
 
 		int key = 0;
+		cv::imshow("image", color_image);
+		if(!EVALUATION_ONLINE_MODE) cv::waitKey(50);
 		if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
 		//std::cout << key <<endl;
 		//record if "e" is pressed while "image"-window is activated
-		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 101))
+		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
 		{
 			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 			pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdges(new pcl::PointCloud<pcl::Normal>);
@@ -312,6 +313,7 @@ public:
 				seg_.setLabelCloudInOut(labels);
 				seg_.setClusterGraphOut(graph);
 				seg_.performInitialSegmentation();
+				seg_.refineSegmentation();
 			}
 			if(SEG_WITHOUT_EDGES)
 			{
