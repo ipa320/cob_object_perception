@@ -328,7 +328,6 @@ void DetectText::detect()
 //				}
 //			}
 //
-//
 //			if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
 //			{
 //				unsigned int numberLetters = 0;
