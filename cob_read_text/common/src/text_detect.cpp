@@ -263,6 +263,7 @@ void DetectText::detect()
 	}
 	originalImage_ = original_image_copy;
 
+
 	// filter boxes that are only detected at one scale
 	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
 	{
@@ -312,6 +313,8 @@ void DetectText::detect()
 				}
 			}
 
+
+
 //			// delete smaller boxes (which do not originate from a bigger original box) of same letter color which are located in bigger boxes
 //			commonArea = (itr.boundingBox & jtr.originalChainBoundingBox).area();
 //			if (commonArea <= 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
@@ -327,7 +330,7 @@ void DetectText::detect()
 //						i--;
 //				}
 //			}
-//
+
 //			if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
 //			{
 //				unsigned int numberLetters = 0;
@@ -6772,6 +6775,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 		int numberWordRegions = wordRegions.size();
 		if (breakBox == true)
 		{
+			std::vector<TextRegion> newWordRegions;
 			for (unsigned int r = 0; r < letterDistances.size(); r++)
 			{
 				bool letter = false;
@@ -6791,7 +6795,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 					word.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
 					word.originalChainID = textRegions[textRegionIndex].originalChainID;
 					// word.letters = ; --> see below
-					wordRegions.push_back(word);
+					newWordRegions.push_back(word);
 				}
 				// reaching the end
 				if (r == letterDistances.size() - 1)
@@ -6804,9 +6808,14 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 					word.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
 					word.originalChainID = textRegions[textRegionIndex].originalChainID;
 					// word.letters = ; --> see below
-					wordRegions.push_back(word);
+					newWordRegions.push_back(word);
 				}
 			}
+			// only separate into single word if the letter/word ratio is large enough
+			if ((letterDistances.size()+1.) < 1.5*newWordRegions.size())
+				wordRegions.push_back(textRegions[textRegionIndex]);
+			else
+				wordRegions.insert(wordRegions.end(), newWordRegions.begin(), newWordRegions.end());
 		}
 		else
 		{
