@@ -312,21 +312,21 @@ void DetectText::detect()
 				}
 			}
 
-			// delete smaller boxes (which do not originate from a bigger original box) of same letter color which are located in bigger boxes
-			commonArea = (itr.boundingBox & jtr.originalChainBoundingBox).area();
-			if (commonArea <= 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
-			{
-				double commonAreaLetters = 0.;
-				for (unsigned int li=0; li<itr.letters.size(); ++li)
-					commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
-
-				if (commonAreaLetters > 0.5*jtr.boundingBox.area())
-				{
-					finalTextRegions_.erase(finalTextRegions_.begin()+j);
-					if (i>j)
-						i--;
-				}
-			}
+//			// delete smaller boxes (which do not originate from a bigger original box) of same letter color which are located in bigger boxes
+//			commonArea = (itr.boundingBox & jtr.originalChainBoundingBox).area();
+//			if (commonArea <= 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
+//			{
+//				double commonAreaLetters = 0.;
+//				for (unsigned int li=0; li<itr.letters.size(); ++li)
+//					commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
+//
+//				if (commonAreaLetters > 0.5*jtr.boundingBox.area())
+//				{
+//					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+//					if (i>j)
+//						i--;
+//				}
+//			}
 //
 //			if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
 //			{
