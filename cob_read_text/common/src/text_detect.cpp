@@ -263,7 +263,7 @@ void DetectText::detect()
 	}
 	originalImage_ = original_image_copy;
 
-	// filter overlapping boxes
+	// filter boxes that are only detected at one scale
 	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
 	{
 		TextRegion& itr = finalTextRegions_[i];
@@ -285,6 +285,79 @@ void DetectText::detect()
 		}
 	}
 
+	// filter overlapping boxes
+	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
+	{
+		for (int j=(int)finalTextRegions_.size()-1; j>=0; --j)
+		{
+			if (i==j)
+				continue;
+
+			TextRegion& itr = finalTextRegions_[i];
+			TextRegion& jtr = finalTextRegions_[j];
+
+			// filter smaller boxes inside a larger box when they reside mostly on letters of the bigger box and have a different font color
+			double commonArea = (itr.boundingBox & jtr.boundingBox).area();
+			if (itr.letters[0].fontColor != jtr.letters[0].fontColor && commonArea <= 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.boundingBox.area())
+			{
+				double commonAreaLetters = 0.;
+				for (unsigned int li=0; li<itr.letters.size(); ++li)
+					commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
+
+				if (commonAreaLetters > 0.5*jtr.boundingBox.area())
+				{
+					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+					if (i>j)
+						i--;
+				}
+			}
+
+//			// delete smaller boxes (which do not originate from a bigger original box) of same letter color which are located in bigger boxes
+//			commonArea = (itr.boundingBox & jtr.originalChainBoundingBox).area();
+//			if (commonArea <= 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
+//			{
+//				double commonAreaLetters = 0.;
+//				for (unsigned int li=0; li<itr.letters.size(); ++li)
+//					commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
+//
+//				if (commonAreaLetters > 0.5*jtr.boundingBox.area())
+//				{
+//					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+//					if (i>j)
+//						i--;
+//				}
+//			}
+//
+//
+//			if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
+//			{
+//				unsigned int numberLetters = 0;
+//				for (unsigned int k=0; k<finalTextRegions_.size(); ++k)
+//				{
+//					if (k==i)
+//						continue;
+//					if (finalTextRegions_[k].originalChainID == jtr.originalChainID)
+//						numberLetters += finalTextRegions_[k].letters.size();
+//				}
+//
+//				if (itr.letters.size() > numberLetters)
+//				{
+//					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+//					if (i>j)
+//						i--;
+//				}
+//				else
+//				{
+//					finalTextRegions_.erase(finalTextRegions_.begin()+i);
+//					i--;
+//					break;
+//				}
+//			}
+		}
+	}
+
+
+	// filter overlapping boxes
 //	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
 //	{
 //		for (int j=(int)finalTextRegions_.size()-1; j>=0; --j)
