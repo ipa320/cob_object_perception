@@ -8236,7 +8236,7 @@ int ObjectClassifier::HermesBuildDetectionModelFromRecordedData(const std::strin
 
 		// roll histogram
 		cv::Mat histogram;
-		HermesComputeRollHistogram(pointcloud, avgPoint, histogram, true, false);
+		HermesComputeRollHistogram(pointcloud, avgPoint, histogram, true, true);
 		mLabelFile << "rollhistogram\t" << histogram.cols << "\t";
 		for (int i=0; i<histogram.cols; i++)
 			mLabelFile << histogram.at<float>(i) << "\t";
@@ -8888,10 +8888,11 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 int ObjectClassifier::HermesComputeRollHistogram(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, cv::Mat& pHistogram, bool pSmooth, bool pDisplay)
 {
 	// get roll orientation
-	cv::Mat histogram(1, 360, CV_32FC1);
-	histogram.setTo(0);
+	cv::Mat histogram = cv::Mat::zeros(1, 360, CV_32FC1);
 	for (int p=0; p<(int)pPointCloud->size(); p++)
 	{
+		if ((*pPointCloud)[p].x==0 && (*pPointCloud)[p].y==0 && (*pPointCloud)[p].z==0)
+			continue;
 		double alpha = 180 + 180/M_PI*atan2(pPointCloud->points[p].y-pAvgPoint.y, pPointCloud->points[p].x-pAvgPoint.x);
 		histogram.at<float>((int)alpha) += 1.;
 	}
@@ -8915,7 +8916,7 @@ int ObjectClassifier::HermesComputeRollHistogram(pcl::PointCloud<pcl::PointXYZRG
 		for (int i=0; i<pHistogram.cols; i++)
 			cv::line(dispHist, cv::Point(i, 0), cv::Point(i, (int)pHistogram.at<float>(i)), CV_RGB(0,0,0));
 		cv::imshow("histogram", dispHist);
-		cv::waitKey(10);
+		cv::waitKey();
 	}
 
 	return ipa_utils::RET_OK;
