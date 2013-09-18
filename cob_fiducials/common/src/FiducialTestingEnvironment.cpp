@@ -28,7 +28,7 @@ FiducialTestingEnvironment::~FiducialTestingEnvironment()
 unsigned long FiducialTestingEnvironment::FiducialTestAruco()
 {
 	// ----------------------------------- Init detector -----------------------------------------
-	if (m_aruco_tag->Init(m_camera_matrix, "ConfigurationFiles/objectDetectorIni.xml") & ipa_Utils::RET_FAILED)
+	if (m_aruco_tag->Init(m_camera_matrix, "ConfigurationFiles/objectDetectorIni.xml", false) & ipa_Utils::RET_FAILED)
 		return ipa_Utils::RET_FAILED;
 
 	// ----------------------------------- Load images -----------------------------------------
@@ -86,7 +86,7 @@ unsigned long FiducialTestingEnvironment::FiducialTestAruco()
 unsigned long FiducialTestingEnvironment::FiducialTestPI()
 {
 	// ----------------------------------- Init detector -----------------------------------------
-	if (m_pi_tag->Init(m_camera_matrix, "ConfigurationFiles/objectDetectorIni.xml") & ipa_Utils::RET_FAILED)
+	if (m_pi_tag->Init(m_camera_matrix, "ConfigurationFiles/objectDetectorIni.xml", false) & ipa_Utils::RET_FAILED)
 		return ipa_Utils::RET_FAILED;
 
 	// ----------------------------------- Load images -----------------------------------------

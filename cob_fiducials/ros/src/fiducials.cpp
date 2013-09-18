@@ -78,6 +78,8 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include <std_srvs/Empty.h>
+
 // external includes
 //#include <cob_fiducials/fiducialsConfig.h>
 //#include <dynamic_reconfigure/server.h>
@@ -133,6 +135,7 @@ private:
 
     // Service definitions
     ros::ServiceServer detect_fiducials_service_; ///< Service server to request fidcuial detection
+    ros::ServiceServer stop_tf_service_; 
     // Publisher definitions
     ros::Publisher detect_fiducials_pub_;
     ros::Publisher fiducials_marker_array_publisher_;
@@ -174,6 +177,9 @@ private:
     t_FiducialType fiducial_type_;
     boost::shared_ptr<ipa_Fiducials::AbstractFiducialModel> tag_detector_;
     
+    boost::mutex tf_lock_;
+    ros::Timer tf_pub_timer_;
+    tf::StampedTransform marker_tf_;
 
 public:
     /// Constructor.
@@ -254,10 +260,26 @@ public:
 		return false;
 	}
 
+	if(publish_tf_) {
+		tf_pub_timer_.stop();
+		tf_pub_timer_ = node_handle_.createTimer(ros::Duration(0.1), &CobFiducialsNode::callback_pub_tf, this);
+		stop_tf_service_ = node_handle_.advertiseService("stop_tf", &CobFiducialsNode::stopTfServiceCallback, this);
+	}
+
         ROS_INFO("[fiducials] Initializing [OK]");
         ROS_INFO("[fiducials] Up and running");
         return true;
     }
+
+	void callback_pub_tf(const ros::TimerEvent& event)
+	{
+		if(marker_tf_.frame_id_.size()>0) {
+			tf_lock_.lock();
+			marker_tf_.stamp_ = ros::Time::now();
+                	tf_broadcaster_.sendTransform(marker_tf_);
+			tf_lock_.unlock();
+		}
+	}
 
     //void dynamicReconfigureCallback(cob_fiducials::fiducialsConfig &config, uint32_t level)
     //{
@@ -360,6 +382,17 @@ public:
         condQ_.notify_one();
     }
 
+    bool stopTfServiceCallback(std_srvs::Empty::Request &req,
+                                        std_srvs::Empty::Response &res)
+    {
+        ROS_DEBUG("[fiducials] Service Callback");
+
+	tf_lock_.lock();
+	marker_tf_.frame_id_ = "";
+	tf_lock_.unlock();
+
+	return true;
+    }
 
 
     bool detectFiducialsServiceCallback(cob_object_detection_msgs::DetectObjects::Request &req,
@@ -401,9 +434,33 @@ public:
             //	ROS_WARN("[fiducials] Could not receive image data");
             //	return false;
             //}
-
-            res.object_list = detection_array_;
-            result = !(detection_array_.detections.empty()); //detectFiducials(res.object_list, color_mat_8U3_);
+            
+            
+            if (req.object_name.data == "ALL" || req.object_name.data == "")
+            {
+				// Publish all detections
+				res.object_list = detection_array_;
+			}
+			else
+			{
+				// Publish specific detections
+				cob_object_detection_msgs::DetectionArray filtered_detection_array;
+				filtered_detection_array.header = detection_array_.header;
+				
+				for (unsigned int i=0; i<detection_array_.detections.size(); i++)
+				{
+					if (detection_array_.detections[i].label == req.object_name.data)
+					{
+						
+						filtered_detection_array.detections.push_back(detection_array_.detections[i]);
+					}
+				}
+                
+				res.object_list = filtered_detection_array;
+			}
+			
+            
+            result = !(res.object_list.detections.empty()); //detectFiducials(res.object_list, color_mat_8U3_);
         }
         disconnectCallback();
 
@@ -420,10 +477,14 @@ public:
         std::vector<ipa_Fiducials::t_pose> tags_vec;
         std::vector<std::vector<double> >vec_vec7d;
 
-		unsigned long ret_val = ipa_Utils::RET_OK;
-		ret_val = tag_detector_->GetPose(color_image, tags_vec);
+	tf_lock_.lock();
+	marker_tf_.frame_id_ = "";
+	tf_lock_.unlock();
 
-		if (ret_val & ipa_Utils::RET_OK)
+	unsigned long ret_val = ipa_Utils::RET_OK;
+	ret_val = tag_detector_->GetPose(color_image, tags_vec);
+
+	if (ret_val & ipa_Utils::RET_OK)
         {
             pose_array_size = tags_vec.size();
 
@@ -433,7 +494,7 @@ public:
                 cob_object_detection_msgs::Detection fiducial_instance;
 
 				std::stringstream ss;
-				ss << tags_vec[i].id;
+				ss << "tag_" << tags_vec[i].id;
 				fiducial_instance.header = detection_array.header;
                 fiducial_instance.label = ss.str();
                 fiducial_instance.detector = tag_detector_->GetType();
@@ -504,11 +565,13 @@ public:
             {
                 // Broadcast transform of fiducial
                 tf::Transform transform;
-                std::stringstream tf_name;
-                tf_name << "pi_tag" <<"_" << "0";
+                //std::stringstream tf_name;
+                //tf_name << detection_array.detections[i].label;
                 transform.setOrigin(tf::Vector3(vec_vec7d[i][0], vec_vec7d[i][1], vec_vec7d[i][2]));
                 transform.setRotation(tf::Quaternion(vec_vec7d[i][4], vec_vec7d[i][5], vec_vec7d[i][6], vec_vec7d[i][3]));
-                tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, tf_name.str()));
+		tf_lock_.lock();
+		marker_tf_ = tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, "marker");	//TODO: make parameter
+		tf_lock_.unlock();
             }
         }
 
