@@ -7,8 +7,8 @@
     <!--remap from="input_pointcloud_segments" to="/tabletop_object_cluster/cluster_array"/-->   <!-- segmentation of cob_table_object_cluster -->
     <!--remap from="input_color_image" to="/cam3d/rgb/image_color"/-->
     <!--remap from="input_pointcloud_camera_info" to="/cam3d/depth_registered/camera_info"/-->
-    <remap from="input_color_image" to="/camera/rgb/image"/>
-    <remap from="input_pointcloud_camera_info" to="/camera/depth/camera_info"/>
+    <remap from="input_color_image" to="/cam3d/rgb/image"/>
+    <remap from="input_pointcloud_camera_info" to="/cam3d/depth/camera_info"/>
     
     <param name="mode_of_operation" type="int" value="2"/>
   </node>

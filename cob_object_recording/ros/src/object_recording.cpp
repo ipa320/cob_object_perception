@@ -272,7 +272,7 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	for (unsigned int i=0; i<recording_data_.size(); ++i)
 	{
 		double distance_translation = recording_data_[i].pose_desired.getOrigin().distance(pose_recorded.getOrigin());
-		double distance_orientation = recording_data_[i].pose_desired.getRotation().angle(pose_recorded.getRotation());
+		double distance_orientation = recording_data_[i].pose_desired.getRotation().angleShortestPath(pose_recorded.getRotation());
 		double distance_pose = distance_translation + distance_orientation;
 
 //		std::cout << "  distance=" << distance_translation << "\t angle=" << distance_orientation << "(t=" << distance_threshold_orientation_ << ")" << std::endl;

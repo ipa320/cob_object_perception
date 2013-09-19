@@ -61,14 +61,14 @@ protected:
 			ROS_INFO("Segmenting data...");
 
 			typedef pcl::PointXYZRGB PointType;
-			pcl::PointCloud<PointType> input_pointcloud, temp;
-			pcl::fromROSMsg(*input_pointcloud_msg, temp);
-
-			// only keep points inside a defined volume
-			for (unsigned int v=0; v<temp.height; v++)
-				for (unsigned int u=0; u<temp.width; u++)
-					if (fabs(temp.at(u,v).x)<0.2 && temp.at(u,v).z<1.2)
-						input_pointcloud.push_back(temp.at(u,v));
+			pcl::PointCloud<PointType> input_pointcloud;//, temp;
+			pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
+//			pcl::fromROSMsg(*input_pointcloud_msg, temp);
+//			// only keep points inside a defined volume
+//			for (unsigned int v=0; v<temp.height; v++)
+//				for (unsigned int u=0; u<temp.width; u++)
+//					if (fabs(temp.at(u,v).x)<0.2 && temp.at(u,v).z<1.2)
+//						input_pointcloud.push_back(temp.at(u,v));
 
 			// Create the filtering object: downsample the dataset using a leaf size of 1cm
 			pcl::VoxelGrid<PointType> vg;

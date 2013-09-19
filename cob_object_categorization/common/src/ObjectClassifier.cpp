@@ -8236,7 +8236,7 @@ int ObjectClassifier::HermesBuildDetectionModelFromRecordedData(const std::strin
 
 		// roll histogram
 		cv::Mat histogram;
-		HermesComputeRollHistogram(pointcloud, avgPoint, histogram, true, true);
+		HermesComputeRollHistogram(pointcloud, avgPoint, histogram, true, false);
 		mLabelFile << "rollhistogram\t" << histogram.cols << "\t";
 		for (int i=0; i<histogram.cols; i++)
 			mLabelFile << histogram.at<float>(i) << "\t";
@@ -8851,12 +8851,16 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	{
 		for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
 		{
-			double diff = 0.;
+//			double diff = 0.;
+//			for (int i=0; i<(*featureVector)->cols; i++)
+//			{
+//				double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
+//				diff += val*val;
+//			}
+			cv::Mat featureVectorMat(1, (*featureVector)->cols, CV_32FC1);
 			for (int i=0; i<(*featureVector)->cols; i++)
-			{
-				double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
-				diff += val*val;
-			}
+				featureVectorMat.at<float>(i) = cvGetReal1D(*featureVector, i);
+			double diff = -HermesHistogramIntersectionKernel(itInner->second[0], featureVectorMat, 0);
 			vfhOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
 		}
 	}
@@ -8871,7 +8875,7 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	double matchScore = 0;
 	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
 	roll = roll_i;
-	roll = 0; // hack
+//	roll = 0; // hack
 	std::cout << "best matching roll angle: " << roll << std::endl;
 
 	// match full point clouds (ICP)
@@ -8916,7 +8920,7 @@ int ObjectClassifier::HermesComputeRollHistogram(pcl::PointCloud<pcl::PointXYZRG
 		for (int i=0; i<pHistogram.cols; i++)
 			cv::line(dispHist, cv::Point(i, 0), cv::Point(i, (int)pHistogram.at<float>(i)), CV_RGB(0,0,0));
 		cv::imshow("histogram", dispHist);
-		cv::waitKey();
+		cv::waitKey(10);
 	}
 
 	return ipa_utils::RET_OK;
@@ -9052,7 +9056,7 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(fusedCloud);
 	viewer->addPointCloud<pcl::PointXYZRGB>(fusedCloud, rgb, "sample cloud");
 	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-	viewer->addCoordinateSystem(1.0);
+	viewer->addCoordinateSystem(0.1);
 	viewer->initCameraParameters ();
 	while (!viewer->wasStopped ())
 	{

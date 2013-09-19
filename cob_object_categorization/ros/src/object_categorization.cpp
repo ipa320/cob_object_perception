@@ -45,7 +45,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	node_handle_.param("/object_categorization/object_categorization/mode_of_operation", mode_of_operation_, 1);
 	std::cout<< "mode_of_operation: " << mode_of_operation_ << "\n";
 
-	std::string object_name = "shoe_green";
+	std::string object_name = "shoe_black";
 
 	// initialize special modes
 	if (mode_of_operation_ == 2)
@@ -89,7 +89,8 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 	// convert color image to cv::Mat
 	cv_bridge::CvImageConstPtr color_image_ptr;
 	cv::Mat display_color;
-	cv::Mat display_segmentation = cv::Mat::zeros(pointcloud_height_, pointcloud_width_, CV_8UC3);
+	cv::Mat display_segmentation(pointcloud_height_, pointcloud_width_, CV_8UC3);
+	display_segmentation.setTo(cv::Scalar(255,255,255,255));
 	if (convertColorImageMessageToMat(input_image_msg, color_image_ptr, display_color) == false)
 		return;
 
