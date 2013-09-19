@@ -46,6 +46,22 @@ void stopRecording(std::string serviceName)
 		ROS_INFO("Request for stopping object data recording failed.\n");
 }
 
+void resetCurrentView(std::string serviceName)
+{
+	// prepare the request and response messages
+	std_srvs::Empty::Request req;
+	std_srvs::Empty::Response res;
+
+	// this calls the service server to process our request message and put the result into the response message
+	// this call is blocking, i.e. this program will not proceed until the service server sends the response
+	bool success = ros::service::call(serviceName, req, res);
+
+	if (success == true)
+		ROS_INFO("Deleting the current view was successful.\n");
+	else
+		ROS_INFO("Request for deleting the data of the current perspective failed.\n");
+}
+
 void saveRecordedObject(std::string serviceName)
 {
 	// prepare the request and response messages
@@ -91,6 +107,7 @@ int main(int argc, char **argv)
 
 	std::string startServiceName = "/object_recording/start_recording";
 	std::string stopServiceName = "/object_recording/stop_recording";
+	std::string resetCurrentViewServiceName = "/object_recording/reset_current_view";
 	std::string saveServiceName = "/object_recording/save_recorded_object";
 
 	// here we wait until the service is available; please use the same service name as the one in the server; you may define a timeout if the service does not show up
@@ -98,6 +115,7 @@ int main(int argc, char **argv)
 	bool serviceAvailable = true;
 	serviceAvailable &= ros::service::waitForService(startServiceName, 5000);
 	serviceAvailable &= ros::service::waitForService(stopServiceName, 5000);
+	serviceAvailable &= ros::service::waitForService(resetCurrentViewServiceName, 5000);
 	serviceAvailable &= ros::service::waitForService(saveServiceName, 5000);
 
 	// only proceed if the service is available
@@ -111,14 +129,16 @@ int main(int argc, char **argv)
 	char key = ' ';
 	while(key != 'q')
 	{
-		std::cout << "Object Data Recording:\n\n 1. Start recording\n 2. Stop recording\n 3. Save results\n q. Quit\n\nChoose an option: ";
-		key = getchar();
+		std::cout << "Object Data Recording:\n\n 1. Start recording\n 2. Reset current perspective\n 3. Stop recording\n 4. Save results\n q. Quit\n\nChoose an option: ";
+		std::cin >> key;
 
 		if (key == '1')
 			startRecording(startServiceName);
 		else if (key == '2')
-			stopRecording(stopServiceName);
+			resetCurrentView(resetCurrentViewServiceName);
 		else if (key == '3')
+			stopRecording(stopServiceName);
+		else if (key == '4')
 			saveRecordedObject(saveServiceName);
 	}
 

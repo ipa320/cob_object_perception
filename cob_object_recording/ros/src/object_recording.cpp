@@ -46,6 +46,8 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 	// publishers
 	it_pub_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
 	display_image_pub_ = it_pub_->advertise("display_image", 1);
+	recorded_color_image_pub_ = it_pub_->advertise("recorded_color_image", 1);
+	recorded_depth_image_pub_ = it_pub_->advertise("recorded_depth_image", 1);
 
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_object_detection_msgs::DetectionArray, sensor_msgs::PointCloud2, sensor_msgs::Image> >(10);
@@ -53,6 +55,7 @@ ObjectRecording::ObjectRecording(ros::NodeHandle nh)
 
 	service_server_start_recording_ = node_handle_.advertiseService("start_recording", &ObjectRecording::startRecording, this);
 	service_server_stop_recording_ = node_handle_.advertiseService("stop_recording", &ObjectRecording::stopRecording, this);
+	service_server_reset_current_view_ = node_handle_.advertiseService("reset_current_view", &ObjectRecording::resetCurrentView, this);
 	service_server_save_recorded_object_ = node_handle_.advertiseService("save_recorded_object", &ObjectRecording::saveRecordedObject, this);
 
 	// dynamic reconfigure
@@ -132,6 +135,14 @@ bool ObjectRecording::stopRecording(cob_object_detection_msgs::StopObjectRecordi
 
 	ROS_INFO("Stopped recording object '%s'.", current_object_label_.c_str());
 
+	return true;
+}
+
+bool ObjectRecording::resetCurrentView(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+{
+	recording_data_[current_closest_pose_].perspective_recorded = false;
+	recording_data_[current_closest_pose_].distance_to_desired_pose = 1e10;
+	recording_data_[current_closest_pose_].sharpness_score = 0.;
 	return true;
 }
 
@@ -275,7 +286,7 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 		double distance_orientation = recording_data_[i].pose_desired.getRotation().angleShortestPath(pose_recorded.getRotation());
 		double distance_pose = distance_translation + distance_orientation;
 
-//		std::cout << "  distance=" << distance_translation << "\t angle=" << distance_orientation << "(t=" << distance_threshold_orientation_ << ")" << std::endl;
+//		std::cout << "  distance=" << distance_translation << "\t angle=" << distance_orientation << " (t=" << distance_threshold_orientation_ << ")" << std::endl;
 //		std::cout << "recording_data_[i].pose_desired: XYZ=(" << recording_data_[i].pose_desired.getOrigin().getX() << ", " << recording_data_[i].pose_desired.getOrigin().getY() << ", " << recording_data_[i].pose_desired.getOrigin().getZ() << "), WABC=(" << recording_data_[i].pose_desired.getRotation().getW() << ", " << recording_data_[i].pose_desired.getRotation().getX() << ", " << recording_data_[i].pose_desired.getRotation().getY() << ", " << recording_data_[i].pose_desired.getRotation().getZ() << "\n";
 //		std::cout << "                  pose_recorded: XYZ=(" << pose_recorded.getOrigin().getX() << ", " << pose_recorded.getOrigin().getY() << ", " << pose_recorded.getOrigin().getZ() << "), WABC=(" << pose_recorded.getRotation().getW() << ", " << pose_recorded.getRotation().getX() << ", " << pose_recorded.getRotation().getY() << ", " << pose_recorded.getRotation().getZ() << "\n";
 
@@ -321,6 +332,14 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 #endif
 		}
 	}
+	current_closest_pose_ = closest_pose;
+
+	// pan/tilt
+	tf::Vector3& t = recording_data_[closest_pose].pose_recorded.getOrigin();
+	double pan = atan2(t.getY(), t.getX());
+	double tilt = asin(t.getZ()/t.length());
+	std::stringstream ss;
+	ss << "pan=" << pan*180/CV_PI << " tilt=" << tilt*180/CV_PI;
 
 //	// play proximity sound w.r.t. to target pose distance
 //	if (playing_hit_sound == false && closest_translation_distance < 2.*distance_threshold_translation_ && closest_orientation_distance < 2.*distance_threshold_orientation_);
@@ -342,6 +361,7 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	cv::line(display_image, cv::Point(display_image.cols/2+du-20*cos_x_angle, display_image.rows/2+dv+20*sin_x_angle), cv::Point(display_image.cols/2+du+20*cos_x_angle, display_image.rows/2+dv-20*sin_x_angle), cv::Scalar(255,0,0,128), 2);
 	cv::circle(display_image, cv::Point(display_image.cols/2, display_image.rows/2), 10, cv::Scalar(0,255,0,128), 2);
 	cv::line(display_image, cv::Point(display_image.cols/2-20, display_image.rows/2), cv::Point(display_image.cols/2+20, display_image.rows/2), cv::Scalar(0,255,0,128), 2);
+	cv::putText(display_image, ss.str().c_str(), cv::Point(20,20), cv::FONT_HERSHEY_PLAIN, 2.0, CV_RGB(0, 255, 0), 2);
 	cv_bridge::CvImage cv_ptr;
 	cv_ptr.image = display_image;
 	cv_ptr.encoding = "bgr8";
@@ -351,6 +371,21 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 
 	// display the markers indicating the already recorded perspectives and the missing
 	publishRecordingPoseMarkers(input_marker_detections_msg, fiducial_pose);
+
+	// publish recorded color and depth image for this pose (to check the quality)
+	cv_ptr.image = recording_data_[closest_pose].image;
+	cv::putText(cv_ptr.image, ss.str().c_str(), cv::Point(20,20), cv::FONT_HERSHEY_PLAIN, 2.0, CV_RGB(0, 255, 0), 2);
+	cv_ptr.encoding = "bgr8";
+	recorded_color_image_pub_.publish(cv_ptr.toImageMsg());
+	cv::Mat depth_image = cv::Mat::ones(recording_data_[closest_pose].pointcloud.height, recording_data_[closest_pose].pointcloud.width, CV_8UC1) * 255;
+	double factor = 255./(preferred_recording_distance_+ 1.0);
+	for (unsigned int v=0; v<recording_data_[closest_pose].pointcloud.height; ++v)
+		for (unsigned int u=0; u<recording_data_[closest_pose].pointcloud.width; ++u)
+			depth_image.at<uchar>(v,u) = std::min((uchar)255, (uchar)(factor * recording_data_[closest_pose].pointcloud.at(u,v).z));
+	cv_ptr.image = depth_image;
+	cv::putText(cv_ptr.image, ss.str().c_str(), cv::Point(20,20), cv::FONT_HERSHEY_PLAIN, 2.0, CV_RGB(255, 255, 255), 2);
+	cv_ptr.encoding = "mono8";
+	recorded_depth_image_pub_.publish(cv_ptr.toImageMsg());
 }
 
 

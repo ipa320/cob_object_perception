@@ -17,6 +17,7 @@
   <depend package="dynamic_reconfigure"/>
   <depend package="cv_bridge"/>
   <depend package="std_msgs"/>
+  <depend package="std_srvs"/>
   <depend package="sensor_msgs"/>
   <depend package="message_filters"/>
   <depend package="image_transport"/>
