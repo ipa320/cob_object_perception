@@ -90,6 +90,8 @@ protected:
 
 	tf::TransformBroadcaster transform_broadcaster_;	///< publish transforms
 	DetectObjectsActionServer detect_objects_action_server_; ///< Action server which accepts requests for detecting objects
+	cob_object_detection_msgs::Detection latest_object_detection_;		///< pose of the last detected object
+	std::string hermes_object_name_;
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 

@@ -47,6 +47,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	std::cout<< "mode_of_operation: " << mode_of_operation_ << "\n";
 
 	std::string object_name = "shoe_black";
+	hermes_object_name_ = object_name;
 
 	// initialize special modes
 	if (mode_of_operation_ == 2)
@@ -72,7 +73,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >(60);
 	sync_input_->connectInput(input_pointcloud_sub_, color_image_sub_);
-	sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
+//	sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
 
 	detect_objects_action_server_.start();
 }
@@ -187,6 +188,11 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 					}
 //					drawObjectCoordinateSystem(object_pose, display_color);
 					transform_broadcaster_.sendTransform(tf::StampedTransform(object_pose, input_pointcloud_segments_msg->header.stamp, input_pointcloud_segments_msg->header.frame_id, "detected_shoe"));
+					latest_object_detection_.header.frame_id = input_pointcloud_segments_msg->header.frame_id;
+					latest_object_detection_.header.stamp = input_pointcloud_segments_msg->header.stamp;
+					latest_object_detection_.label = hermes_object_name_;
+					tf::Stamped<tf::Transform> object_pose_stamped = tf::Stamped<tf::Transform>(object_pose, input_pointcloud_segments_msg->header.stamp, input_pointcloud_segments_msg->header.frame_id);
+					tf::poseStampedTFToMsg(object_pose_stamped, latest_object_detection_.pose);
 				}
 			}
 		}
@@ -242,11 +248,35 @@ void ObjectCategorization::detectObjectsCallback(const cob_object_detection_msgs
 	std::string object_name = goal->object_name.data;
 	ROS_INFO("Detect Object Action Server: Received a request for detecting object %s.", object_name.c_str());
 
-	// slow down the response to show the effect of feedback messages
-	ros::Rate loop_rate(0.5);
-	loop_rate.sleep();
+	// init the algorithm for the requested object
+	object_classifier_.HermesLoadCameraCalibration(object_name, projection_matrix_);
+	object_classifier_.HermesDetectInit((ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, object_name);
+
+	// activate detection
+	message_filters::Connection connection = sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
+
+	// wait for detection
+	ros::Time start_time = ros::Time::now();
+	ros::Rate loop_rate(0.1);
+	bool abort_with_timeout = false;
+	while ((ros::Time::now() - latest_object_detection_.header.stamp).toSec() > 2.0 && abort_with_timeout==false)
+	{
+		if ((ros::Time::now() - start_time).toSec() > 30.0)
+			abort_with_timeout = true;
+		loop_rate.sleep();
+	}
+
+	// deactivate detection
+	connection.disconnect();
 
 	cob_object_detection_msgs::DetectObjectsResult res;
+	if (abort_with_timeout == false)
+	{
+		res.object_list.detections.push_back(latest_object_detection_);
+		res.object_list.header = latest_object_detection_.header;
+	}
+	else
+		ROS_WARN("Did not find any object of type %s in the allowed time span.", object_name.c_str());
 
 	// this sends the response back to the caller
 	detect_objects_action_server_.setSucceeded(res);
