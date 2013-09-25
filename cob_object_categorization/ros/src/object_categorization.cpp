@@ -2,13 +2,14 @@
 #include <boost/filesystem.hpp>
 #include <fstream>
 
-ObjectCategorization::ObjectCategorization()
-{
-}
+//ObjectCategorization::ObjectCategorization()
+//{
+//}
 
 ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 : node_handle_(nh),
-  object_classifier_(ros::package::getPath("cob_object_categorization") + "/common/files/classifier/EMClusterer5.txt", ros::package::getPath("cob_object_categorization") + "/common/files/classifier/")
+  object_classifier_(ros::package::getPath("cob_object_categorization") + "/common/files/classifier/EMClusterer5.txt", ros::package::getPath("cob_object_categorization") + "/common/files/classifier/"),
+  detect_objects_action_server_(nh, "categorize_object", boost::bind(&ObjectCategorization::detectObjectsCallback, this, _1), false)	// this initializes the action server; important: always set the last parameter to false
 {
 	// Parameters
 	global_feature_params_.minNumber3DPixels = 50;
@@ -51,7 +52,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	if (mode_of_operation_ == 2)
 	{
 		object_classifier_.HermesLoadCameraCalibration(object_name, projection_matrix_);
-		object_classifier_.HermesDetectInit((ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
+		object_classifier_.HermesDetectInit((ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, object_name);
 	}
 	else if (mode_of_operation_ == 3)
 	{
@@ -72,6 +73,8 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >(60);
 	sync_input_->connectInput(input_pointcloud_sub_, color_image_sub_);
 	sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
+
+	detect_objects_action_server_.start();
 }
 
 ObjectCategorization::~ObjectCategorization()
@@ -106,7 +109,7 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 		cvSetZero(color_image);
 		IplImage* coordinate_image = cvCreateImage(cvSize(pointcloud_width_, pointcloud_height_), IPL_DEPTH_32F, 3);
 		cvSetZero(coordinate_image);
-		pcl::PointXYZ avgPoint(0., 0., 0.);
+		pcl::PointXYZ avgPoint(0., 0., 0.), minPoint(1e10, 1e10, 1e10), maxPoint(-1e10,-1e10,-1e10);
 		unsigned int number_valid_points = 0;
 		for (unsigned int i=0; i<input_pointcloud->size(); i++)
 		{
@@ -116,6 +119,13 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 			avgPoint.x += (*input_pointcloud)[i].x;
 			avgPoint.y += (*input_pointcloud)[i].y;
 			avgPoint.z += (*input_pointcloud)[i].z;
+			minPoint.x = std::min(minPoint.x, (*input_pointcloud)[i].x);
+			minPoint.y = std::min(minPoint.y, (*input_pointcloud)[i].y);
+			minPoint.z = std::min(minPoint.z, (*input_pointcloud)[i].z);
+			maxPoint.x = std::max(maxPoint.x, (*input_pointcloud)[i].x);
+			maxPoint.y = std::max(maxPoint.y, (*input_pointcloud)[i].y);
+			maxPoint.z = std::max(maxPoint.z, (*input_pointcloud)[i].z);
+
 			cv::Mat X = (cv::Mat_<double>(4, 1) << (*input_pointcloud)[i].x, (*input_pointcloud)[i].y, (*input_pointcloud)[i].z, 1.0);
 			cv::Mat x = projection_matrix_ * X;
 			int v = x.at<double>(1)/x.at<double>(2), u = x.at<double>(0)/x.at<double>(2);
@@ -150,16 +160,63 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 		else if (mode_of_operation_ == 2)
 		{
 			// Hermes mode
-			double pan=0, tilt=0, roll=0;
-			Eigen::Matrix4f finalTransform;
-			object_classifier_.HermesCategorizeObject(input_pointcloud, avgPoint, &si, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, pan, tilt, roll, finalTransform);
+			if (maxPoint.x-minPoint.x < 0.4 && maxPoint.y-minPoint.y < 0.4 && maxPoint.z-minPoint.z < 0.4)
+			{
+				double pan=0, tilt=0, roll=0;
+				Eigen::Matrix4f finalTransform;
+				double matchingScore = 1e10;
+				object_classifier_.HermesCategorizeObject(input_pointcloud, avgPoint, &si, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, pan, tilt, roll, finalTransform, matchingScore);
+
+				if (matchingScore < 0.0001)
+				{
+					// draw shoe coordinate system into display_color
+					tf::Transform object_pose;
+					{
+						std::cout << "avgPoint: " << avgPoint.x << ", " << avgPoint.y << ", " << avgPoint.z << "\n";
+						tf::Transform pose1, pose2, pose3, pose4;
+						pose1.setOrigin(tf::Vector3(avgPoint.x, avgPoint.y, avgPoint.z));			// recording distance
+						pose1.setRotation(tf::Quaternion(0., 90./180.*CV_PI, -90./180.*CV_PI));		// rotation from camera system to object coordinate system
+						pose2.setOrigin(tf::Vector3(0.,0.,0.));
+						pose2.setRotation(tf::Quaternion(tilt, 0., 0.));		// orientation in tilt direction
+						pose3.setOrigin(tf::Vector3(0.,0.,0.));
+						pose3.setRotation(tf::Quaternion(0., 0., -pan));			// orientation in pan direction
+						tf::Transform finalTransformTf(tf::Matrix3x3(finalTransform(0,0),finalTransform(0,1),finalTransform(0,2),finalTransform(1,0),finalTransform(1,1),finalTransform(1,2),finalTransform(2,0),finalTransform(2,1),finalTransform(2,2)), tf::Vector3(finalTransform(0,3),finalTransform(1,3),finalTransform(2,3)));
+						pose4.setOrigin(tf::Vector3(-avgPoint.x, -avgPoint.y, -avgPoint.z));
+						pose4.setRotation(tf::Quaternion(0.,0.,0.));
+						object_pose = pose4.inverse() * finalTransformTf.inverse() * pose4 * pose1 * pose2 * pose3;	// transformation pointing from camera system to object system
+					}
+//					drawObjectCoordinateSystem(object_pose, display_color);
+					transform_broadcaster_.sendTransform(tf::StampedTransform(object_pose, input_pointcloud_segments_msg->header.stamp, input_pointcloud_segments_msg->header.frame_id, "detected_shoe"));
+				}
+			}
 		}
 		si.Release();
 
 	}
-	cv::imshow("categorized objects", display_color);
-	cv::imshow("segmented image", display_segmentation);
-	cv::waitKey(40);
+//	cv::imshow("categorized objects", display_color);
+//	cv::imshow("segmented image", display_segmentation);
+//	cv::waitKey(80);
+}
+
+void ObjectCategorization::drawObjectCoordinateSystem(const tf::Transform& object_pose, cv::Mat& display_image)
+{
+	cv::Point o_C = projectVector3ToUV(object_pose*tf::Vector3(0.,0.,0.));
+	cv::Point x_C = projectVector3ToUV(object_pose*tf::Vector3(0.1,0.,0.));
+	cv::Point y_C = projectVector3ToUV(object_pose*tf::Vector3(0.,0.1,0.));
+	cv::Point z_C = projectVector3ToUV(object_pose*tf::Vector3(0.,0.,0.1));
+
+	cv::line(display_image, o_C, x_C, CV_RGB(255,0,0), 2);
+	cv::line(display_image, o_C, y_C, CV_RGB(0,255,0), 2);
+	cv::line(display_image, o_C, z_C, CV_RGB(0,0,255), 2);
+}
+
+cv::Point ObjectCategorization::projectVector3ToUV(tf::Vector3 point_C)
+{
+	cv::Mat X = (cv::Mat_<double>(4, 1) << point_C.getX(), point_C.getY(), point_C.getZ(), 1.0);
+//	std::cout << X.at<double>(0) << ", " << X.at<double>(1) << ", " << X.at<double>(2) << ", " << X.at<double>(3);
+	cv::Mat x = projection_matrix_ * X;
+//	std::cout << "    u,v,w: " << x.at<double>(0,0) << ", " << x.at<double>(1,0) << ", " << x.at<double>(2,0) << "    u,v: " << x.at<double>(0,0)/x.at<double>(2,0) << ", " << x.at<double>(1,0)/x.at<double>(2,0);
+	return cv::Point(x.at<double>(0,0)/x.at<double>(2,0), x.at<double>(1,0)/x.at<double>(2,0));
 }
 
 /// Converts a color image message to cv::Mat format.
@@ -177,6 +234,22 @@ unsigned long ObjectCategorization::convertColorImageMessageToMat(const sensor_m
 	image = image_ptr->image;
 
 	return true;
+}
+
+void ObjectCategorization::detectObjectsCallback(const cob_object_detection_msgs::DetectObjectsGoalConstPtr& goal)
+{
+	// this callback function is executed each time a request (= goal message) comes in for this service server
+	std::string object_name = goal->object_name.data;
+	ROS_INFO("Detect Object Action Server: Received a request for detecting object %s.", object_name.c_str());
+
+	// slow down the response to show the effect of feedback messages
+	ros::Rate loop_rate(0.5);
+	loop_rate.sleep();
+
+	cob_object_detection_msgs::DetectObjectsResult res;
+
+	// this sends the response back to the caller
+	detect_objects_action_server_.setSucceeded(res);
 }
 
 void ObjectCategorization::calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg)
