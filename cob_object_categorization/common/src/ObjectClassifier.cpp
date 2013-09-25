@@ -8875,19 +8875,24 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	int counter = 0;
 	for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end() && counter<10; ++itOrderedList, ++counter)
 		std::cout <<  itOrderedList->second.first*factor << "\t" << itOrderedList->second.second*factor << "\t" << itOrderedList->first << std::endl;
-	pan = vfhOrderedList.begin()->second.first;
-	tilt = vfhOrderedList.begin()->second.second;
-//	cv::Mat histogram;
-//	HermesComputeRollHistogram(pPointCloud, pAvgPoint, histogram, true, false);
-//	int roll_i = 0;
-//	double matchScore = 0;
-//	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
-//	roll = roll_i;
-	roll = 0; // hack
-	std::cout << "best matching roll angle: " << roll << std::endl;
 
-	// match full point clouds (ICP)
-	HermesMatchPointClouds(pPointCloud, pAvgPoint, pan, tilt, roll, pFinalTransform, pMatchingScore);
+	// check whether the cluster is the object
+	if (vfhOrderedList.begin()->first < -340.0)
+	{
+		pan = vfhOrderedList.begin()->second.first;
+		tilt = vfhOrderedList.begin()->second.second;
+	//	cv::Mat histogram;
+	//	HermesComputeRollHistogram(pPointCloud, pAvgPoint, histogram, true, false);
+	//	int roll_i = 0;
+	//	double matchScore = 0;
+	//	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
+	//	roll = roll_i;
+		roll = 0; // hack
+		std::cout << "best matching roll angle: " << roll << std::endl;
+
+		// match full point clouds (ICP)
+		HermesMatchPointClouds(pPointCloud, pAvgPoint, pan, tilt, roll, pFinalTransform, pMatchingScore);
+	}
 
 	// free memory
 	cvReleaseImage(&mask);

@@ -73,7 +73,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >(60);
 	sync_input_->connectInput(input_pointcloud_sub_, color_image_sub_);
-//	sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
+	sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
 
 	detect_objects_action_server_.start();
 }
@@ -168,7 +168,7 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 				double matchingScore = 1e10;
 				object_classifier_.HermesCategorizeObject(input_pointcloud, avgPoint, &si, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, pan, tilt, roll, finalTransform, matchingScore);
 
-				if (matchingScore < 0.0001)
+				if (matchingScore < 0.0003)
 				{
 					// draw shoe coordinate system into display_color
 					tf::Transform object_pose;
