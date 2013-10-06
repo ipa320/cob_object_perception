@@ -192,7 +192,7 @@ result_: 2
 # ----------
 # turns all debug outputs off
 # bool
-debugAllOff: false
+debugAllOff: true
 
 # show gray colored edgemap image
 # bool
