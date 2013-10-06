@@ -674,7 +674,9 @@ void DetectText::detect_original_epshtein(cv::Mat& image, double scale_factor)
 
 
 //		cv::bilateralFilter(dummy, image, 7, 20, 50); // sensor noise
-		cv::bilateralFilter(dummy, image, 13, 40, 10); // sensor noise
+//		cv::bilateralFilter(dummy, image, 13, 40, 10); // sensor noise
+		cv::bilateralFilter(dummy, image, 7, 40, 10); // sensor noise
+
 
 //		image = sharpenImage(image);
 //		dummy = image.clone();
