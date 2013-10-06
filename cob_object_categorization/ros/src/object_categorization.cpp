@@ -45,8 +45,13 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 
 	node_handle_.param("/object_categorization/object_categorization/mode_of_operation", mode_of_operation_, 1);
 	std::cout<< "mode_of_operation: " << mode_of_operation_ << "\n";
+	std::string object_name = "";
+	node_handle_.param<std::string>("/object_categorization/object_categorization/object_name", object_name, "");
+	std::cout<< "object_name: " << object_name << "\n";
+	bool start_categorization_on_startup = true;
+	node_handle_.param("/object_categorization/object_categorization/start_categorization_on_startup", start_categorization_on_startup, true);
+	std::cout<< "start_categorization_on_startup: " << start_categorization_on_startup << "\n";
 
-	std::string object_name = "shoe_black";
 	hermes_object_name_ = object_name;
 
 	// initialize special modes
@@ -57,6 +62,7 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	}
 	else if (mode_of_operation_ == 3)
 	{
+		// Hermes train object
 		object_classifier_.HermesLoadCameraCalibration(object_name, projection_matrix_);
 		object_classifier_.HermesBuildDetectionModelFromRecordedData(object_name, projection_matrix_, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_);
 		std::cout << "training done.";
@@ -73,14 +79,14 @@ ObjectCategorization::ObjectCategorization(ros::NodeHandle nh)
 	// input synchronization
 	sync_input_ = new message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >(60);
 	sync_input_->connectInput(input_pointcloud_sub_, color_image_sub_);
-	sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
+	if (start_categorization_on_startup == true)
+		sync_input_->registerCallback(boost::bind(&ObjectCategorization::inputCallback, this, _1, _2));
 
 	detect_objects_action_server_.start();
 }
 
 ObjectCategorization::~ObjectCategorization()
 {
-
 	if (it_ != 0) delete it_;
 	if (sync_input_ != 0) delete sync_input_;
 }
@@ -187,12 +193,12 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 						object_pose = pose4.inverse() * finalTransformTf.inverse() * pose4 * pose1 * pose2 * pose3;	// transformation pointing from camera system to object system
 					}
 //					drawObjectCoordinateSystem(object_pose, display_color);
-					transform_broadcaster_.sendTransform(tf::StampedTransform(object_pose, input_pointcloud_segments_msg->header.stamp, input_pointcloud_segments_msg->header.frame_id, "detected_shoe"));
-					latest_object_detection_.header.frame_id = input_pointcloud_segments_msg->header.frame_id;
-					latest_object_detection_.header.stamp = input_pointcloud_segments_msg->header.stamp;
 					latest_object_detection_.label = hermes_object_name_;
 					tf::Stamped<tf::Transform> object_pose_stamped = tf::Stamped<tf::Transform>(object_pose, input_pointcloud_segments_msg->header.stamp, input_pointcloud_segments_msg->header.frame_id);
 					tf::poseStampedTFToMsg(object_pose_stamped, latest_object_detection_.pose);
+					latest_object_detection_.header.frame_id = input_pointcloud_segments_msg->header.frame_id;
+					latest_object_detection_.header.stamp = input_pointcloud_segments_msg->header.stamp;
+					transform_broadcaster_.sendTransform(tf::StampedTransform(object_pose, input_pointcloud_segments_msg->header.stamp, input_pointcloud_segments_msg->header.frame_id, "detected_shoe"));
 				}
 			}
 		}
@@ -246,6 +252,7 @@ void ObjectCategorization::detectObjectsCallback(const cob_object_detection_msgs
 {
 	// this callback function is executed each time a request (= goal message) comes in for this service server
 	std::string object_name = goal->object_name.data;
+	hermes_object_name_ = object_name;
 	ROS_INFO("Detect Object Action Server: Received a request for detecting object %s.", object_name.c_str());
 
 	// init the algorithm for the requested object
