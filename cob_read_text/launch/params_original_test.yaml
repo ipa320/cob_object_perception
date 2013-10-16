@@ -43,7 +43,7 @@ cannyThreshold1: 130 #250  #210 (little better recall but worse precision) #250 
 
 # cannyThreshold1 > cannyThreshold2 #default: 50 #50  #100
 # int
-cannyThreshold2: 75 #132  #78 #124
+cannyThreshold2: 65 #75 #132  #78 #124
 
 
 #updateStrokeWidth

@@ -1169,7 +1169,7 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 	{
 		cv::Mat output(originalImage_.size(), CV_8UC3);
 		cv::Mat swtmapNormalized;
-		cv::normalize(swtmap, swtmapNormalized, 0, 255, cv::NORM_MINMAX);
+		cv::normalize(swtmap, swtmapNormalized, 0, 196, cv::NORM_MINMAX);
 		for (int y = 0; y < swtmap.rows; y++)
 			for (int x = 0; x < swtmap.cols; x++)
 			{
@@ -1515,6 +1515,7 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 
 	if (debug["showEdge"] == true)
 	{
+		cv::imshow("gray image", grayImage_);
 		cv::imshow("gray color edgemap", edgemap);
 		cvMoveWindow("gray color edgemap", 0, 0);
 	}
@@ -1902,31 +1903,37 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 							float sw1 = swtmap.at<float>(ny, nx);
 							//float meanStrokeWidth = swtmap.at<float>(y, x);
 
-							// compute mean color and intensity for pixel (nx,ny)
-							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
-							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
-							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
-							{
-								int my = ny + offsetY8[i];
-								int mx = nx + offsetX8[i];
-								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
-									continue;
-								intensity += (double)grayImage_.at<unsigned char>(my, mx);
-								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
-							}
-							intensity /= (nNeighbors + 1.);
-							color *= 1./(nNeighbors + 1.);
-							if (componentMeanIntensity == 0.)
-							{
-								componentMeanIntensity = intensity;
-								componentMeanColor = color;
-							}
+//							// compute mean color and intensity for pixel (nx,ny)
+//							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
+//							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
+//							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
+//							{
+//								int my = ny + offsetY8[i];
+//								int mx = nx + offsetX8[i];
+//								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
+//									continue;
+//								intensity += (double)grayImage_.at<unsigned char>(my, mx);
+//								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
+//							}
+//							intensity /= (nNeighbors + 1.);
+//							color *= 1./(nNeighbors + 1.);
+//							if (componentMeanIntensity == 0.)
+//							{
+//								componentMeanIntensity = intensity;
+//								componentMeanColor = color;
+//							}
+//
+//							double cdx = (componentMeanColor.x-color.x);
+//							double cdy = (componentMeanColor.y-color.y);
+//							double cdz = (componentMeanColor.z-color.z);
+//							double colorDistance = cdx*cdx + cdy*cdy + cdz*cdz;
 
 							// do the pixels have similar stroke width?
 							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth))
 								// ||		// todo: ratio between a mean value over the component and sw1 better?
 								//	(std::max(sw1, meanStrokeWidth) <= 1.5*swCompareParameter * std::min(sw1, meanStrokeWidth) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
 								//	(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
+								//&& (colorDistance < 3*3*colorCompareParameter*colorCompareParameter))
 							{
 //								if (processing_method_ == ORIGINAL_EPSHTEIN)
 //								{
@@ -2323,7 +2330,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				{
 					cv::rectangle(output, cv::Point(labeledRegions_[i].x, labeledRegions_[i].y),
 							cv::Point(labeledRegions_[i].x + labeledRegions_[i].width, labeledRegions_[i].y + labeledRegions_[i].height),
-							cv::Scalar((255), (255), (255)), 1);
+							cv::Scalar(0, 0, 0), 1);
 					for (int y = labeledRegions_[i].y; y < labeledRegions_[i].y + labeledRegions_[i].height; y++)
 						for (int x = labeledRegions_[i].x; x < labeledRegions_[i].x + labeledRegions_[i].width; x++)
 						{
@@ -2340,7 +2347,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				{
 					cv::rectangle(output, cv::Point(labeledRegions_[i].x, labeledRegions_[i].y),
 							cv::Point(labeledRegions_[i].x + labeledRegions_[i].width, labeledRegions_[i].y + labeledRegions_[i].height),
-							cv::Scalar((0), (0), (0)), 1);
+							cv::Scalar(255, 255, 255), 1);
 					for (int y = labeledRegions_[i].y; y < labeledRegions_[i].y + labeledRegions_[i].height; y++)
 						for (int x = labeledRegions_[i].x; x < labeledRegions_[i].x + labeledRegions_[i].width; x++)
 						{
@@ -2695,10 +2702,21 @@ void DetectText::chainPairs(std::vector<TextRegion>& textRegions, const cv::Mat&
 
 void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Mat& ccmap, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions)
 {
+//	// for all possible letter rects
+//	for (size_t i = 0; i < labeledRegions_.size(); i++)
+//	{
+//		if (isLetterRegion_[i]==false || 2*labeledRegions_[i].height<originalImage_.rows || 3*labeledRegions_[i].width<originalImage_.cols)
+//			continue;
+//
+//		chains.push_back(std::vector<int>(1, i));
+//		std::cout << "big letter added\n";
+//	}
+
 	for (size_t i = 0; i < chains.size(); i++)
 	{
 		if (chains[i].size() < 3) //Only words with more than 2 letters	// todo: param
-			continue;
+			//if (chains[i].size()==2)
+				continue;
 
 		//std::cout << "chainToBox on chain " << i << std::endl;
 
@@ -2879,7 +2897,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 		textRegion.originalChainID = i;
 
 		//std::cout << "textRegion.boundingBox.width=" << textRegion.boundingBox.width << "  textRegion.boundingBox.height=" << textRegion.boundingBox.height << std::endl;
-		if (textRegion.boundingBox.width > std::min(textRegion.letters.size()*0.5,2.0) /*2.0/*1.9*/ * textRegion.boundingBox.height)
+		if (textRegion.boundingBox.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * textRegion.boundingBox.height)
 			textRegions.push_back(textRegion);
 	}
 
@@ -6529,7 +6547,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 		breakingWordsDisplayName = "breaking dark words";
 
 	// used later for a parametric function
-	double p = 0.75;
+	double p = 0.75; // 0.75;    // explanations below (1-p is literally a word separation probability)
 	double a1=-1/(p*p), b1=2/p, c1=0;
 	double a2=1/(-p*p+2*p-1), b2=-2*p/(-p*p+2*p-1), c2=(2*p-1)/(-p*p+2*p-1);
 

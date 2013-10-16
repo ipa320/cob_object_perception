@@ -1,6 +1,62 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <tagset>
   <image>
+    <imageName>ryoungt_13.08.2002/dPICT0049.JPG</imageName>
+    <resolution x="480" y="640" />
+    <taggedRectangles>
+      <taggedRectangle x="9.0" y="29.0" width="452.0" height="540.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>£99</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/PICTs0030.JPG</imageName>
+    <resolution x="640" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="136.0" y="12.0" width="99.0" height="38.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>FUN</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="257.0" y="13.0" width="216.0" height="39.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>FASHION</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="151.0" y="54.0" width="98.0" height="24.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>LADIES</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="257.0" y="57.0" width="123.0" height="21.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>LINGERIE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="391.0" y="58.0" width="69.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>SHOP</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="17.0" y="99.0" width="82.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>01206</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="108.0" y="98.0" width="98.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>368166</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="224.0" y="99.0" width="169.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>FUNFASHION</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="415.0" y="100.0" width="114.0" height="20.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HOTMAIL</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="537.0" y="100.0" width="57.0" height="21.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>COM</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
     <imageName>ryoungt_13.08.2002/dPICT0077.JPG</imageName>
     <resolution x="640" y="480" />
     <taggedRectangles>
@@ -157,52 +213,6 @@
     </taggedRectangles>
   </image>
   <image>
-    <imageName>ryoungt_05.08.2002/PICTs0030.JPG</imageName>
-    <resolution x="640" y="480" />
-    <taggedRectangles>
-      <taggedRectangle x="136.0" y="12.0" width="99.0" height="38.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>FUN</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="257.0" y="13.0" width="216.0" height="39.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>FASHION</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="151.0" y="54.0" width="98.0" height="24.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>LADIES</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="257.0" y="57.0" width="123.0" height="21.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>LINGERIE</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="391.0" y="58.0" width="69.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>SHOP</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="17.0" y="99.0" width="82.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>01206</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="108.0" y="98.0" width="98.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>368166</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="224.0" y="99.0" width="169.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>FUNFASHION</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="415.0" y="100.0" width="114.0" height="20.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>HOTMAIL</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="537.0" y="100.0" width="57.0" height="21.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>COM</tag>
-        <segmentation />
-      </taggedRectangle>
-    </taggedRectangles>
-  </image>
-  <image>
     <imageName>ryoungt_05.08.2002/PICTs0032.JPG</imageName>
     <resolution x="637" y="448" />
     <taggedRectangles>
@@ -277,34 +287,6 @@
     </taggedRectangles>
   </image>
   <image>
-    <imageName>ryoungt_13.08.2002/dPICT0059.JPG</imageName>
-    <resolution x="640" y="480" />
-    <taggedRectangles>
-      <taggedRectangle x="166.0" y="5.0" width="318.0" height="74.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>PLAY</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="237.0" y="205.0" width="217.0" height="37.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>THUNDERBALL</tag>
-        <segmentation />
-      </taggedRectangle>
-      <taggedRectangle x="171.0" y="352.0" width="270.0" height="51.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>HERE</tag>
-        <segmentation />
-      </taggedRectangle>
-    </taggedRectangles>
-  </image>
-  <image>
-    <imageName>ryoungt_13.08.2002/dPICT0049.JPG</imageName>
-    <resolution x="480" y="640" />
-    <taggedRectangles>
-      <taggedRectangle x="9.0" y="29.0" width="452.0" height="540.0" offset="0.0" rotation="0.0" userName="admin">
-        <tag>£99</tag>
-        <segmentation />
-      </taggedRectangle>
-    </taggedRectangles>
-  </image>
-  <image>
     <imageName>ryoungt_05.08.2002/PICT0018.JPG</imageName>
     <resolution x="960" y="1280" />
     <taggedRectangles>
@@ -322,6 +304,24 @@
       </taggedRectangle>
       <taggedRectangle x="119.0" y="961.0" width="711.0" height="155.0" offset="0.0" rotation="0.0" userName="admin">
         <tag>studios</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/dPICT0059.JPG</imageName>
+    <resolution x="640" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="166.0" y="5.0" width="318.0" height="74.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>PLAY</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="237.0" y="205.0" width="217.0" height="37.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>THUNDERBALL</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="171.0" y="352.0" width="270.0" height="51.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HERE</tag>
         <segmentation />
       </taggedRectangle>
     </taggedRectangles>
