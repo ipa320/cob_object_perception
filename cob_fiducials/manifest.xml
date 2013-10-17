@@ -20,6 +20,7 @@
 	<depend package="visualization_msgs"/>
 	<depend package="cob_vision_utils"/>
 	<depend package="cob_object_detection_msgs"/>
+	<depend package="std_srvs"/>
 
 	<rosdep name="boost"/>
 	<rosdep name="tinyxml"/>

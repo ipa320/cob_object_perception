@@ -110,7 +110,8 @@ unsigned long FiducialModelAruco::GetPose(cv::Mat& image, std::vector<t_pose>& v
 			cv::Rodrigues(tag_pose.rot, R);
 			//create a rotation matrix for x axis
 			cv::Mat RX=cv::Mat::eye(3,3,CV_64F);
-			float angleRad=M_PI/2;
+			double my_pi = 3.14159265359;
+			float angleRad=my_pi/2;
 			RX.at<float>(1,1)=cos(angleRad);
 			RX.at<float>(1,2)=-sin(angleRad);
 			RX.at<float>(2,1)=sin(angleRad);
@@ -173,7 +174,7 @@ unsigned long FiducialModelAruco::LoadParameters(std::vector<FiducialArucoParame
 
 	for (unsigned int i=0; i<aruco_tags.size(); i++)
 	{
-		if (aruco_tags[i].m_id<m_tag_parameters.size())
+		if (aruco_tags[i].m_id<(int)m_tag_parameters.size())
 		{
 			m_tag_parameters[aruco_tags[i].m_id] = aruco_tags[i];
 		}
@@ -281,11 +282,61 @@ unsigned long FiducialModelAruco::LoadParameters(std::string directory_and_filen
 						std::cerr << "\t ... Can't find attribute 'y' of tag 'Offset'" << std::endl;
 						return ipa_Utils::RET_FAILED;
 					}
+
+					m_general_fiducial_parameters[aruco_parameters.m_id].m_offset = aruco_parameters.m_offset;
 				}
 				else if (localParameter)
 				{
 					std::cerr << "ERROR - FiducialArucoParameters::LoadParameters:" << std::endl;
 					std::cerr << "\t ... Can't find tag 'Offset'" << std::endl;
+					return ipa_Utils::RET_FAILED;
+				}
+
+//************************************************************************************
+//	BEGIN FiducialDetector->PI->SharpnessArea
+//************************************************************************************
+				// Subtag element "ObjectDetectorParameters" of Xml Inifile
+				p_xmlElement_Child = NULL;
+				p_xmlElement_Child = p_xmlElement_Root_FI->FirstChildElement( "SharpnessArea" );
+
+				if ( p_xmlElement_Child )
+				{
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "x", &m_general_fiducial_parameters[aruco_parameters.m_id].m_sharpness_pattern_area_rect3d.x) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialArucoParameters::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'x' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "y", &m_general_fiducial_parameters[aruco_parameters.m_id].m_sharpness_pattern_area_rect3d.y) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialArucoParameters::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'y' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "width", &m_general_fiducial_parameters[aruco_parameters.m_id].m_sharpness_pattern_area_rect3d.width) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialArucoParameters::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'width' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+
+					// read and save value of attribute
+					if ( p_xmlElement_Child->QueryValueAttribute( "height", &m_general_fiducial_parameters[aruco_parameters.m_id].m_sharpness_pattern_area_rect3d.height) != TIXML_SUCCESS)
+					{
+						std::cerr << "ERROR - FiducialArucoParameters::LoadParameters:" << std::endl;
+						std::cerr << "\t ... Can't find attribute 'height' of tag 'SharpnessArea'" << std::endl;
+						return ipa_Utils::RET_FAILED;
+					}
+				}
+				else if (localParameter)
+				{
+					std::cerr << "ERROR - FiducialArucoParameters::LoadParameters:" << std::endl;
+					std::cerr << "\t ... Can't find tag 'SharpnessArea'" << std::endl;
 					return ipa_Utils::RET_FAILED;
 				}
 

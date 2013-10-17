@@ -162,7 +162,7 @@ int main()
 		if (input.compare("1")==0)
 			objectClassifier.HermesCapture(clusterMode, classifierType, globalFeatureParams);
 		else
-			objectClassifier.HermesDetect(clusterMode, classifierType, globalFeatureParams);
+			objectClassifier.HermesDetectInit(clusterMode, classifierType, globalFeatureParams);
 
 		return 0;
 	}

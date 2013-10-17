@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Tutorial: Calibration of the sharpness curve
+  If you like to calibrate the sharpness, start this launch file and subscribe to fiducial detection e.g. by "rostopic hz /fiducials/detect_fiducials".
+  Then move the camera very slowly to the marker and align the camera in all desired distances and angles to the marker. The displayed image is just
+  meant as a help for you to verify that the markers are visible in the image. It is important that you only record sharp images, therefore move the camera
+  as slowly as possible. 
+  Once enough perspectives have been recorded, press the 'c' button to analyze the recorded values and output the m and n parameters for the linear
+  calibration curve. You then have to manually copy these parameters into the respective .yaml file in your launch subfolder of cob_fiducials.  
+  For manual analysis of the data you may also press the 's' button to save the data to the log file 'sharpness_log_file.txt' in the .ros subfolder in your home
+  directory. You can then use Matlab or any other tool to visualize and analyze the data. The file contains three columns: the first contains variable
+  'pixel_count' (= the number of visible pixels within the marker), the second column is the distance of the marker center to the camera and the last column   
+  is the uncalibrated sharpness score (= standard deviation of gray value within the sharpness pattern area). -->
+
+  <include file="$(find cob_fiducials)/ros/launch/fiducials.launch"/>
+
+  <!-- activation status of calibrating the sharpness measure -->
+  <param name="fiducials/log_or_calibrate_sharpness_measurements" value="true" />
+
+</launch>
