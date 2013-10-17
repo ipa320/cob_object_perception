@@ -1,0 +1,50 @@
+<var name="fiducial1_ID">1</var>
+<var name="fiducial1_POSX">0</var>
+<var name="fiducial1_POSY">-167</var>
+<var name="fiducial1_POSZ">-90</var>
+<var name="fiducial1_ROT1">1.570796327</var>
+<var name="fiducial1_ROT2">0</var>
+<var name="fiducial1_ROT3">0</var>
+
+<var name="fiducial2_ID">2</var>
+<var name="fiducial2_POSX">130</var>
+<var name="fiducial2_POSY">-75</var>
+<var name="fiducial2_POSZ">-90</var>
+<var name="fiducial2_ROT1">1.570796327</var>
+<var name="fiducial2_ROT2">0</var>
+<var name="fiducial2_ROT3">1.047</var>
+
+<var name="fiducial3_ID">3</var>
+<var name="fiducial3_POSX">130</var>
+<var name="fiducial3_POSY">75</var>
+<var name="fiducial3_POSZ">-90</var>
+<var name="fiducial3_ROT1">1.5705</var>
+<var name="fiducial3_ROT2">0</var>
+<var name="fiducial3_ROT3">2.094</var>
+
+<var name="fiducial4_ID">4</var>
+<var name="fiducial4_POSX">0</var>
+<var name="fiducial4_POSY">167</var>
+<var name="fiducial4_POSZ">-90</var>
+<var name="fiducial4_ROT1">1.570796327</var>
+<var name="fiducial4_ROT2">0</var>
+<var name="fiducial4_ROT3">3.141</var>
+
+<var name="fiducial5_ID">5</var>
+<var name="fiducial5_POSX">-130</var>
+<var name="fiducial5_POSY">75</var>
+<var name="fiducial5_POSZ">-90</var>
+<var name="fiducial5_ROT1">1.570796327</var>
+<var name="fiducial5_ROT2">0</var>
+<var name="fiducial5_ROT3">4.188</var>
+
+<var name="fiducial6_ID">6</var>
+<var name="fiducial6_POSX">-130</var>
+<var name="fiducial6_POSY">-75</var>
+<var name="fiducial6_POSZ">-90</var>
+<var name="fiducial6_ROT1">1.570796327</var>
+<var name="fiducial6_ROT2">0</var>
+<var name="fiducial6_ROT3">5.235</var>
+
+
+

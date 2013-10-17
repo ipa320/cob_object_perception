@@ -1,10 +1,14 @@
 //#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#define EXTTAG 1
+
 #ifdef __LINUX__
 	#include "cob_fiducials/pi/FiducialModelPi.h"
 #else
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/pi/FiducialModelPi.h"
 #endif
 #include <opencv/highgui.h>
+
+
 
 using namespace ipa_Fiducials;
 
@@ -22,8 +26,10 @@ FiducialModelPi::~FiducialModelPi()
 
 unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_pose)
 {
+
 	cv::Mat src_mat_8U1;
 	bool debug = false;
+	bool extTag = true;
 	if (debug)
 		m_debug_img = image.clone();
 
@@ -70,17 +76,23 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		}
 	}
 
-// ------------ Adaptive thresholding --------------------------------------
 
-	int minus_c = 21;
-	int half_kernel_size = 20;
+// ------------ Adaptive thresholding --------------------------------------
+ //extag minus_c = 11, half_kernel = 5
+	int minus_c = 21;//21
+	int half_kernel_size = 40;//10
+
+	if(extTag){
+		minus_c = 11;
+		half_kernel_size = 5;
+	}
 	cv::adaptiveThreshold(src_mat_8U1, src_mat_8U1, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C,
 		cv::THRESH_BINARY, 2*half_kernel_size+1, minus_c);
 
 	if (debug)
 	{
-		cv::imshow("20 Adaptive thresholding", src_mat_8U1);
-		cv::waitKey(10);
+//		cv::imshow("20 Adaptive thresholding", src_mat_8U1);
+//		cv::waitKey(10);
 	}
 
 // ------------ Contour extraction --------------------------------------
@@ -98,9 +110,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 
 // ------------ Ellipse extraction --------------------------------------
-	int min_ellipse_size = 7; // Min ellipse size at 70cm distance is 20x20 pixels
+	int min_ellipse_size = 5; // Min ellipse size at 70cm distance is 20x20 pixels
 	//int min_contour_points = int(1.5 * min_ellipse_size); 
-	int max_ellipse_aspect_ratio = 7;
+	int max_ellipse_aspect_ratio = 15;
 	std::vector<cv::RotatedRect> ellipses;
 	for(size_t i = 0; i < contours.size(); i++)
 	{
@@ -112,6 +124,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		cv::Mat(contours[i]).convertTo(pointsf, CV_32F);
 		cv::RotatedRect box = cv::fitEllipse(pointsf);
 
+
 		// Plausibility checks
 		if( std::max(box.size.width, box.size.height) > std::min(box.size.width, box.size.height)*max_ellipse_aspect_ratio )
 			continue;
@@ -122,40 +135,489 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		if (std::max(box.size.width, box.size.height) < min_ellipse_size)
 			continue;
 
-		ellipses.push_back(box);
+//		if(box.center.x < 0 || box.center.x >= src_mat_8U1.cols || box.center.y < 0 || box.center.y >= src_mat_8U1.rows)
+//			continue;
+
+
+		//Matthias Nösner
+		if(extTag){
+
+			double ellipse_aspect_ratio = box.size.height/box.size.width;
+			if(box.size.height > box.size.width) ellipse_aspect_ratio = 1/ellipse_aspect_ratio;
+			if(box.size.area() > 200 && ellipse_aspect_ratio < 0.1)
+				continue;
+
+			//order ellipses in ascending order with respect to size
+			bool inserted = false;
+			for(size_t j = 0; j < ellipses.size() && !inserted ;j++){
+				if(box.size.area() > ellipses[j].size.area()){
+					ellipses.insert(ellipses.begin()+j,box);
+					inserted = true;
+				}
+			}
+
+			if(!inserted) ellipses.push_back(box);
+		} else {
+			ellipses.push_back(box);
+		}
+		//Matthias Nösner
+
+		//ellipses.push_back(box);
 	}
+
+	//Matthias Nösner
+	//std::cout << "Ellipsenumber: " << ellipses.size() << std::endl;
+	std::vector<float> badellipses;
+	std::vector<cv::Point2i> points;
+	std::vector<cv::Rect> rois;
+	cv::Mat ellipsevoting(src_mat_8U1.rows,src_mat_8U1.cols,CV_32FC1);
+	cv::Mat ellipsedensity(src_mat_8U1.rows,src_mat_8U1.cols,CV_8UC1);
+
+
+	if(extTag){
+		//Fil cv::Mat with -1
+		for(int i = 0; i < ellipsevoting.rows; i++){
+			for(int j = 0; j < ellipsevoting.cols; j++){
+				ellipsevoting.at<float> (i,j) = -1;
+				ellipsedensity.at<unsigned char> (i,j) = 0;
+			}
+		}
+
+
+		//ellipse density voting
+		for(size_t i = 0; i < ellipses.size(); i++){
+			unsigned int votingsize = (int)std::min(src_mat_8U1.rows,src_mat_8U1.cols)*0.005;
+			unsigned int vr_x = votingsize;
+			unsigned int vr_y = votingsize;
+
+			for(int k = -(int)vr_x/2; k < (int)vr_x/2; k++){
+				for(int l = -(int)vr_y/2; l < (int)vr_y/2; l++){
+
+					int x = ellipses[i].center.x+l;
+					int y = ellipses[i].center.y+k;
+
+					//Border Overshoot
+					if(x >= src_mat_8U1.cols || x < 0)
+						continue;
+					if(y >= src_mat_8U1.rows || y < 0)
+						continue;
+
+					ellipsedensity.at<unsigned char> (y,x) = ellipsedensity.at<unsigned char> (y,x) + 1;
+				}
+			}
+		}
+
+		//check if a ellipse is already in the same place - > Take bigger one(ellipses are order in ascending order)
+		//if(false) -> vote
+		for(size_t i = 0; i < ellipses.size(); i++){
+
+			//unsigned int min = std::min(ellipses[i].size.height,ellipses[i].size.width);
+			//voting area
+			unsigned int votingsize = (int)std::min(src_mat_8U1.rows,src_mat_8U1.cols)*0.003;
+			unsigned int vr_x = votingsize;
+			unsigned int vr_y = votingsize;
+
+			bool insert = true;
+
+			for(int k = -(int)vr_x/2; k < (int)vr_x/2; k++){
+				for(int l = -(int)vr_y/2; l < (int)vr_y/2; l++){
+
+					int x = ellipses[i].center.x+l;
+					int y = ellipses[i].center.y+k;
+
+					//Border Overshoot
+					if(x >= src_mat_8U1.cols || x < 0)
+						continue;
+					if(y >= src_mat_8U1.rows || y < 0)
+						continue;
+
+					if(ellipsevoting.at<float> (y,x) != -1){
+						insert = false;
+					}
+				}
+			}
+
+			if(insert){
+				for(int k = -(int)vr_x/2; k < (int)vr_x/2; k++){
+					for(int l = -(int)vr_y/2; l < (int)vr_y/2; l++){
+
+						int x = ellipses[i].center.x+l;
+						int y = ellipses[i].center.y+k;
+
+						//Border Overshoot
+						if(x >= src_mat_8U1.cols || x < 0)
+							continue;
+						if(y >= src_mat_8U1.rows || y < 0)
+							continue;
+
+						ellipsevoting.at<float> (y,x) = (float)i;
+					}
+				}
+			} else {
+				badellipses.push_back(i);
+			}
+		}
+
+		//store points with high ellipse density
+		for(int c = 4; (points.empty() || c >= 3) && c >= 2;c--){
+			for(int i = 0; i < ellipsedensity.rows; i++){
+				for(int j = 0; j < ellipsedensity.cols; j++){
+					if(ellipsedensity.at<unsigned char> (i,j) >= c){
+						cv::Point2i point;
+						point.x = j;
+						point.y = i;
+						points.push_back(point);
+					}
+				}
+			}
+		}
+
+		//std::cout << "Points: " << points.size() << std::endl;
+
+		//kick points which are too close together
+		int max_distance = (int)std::max(src_mat_8U1.rows,src_mat_8U1.cols)*0.15;
+		for(size_t i = 0; i < points.size(); i++){
+			for(size_t j = i+1; j < points.size(); j++){
+
+				int dist =  (int)cv::sqrt((points[i].x-points[j].x)*(points[i].x-points[j].x)+(points[i].y-points[j].y)*(points[i].y-points[j].y));
+
+				if(dist < max_distance){
+					points.erase(points.begin()+j);
+					j--;
+				}
+			}
+		}
+
+		//choose size of ROI
+		for(size_t i = 0; i < points.size(); i++){
+
+			//Find ellipse with smallest distance to point[i]
+			unsigned int id = 0;
+			double min_dist = cv::sqrt((points[i].x-ellipses[id].center.x)*(points[i].x-ellipses[id].center.x)+(points[i].y-ellipses[id].center.y)*(points[i].y-ellipses[id].center.y));
+			for(size_t j = 1; j < ellipses.size(); j++){
+
+				double dist = cv::sqrt((points[i].x-ellipses[j].center.x)*(points[i].x-ellipses[j].center.x)+(points[i].y-ellipses[j].center.y)*(points[i].y-ellipses[j].center.y));
+				if(dist < min_dist){
+					min_dist = dist;
+					id = j;
+				}
+			}
+
+
+			//ellipses.erase(ellipses.begin()+id);
+
+			//compute roi and save in rois
+			int side = (int)std::max(src_mat_8U1.cols,src_mat_8U1.rows)*0.2;
+
+			cv::Point2i topleft;
+			topleft.x = points[i].x - side;
+			topleft.y = points[i].y - side;
+
+			//keep image borders
+			if(topleft.x + 2*side >= src_mat_8U1.cols) topleft.x = src_mat_8U1.cols - 2*side;
+			if(topleft.x < 0) topleft.x = 0;
+			if(topleft.y + 2*side >= src_mat_8U1.rows) topleft.y = src_mat_8U1.rows - 2*side;
+			if(topleft.y < 0) topleft.y = 0;
+
+
+			//Shrink rois to max number of  ellipses
+			std::vector<cv::RotatedRect> ellipses_roi(ellipses);
+			std::vector<cv::RotatedRect> ellipses_roi_tmp;
+
+			unsigned int max_ellipses_roi = 0.05*ellipses.size();
+			if(max_ellipses_roi > 450) max_ellipses_roi = 450;
+			if(max_ellipses_roi < 150) max_ellipses_roi = 150;
+//  		    unsigned int max_ellipses_roi = 150;
+			int stepsize = 2;
+
+			while(ellipses_roi.size() > max_ellipses_roi){
+
+				ellipses_roi_tmp.clear();
+				for(size_t m = 0; m < ellipses_roi.size(); m++){
+					if(topleft.x < ellipses_roi[m].center.x &&
+							ellipses_roi[m].center.x < topleft.x + 2*side &&
+							topleft.y < ellipses_roi[m].center.y &&
+							ellipses_roi[m].center.y < topleft.y + 2*side){
+
+						ellipses_roi_tmp.push_back(ellipses_roi[m]);
+					}
+				}
+
+				ellipses_roi.clear();
+				for(size_t a = 0; a < ellipses_roi_tmp.size(); a++)
+					ellipses_roi.push_back(ellipses_roi_tmp[a]);
+
+				topleft.x += stepsize;
+				topleft.y += stepsize;
+				side -= stepsize;
+
+			}
+
+			//shrink as long a no ellipses are lost
+			bool shrink = true;
+			while(shrink){
+
+				topleft.x += stepsize;
+				topleft.y += stepsize;
+				side -= stepsize;
+
+				ellipses_roi_tmp.clear();
+
+				for(size_t m = 0; m < ellipses_roi.size(); m++){
+					if(topleft.x < ellipses_roi[m].center.x &&
+							ellipses_roi[m].center.x < topleft.x + 2*side &&
+							topleft.y < ellipses_roi[m].center.y &&
+							ellipses_roi[m].center.y < topleft.y + 2*side){
+
+						ellipses_roi_tmp.push_back(ellipses_roi[m]);
+					}
+				}
+
+				//detect loosing ellipses
+				if(ellipses_roi_tmp.size() < ellipses_roi.size()){
+					shrink = false;
+					topleft.x -= stepsize;
+					topleft.y -= stepsize;
+					side += stepsize;
+				}
+
+				ellipses_roi.clear();
+				for(size_t a = 0; a < ellipses_roi_tmp.size(); a++)
+					ellipses_roi.push_back(ellipses_roi_tmp[a]);
+
+
+			}
+
+			//std::cout << "Ellipses in ROI: " << ellipses_roi_tmp.size() << std::endl;
+			//rois have the same id like the points in vector points
+			rois.push_back(cv::Rect(topleft.x,topleft.y,(int)2*side,(int)2*side));
+			if(debug) rectangle(m_debug_img, cv::Rect(topleft.x,topleft.y,(int)2*side,(int)2*side), cv::Scalar(255,255,255));
+		}
+
+		//Kick ellipses in inverted order
+		while (!badellipses.empty())
+		{
+			int index = (int)badellipses.back();
+			badellipses.pop_back();
+			ellipses.erase(ellipses.begin()+index);
+		}
+
+		//Allow only a few ellipses in neighbourhood of point
+//		int max_ellipses = 34;
+//		for(size_t i = 0; i < rois.size(); i++){
+//			int count = 0;
+//
+//			int shrink = rois[i].width * 0.3;
+//			cv::Rect newroi(rois[i].x+shrink,rois[i].y+shrink,rois[i].width-2*shrink,rois[i].height-2*shrink);
+//
+//			if(debug){
+//				rectangle(m_debug_img, rois[i], cv::Scalar(255,255,255));
+//				rectangle(m_debug_img, newroi, cv::Scalar(255,255,255));
+//			}
+//
+//			for(size_t n = 0; n < ellipses.size(); n++){
+//				if(newroi.x < ellipses[n].center.x &&
+//						ellipses[n].center.x < newroi.x + newroi.width &&
+//						newroi.y < ellipses[n].center.y &&
+//						ellipses[n].center.y < newroi.y + newroi.height){
+//					count++;
+//				}
+//			}
+//
+//			//std::cout << "COUNT: " << count << std::endl;
+//			if(count > max_ellipses){
+//				points.erase(points.begin()+i);
+//				rois.erase(rois.begin()+i);
+//				i--;
+//			}
+//		}
+
+		// Do rois overlap? Compute area in square pixels
+//		double max_intersection_area = 100000;
+
+		//std::cout << "ROISb: " << rois.size() << std::endl;
+//		for(size_t i = 0; i < rois.size(); i++){//A i
+//			bool kickedi = false;
+//			for(size_t j = i+1; j < rois.size() && !kickedi; j++){//B j
+//
+//					double area = 0;
+//
+//					if(rois[i].x > rois[j].x+rois[j].width || rois[i].x+rois[i].width < rois[j].x || rois[i].x+rois[i].width < rois[j].x || rois[i].y+rois[i].height > rois[j].y){//do they intersect?
+//
+//						//compute intersection area
+//						int deltax = rois[i].x - rois[j].x;
+//						int deltay = rois[i].y - rois[j].y;
+//
+//						int dx_abs = cv::sqrt(deltax*deltax);
+//						int dy_abs = cv::sqrt(deltay*deltay);
+//
+//						int lx = 0;
+//						int ly = 0;
+//
+//						if(deltax >= 0 && deltay >=0){//1
+//							lx = rois[j].width - dx_abs;
+//							ly = rois[j].height - dy_abs;
+//						}
+//						if(deltax >= 0 && deltay <=0){//2
+//							lx = rois[j].width - dx_abs;
+//							ly = rois[i].height - dy_abs;
+//						}
+//						if(deltax <= 0 && deltay >=0){//3
+//							lx = rois[i].width - dx_abs;
+//							ly = rois[j].height - dy_abs;
+//						}
+//						if(deltax <= 0 && deltay <=0){//1
+//							lx = rois[i].width - dx_abs;
+//							ly = rois[i].height - dy_abs;
+//						}
+//
+//
+//						area = lx*ly;
+//					}
+//
+//					area = std::abs(area);
+//
+//					//std::cout << "Area: " << area << std::endl;
+//					if(area > max_intersection_area){
+//
+//						double sizeof_rect_i = rois[i].width*rois[i].height;
+//						double sizeof_rect_j = rois[j].width*rois[j].height;
+//
+//						if(sizeof_rect_i >= sizeof_rect_j){
+//							rois.erase(rois.begin()+i);
+//							points.erase(points.begin()+i);
+//							kickedi = true;
+//							i--;
+//						} else {
+//							rois.erase(rois.begin()+j);
+//							points.erase(points.begin()+j);
+//							j--;
+//						}
+//					}
+//				}
+//		}
+	}
+
+	//std::cout << "ROISa:" << rois.size() << std::endl;
+
+
+
+
+	//Matthias Nösner -END-
 
 	if (debug)
 	{
 		//cv::Mat ellipse_image = cv::Mat::zeros(src_mat_8U1.size(), CV_8UC3);
 		cv::Mat ellipse_image = m_debug_img;
-
+		std::cout << "ELLIPSES: " << ellipses.size() << std::endl;
 		for(unsigned int i = 0; i < ellipses.size(); i++)
 		{
 			cv::ellipse(ellipse_image, ellipses[i], cv::Scalar(0,255,0), 1, CV_AA);
-			cv::ellipse(ellipse_image, ellipses[i].center, ellipses[i].size*0.5f, ellipses[i].angle, 0, 360, cv::Scalar(0,255,255), 1, CV_AA);
+			//cv::ellipse(ellipse_image, ellipses[i].center, ellipses[i].size*0.5f, ellipses[i].angle, 0, 360, cv::Scalar(0,255,255), 1, CV_AA);
 		}
+
+		//Matthias Nösner
+
+		//Make them white for visualization
+		if(extTag){
+
+			cv::Mat ellipsedensity_img(src_mat_8U1.rows,src_mat_8U1.cols,CV_8UC1);
+			for(int i = 0; i < ellipsedensity_img.rows; i++){
+				for(int j = 0; j < ellipsedensity_img.cols; j++){
+					ellipsedensity_img.at<unsigned char> (i,j) = 0;
+				}
+			}
+
+			//draw points
+			for(size_t i = 0; i < points.size();i++){
+				ellipsedensity_img.at<unsigned char> (points[i].y,points[i].x) = 255;
+			}
+
+			//draw rois
+			for(size_t i = 0; i < rois.size();i++){
+				cv::imshow("Roi:", m_debug_img(rois[i]));
+			}
+
+			for(int i =0; i < ellipsevoting.rows;i++){
+				for(int j =0; j < ellipsevoting.cols;j++){
+					if(ellipsevoting.at<float> (i,j) > -1){
+						ellipsevoting.at<float> (i,j) = 255;
+					}
+				}
+			}
+			cv::imshow("80 Ellipsevoting", ellipsevoting);
+			cv::imshow("90 Ellipsedensity", ellipsedensity_img);
+		}
+		//Matthias Nösner -ENd-
+
 		cv::imshow("40 Ellipses", ellipse_image);
 		cv::waitKey(10);
 	}
+
+	// Put only ellipses in Roi to marker detection vector and run for each roi individually
+	// Bracket at the end of the Marker detection!!!!!
+	std::vector<cv::RotatedRect> ellipses_copy(ellipses);
+	ellipses.clear();
+	//std::cout << "Points.size(): " <<points.size() << std::endl;
+	for(size_t n = 0; n < points.size(); n++){
+
+		ellipses.clear();
+		//prepare ellipse cloud for marker detection
+		for(size_t m = 0; m < ellipses_copy.size(); m++){
+			if(rois[n].x < ellipses_copy[m].center.x &&
+					ellipses_copy[m].center.x < rois[n].x + rois[n].width &&
+					rois[n].y < ellipses_copy[m].center.y &&
+					ellipses_copy[m].center.y < rois[n].y + rois[n].height ){
+				//ellipses size is 10*smaller than roi
+				double factor = 0.05;
+				if((int)ellipses_copy[m].size.width*ellipses_copy[m].size.height < (int)rois[n].width*rois[n].height*factor){
+					ellipses.push_back(ellipses_copy[m]);
+				}
+			}
+		}
 
 // ------------ Fiducial corner extraction --------------------------------------
 	std::vector<std::vector<cv::Point2f> > marker_lines;
 	int max_pixel_dist_to_line; // Will be set automatically
 	int max_ellipse_difference; // Will be set automatically
+	double deviation_of_aspectratio = 0.3;
+	double size_factor = 0.5;
 	// Compute area
 	std::vector<double> ref_A;
+	std::vector<double> ref_Ratio;
 	for(unsigned int i = 0; i < ellipses.size(); i++)
 		ref_A.push_back(std::max(ellipses[i].size.width, ellipses[i].size.height));
+	for(unsigned int i = 0; i < ellipses.size(); i++){
+		double ellipse_aspect_ratio = ellipses[i].size.height/ellipses[i].size.width;
+		if(ellipses[i].size.height > ellipses[i].size.width) ellipse_aspect_ratio = 1/ellipse_aspect_ratio;
+		ref_Ratio.push_back(ellipse_aspect_ratio);
+	}
 
 	for(unsigned int i = 0; i < ellipses.size(); i++)
 	{
+		//Matthias Nösner
+		double ellipse_aspect_ratio = ellipses[i].size.height/ellipses[i].size.width;
+		if(ellipses[i].size.height > ellipses[i].size.width) ellipse_aspect_ratio = 1/ellipse_aspect_ratio;
+
+		//Matthias Nösner
+
 		for(unsigned int j = i+1; j < ellipses.size(); j++)
 		{
+			//Matthias Nösner
+			if(extTag){
+				if(std::abs(ref_Ratio[i]-ref_Ratio[j]) > deviation_of_aspectratio)
+					continue;
+			}
+
+
+			//Matthias Nösner
+
+			//MAtthias Nösner
 			// Check area
-			max_ellipse_difference = 0.5 * std::min(ref_A[i], ref_A[j]);
+			max_ellipse_difference = size_factor * std::min(ref_A[i], ref_A[j]);
 			if (std::abs(ref_A[i] - ref_A[j]) >  max_ellipse_difference)
 				continue;
+			//Matthias Nösner
 
 			// Compute line equation
 			cv::Point2f vec_IJ = ellipses[j].center - ellipses[i].center;
@@ -169,10 +631,22 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 			for(unsigned int k = 0; k < ellipses.size() && nLine_Candidates < 2; k++)
 			{
+
+				//Matthias Nösner
+				if(extTag){
+					if(std::abs(ref_Ratio[j]-ref_Ratio[k]) > deviation_of_aspectratio)
+						continue;
+				}
+
+
+				//Matthias Nösner
+
+				//MAtthias Nösner
 				// Check area
-				max_ellipse_difference = 0.5 * std::min(ref_A[j], ref_A[k]);
-				if (std::abs(ref_A[j] - ref_A[k]) >  max_ellipse_difference)
-					continue;
+					max_ellipse_difference = size_factor * std::min(ref_A[j], ref_A[k]);
+					if (std::abs(ref_A[j] - ref_A[k]) >  max_ellipse_difference)
+						continue;
+				//Matthias Nösner
 
 				if (k == i || k == j)
 					continue;
@@ -195,10 +669,22 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 				for(unsigned int l = k+1; l < ellipses.size() && nLine_Candidates < 2; l++)
 				{
+
+					//Matthias Nösner
+					if(extTag){
+						if(std::abs(ref_Ratio[k]-ref_Ratio[l]) > deviation_of_aspectratio)
+							continue;
+					}
+
+
+
+					//Matthias Nösner
+					//MAtthias Nösner
 					// Check area
-					max_ellipse_difference = 0.5 * std::min(ref_A[k], ref_A[l]);
+					max_ellipse_difference = size_factor * std::min(ref_A[k], ref_A[l]);
 					if (std::abs(ref_A[k] - ref_A[l]) >  max_ellipse_difference)
 						continue;
+					//MAtthias Nösner
 
 					if (l == i || l == j)
 						continue;
@@ -861,12 +1347,40 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		vec_pose.push_back(tag_pose);
 	}
 // ------------ END --------------------------------------
+
+
+  } // magic bracket (due to extended Tag)
+
+
 	if (debug)
 	{
 		//cv::waitKey();
 	}
-
-	if (final_tag_vec.empty())
+	if(extTag){
+		//Maximum detection distance
+		double max_detection_distance = 5.1;
+		for(size_t h = 0; h < vec_pose.size();h++){
+			if(vec_pose[h].trans.at<double>(2) > max_detection_distance){
+				vec_pose.erase(vec_pose.begin()+h);
+				h--;
+			}
+		}
+		//Kick double detected Markers
+		for(size_t h = 0; h < vec_pose.size();h++){
+			for(size_t b = h+1; b < vec_pose.size();b++){
+				if(vec_pose[h].id == vec_pose[b].id){
+					if(cv::sqrt(vec_pose[h].trans.at<double>(0)*vec_pose[b].trans.at<double>(0)+
+							vec_pose[h].trans.at<double>(1)*vec_pose[b].trans.at<double>(1)+
+							vec_pose[h].trans.at<double>(2)*vec_pose[b].trans.at<double>(2)) > 0.01){
+						vec_pose.erase(vec_pose.begin()+b);
+						b--;
+					}
+				}
+			}
+		}
+	}
+	//Matthias Nösner -changed from final_tag to vec_pose
+	if (vec_pose.empty())
 		return ipa_Utils::RET_FAILED;
 
 	return ipa_Utils::RET_OK;

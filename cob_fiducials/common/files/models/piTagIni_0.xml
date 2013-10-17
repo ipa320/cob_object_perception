@@ -1,20 +1,7 @@
 <FiducialDetector>
-	<PI>
-		<ID value="0" />
-		<!-- Tag size in [m] -->
-		<LineWidthHeight value="0.100" />
-		
-		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.040" AC="0.060" />
-		<CrossRatioLine1 AB="0.020" AC="0.080" />
-				
-		<!-- Offset for native tag corrdinates -->
-		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="-0.125" y="0.175" />
-	</PI>
-	<PI>
+<PI>
 		<ID value="1" />
-		<!-- Tag size in [m] -->
+		<!-- Tag size in [mm] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
@@ -23,11 +10,12 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="0.025" y="-0.075" />
+		<Offset x="-0.05" y="0.05" />
 	</PI>
+	
 	<PI>
 		<ID value="2" />
-		<!-- Tag size in [m] -->
+		<!-- Tag size in [mm] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
@@ -36,11 +24,12 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="-0.109" y="-0.090" />
-	</PI>
+		<Offset x="-0.05" y="0.05" />
+	</PI>	
+	
 	<PI>
 		<ID value="3" />
-		<!-- Tag size in [m] -->
+		<!-- Tag size in [mm] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
@@ -49,6 +38,49 @@
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
-		<Offset x="0.009" y="0.190" />
+		<Offset x="-0.05" y="0.05" />
+	</PI>	
+	
+	<PI>
+		<ID value="4" />
+		<!-- Tag size in [mm] -->
+		<LineWidthHeight value="0.100" />
+		
+		<!-- Cross ratios line 0 and 1-->
+		<CrossRatioLine0 AB="0.03" AC="0.053" />
+		<CrossRatioLine1 AB="0.046" AC="0.074" />
+				
+		<!-- Offset for native tag corrdinates -->
+		<!-- e.g. position of tag in object centric ccordinate system -->
+		<Offset x="-0.05" y="0.05" />
 	</PI>
+	
+	<PI>
+		<ID value="5" />
+		<!-- Tag size in [mm] -->
+		<LineWidthHeight value="0.100" />
+		
+		<!-- Cross ratios line 0 and 1-->
+		<CrossRatioLine0 AB="0.033" AC="0.055" />
+		<CrossRatioLine1 AB="0.029" AC="0.070" />
+				
+		<!-- Offset for native tag corrdinates -->
+		<!-- e.g. position of tag in object centric ccordinate system -->
+		<Offset x="-0.05" y="0.05" />
+	</PI>
+	
+	<PI>
+		<ID value="6" />
+		<!-- Tag size in [mm] -->
+		<LineWidthHeight value="0.100" />
+		
+		<!-- Cross ratios line 0 and 1-->
+		<CrossRatioLine0 AB="0.028" AC="0.054" />
+		<CrossRatioLine1 AB="0.047" AC="0.075" />
+				
+		<!-- Offset for native tag corrdinates -->
+		<!-- e.g. position of tag in object centric ccordinate system -->
+		<Offset x="-0.05" y="0.05" />
+	</PI>
+	
 </FiducialDetector>

@@ -1,3 +1,4 @@
+
 /****************************************************************
  *
  * Copyright (c) 2010
@@ -91,13 +92,15 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/timer.hpp>
 
+
+
 //#include "opencv/highgui.h"
 
 //Matthias Nösner
-#include <cob_fiducials/FiducialMarkerEvaluationToolkit.h>
 #include <cob_fiducials/VoxelMap.h>
-std::vector<ipa_Fiducials::t_pose> mn_tags_vec;
-FiducialMarkerEvaluationToolkit *evalToolkit;
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <cob_fiducials/VoxelMap.h>
 VoxelMap *v;
 //MatthiasNösner -END-
 
@@ -172,10 +175,7 @@ private:
 
     t_FiducialType fiducial_type_;
     boost::shared_ptr<ipa_Fiducials::AbstractFiducialModel> tag_detector_;
-    
-    //START -Matthias Nösner
-    cv::Mat mn_img;
-    //END -Matthias Nösner- Marker validation
+
 
 
 public:
@@ -198,6 +198,10 @@ public:
 
     void onInit()
     {
+    	//MatthiasNönser
+    	v = new VoxelMap();
+    	//Matthias Nösner
+
         /// Create a handle for this node, initialize node
         //	  node_handle_ = getMTNodeHandle();
         image_transport_0_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
@@ -214,10 +218,6 @@ public:
     bool init()
     {
         if (loadParameters() == false) return false;
-
-        //Matthias Nösner START
-    	evalToolkit = new FiducialMarkerEvaluationToolkit();
-    	//Matthias Nösner END
 
         ros::SubscriberStatusCallback imgConnect    = boost::bind(&CobFiducialsNode::connectCallback, this);
         ros::SubscriberStatusCallback imgDisconnect = boost::bind(&CobFiducialsNode::disconnectCallback, this);
@@ -315,18 +315,15 @@ public:
 
             if (camera_matrix_initialized_ == false)
             {
-        		//-Matthias Nösner- START -
-                camera_matrix_ = evalToolkit->getIntrinsicMatrix();
-        		//-Matthias Nösner- End -
-//                camera_matrix_ = cv::Mat::zeros(3,3,CV_64FC1);
-//                camera_matrix_.at<double>(0,0) = color_camera_info->K[0];
-//                camera_matrix_.at<double>(0,2) = color_camera_info->K[2];
-//                camera_matrix_.at<double>(1,1) = color_camera_info->K[4];
-//                camera_matrix_.at<double>(1,2) = color_camera_info->K[5];
-//                camera_matrix_.at<double>(2,2) = 1;
+                camera_matrix_ = cv::Mat::zeros(3,3,CV_64FC1);
+                camera_matrix_.at<double>(0,0) = color_camera_info->K[0];
+                camera_matrix_.at<double>(0,2) = color_camera_info->K[2];
+                camera_matrix_.at<double>(1,1) = color_camera_info->K[4];
+                camera_matrix_.at<double>(1,2) = color_camera_info->K[5];
+                camera_matrix_.at<double>(2,2) = 1;
 
                 ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix");
-		
+
                 if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_) & ipa_Utils::RET_FAILED)
                 {
                 	ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
@@ -355,9 +352,7 @@ public:
             if (ros_node_mode_ == MODE_TOPIC || ros_node_mode_ == MODE_TOPIC_AND_SERVICE)
             {
                 cob_object_detection_msgs::DetectionArray detection_array;
-                //-Matthias Nösner- START
-                //detectFiducials(detection_array, color_mat_8U3_);
-                //-Matthias Nösner- END
+                detectFiducials(detection_array, color_mat_8U3_);
 
                 // Publish
                 detect_fiducials_pub_.publish(detection_array);
@@ -373,12 +368,6 @@ public:
             // Notify waiting thread
         }
         condQ_.notify_one();
-
-        //-Matthias Nösner-
-        mn_img = evalToolkit->getNextMarker();
-        cob_object_detection_msgs::DetectionArray mn_detection_array;
-        detectFiducials(mn_detection_array, mn_img);
-        //Matthias Nösner -End-
     }
 
 
@@ -434,6 +423,11 @@ public:
 
     bool detectFiducials(cob_object_detection_msgs::DetectionArray& detection_array, cv::Mat& color_image)
     {
+    	//Matthias Nösner
+    	v->spin();
+    	std::vector<std::vector<double> > detectedmarkers;
+     	//Matthias Nösner
+
         int id_start_idx = 2351;
         unsigned int marker_array_size = 0;
         unsigned int pose_array_size = 0;
@@ -491,9 +485,23 @@ public:
                          fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
                          vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
 
-                //Matthias Nösner - START
-                evalToolkit->setPushMarkerPosition(frame);
-                //Matthias Nösner - END
+                //Matthias Nösner
+                cv::Mat vec3x1(3,1,CV_64FC1);
+                cv::Rodrigues(tags_vec[i].rot,vec3x1);
+//                v->setCameraToPOV(tags_vec[i].trans.at<double>(0,0),tags_vec[i].trans.at<double>(1,0),tags_vec[i].trans.at<double>(2,0),
+//                			      vec3x1.at<double>(0),vec3x1.at<double>(1),vec3x1.at<double>(2),tags_vec[i].id);
+
+                std::vector<double> marker;
+                marker.push_back(tags_vec[i].id);
+                marker.push_back(tags_vec[i].trans.at<double>(0,0));
+                marker.push_back(tags_vec[i].trans.at<double>(1,0));
+                marker.push_back(tags_vec[i].trans.at<double>(2,0));
+                marker.push_back(vec3x1.at<double>(0));
+                marker.push_back(vec3x1.at<double>(1));
+                marker.push_back(vec3x1.at<double>(2));
+
+                detectedmarkers.push_back(marker);
+                //Matthias Nösner
             }
         }
         else
@@ -501,9 +509,9 @@ public:
             pose_array_size = 0;
         }
 
-		//Matthias Nösner
-        evalToolkit->setStartAnalysis();
-        //Matthias Nösner -End-
+	//Matthias Nösner
+	v->setDetectedMarkerArray(detectedmarkers);
+	//Matthias Nösner
 
         // Publish 2d image
         if (publish_2d_image_)
@@ -661,7 +669,7 @@ public:
                          vec_2d[i].x , vec_2d[i].y);
         }
 
-        // Render results
+        // Render results BGR
         int line_width = 1;
         cv::line(image, vec_2d[0], vec_2d[1], cv::Scalar(0, 0, 255), line_width);
         cv::line(image, vec_2d[0], vec_2d[2], cv::Scalar(0, 255, 0), line_width);
@@ -920,3 +928,7 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
+
+
+
