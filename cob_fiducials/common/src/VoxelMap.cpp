@@ -30,7 +30,7 @@ void VoxelMap::init(){
 	cout << "Creating Map...";
  	//Map creation, (Map size, cell size)
 	//segmentation fault when marker is detected in bigger distance than Map size!!
-	newMap(4000,300);
+	newMap(5100,500);
  	cout << "[READY]" << endl;
 
  	cout << "Reading Fiducial Marker...";
@@ -41,9 +41,9 @@ void VoxelMap::init(){
 	cout << "Fiducial marker size: "<< fiducialmarkers.size() << endl;
 
 	cout << "Reading Points of View...";
-	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag1_newerror_TEST.log",&fiducialmarkers[0]))
+	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag1EXP.log",&fiducialmarkers[0]))
 		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
-	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag2_newerror_TEST.log",&fiducialmarkers[1]))
+	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag2EXP.log",&fiducialmarkers[1]))
 		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
 
 //	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag1.log",&fiducialmarkers[0]))

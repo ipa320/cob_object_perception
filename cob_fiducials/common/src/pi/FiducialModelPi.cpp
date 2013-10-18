@@ -1,5 +1,5 @@
 //#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
-#define EXTTAG 1
+//#define FPITAG 1
 
 #ifdef __LINUX__
 	#include "cob_fiducials/pi/FiducialModelPi.h"
@@ -29,7 +29,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 	cv::Mat src_mat_8U1;
 	bool debug = false;
-	bool extTag = true;
+	bool FPITAG = true;
 	if (debug)
 		m_debug_img = image.clone();
 
@@ -82,7 +82,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	int minus_c = 21;//21
 	int half_kernel_size = 40;//10
 
-	if(extTag){
+	if(FPITAG){
 		minus_c = 11;
 		half_kernel_size = 5;
 	}
@@ -140,7 +140,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 
 		//Matthias Nösner
-		if(extTag){
+		if(FPITAG){
 
 			double ellipse_aspect_ratio = box.size.height/box.size.width;
 			if(box.size.height > box.size.width) ellipse_aspect_ratio = 1/ellipse_aspect_ratio;
@@ -174,7 +174,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	cv::Mat ellipsedensity(src_mat_8U1.rows,src_mat_8U1.cols,CV_8UC1);
 
 
-	if(extTag){
+	if(FPITAG){
 		//Fil cv::Mat with -1
 		for(int i = 0; i < ellipsevoting.rows; i++){
 			for(int j = 0; j < ellipsevoting.cols; j++){
@@ -401,107 +401,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			badellipses.pop_back();
 			ellipses.erase(ellipses.begin()+index);
 		}
-
-		//Allow only a few ellipses in neighbourhood of point
-//		int max_ellipses = 34;
-//		for(size_t i = 0; i < rois.size(); i++){
-//			int count = 0;
-//
-//			int shrink = rois[i].width * 0.3;
-//			cv::Rect newroi(rois[i].x+shrink,rois[i].y+shrink,rois[i].width-2*shrink,rois[i].height-2*shrink);
-//
-//			if(debug){
-//				rectangle(m_debug_img, rois[i], cv::Scalar(255,255,255));
-//				rectangle(m_debug_img, newroi, cv::Scalar(255,255,255));
-//			}
-//
-//			for(size_t n = 0; n < ellipses.size(); n++){
-//				if(newroi.x < ellipses[n].center.x &&
-//						ellipses[n].center.x < newroi.x + newroi.width &&
-//						newroi.y < ellipses[n].center.y &&
-//						ellipses[n].center.y < newroi.y + newroi.height){
-//					count++;
-//				}
-//			}
-//
-//			//std::cout << "COUNT: " << count << std::endl;
-//			if(count > max_ellipses){
-//				points.erase(points.begin()+i);
-//				rois.erase(rois.begin()+i);
-//				i--;
-//			}
-//		}
-
-		// Do rois overlap? Compute area in square pixels
-//		double max_intersection_area = 100000;
-
-		//std::cout << "ROISb: " << rois.size() << std::endl;
-//		for(size_t i = 0; i < rois.size(); i++){//A i
-//			bool kickedi = false;
-//			for(size_t j = i+1; j < rois.size() && !kickedi; j++){//B j
-//
-//					double area = 0;
-//
-//					if(rois[i].x > rois[j].x+rois[j].width || rois[i].x+rois[i].width < rois[j].x || rois[i].x+rois[i].width < rois[j].x || rois[i].y+rois[i].height > rois[j].y){//do they intersect?
-//
-//						//compute intersection area
-//						int deltax = rois[i].x - rois[j].x;
-//						int deltay = rois[i].y - rois[j].y;
-//
-//						int dx_abs = cv::sqrt(deltax*deltax);
-//						int dy_abs = cv::sqrt(deltay*deltay);
-//
-//						int lx = 0;
-//						int ly = 0;
-//
-//						if(deltax >= 0 && deltay >=0){//1
-//							lx = rois[j].width - dx_abs;
-//							ly = rois[j].height - dy_abs;
-//						}
-//						if(deltax >= 0 && deltay <=0){//2
-//							lx = rois[j].width - dx_abs;
-//							ly = rois[i].height - dy_abs;
-//						}
-//						if(deltax <= 0 && deltay >=0){//3
-//							lx = rois[i].width - dx_abs;
-//							ly = rois[j].height - dy_abs;
-//						}
-//						if(deltax <= 0 && deltay <=0){//1
-//							lx = rois[i].width - dx_abs;
-//							ly = rois[i].height - dy_abs;
-//						}
-//
-//
-//						area = lx*ly;
-//					}
-//
-//					area = std::abs(area);
-//
-//					//std::cout << "Area: " << area << std::endl;
-//					if(area > max_intersection_area){
-//
-//						double sizeof_rect_i = rois[i].width*rois[i].height;
-//						double sizeof_rect_j = rois[j].width*rois[j].height;
-//
-//						if(sizeof_rect_i >= sizeof_rect_j){
-//							rois.erase(rois.begin()+i);
-//							points.erase(points.begin()+i);
-//							kickedi = true;
-//							i--;
-//						} else {
-//							rois.erase(rois.begin()+j);
-//							points.erase(points.begin()+j);
-//							j--;
-//						}
-//					}
-//				}
-//		}
 	}
-
-	//std::cout << "ROISa:" << rois.size() << std::endl;
-
-
-
 
 	//Matthias Nösner -END-
 
@@ -519,7 +419,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		//Matthias Nösner
 
 		//Make them white for visualization
-		if(extTag){
+		if(FPITAG){
 
 			cv::Mat ellipsedensity_img(src_mat_8U1.rows,src_mat_8U1.cols,CV_8UC1);
 			for(int i = 0; i < ellipsedensity_img.rows; i++){
@@ -554,7 +454,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		cv::waitKey(10);
 	}
 
-	// Put only ellipses in Roi to marker detection vector and run for each roi individually
+	// Put only ellipses in Roi to marker detection vector, run for each roi individually
 	// Bracket at the end of the Marker detection!!!!!
 	std::vector<cv::RotatedRect> ellipses_copy(ellipses);
 	ellipses.clear();
@@ -604,7 +504,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		for(unsigned int j = i+1; j < ellipses.size(); j++)
 		{
 			//Matthias Nösner
-			if(extTag){
+			if(FPITAG){
 				if(std::abs(ref_Ratio[i]-ref_Ratio[j]) > deviation_of_aspectratio)
 					continue;
 			}
@@ -633,7 +533,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			{
 
 				//Matthias Nösner
-				if(extTag){
+				if(FPITAG){
 					if(std::abs(ref_Ratio[j]-ref_Ratio[k]) > deviation_of_aspectratio)
 						continue;
 				}
@@ -671,7 +571,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 				{
 
 					//Matthias Nösner
-					if(extTag){
+					if(FPITAG){
 						if(std::abs(ref_Ratio[k]-ref_Ratio[l]) > deviation_of_aspectratio)
 							continue;
 					}
@@ -1356,7 +1256,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	{
 		//cv::waitKey();
 	}
-	if(extTag){
+	if(FPITAG){
 		//Maximum detection distance
 		double max_detection_distance = 5.1;
 		for(size_t h = 0; h < vec_pose.size();h++){
@@ -1366,12 +1266,14 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			}
 		}
 		//Kick double detected Markers
+		double min_marker_distance = 0.01; //minimum distance between two markers
 		for(size_t h = 0; h < vec_pose.size();h++){
 			for(size_t b = h+1; b < vec_pose.size();b++){
 				if(vec_pose[h].id == vec_pose[b].id){
-					if(cv::sqrt(vec_pose[h].trans.at<double>(0)*vec_pose[b].trans.at<double>(0)+
-							vec_pose[h].trans.at<double>(1)*vec_pose[b].trans.at<double>(1)+
-							vec_pose[h].trans.at<double>(2)*vec_pose[b].trans.at<double>(2)) > 0.01){
+					double distance_between_markers = cv::sqrt(vec_pose[h].trans.at<double>(0)*vec_pose[b].trans.at<double>(0)+
+													   vec_pose[h].trans.at<double>(1)*vec_pose[b].trans.at<double>(1)+
+							                           vec_pose[h].trans.at<double>(2)*vec_pose[b].trans.at<double>(2) );
+					if( distance_between_markers > min_marker_distance){
 						vec_pose.erase(vec_pose.begin()+b);
 						b--;
 					}

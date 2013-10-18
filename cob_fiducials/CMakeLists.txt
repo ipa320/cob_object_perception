@@ -48,8 +48,6 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/common/include)
 
 rosbuild_add_executable(fiducials ros/src/fiducials.cpp)
 #Matthias Nösner
-rosbuild_add_executable(fiducialsvalidation ros/src/fiducialsvalidation.cpp)
-rosbuild_add_executable(histogr ros/src/histogr.cpp)
 rosbuild_add_executable(startvoxelmap ros/src/startVoxelMap.cpp)
 rosbuild_add_executable(fiducialarraydetector ros/src/fiducialarraydetector.cpp)
 
@@ -70,7 +68,6 @@ rosbuild_link_boost(${PROJECT_NAME} signals)
 
 target_link_libraries(fiducials cob_fiducials)
 #Matthias Nösner
-target_link_libraries(fiducialsvalidation cob_fiducials)
 target_link_libraries(startvoxelmap cob_fiducials)
 target_link_libraries(startvoxelmap ${PCL_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkRendering.so)
 target_link_libraries(fiducialarraydetector cob_fiducials)
