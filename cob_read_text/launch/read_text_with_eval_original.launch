@@ -2,7 +2,7 @@
 
 	<!--arg name="xmlfile" default="$(find cob_read_text_data)/sample_train.xml"/-->
 
-	<env name="TESSDATA_PREFIX" value="$(find cob_tesseract_data)/" />
+	<env name="TESSDATA_PREFIX" value="$(find cob_tesseract_data)./" />
 
 	<rosparam command="load" file="$(find cob_read_text)/launch/params_original_test.yaml" />
 

@@ -493,6 +493,16 @@ void DetectText::detect()
 		}
 	}*/
 
+
+	transformedImage_.clear();
+	notTransformedImage_.clear();
+	for (unsigned int i=0; i<finalBoundingBoxes_.size(); ++i)
+	{
+		int padding = 1;
+		cv::Rect r(std::max(0, finalBoundingBoxes_[i].x-padding), std::max(0, finalBoundingBoxes_[i].y-padding), std::min(originalImage_.cols-1-finalBoundingBoxes_[i].x, finalBoundingBoxes_[i].width+padding), std::min(originalImage_.rows-1-finalBoundingBoxes_[i].y, finalBoundingBoxes_[i].height+padding));
+		transformedImage_.push_back(originalImage_(r));
+	}
+	notTransformedImage_ = transformedImage_;
 	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
 	// OCR
@@ -2506,7 +2516,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			if (processing_method_==ORIGINAL_EPSHTEIN)
 			{
 				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
-				if (verticalOverlap * /*1.3*/1.5 < std::min(iRect.height, jRect.height))
+				if (verticalOverlap * /*1.3*/ 1.5 /*5.0*/ < std::min(iRect.height, jRect.height))
 				{
 //					if (debug["showPairs"])
 //						std::cout << "rule 1c violated\n";
@@ -4564,16 +4574,17 @@ void DetectText::ocrRead(std::vector<cv::Mat> textImages)
 				smallestElement = i - 1;
 
 		if (score[smallestElement] < 100) // if anything was found in the ocr software
-		{
 			finalTexts_.push_back(result[smallestElement]);
-			finalScores_.push_back(score[smallestElement]);
+		else
+			finalTexts_.push_back("");
+		finalScores_.push_back(score[smallestElement]);
 
-			if (transformImages)
-				finalBoxes_.push_back(finalRotatedBoundingBoxes_[(std::floor(smallestElement / (float) 2))]);
-			else
-				finalBoxes_.push_back(finalRotatedBoundingBoxes_[smallestElement]);
+		if (transformImages)
+			finalBoxes_.push_back(finalRotatedBoundingBoxes_[(std::floor(smallestElement / (float) 2))]);
+		else
+			finalBoxes_.push_back(finalRotatedBoundingBoxes_[smallestElement]);
 
-		}
+//		}
 		//      else if(debug["showAllBoxes"])
 		//      {
 		//        finalTexts_.push_back("---");
@@ -4600,6 +4611,7 @@ float DetectText::ocrRead(const cv::Mat& image, std::string& output)
 	std::ifstream fin("patch.txt");
 	std::string str;
 
+	// todo: reactivate
 	int loopCount = 0;
 	while (fin >> str)
 	{
