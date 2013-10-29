@@ -180,7 +180,8 @@ protected:
 
 				std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
 
-				if ((fabs(avgPoint.x) < cloud_cluster->points.size()*/*0.15*/0.5) && (fabs(avgPoint.y) < /*0.30*/0.5*cloud_cluster->points.size()) && (fabs(avgPoint.z) < 1.0*cloud_cluster->points.size()))
+//				if ((fabs(avgPoint.x) < cloud_cluster->points.size()*/*0.15*/0.5) && (fabs(avgPoint.y) < /*0.30*/0.5*cloud_cluster->points.size()) && (fabs(avgPoint.z) < 1.0*cloud_cluster->points.size()))
+				if ((fabs(avgPoint.x) < cloud_cluster->points.size()*/*0.15*/0.3) && (fabs(avgPoint.y) < /*0.30*/0.4*cloud_cluster->points.size()) && (fabs(avgPoint.z) < 1.2*cloud_cluster->points.size()))
 				{
 					std::cout << "found a cluster in the center" << std::endl;
 					cloud_cluster->header.stamp = input_pointcloud_msg->header.stamp;

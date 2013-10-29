@@ -167,14 +167,14 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 		else if (mode_of_operation_ == 2)
 		{
 			// Hermes mode
-			if (maxPoint.x-minPoint.x < 0.4 && maxPoint.y-minPoint.y < 0.4 && maxPoint.z-minPoint.z < 0.4)
+			if (maxPoint.x-minPoint.x < 0.5 && maxPoint.y-minPoint.y < 0.5 && maxPoint.z-minPoint.z < 0.5)
 			{
 				double pan=0, tilt=0, roll=0;
 				Eigen::Matrix4f finalTransform;
 				double matchingScore = 1e10;
 				object_classifier_.HermesCategorizeObject(input_pointcloud, avgPoint, &si, (ClusterMode)CLUSTER_EM, (ClassifierType)CLASSIFIER_RTC, global_feature_params_, pan, tilt, roll, finalTransform, matchingScore);
 
-				if (matchingScore < 0.0003)
+				if (matchingScore < 0.001)//0.0003)
 				{
 					// draw shoe coordinate system into display_color
 					tf::Transform object_pose;

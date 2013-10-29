@@ -6,12 +6,12 @@
   <arg name="use_old_openni_version" default="true"/>
 
   <node ns="object_segmentation" pkg="nodelet" type="nodelet" name="object_segmentation_pass_through" args="standalone pcl/PassThrough" output="screen">
-    <group if="$(arg use_old_openni_version)">
+    <!--group if="$(arg use_old_openni_version)">
       <remap from="~input" to="/cam3d/depth_registered/points" />
     </group>
-    <group unless="$(arg use_old_openni_version)">
+    <group unless="$(arg use_old_openni_version)"-->
       <remap from="~input" to="/cam3d/depth/points_xyzrgb" />
-    </group>
+    <!--/group-->
     <rosparam>
       filter_field_name: z
       filter_limit_min: 0.0

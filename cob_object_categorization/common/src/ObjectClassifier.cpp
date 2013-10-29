@@ -8873,12 +8873,13 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	std::cout << "pan\ttilt\tdiff" << std::endl;
 	double factor=180./CV_PI;
 	int counter = 0;
-	for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end() && counter<10; ++itOrderedList, ++counter)
-		std::cout <<  itOrderedList->second.first*factor << "\t" << itOrderedList->second.second*factor << "\t" << itOrderedList->first << std::endl;
+	for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end() && counter<40; ++itOrderedList, ++counter)
+		std::cout <<  itOrderedList->second.first*factor << "\t" << itOrderedList->second.second*factor << "\t" << itOrderedList->first << "\t" << itOrderedList->second.first << "\t" << itOrderedList->second.second << std::endl;
 
 	// check whether the cluster is the object
 	if (vfhOrderedList.begin()->first < -340.0)
 	{
+		// hack: green: 0.511671  0.251772
 		pan = vfhOrderedList.begin()->second.first;
 		tilt = vfhOrderedList.begin()->second.second;
 	//	cv::Mat histogram;
