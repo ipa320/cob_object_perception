@@ -179,6 +179,13 @@ private:
 		std::vector<Letter> letters;		// the letters that are contained in the text region
 	};
 
+	struct BezierRansacResult
+	{
+		std::vector<cv::Point> inlierPoints;	// center coordinates of those points that are inliers to the computed curve
+		std::vector<cv::Point> bezierPoints;	// center coordinates of those 3 points that define the bezier curve
+		cv::Mat bezierCurveParameters;			// paramters of the Bezier curve
+	};
+
 
   // main method
 	void detect();
@@ -289,9 +296,9 @@ private:
 
 	void ransacPipeline(std::vector<TextRegion>& textRegions);
 
-	std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > ransac(std::vector<Letter> dataset);
+	std::vector<BezierRansacResult> ransac(std::vector<Letter> dataset);
 
-	cv::Mat createBezierCurve(std::vector<cv::Point> & points, bool p);
+	cv::Mat createBezierCurve(std::vector<cv::Point> & points, bool transformToBezierPoints, bool p);
 
 	std::pair<float, float> getBezierDistance(cv::Mat curve, cv::Point q);
 

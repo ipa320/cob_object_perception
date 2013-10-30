@@ -868,10 +868,22 @@ void DetectText::detect_bormann(cv::Mat& image, double scale_factor)
 //	time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 //	std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
 
-	// separate words on a single line
 	double start_time = clock();
+	ransacPipeline(textRegions_);
+	double time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
+	std::cout << "[" << time_in_seconds << " s] in ransacPipeline: " << textRegions_.size() << " textRegions_ after ransac" << std::endl << std::endl;
+//	if (firstPass_)
+//	{
+//		std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() << " boundingBoxes remain" << std::endl;
+//		fontColorIndex_ = transformedImage_.size();
+//	}
+//	else
+//		std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() - fontColorIndex_ << " boundingBoxes remain" << std::endl;
+
+	// separate words on a single line
+	start_time = clock();
 	breakLinesIntoWords(textRegions_);
-	double time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+	time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
 	std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
 
 	// write found bounding boxes into the respective structures
@@ -1009,7 +1021,8 @@ void DetectText::preprocess()
 	if (processing_method_==ORIGINAL_EPSHTEIN)
 		maxStrokeWidth_ = maxStrokeWidthParameter; // * 640./(double)std::max(grayImage_.cols, grayImage_.rows);
 	else
-		maxStrokeWidth_ = round((std::max(grayImage_.cols, grayImage_.rows)) / (float) maxStrokeWidthParameter);
+		//maxStrokeWidth_ = round((std::max(grayImage_.cols, grayImage_.rows)) / (float) maxStrokeWidthParameter);
+		maxStrokeWidth_ = maxStrokeWidthParameter; // * 640./(double)std::max(grayImage_.cols, grayImage_.rows);
 	initialStrokeWidth_ = maxStrokeWidth_ * 2;
 
 	// outputPrefix_: filename without extension
@@ -2061,7 +2074,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 	if (processing_method_ == ORIGINAL_EPSHTEIN)
 		minLetterHeight_ = 11; //14; //10;//8;
 	else
-		minLetterHeight_ = std::max(10, 3 + (originalImage_.rows)/480); //default: 10
+		minLetterHeight_ = 11; //14; //10;//8;
+		//minLetterHeight_ = std::max(10, 3 + (originalImage_.rows)/480); //default: 10
 
 	assert(static_cast<size_t>(nComponent_) == labeledRegions_.size());
 	isLetterRegion_.clear();
@@ -2105,7 +2119,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #1: height of component [not used atm]
 		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high.
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
-		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_))// || itr.area() < 30/*75*//*38/*50*/))
+		if (/*(processing_method_==ORIGINAL_EPSHTEIN || processing_method_==BORMANN) &&*/ (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_))// || itr.area() < 30/*75*//*38/*50*/))
 		{
 			if (show_texts == true)
 				std::cout << "rule 1\n";
@@ -2113,7 +2127,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		}
 
 		// rule #2: aspect ratio has to be within 0.1 and 10
-		if (processing_method_ == ORIGINAL_EPSHTEIN)
+//		if (processing_method_ == ORIGINAL_EPSHTEIN || processing_method_==BORMANN)
 		{
 			//double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
 			isLetter = isLetter && ((double)std::max(itr.height, itr.width) <= 10.0/*7.0*/ * (double)std::min(itr.height, itr.width));
@@ -2234,14 +2248,14 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		// rule #10: Ratio of background color / foreground color has to be big.
 		meanRGB_[compIdx] = getMeanIntensity(ccmap, itr, static_cast<int>(compIdx), false);
 		meanBgRGB_[compIdx] = getMeanIntensity(ccmap, itr, static_cast<int>(compIdx), true);
-		if (processing_method_==BORMANN && isLetter)
-		{
-			if (itr.area() > 200) // too small areas have bigger color difference
-				if ((std::abs(meanRGB_[compIdx][0] - meanBgRGB_[compIdx][0]) < clrComponentParameter) ||
-						(std::abs(meanRGB_[compIdx][1]-meanBgRGB_[compIdx][1]) < clrComponentParameter) || (std::abs(meanRGB_[compIdx][2]-meanBgRGB_[compIdx][2]) < clrComponentParameter))
-					if ((std::abs(meanRGB_[compIdx][0]-meanBgRGB_[compIdx][0])) + (std::abs(meanRGB_[compIdx][1]-meanBgRGB_[compIdx][1])) + (std::abs(meanRGB_[compIdx][2]-meanBgRGB_[compIdx][2])) < clrComponentParameter * 4)
-						isLetter = false;
-		}
+//		if (processing_method_==BORMANN && isLetter)
+//		{
+//			if (itr.area() > 200) // too small areas have bigger color difference
+//				if ((std::abs(meanRGB_[compIdx][0] - meanBgRGB_[compIdx][0]) < clrComponentParameter) ||
+//						(std::abs(meanRGB_[compIdx][1]-meanBgRGB_[compIdx][1]) < clrComponentParameter) || (std::abs(meanRGB_[compIdx][2]-meanBgRGB_[compIdx][2]) < clrComponentParameter))
+//					if ((std::abs(meanRGB_[compIdx][0]-meanBgRGB_[compIdx][0])) + (std::abs(meanRGB_[compIdx][1]-meanBgRGB_[compIdx][1])) + (std::abs(meanRGB_[compIdx][2]-meanBgRGB_[compIdx][2])) < clrComponentParameter * 4)
+//						isLetter = false;
+//		}
 
 		// rule 10b: foreground color should not occur too often in background
 		// ---------------------------------------------------------
@@ -2495,8 +2509,8 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			double jDiagonal = sqrt(jRect.height * jRect.height + jRect.width * jRect.width);
 
 			// rule 1a: distance of two letters must be small enough
-			if (processing_method_==ORIGINAL_EPSHTEIN)
-			{
+//			if (processing_method_==ORIGINAL_EPSHTEIN)
+//			{
 //				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
 //					continue;
 				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter) // * largeLetterCountFactor)
@@ -2507,12 +2521,12 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 ////						std::cout << "rule 1a violated\n";
 //					continue;
 //				}
-			}
-			else
-			{
-				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter) // * largeLetterCountFactor)
-					continue;
-			}
+//			}
+//			else
+//			{
+//				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter) // * largeLetterCountFactor)
+//					continue;
+//			}
 
 			// special thresholds for narrow letters like i
 			double heightRatioThreshold = 2.0;
@@ -2524,7 +2538,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			}
 
 			// rule 1b: height ratio between two letters must be small enough
-			if (processing_method_==ORIGINAL_EPSHTEIN)
+			if (processing_method_==ORIGINAL_EPSHTEIN || processing_method_==BORMANN)
 				if ((double)std::max(iRect.height, jRect.height) > /*1.7*//*2.2*/ heightRatioThreshold * (double)std::min(iRect.height, jRect.height))
 				{
 //					if (debug["showPairs"])
@@ -2533,7 +2547,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				}
 
 			// rule 1c: vertical overlap should be large
-			if (processing_method_==ORIGINAL_EPSHTEIN)
+			if (processing_method_==ORIGINAL_EPSHTEIN)// || processing_method_==BORMANN)
 			{
 				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
 				if (verticalOverlap * /*1.3*/ 1.5 < std::min(iRect.height, jRect.height))
@@ -2543,6 +2557,16 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 					continue;
 				}
 			}
+//			else if (processing_method_==BORMANN)
+//			{
+//				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
+//				if (verticalOverlap * /*1.3*/ 5.0 < std::min(iRect.height, jRect.height))
+//				{
+////					if (debug["showPairs"])
+////						std::cout << "rule 1c violated\n";
+//					continue;
+//				}
+//			}
 
 			//medianSw[i] = getMedianStrokeWidth(ccmap, swtmap, iRect, static_cast<int>(i));
 			//medianSw[j] = getMedianStrokeWidth(ccmap, swtmap, jRect, static_cast<int>(j));
@@ -2578,7 +2602,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 //			if ((iRect & jRect).area() > 0.25 * std::min(iRect.area(), jRect.area()))
 //				negativeScore++;
 
-			if (processing_method_==BORMANN)
+			if (processing_method_==20/*BORMANN*/)
 			{
 //				// rule 3: diagonal ratio
 //				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParameter_)
@@ -2609,7 +2633,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			//   score++;
 
 			// rule #7: Areas of components have to be ~similiar
-			if (processing_method_==BORMANN)
+			if (processing_method_==20/*BORMANN*/)
 			{
 				if ((std::max(iRect.area(), jRect.area()) / (float) std::min(iRect.area(), jRect.area())) > areaParameter)
 					if (std::max(iRect.height, jRect.height) / (float) std::min(iRect.height, jRect.height) > areaParameter * 0.8)
@@ -2640,7 +2664,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			//      }
 
 			bool isGroup = true;
-			if (processing_method_==ORIGINAL_EPSHTEIN)
+			if (processing_method_==ORIGINAL_EPSHTEIN || processing_method_==BORMANN)
 			{
 				if (negativeScore > 0)
 					isGroup = false;
@@ -2707,6 +2731,8 @@ void DetectText::chainPairs(std::vector<TextRegion>& textRegions, const cv::Mat&
 	std::vector<std::vector<int> > chains;		// contains letters that belong to the same region, outer index=region index, inner index=letter index (refers to index of labeledRegions)
 	mergePairs(letterGroups_, chains);		// put letters of same regions into one group, yields several of those groups
 
+	std::cout << "chains: " << chains.size() << std::endl;
+
 	//std::vector<cv::Rect> initialBoxes;
 	chainToBox(chains, ccmap, /*initialBoxes,*/ textRegions); //initialHorizontalBoxes contains rects for every chain component with more than two components(letters)
 
@@ -2754,6 +2780,7 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 		int letterAreaSum = 0;
 		int padding = 0;		// todo: param
 
+		std::vector<cv::Point> pointvector;		// collects border points for rotated bounding box
 		TextRegion textRegion;
 		std::vector<float> meanRGB(3, 0.f);
 		for (size_t j = 0; j < chains[i].size(); j++)
@@ -2768,6 +2795,11 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 			minY = std::min(minY, itr.y);
 			maxX = std::max(maxX, itr.x + itr.width);
 			maxY = std::max(maxY, itr.y + itr.height);
+
+			pointvector.push_back(cv::Point(itr.x, itr.y));
+			pointvector.push_back(cv::Point(itr.x, itr.y+itr.height));
+			pointvector.push_back(cv::Point(itr.x+itr.width, itr.y));
+			pointvector.push_back(cv::Point(itr.x+itr.width, itr.y+itr.height));
 
 			Letter letter;
 			letter.boundingBox = itr;
@@ -2926,12 +2958,14 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 		textRegion.originalChainBoundingBox = textRegion.boundingBox;
 		textRegion.originalChainID = i;
 
+		cv::RotatedRect rr = cv::minAreaRect(pointvector);
 		//std::cout << "textRegion.boundingBox.width=" << textRegion.boundingBox.width << "  textRegion.boundingBox.height=" << textRegion.boundingBox.height << std::endl;
-		if (textRegion.boundingBox.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * textRegion.boundingBox.height)
+//		if (textRegion.boundingBox.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * textRegion.boundingBox.height)
+		if (rr.size.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * rr.size.height)
 			textRegions.push_back(textRegion);
 	}
 
-	std::cout << "textRegions.size()=" << textRegions.size() << "\n";
+//	std::cout << "textRegions.size()=" << textRegions.size() << "\n";
 }
 
 bool DetectText::pairsInLine(const Pair& a, const Pair& b)
@@ -5233,248 +5267,273 @@ void DetectText::writeTxtsForEval()
 
 void DetectText::ransacPipeline(std::vector<TextRegion>& textRegions)
 {
-	std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSet;
-
-	std::vector<cv::Rect> ransacBoxes;
+//	std::vector<cv::Rect> ransacBoxes;
+	std::vector<TextRegion> newTextRegions;
 
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
-		//    cv::Mat output = originalImage_.clone();
+		std::cout << "textRegionIndex=" << textRegionIndex << "  textRegions[textRegionIndex].letters.size=" << textRegions[textRegionIndex].letters.size() << std::endl;
 
-		cv::Rect r = textRegions[textRegionIndex].boundingBox;
+//		cv::Rect r = textRegions[textRegionIndex].boundingBox;
 
-		ransacSet = ransac(textRegions[textRegionIndex].letters);
+		std::vector<BezierRansacResult> ransacSet = ransac(textRegions[textRegionIndex].letters);
 
 		// transform text based on bezier line
 		// calculate height and width of transformed image
 		for (unsigned int i = 0; i < ransacSet.size(); i++)
 		{
-			cv::Mat model = createBezierCurve(ransacSet[i].second, debug["showBezier"]); // todo: parameter showBezier
+			TextRegion textRegion;
+			textRegion.originalChainID = textRegions[textRegionIndex].originalChainID;
+			textRegion.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
 
-			float biggestDistance = 0; // -> height of transformed image
-			float minDistance = 1e5;
-			float minDistanceLast = 1e5;
-			float minT = 0, maxT = 1; // -> to calculate width of transformed image
-
-			for (unsigned int j = 0; j < ransacSet[i].first.size(); j++)
-			{
-				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
-				{
-					if ((ransacSet[i].first[j]).inside(textRegions[textRegionIndex].letters[k].boundingBox))
-					{
-						// todo: wouldn't it be sufficient to check the 4 corner points of the bounding box?
-						// probably not because curve is bent
-
-						// get max distance from curve
-						// calculate distance of all border pixels of components to the curve
-						for (int y = textRegions[textRegionIndex].letters[k].boundingBox.y, x = textRegions[textRegionIndex].letters[k].boundingBox.x;
-								y < textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height; y++) // todo: y += height
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-
-							// if actual component is first component of model, get nearest Point on border to calculate minimum t
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							// if actual component is last component of model, get nearest Point on border to calculate maximum t
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-
-						for (int y = textRegions[textRegionIndex].letters[k].boundingBox.y, x = textRegions[textRegionIndex].letters[k].boundingBox.x
-								+ textRegions[textRegionIndex].letters[k].boundingBox.width; y < textRegions[textRegionIndex].letters[k].boundingBox.y
-								+ textRegions[textRegionIndex].letters[k].boundingBox.height; y++)
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-						for (int x = textRegions[textRegionIndex].letters[k].boundingBox.x, y = textRegions[textRegionIndex].letters[k].boundingBox.y;
-								x < textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width; x++)
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-						for (int x = textRegions[textRegionIndex].letters[k].boundingBox.x, y = textRegions[textRegionIndex].letters[k].boundingBox.y
-								+ textRegions[textRegionIndex].letters[k].boundingBox.height; x < textRegions[textRegionIndex].letters[k].boundingBox.x
-								+ textRegions[textRegionIndex].letters[k].boundingBox.width; x++)
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-					}
-				}
-			}
-
-			float h = biggestDistance + 2; // 2*2 pixel padding
-			float l = getBezierLength(model, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
-
-			cv::Mat rotatedBezier(h * 2, l, CV_8UC3, cv::Scalar(255, 255, 255));
-
-			// make new bounding box
-			int minX = 1e5, maxX = 0, minY = 1e5, maxY = 0;
-
-			for (unsigned int letterIndex = 0; letterIndex < ransacSet[i].first.size(); letterIndex++)
-			{
-				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
-				{
-					if ((ransacSet[i].first[letterIndex]).inside(textRegions[textRegionIndex].letters[k].boundingBox))
-					{
-						if (textRegions[textRegionIndex].letters[k].boundingBox.x < minX)
-							minX = textRegions[textRegionIndex].letters[k].boundingBox.x;
-						if (textRegions[textRegionIndex].letters[k].boundingBox.y < minY)
-							minY = textRegions[textRegionIndex].letters[k].boundingBox.y;
-						if (textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width > maxX)
-							maxX = textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width;
-						if (textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height > maxY)
-							maxY = textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height;
-					}
-				}
-			}
-
-			cv::Rect newR(minX, minY, maxX - minX, maxY - minY);
-
-			// form rotatedRect
-			if (debug["showRansac"] == true)
-			{
-				std::cout << "point #1: " << model.at<float> (0, 2) << "|" << model.at<float> (1, 2) << std::endl;
-				std::cout << "point #2: " << model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2) << "|" << model.at<float> (1, 0)
-						+ model.at<float> (1, 1) + model.at<float> (1, 2) << std::endl;
-				std::cout << "point #3: " << 0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1) + model.at<float> (0, 2) << "|" << 0.25 * model.at<
-						float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<float> (1, 2) << std::endl;
-			}
+			// find minimum enclosing rotated rectangle
 			std::vector<cv::Point> pointvector;
-			pointvector.push_back(cv::Point(model.at<float> (0, 2), model.at<float> (1, 2)));
-			pointvector.push_back(
-					cv::Point(model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2),
-							model.at<float> (1, 0) + model.at<float> (1, 1) + model.at<float> (1, 2)));
-			pointvector.push_back(
-					cv::Point(0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1) + model.at<float> (0, 2),
-							0.25 * model.at<float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<float> (1, 2)));
+			for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
+			{
+				const cv::Rect& rect = textRegions[textRegionIndex].letters[k].boundingBox;
+				for (unsigned int j = 0; j < ransacSet[i].inlierPoints.size(); j++)
+				{
+					if ((ransacSet[i].inlierPoints[j]).inside(rect))
+					{
+						pointvector.push_back(cv::Point(rect.x, rect.y));
+						pointvector.push_back(cv::Point(rect.x, rect.y+rect.height));
+						pointvector.push_back(cv::Point(rect.x+rect.width, rect.y));
+						pointvector.push_back(cv::Point(rect.x+rect.width, rect.y+rect.height));
+						textRegion.letters.push_back(textRegions[textRegionIndex].letters[k]);
+					}
+				}
+			}
 			cv::RotatedRect rr = cv::minAreaRect(pointvector);
-
-			cv::Mat img;
-			cv::Point2f vertices[4];
+			textRegion.boundingBox = rr.boundingRect();
 			if (debug["showRansac"] == true)
 			{
-				img = originalImage_.clone();
+				cv::Point2f vertices[4];
 				rr.points(vertices);
+				cv::Mat img = originalImage_.clone();
 				for (int i = 0; i < 4; i++)
-					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
+					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 0, 255));
 				cv::imshow("img", img);
 			}
 
-			h = biggestDistance;
-			// change height and width of rotatedRect.
-			// as the angle can be ambiguous, the size is changed based on what's bigger.
-			if (rr.size.height > rr.size.width)
-			{
-				rr.size.height = 2 * h > l ? 2 * h : l;
-				rr.size.width = 2 * h > l ? l : 2 * h;
-			}
-			else
-			{
-				rr.size.height = 2 * h > l ? l : 2 * h;
-				rr.size.width = 2 * h > l ? 2 * h : l;
-			}
+			newTextRegions.push_back(textRegion);
 
-			if (debug["showRansac"] == true)
-			{
-				rr.points(vertices);
-				for (int i = 0; i < 4; i++)
-					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
-				cv::imshow("img2", img);
-				std::cout << "rr.angle:" << rr.angle << std::endl;
-				cv::waitKey(0);
-			}
-
-			transformBezier(newR, model, rotatedBezier, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
-
-			transformedImage_.push_back(rotatedBezier);
-			notTransformedImage_.push_back(originalImage_(newR));
-
-			finalBoundingBoxes_.push_back(newR);
-			finalRotatedBoundingBoxes_.push_back(rr);
-
+			// old code
+//			cv::Mat model = ransacSet[i].bezierCurveParameters; //createBezierCurve(ransacSet[i].bezierPoints, debug["showBezier"]);	// todo: double effort -> done already in ransac()
+//
+//			float biggestDistance = 0; // -> height of transformed image
+//			float minDistance = 1e5;
+//			float minDistanceLast = 1e5;
+//			float minT = 0, maxT = 1; // -> to calculate width of transformed image
+//
+//			for (unsigned int j = 0; j < ransacSet[i].inlierPoints.size(); j++)
+//			{
+//				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
+//				{
+//					const cv::Rect& rect = textRegions[textRegionIndex].letters[k].boundingBox;
+//					if ((ransacSet[i].inlierPoints[j]).inside(rect))
+//					{
+//						// todo: wouldn't it be sufficient to check the 4 corner points of the bounding box?
+//						// probably not because curve is bent
+//
+//						// get max distance from curve
+//						// calculate distance of all border pixels of components to the curve
+//						for (int y = rect.y, x = rect.x; y < rect.y + rect.height; ++y) // todo: y += height
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//
+//							// if current component is first component of model, get nearest Point on border to calculate minimum t
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])		// todo: does not work this way any more, below again
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							// if current component is last component of model, get nearest Point on border to calculate maximum t
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//
+//						for (int y = rect.y, x = rect.x + rect.width; y < rect.y + rect.height; ++y)
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//						for (int x = rect.x, y = rect.y; x < rect.x + rect.width; ++x)
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//						for (int x = rect.x, y = rect.y + rect.height; x < rect.x + rect.width; ++x)
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//					}
+//				}
+//			}
+//
+//			float h = biggestDistance + 2; // 2*2 pixel padding
+//			float l = getBezierLength(model, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
+//
+//			cv::Mat rotatedBezier(h * 2, l, CV_8UC3, cv::Scalar(255, 255, 255));
+//
+//			// make new bounding box
+//			int minX = 1e5, maxX = 0, minY = 1e5, maxY = 0;
+//			for (unsigned int letterIndex = 0; letterIndex < ransacSet[i].inlierPoints.size(); letterIndex++)
+//			{
+//				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
+//				{
+//					const cv::Rect& rect = textRegions[textRegionIndex].letters[k].boundingBox;
+//					if ((ransacSet[i].inlierPoints[letterIndex]).inside(rect))
+//					{
+//						if (rect.x < minX)
+//							minX = rect.x;
+//						if (rect.y < minY)
+//							minY = rect.y;
+//						if (rect.x + rect.width > maxX)
+//							maxX = rect.x + rect.width;
+//						if (rect.y + rect.height > maxY)
+//							maxY = rect.y + rect.height;
+//					}
+//				}
+//			}
+//			cv::Rect newR(minX, minY, maxX - minX, maxY - minY);
+//
+//			// form rotatedRect
+//			if (debug["showRansac"] == true)
+//			{
+//				std::cout << "point #1: " << model.at<float>(0, 2) << "|" << model.at<float>(1, 2) << std::endl;
+//				std::cout << "point #2: " << model.at<float>(0, 0) + model.at<float>(0, 1) + model.at<float>(0, 2) << "|" << model.at<float>(1, 0) + model.at<float>(1, 1) + model.at<float>(1, 2) << std::endl;
+//				std::cout << "point #3: " << 0.25 * model.at<float>(0, 0) + 0.5 * model.at<float>(0, 1) + model.at<float>(0, 2) << "|" << 0.25 * model.at<float>(1, 0) + 0.5 * model.at<float>(1, 1) + model.at<float>(1, 2) << std::endl;
+//			}
+//			std::vector<cv::Point> pointvector;
+//			pointvector.push_back(cv::Point(model.at<float>(0, 2), model.at<float>(1, 2)));
+//			pointvector.push_back(cv::Point(model.at<float>(0, 0) + model.at<float>(0, 1) + model.at<float>(0, 2), model.at<float>(1, 0) + model.at<float>(1, 1) + model.at<float>(1, 2)));
+//			pointvector.push_back(cv::Point(0.25 * model.at<float>(0, 0) + 0.5 * model.at<float>(0, 1) + model.at<float>(0, 2), 0.25 * model.at<float>(1, 0) + 0.5 * model.at<float>(1, 1) + model.at<float>(1, 2)));
+//			cv::RotatedRect rr = cv::minAreaRect(pointvector);
+//
+//			cv::Mat img;
+//			cv::Point2f vertices[4];
+//			if (debug["showRansac"] == true)
+//			{
+//				img = originalImage_.clone();
+//				rr.points(vertices);
+//				for (int i = 0; i < 4; i++)
+//					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 0, 255));
+//				cv::imshow("img", img);
+//			}
+//
+//			h = biggestDistance;
+//			// change height and width of rotatedRect.
+//			// as the angle can be ambiguous, the size is changed based on what's bigger.
+//			if (rr.size.height > rr.size.width)
+//			{
+//				rr.size.height = 2 * h > l ? 2 * h : l;
+//				rr.size.width = 2 * h > l ? l : 2 * h;
+//			}
+//			else
+//			{
+//				rr.size.height = 2 * h > l ? l : 2 * h;
+//				rr.size.width = 2 * h > l ? 2 * h : l;
+//			}
+//
+//			if (debug["showRansac"] == true)
+//			{
+//				rr.points(vertices);
+//				for (int i = 0; i < 4; i++)
+//					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 255, 255));
+//				cv::imshow("img2", img);
+//				std::cout << "rr.angle:" << rr.angle << std::endl;
+//				cv::waitKey(0);
+//			}
+//
+//			transformBezier(newR, model, rotatedBezier, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
+//
+//			transformedImage_.push_back(rotatedBezier);
+//			notTransformedImage_.push_back(originalImage_(newR));
+//
+//			finalBoundingBoxes_.push_back(newR);
+//			finalRotatedBoundingBoxes_.push_back(rr);
+//
 		}
 	}
+	textRegions = newTextRegions;
 }
 
-std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > DetectText::ransac(std::vector<Letter> dataset)
+std::vector<DetectText::BezierRansacResult> DetectText::ransac(std::vector<Letter> dataset)
 {
 	// calculates best quadratic Bézier Curves out of all points in dataset
-	// returns 1 or more models, each returned vector-element includes all points that support the model and as second pair-element the 3 model-describing points
+	// returns 1 or more models, each returned vector-element includes all points that support the model and the 3 model-describing points, and the Bezier curve model
 
 	// Algorithm Parameters
 	unsigned int bezierDegree = 3; // => quadratic
 	float e; // (number of outliers in data / number of points in data)
 	float n; // number of iteration steps
 
-	std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSubset; // to be returned
+//	std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSubset; // to be returned
+	std::vector<BezierRansacResult> ransacSubset; // to be returned
 
 	cv::Mat output;
 
 	// if box contains lines of text, a sub-dataset is build at the end of every iteration with the remaining points that were not used.
-	// when sub-dataset doesn't contain more than 2 components anymore, the algorithm ends
+	// when sub-dataset doesn't contain more than 2 components anymore, the algorithm terminates
 	while (dataset.size() >= 3)
 	{
 		// calculate e (percent outliers) based on pca
 		cv::Mat pcaData(dataset.size(), 2, CV_32FC1);
 		for (unsigned int i = 0; i < dataset.size(); i++)
 		{
-			pcaData.at<float> (i, 0) = dataset[i].centerPoint.x;
-			pcaData.at<float> (i, 1) = dataset[i].centerPoint.y;
+			pcaData.at<float>(i, 0) = dataset[i].centerPoint.x;
+			pcaData.at<float>(i, 1) = dataset[i].centerPoint.y;
 		}
 		cv::PCA pca(pcaData, cv::noArray(), CV_PCA_DATA_AS_ROW, 2);
 		cv::Mat eigenVal = pca.eigenvalues;
@@ -5488,6 +5547,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		// calculate number of iterations
 		// todo: where does the 5 come from? to have more iterations -> better accuracy
 		n = 5 * std::ceil(std::log10(1 - p) / (float) (std::log10(1 - (std::pow((1 - e), bezierDegree)))));
+//		std::cout << " eigenValQuotient=" << eigenValQuotient << "  e=" << e << "  n=" << n << std::endl;
 
 		if (dataset.size() == 3) // if there are only 3 components, don't calculate 200 identical models...
 			n = 1;
@@ -5501,13 +5561,14 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				cv::rectangle(output, cv::Rect(dataset[i].centerPoint.x, dataset[i].centerPoint.y, 1, 1), cv::Scalar(255, 255, 255), 2, 1, 0);
 				//std::cout << "p" << i << ": " << dataset[i].centerPoint.x << "|" << dataset[i].centerPoint.y << std::endl;
 			}
-			std::cout << std::endl << n << " iterations.." << std::endl;
+			std::cout << std::endl << n << " iterations..." << std::endl;
 		}
 
 		//std::vector<cv::Point> modelset(bezierDegree);
 		// todo: change to cv::Point2d
 		std::vector<cv::Point> finalModel; // 3 points describing best supported model
 		std::vector<cv::Point> finalGoodPoints; // all points of best supported model after all iterations
+		std::vector<unsigned int> finalGoodPointsIndices; // dataset indices of all points of best supported model after all iterations
 		std::vector<float> finalTs; // t's, describing position on bezier model of all final points
 
 		std::srand(time(NULL));
@@ -5515,15 +5576,10 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 
 		float highestScore = 0;
 
-		for (unsigned int i = 0; i < n; i++) // Main Loop, n = number of models that will be created
+		for (unsigned int i = 0; i < n; ++i) // Main Loop, n = number of models that will be created
 		{
-			std::vector<float> rectsArea;
-			cv::Mat output2;
-
 			std::vector<int> actualRandomSet; // which 3 points are chosen (index)
 			std::vector<cv::Point> actualRandomPointSet; // which 3 points are chosen (point)
-			std::vector<cv::Point> goodPoints; //which points support the model
-			std::vector<float> ts; // all ts, t as in C(t)
 
 			// fill actualRandomSet with random points for model
 			//for (unsigned int j = 0; j < bezierDegree; j++) // todo: this for loop has no effect
@@ -5538,24 +5594,24 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			}
 
 			// calculate maxDistance for every pointset anew, maxDistance = max. distance between point and curve so that point still supports model
+			std::vector<float> rectsArea;
 			for (unsigned int distanceParameterIndex = 0; distanceParameterIndex < actualRandomSet.size(); distanceParameterIndex++)
 				rectsArea.push_back(std::sqrt(dataset[distanceParameterIndex].boundingBox.area()));
-
 			float maxDistance = 0;
 			for (unsigned int k = 0; k < rectsArea.size(); k++)
 				maxDistance += rectsArea[k];
 			maxDistance = distanceParameter * (maxDistance / actualRandomSet.size());
 
 			// Reject Criterion #1: Reject model if letter sizes are too different (for the 3 randomly chosen letters)
-			if (std::max(rectsArea[0], rectsArea[1]) / (std::min(rectsArea[0], rectsArea[1])) > 3) // todo: (i) make this a parameter, (ii) avoid division
+			if (std::max(rectsArea[0], rectsArea[1]) > 3. * std::min(rectsArea[0], rectsArea[1])) // todo: make this a parameter
 				continue;
-			if (std::max(rectsArea[0], rectsArea[2]) / (std::min(rectsArea[0], rectsArea[2])) > 3)
+			if (std::max(rectsArea[0], rectsArea[2]) > 3. * std::min(rectsArea[0], rectsArea[2]))
 				continue;
-			if (std::max(rectsArea[1], rectsArea[2]) / (std::min(rectsArea[1], rectsArea[2])) > 3)
+			if (std::max(rectsArea[1], rectsArea[2]) > 3. * std::min(rectsArea[1], rectsArea[2]))
 				continue;
 
 			// calculate bezier curve
-			cv::Mat curve = createBezierCurve(actualRandomPointSet, debug["showBezier"]);
+			cv::Mat curve = createBezierCurve(actualRandomPointSet, true, debug["showBezier"]);
 			if (curve.rows < 1)
 			{
 				std::cout << "bezier curve wasn't drawn correctly." << std::endl;
@@ -5579,6 +5635,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			float angleDifference = (180.0 / 3.14159265) * std::abs(acos((dx1 * dx2 + dy1 * dy2) / (sqrt((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 * dy2)))));
 
 			// draw chosen points
+			cv::Mat output2;
 			if (debug["showBezier"])
 			{
 				output2 = output.clone();
@@ -5607,10 +5664,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				int t = distanceTs.second;
 				cv::Point2f normal(
 						2 * cv::Point(curve.at<float> (0, 0), curve.at<float> (1, 0)).y * t + cv::Point(curve.at<float> (0, 1), curve.at<float> (1, 1)).y,
-						-1
-								* (2 * cv::Point(curve.at<float> (0, 0), curve.at<float> (1, 0)).x * t + cv::Point(curve.at<float> (0, 1),
-										curve.at<float> (1, 1)).x));
-
+						-1 * (2 * cv::Point(curve.at<float> (0, 0), curve.at<float> (1, 0)).x * t + cv::Point(curve.at<float> (0, 1), curve.at<float> (1, 1)).x));
 				normal = normal * (float) (1 / (std::sqrt(normal.x * normal.x + normal.y * normal.y)));
 				heights.push_back(calculateRealLetterHeight(dataset[actualSetIndex].centerPoint, dataset[actualSetIndex].boundingBox, normal));
 			}
@@ -5625,12 +5679,14 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				heightVariance += (meanHeight - heights[h]) * (meanHeight - heights[h]);
 			heightVariance /= 3;
 
-			if (heightVariance > 50)
-				continue;
+//			if (heightVariance > 50)		// todo: param
+//				continue;
 
 			// calculate distance between curve and each data point
+			std::vector<cv::Point> goodPoints; //which points support the model
+			std::vector<unsigned int> goodPointsIndices; //dataset indices of which points support the model
+			std::vector<float> ts; // all ts, t as in C(t)
 			double distance = 0;
-
 			for (unsigned int datasetIndex = 0; datasetIndex < dataset.size(); datasetIndex++)
 			{
 				std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[datasetIndex].centerPoint);
@@ -5640,11 +5696,11 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				{
 					distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
 					goodPoints.push_back(dataset[datasetIndex].centerPoint);
+					goodPointsIndices.push_back(datasetIndex);
 					ts.push_back(distanceTs.second);
 					if (debug["showBezier"])
 					{
-						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 255, 0),
-								2, 1, 0);
+						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 255, 0), 2, 1, 0);
 						if (distanceTs.first < 1e-4)
 							std::cout << "distance: " << 0 << " [x]" << std::endl;
 						else
@@ -5658,8 +5714,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				{
 					if (debug["showBezier"])
 					{
-						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 0, 255),
-								2, 1, 0);
+						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 0, 255), 2, 1, 0);
 						std::cout << "distance: " << distanceTs.first << " [ ]" << std::endl;
 						cv::imshow("ransac", output2);
 						//cv::waitKey(0);
@@ -5684,6 +5739,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			if (score > highestScore && angleDifference < bendParameter && goodPoints.size() >= 3)
 			{
 				finalGoodPoints = goodPoints;
+				finalGoodPointsIndices = goodPointsIndices;
 				finalModel = actualRandomPointSet;
 				finalTs = ts;
 				highestScore = score;
@@ -5691,7 +5747,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			}
 			if (debug["showBezier"])
 			{
-				std::cout << "Σdistance: " << distance << std::endl;
+				std::cout << "Σdistance: " << distance << "  avg distance: " << distance / (double) goodPoints.size() << "  score: " << score << std::endl;
 				std::cout << goodPoints.size() << "/" << dataset.size() << " points support model" << std::endl;
 			}
 		}
@@ -5711,7 +5767,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		if (modelNr == -1) // no good model found at all
 			return ransacSubset;
 
-		// if there only 3 points, don't calculate quadratic bezier for final model, its bending will be too strong. use normal line instead..
+		// if there are only 3 good points supporting the model, don't calculate quadratic bezier for final model, its bending will be too strong. use normal line instead.
 		if (finalGoodPoints.size() == 3)
 		{
 			finalGoodPoints[1].x = (int) (finalGoodPoints[0].x + finalGoodPoints[2].x) / 2.0;
@@ -5719,55 +5775,54 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		}
 
 		// create model with all found finalGoodPoints
-		float biggestT = 0, biggestTIndex = 0;
-		float smallestT = 1e10, smallestTIndex = 1e10;
+		double biggestT = 0; //, biggestTIndex = 0;
+		double smallestT = 1e10; //, smallestTIndex = 1e10;
 		for (unsigned int i = 0; i < finalTs.size(); i++)
 		{
 			if (biggestT < finalTs[i])
 			{
 				biggestT = finalTs[i];
-				biggestTIndex = i;
+//				biggestTIndex = i;
 			}
 			if (smallestT > finalTs[i])
 			{
 				smallestT = finalTs[i];
-				smallestTIndex = i;
+//				smallestTIndex = i;
 			}
 		}
 
 		// [smallestT, biggestT] -> [0, 1]
-		float alpha = 1 / (float) (biggestT - smallestT);
-		float beta = -smallestT / (float) (biggestT - smallestT);
+		double alpha = 1. / (double) (biggestT - smallestT);
+		double beta = -smallestT / (double) (biggestT - smallestT);
 
-		cv::Mat A(finalTs.size() * 2, 6, CV_32FC1);
-		cv::Mat X(6, 1, CV_32FC1);
-		cv::Mat C(finalTs.size() * 2, 1, CV_32FC1);
+		cv::Mat A(finalTs.size() * 2, 6, CV_64FC1);
+		cv::Mat X(6, 1, CV_64FC1);
+		cv::Mat C(finalTs.size() * 2, 1, CV_64FC1);
 
-		for (unsigned int i = 0; i < finalTs.size(); i++)
+		for (unsigned int i = 0; i < finalTs.size(); ++i)
 		{
 			// alpha * finalT + beta = t
-			float newT = alpha * finalTs[i] + beta, a, b, c;
+			double newT = alpha * finalTs[i] + beta;
+			double a = newT * newT - 2 * newT + 1;
+			double b = -2 * newT * newT + 2 * newT;
+			double c = newT * newT;
 
-			a = newT * newT - 2 * newT + 1;
-			b = -2 * newT * newT + 2 * newT;
-			c = newT * newT;
+			A.at<double> (2*i, 0) = a;
+			A.at<double> (2*i, 1) = b;
+			A.at<double> (2*i, 2) = c;
+			A.at<double> (2*i, 3) = 0;
+			A.at<double> (2*i, 4) = 0;
+			A.at<double> (2*i, 5) = 0;
 
-			A.at<float> (i, 0) = a;
-			A.at<float> (i, 1) = b;
-			A.at<float> (i, 2) = c;
-			A.at<float> (i, 3) = 0;
-			A.at<float> (i, 4) = 0;
-			A.at<float> (i, 5) = 0;
+			A.at<double> (2*i + 1, 0) = 0;
+			A.at<double> (2*i + 1, 1) = 0;
+			A.at<double> (2*i + 1, 2) = 0;
+			A.at<double> (2*i + 1, 3) = a;
+			A.at<double> (2*i + 1, 4) = b;
+			A.at<double> (2*i + 1, 5) = c;
 
-			A.at<float> (i + finalTs.size(), 0) = 0;
-			A.at<float> (i + finalTs.size(), 1) = 0;
-			A.at<float> (i + finalTs.size(), 2) = 0;
-			A.at<float> (i + finalTs.size(), 3) = a;
-			A.at<float> (i + finalTs.size(), 4) = b;
-			A.at<float> (i + finalTs.size(), 5) = c;
-
-			C.at<float> (i, 0) = finalGoodPoints[i].x;
-			C.at<float> (i + finalTs.size(), 0) = finalGoodPoints[i].y;
+			C.at<double> (2*i, 0) = finalGoodPoints[i].x;
+			C.at<double> (2*i + 1, 0) = finalGoodPoints[i].y;
 		}
 
 		//    for (unsigned int i = 0; i < 2 * finalTs.size(); i++)
@@ -5777,26 +5832,29 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		//          << C.at<float> (i, 0) << " ]" << std::endl;
 		//    }
 
-		cv::solve(A, C, X, cv::DECOMP_SVD);
+		cv::solve(A, C, X, cv::DECOMP_QR);		//cv::DECOMP_SVD);  // todo: replace svd?
 
 		// draw final curve...
 		cv::vector<cv::Point> finalBezierCurve;
-		finalBezierCurve.push_back(cv::Point(X.at<float> (0, 0), X.at<float> (3, 0)));
-		finalBezierCurve.push_back(cv::Point(X.at<float> (1, 0), X.at<float> (4, 0)));
-		finalBezierCurve.push_back(cv::Point(X.at<float> (2, 0), X.at<float> (5, 0)));
-		cv::Mat finalCurve = createBezierCurve(finalBezierCurve, debug["showRansac"]);
+		finalBezierCurve.push_back(cv::Point(X.at<double>(0, 0), X.at<double>(3, 0)));
+		finalBezierCurve.push_back(cv::Point(X.at<double>(1, 0), X.at<double>(4, 0)));
+		finalBezierCurve.push_back(cv::Point(X.at<double>(2, 0), X.at<double>(5, 0)));
+		cv::Mat finalCurve = createBezierCurve(finalBezierCurve, false, debug["showRansac"]);
 
-		std::pair<std::vector<cv::Point>, std::vector<cv::Point> > pointsAndCurve;
-		pointsAndCurve.first = finalGoodPoints;
-		pointsAndCurve.second = finalBezierCurve;
-
-		ransacSubset.push_back(pointsAndCurve);
+//		std::pair<std::vector<cv::Point>, std::vector<cv::Point> > pointsAndCurve;
+//		pointsAndCurve.first = finalGoodPoints;
+//		pointsAndCurve.second = finalBezierCurve;
+		BezierRansacResult res;
+		res.bezierPoints = finalBezierCurve;
+		res.inlierPoints = finalGoodPoints;
+		res.bezierCurveParameters = finalCurve;
+		ransacSubset.push_back(res);
 
 		// build new sub dataset with remaining points and loop
 		std::vector<Letter> subDataset;
 		for (unsigned int i = 0; i < dataset.size(); i++)
 		{
-			if (std::find(finalGoodPoints.begin(), finalGoodPoints.end(), cv::Point(dataset[i].centerPoint.x, dataset[i].centerPoint.y)) == finalGoodPoints.end())
+			if (std::find(finalGoodPointsIndices.begin(), finalGoodPointsIndices.end(), i) == finalGoodPointsIndices.end())
 				subDataset.push_back(dataset[i]);
 		}
 		dataset = subDataset;
@@ -5805,7 +5863,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 	return ransacSubset;
 }
 
-cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool showBezier)
+cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool transformToBezierPoints, bool showBezier)
 {
 	if (points.size() != 3)
 	{
@@ -5813,82 +5871,85 @@ cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool show
 		return cv::Mat();
 	}
 
-	cv::Mat output = originalImage_.clone();
-
 	cv::Mat R = (cv::Mat_<float>(2, 3) << points[0].x, points[1].x, points[2].x, points[0].y, points[1].y, points[2].y); // todo: create R not before correct order is known
 
-	// 1.) compute distances of all 3 points and position them into right order,
-	// i.e. the points with largest distance go to position 1 and 3
-	float distance12 = std::sqrt((points[0].y - points[1].y) * (points[0].y - points[1].y) + (points[0].x - points[1].x) * (points[0].x - points[1].x));
-	float distance13 = std::sqrt((points[0].y - points[2].y) * (points[0].y - points[2].y) + (points[0].x - points[2].x) * (points[0].x - points[2].x));
-	float distance23 = std::sqrt((points[1].y - points[2].y) * (points[1].y - points[2].y) + (points[1].x - points[2].x) * (points[1].x - points[2].x));
-
-	float t0 = distance12 / (float) (distance12 + distance23); // relation of distances, i.e. percentage of t at the point in the middle
-
-	if (distance12 > distance13 && distance12 > distance23)
+	// if the given points all lie on the curve, transform them to Bezier points
+	if (transformToBezierPoints==true)
 	{
-		float tempX, tempY;
-		tempX = R.at<float> (0, 1);
-		tempY = R.at<float> (1, 1);
-		R.at<float> (0, 1) = R.at<float> (0, 2);
-		R.at<float> (1, 1) = R.at<float> (1, 2);
-		R.at<float> (0, 2) = tempX;
-		R.at<float> (1, 2) = tempY;
-		t0 = distance13 / (float) (distance13 + distance23);
-		cv::Point temp = points[1];
-		points[1] = points[2];
-		points[2] = temp;
-	}
-	else if (distance23 > distance12 && distance23 > distance13)
-	{
-		float tempX, tempY;
-		tempX = R.at<float> (0, 1);
-		tempY = R.at<float> (1, 1);
-		R.at<float> (0, 1) = R.at<float> (0, 0);
-		R.at<float> (1, 1) = R.at<float> (1, 0);
-		R.at<float> (0, 0) = tempX;
-		R.at<float> (1, 0) = tempY;
-		t0 = distance12 / (float) (distance13 + distance12);
-		cv::Point temp = points[1];
-		points[1] = points[0];
-		points[0] = temp;
-	}
+		// 1.) compute distances of all 3 points and position them into right order,
+		// i.e. the points with largest distance go to position 1 and 3
+		float distance12 = std::sqrt((points[0].y - points[1].y) * (points[0].y - points[1].y) + (points[0].x - points[1].x) * (points[0].x - points[1].x));
+		float distance13 = std::sqrt((points[0].y - points[2].y) * (points[0].y - points[2].y) + (points[0].x - points[2].x) * (points[0].x - points[2].x));
+		float distance23 = std::sqrt((points[1].y - points[2].y) * (points[1].y - points[2].y) + (points[1].x - points[2].x) * (points[1].x - points[2].x));
 
-	// why? to avoid head-over as first guess!
-	if (points[0].x > points[2].x)
-	{
-		float tempX, tempY;
-		tempX = R.at<float> (0, 0);
-		tempY = R.at<float> (1, 0);
-		R.at<float> (0, 0) = R.at<float> (0, 2);
-		R.at<float> (1, 0) = R.at<float> (1, 2);
-		R.at<float> (0, 2) = tempX;
-		R.at<float> (1, 2) = tempY;
-		cv::Point temp = points[0];
-		points[0] = points[2];
-		points[2] = temp;
-		t0 = 1 - t0;
-	}
+		float t0 = distance12 / (float) (distance12 + distance23); // relation of distances, i.e. percentage of t at the point in the middle
 
-	// 2.) compute the Bezier point
-	R.at<float> (0, 1) = (R.at<float> (0, 1) + R.at<float> (0, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (0, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
-	R.at<float> (1, 1) = (R.at<float> (1, 1) + R.at<float> (1, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (1, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
+		if (distance12 > distance13 && distance12 > distance23)
+		{
+			float tempX, tempY;
+			tempX = R.at<float> (0, 1);
+			tempY = R.at<float> (1, 1);
+			R.at<float> (0, 1) = R.at<float> (0, 2);
+			R.at<float> (1, 1) = R.at<float> (1, 2);
+			R.at<float> (0, 2) = tempX;
+			R.at<float> (1, 2) = tempY;
+			t0 = distance13 / (float) (distance13 + distance23);
+			cv::Point temp = points[1];
+			points[1] = points[2];
+			points[2] = temp;
+		}
+		else if (distance23 > distance12 && distance23 > distance13)
+		{
+			float tempX, tempY;
+			tempX = R.at<float> (0, 1);
+			tempY = R.at<float> (1, 1);
+			R.at<float> (0, 1) = R.at<float> (0, 0);
+			R.at<float> (1, 1) = R.at<float> (1, 0);
+			R.at<float> (0, 0) = tempX;
+			R.at<float> (1, 0) = tempY;
+			t0 = distance12 / (float) (distance13 + distance12);
+			cv::Point temp = points[1];
+			points[1] = points[0];
+			points[0] = temp;
+		}
+
+		// why? to avoid head-over as first guess!
+		if (points[0].x > points[2].x)
+		{
+			float tempX, tempY;
+			tempX = R.at<float> (0, 0);
+			tempY = R.at<float> (1, 0);
+			R.at<float> (0, 0) = R.at<float> (0, 2);
+			R.at<float> (1, 0) = R.at<float> (1, 2);
+			R.at<float> (0, 2) = tempX;
+			R.at<float> (1, 2) = tempY;
+			cv::Point temp = points[0];
+			points[0] = points[2];
+			points[2] = temp;
+			t0 = 1 - t0;
+		}
+
+		// 2.) compute the Bezier point
+		R.at<float> (0, 1) = (R.at<float> (0, 1) + R.at<float> (0, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (0, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
+		R.at<float> (1, 1) = (R.at<float> (1, 1) + R.at<float> (1, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (1, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
+	}
 
 	// 3.) draw bezier curve
-
 	//  cv::Mat C = (cv::Mat_<float>(2, 3) << (R.at<float> (0, 0) - 2 * R.at<float> (0, 1) + R.at<float> (0, 2)), (-2 * R.at<
 	//      float> (0, 0) + 2 * R.at<float> (0, 1)), R.at<float> (0, 0), (R.at<float> (1, 0) - 2 * R.at<float> (1, 1) + R.at<
 	//      float> (1, 2)), (-2 * R.at<float> (1, 0) + 2 * R.at<float> (1, 1)), R.at<float> (1, 0));
 	cv::Mat C(2, 3, CV_32FC1);
-	C.at<float> (0, 0) = R.at<float> (0, 0) - 2 * R.at<float> (0, 1) + R.at<float> (0, 2);
-	C.at<float> (0, 1) = -2 * R.at<float> (0, 0) + 2 * R.at<float> (0, 1);
-	C.at<float> (0, 2) = R.at<float> (0, 0);
-	C.at<float> (1, 0) = R.at<float> (1, 0) - 2 * R.at<float> (1, 1) + R.at<float> (1, 2);
-	C.at<float> (1, 1) = -2 * R.at<float> (1, 0) + 2 * R.at<float> (1, 1);
-	C.at<float> (1, 2) = R.at<float> (1, 0);
+	C.at<float>(0, 0) = R.at<float>(0, 0) - 2 * R.at<float>(0, 1) + R.at<float>(0, 2);
+	C.at<float>(0, 1) = -2 * R.at<float>(0, 0) + 2 * R.at<float>(0, 1);
+	C.at<float>(0, 2) = R.at<float>(0, 0);
+	C.at<float>(1, 0) = R.at<float>(1, 0) - 2 * R.at<float>(1, 1) + R.at<float>(1, 2);
+	C.at<float>(1, 1) = -2 * R.at<float>(1, 0) + 2 * R.at<float>(1, 1);
+	C.at<float>(1, 2) = R.at<float>(1, 0);
 
 	if (showBezier)
 	{
+		cv::Mat output = originalImage_.clone();
+
 		// draw bezier point (lies not on curve)
 		cv::rectangle(output, cv::Point((int) std::floor(R.at<float> (0, 1) + 0.5), (int) std::floor(R.at<float> (1, 1) + 0.5)),
 				cv::Point((int) std::floor(R.at<float> (0, 1) + 0.5), (int) std::floor(R.at<float> (1, 1) + 0.5)), cv::Scalar(0, 255, 0), 1, 1, 0);
@@ -5896,10 +5957,8 @@ cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool show
 		// draw line as connected points
 		for (float t = 0; t < 1; t += 0.01)
 		{
-			float Cx = (R.at<float> (0, 0) - 2 * R.at<float> (0, 1) + R.at<float> (0, 2)) * t * t + (-2 * R.at<float> (0, 0) + 2 * R.at<float> (0, 1)) * t
-					+ R.at<float> (0, 0);
-			float Cy = (R.at<float> (1, 0) - 2 * R.at<float> (1, 1) + R.at<float> (1, 2)) * t * t + (-2 * R.at<float> (1, 0) + 2 * R.at<float> (1, 1)) * t
-					+ R.at<float> (1, 0);
+			float Cx = C.at<float>(0, 0) * t * t + C.at<float>(0, 1) * t + C.at<float>(0, 2);
+			float Cy = C.at<float>(1, 0) * t * t + C.at<float>(1, 1) * t + C.at<float>(1, 2);
 			cv::rectangle(output, cv::Point((int) std::floor(Cx + 0.5), (int) std::floor(Cy + 0.5)),
 					cv::Point((int) std::floor(Cx + 0.5), (int) std::floor(Cy + 0.5)), cv::Scalar(150, 200, 50), 1, 1, 0);
 		}
