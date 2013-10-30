@@ -183,7 +183,7 @@ private:
   // main method
 	void detect();
 	void detect_original_epshtein(cv::Mat& image, double scale_factor=1.);
-	void detect_bormann();
+	void detect_bormann(cv::Mat& image, double scale_factor=1.);
 
 	double computeLetterDistanceStddev(const std::vector<Letter>& letters);
 
@@ -217,8 +217,6 @@ private:
 	// finds bounding box of a chain
 	void chainToBox(std::vector< std::vector<int> >& chain, const cv::Mat& ccmap, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions);
 
-	bool sameTextline(const TextRegion& a, const TextRegion& b);
-
 	bool pairsInLine(const Pair& a, const Pair& b);
 
 	void mergePairs(const std::vector<Pair>& groups, std::vector< std::vector<int> >& chains);
@@ -226,6 +224,10 @@ private:
 	bool mergePairs(const std::vector< std::vector<int> >& initialChains, std::vector< std::vector<int> >& chains);
 
 	void merge(const std::vector<int>& token, std::vector<int>& chain);
+
+	bool sameTextline(const TextRegion& a, const TextRegion& b);
+
+	void mergeTextRegionsAtSameTextline(std::vector<TextRegion>& textRegions);
 
 	void combineNeighborBoxes(std::vector<cv::Rect> & boundingBoxes);
 
