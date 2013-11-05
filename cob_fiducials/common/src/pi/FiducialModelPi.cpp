@@ -139,7 +139,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 //			continue;
 
 
-		//Matthias Nösner
+		//Fast Pi Tag
 		if(FPITAG){
 
 			double ellipse_aspect_ratio = box.size.height/box.size.width;
@@ -160,13 +160,12 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		} else {
 			ellipses.push_back(box);
 		}
-		//Matthias Nösner
+		//Fast Pi Tag
 
 		//ellipses.push_back(box);
 	}
 
-	//Matthias Nösner
-	//std::cout << "Ellipsenumber: " << ellipses.size() << std::endl;
+	//Fast Pi Tag
 	std::vector<float> badellipses;
 	std::vector<cv::Point2i> points;
 	std::vector<cv::Rect> rois;
@@ -402,8 +401,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			ellipses.erase(ellipses.begin()+index);
 		}
 	}
-
-	//Matthias Nösner -END-
+	//Fast Pi Tag -END-
 
 	if (debug)
 	{
@@ -416,8 +414,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			//cv::ellipse(ellipse_image, ellipses[i].center, ellipses[i].size*0.5f, ellipses[i].angle, 0, 360, cv::Scalar(0,255,255), 1, CV_AA);
 		}
 
-		//Matthias Nösner
-
+		//Fast Pi Tag
 		//Make them white for visualization
 		if(FPITAG){
 
@@ -448,7 +445,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			cv::imshow("80 Ellipsevoting", ellipsevoting);
 			cv::imshow("90 Ellipsedensity", ellipsedensity_img);
 		}
-		//Matthias Nösner -ENd-
+		//Fast Pi Tag -ENd-
 
 		cv::imshow("40 Ellipses", ellipse_image);
 		cv::waitKey(10);
@@ -458,7 +455,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	// Bracket at the end of the Marker detection!!!!!
 	std::vector<cv::RotatedRect> ellipses_copy(ellipses);
 	ellipses.clear();
-	//std::cout << "Points.size(): " <<points.size() << std::endl;
+
 	for(size_t n = 0; n < points.size(); n++){
 
 		ellipses.clear();
@@ -495,29 +492,26 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 	for(unsigned int i = 0; i < ellipses.size(); i++)
 	{
-		//Matthias Nösner
+		//Fast Pi Tag
 		double ellipse_aspect_ratio = ellipses[i].size.height/ellipses[i].size.width;
 		if(ellipses[i].size.height > ellipses[i].size.width) ellipse_aspect_ratio = 1/ellipse_aspect_ratio;
-
-		//Matthias Nösner
+		//Fast Pi Tag
 
 		for(unsigned int j = i+1; j < ellipses.size(); j++)
 		{
-			//Matthias Nösner
+			//Fast Pi Tag
 			if(FPITAG){
 				if(std::abs(ref_Ratio[i]-ref_Ratio[j]) > deviation_of_aspectratio)
 					continue;
 			}
+			//Fast Pi Tag
 
-
-			//Matthias Nösner
-
-			//MAtthias Nösner
+			//Fast Pi Tag
 			// Check area
 			max_ellipse_difference = size_factor * std::min(ref_A[i], ref_A[j]);
 			if (std::abs(ref_A[i] - ref_A[j]) >  max_ellipse_difference)
 				continue;
-			//Matthias Nösner
+			//Fast Pi Tag
 
 			// Compute line equation
 			cv::Point2f vec_IJ = ellipses[j].center - ellipses[i].center;
@@ -532,21 +526,19 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			for(unsigned int k = 0; k < ellipses.size() && nLine_Candidates < 2; k++)
 			{
 
-				//Matthias Nösner
+				//Fast Pi Tag
 				if(FPITAG){
 					if(std::abs(ref_Ratio[j]-ref_Ratio[k]) > deviation_of_aspectratio)
 						continue;
 				}
+				//Fast Pi Tag
 
-
-				//Matthias Nösner
-
-				//MAtthias Nösner
+				//Fast Pi Tag
 				// Check area
 					max_ellipse_difference = size_factor * std::min(ref_A[j], ref_A[k]);
 					if (std::abs(ref_A[j] - ref_A[k]) >  max_ellipse_difference)
 						continue;
-				//Matthias Nösner
+				//Fast Pi Tag
 
 				if (k == i || k == j)
 					continue;
@@ -570,21 +562,20 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 				for(unsigned int l = k+1; l < ellipses.size() && nLine_Candidates < 2; l++)
 				{
 
-					//Matthias Nösner
+					//Fast Pi Tag
 					if(FPITAG){
 						if(std::abs(ref_Ratio[k]-ref_Ratio[l]) > deviation_of_aspectratio)
 							continue;
 					}
+					//Fast Pi Tag
 
 
-
-					//Matthias Nösner
-					//MAtthias Nösner
+					//Fast Pi Tag
 					// Check area
 					max_ellipse_difference = size_factor * std::min(ref_A[k], ref_A[l]);
 					if (std::abs(ref_A[k] - ref_A[l]) >  max_ellipse_difference)
 						continue;
-					//MAtthias Nösner
+					//Fast Pi Tag
 
 					if (l == i || l == j)
 						continue;
@@ -1248,14 +1239,16 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 	}
 // ------------ END --------------------------------------
 
-
+	//Fast Pi Tag
   } // magic bracket (due to extended Tag)
-
+	//Fast Pi Tag
 
 	if (debug)
 	{
 		//cv::waitKey();
 	}
+
+	//Fast Pi Tag
 	if(FPITAG){
 		//Maximum detection distance
 		double max_detection_distance = 5.1;
@@ -1281,7 +1274,9 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			}
 		}
 	}
-	//Matthias Nösner -changed from final_tag to vec_pose
+	//Fast Pi Tag
+
+	//Fast Pi Tag -> changed from final_tag to vec_pose
 	if (vec_pose.empty())
 		return ipa_Utils::RET_FAILED;
 
