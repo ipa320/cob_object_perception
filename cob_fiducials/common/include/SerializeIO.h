@@ -51,26 +51,27 @@ public:
 	bool openArray(char const* name);
 	bool closeArray();
 
-	void writeVector(std::vector<int> vec);
-	void writeVector(std::vector<float> vec);
-	void writeVector(std::vector<double> vec);
-
 	bool readVariable(char const*,unsigned int*);
 	bool readVariable(char const*,int*);
 	bool readVariable(char const*,float*);
 	bool readVariable(char const*,double*);
 
+	//Array handling functions
 	bool readArray(char const*, std::vector<std::vector<int> >*);
 	bool readArray(char const*, std::vector<std::vector<float> >*);
 	bool readArray(char const*, std::vector<std::vector<double> >*);
+	bool writeVector(std::vector<int>);
+	bool writeVector(std::vector<float>);
+	bool writeVector(std::vector<double>);
 
-	//------Experimental------
-	bool readArrayEXP(char const*, std::vector<std::vector<int> >*);
-	bool readArrayEXP(char const*, std::vector<std::vector<double> >*);
-	bool writeVectorEXP(std::vector<int> vec);
-	bool writeVectorEXP(std::vector<double> vec);
-	void writeVectorToFileEXP(std::vector<double> vec);
-	//------Experimental------
+	//Deprecated
+	void writeVectorDEP(std::vector<int> vec);
+	void writeVectorDEP(std::vector<float> vec);
+	void writeVectorDEP(std::vector<double> vec);
+	bool readArrayDEP(char const*, std::vector<std::vector<int> >*);
+	bool readArrayDEP(char const*, std::vector<std::vector<float> >*);
+	bool readArrayDEP(char const*, std::vector<std::vector<double> >*);
+	//Deprecated
 
 	void close();
 
@@ -85,20 +86,23 @@ private:
 	const char* prepareChar(char*);
 
 	bool parse(char**,char const*);
-	bool chooseInfoParser(char**,char const*,char const*,keyword);
 	bool parseVar(char**,char const*,char const*);
 	bool parseKey(char**,char const*,char const*,keyword);
+	bool chooseInfoParser(char**,char const*,char const*,keyword);
 
 	void chopToClosing(char const*,char const*,keyword);
+	bool compareName(char const*,char const*,unsigned int);
 	unsigned int findOpening(const char*,keyword,unsigned int);
 	unsigned int findClosing(const char*,keyword,unsigned int);
-	bool compareName(char const*,char const*,unsigned int);
 
 	bool readVarFromCchar(char const*,char const*,int*);
 	bool readVarFromCchar(char const*,char const*,float*);
 	bool readVarFromCchar(char const*,char const*,double*);
 
-	void writeVectorToFile(std::vector<double> vec);
+	void writeVectorToFile(std::vector<double>);
+
+	//Deprecated
+	void writeVectorToFileDEP(std::vector<double> vec);
 
 
 };

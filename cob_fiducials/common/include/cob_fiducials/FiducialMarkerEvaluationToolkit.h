@@ -33,12 +33,11 @@ private:
 
 	cv::Mat camera_intrinsics;
 	unsigned int imagenumber;
-	unsigned int lastimage;
+	int lastimage;
 	std::ifstream datafile;
 	std::ofstream outputfile;
 	std::ofstream outputtheta;
 	std::ofstream output_eucdist;
-	std::ofstream output_detectionTime;
 	std::vector<std::vector<double> >  detectedmarkers_vec;
 	std::vector<double> gtdata; //Patience Euler Angles
 	double actdepth;

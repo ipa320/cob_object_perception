@@ -35,38 +35,38 @@ void VoxelMap::init(){
 
  	cout << "Reading Fiducial Marker...";
  	// Position of markers in reference to Marker Connector
-	readFiducialMarkers("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/Voxelmap/Fiducialsdefine_planar.def",&fiducialmarkers);
+	readFiducialMarkers("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/Voxelmap/Fiducialsdefine.def",&fiducialmarkers);
 	cout << "[READY]" << endl;
 
 	cout << "Fiducial marker size: "<< fiducialmarkers.size() << endl;
 
 	cout << "Reading Points of View...";
+//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag1EXP.log",&fiducialmarkers[0]))
+//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
+//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag2EXP.log",&fiducialmarkers[1]))
+//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
+
 	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag1EXP.log",&fiducialmarkers[0]))
 		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
 	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag2EXP.log",&fiducialmarkers[1]))
 		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
-
-//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag1.log",&fiducialmarkers[0]))
-//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
-//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag2.log",&fiducialmarkers[1]))
-//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
-//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag3.log",&fiducialmarkers[2]))
-//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
-//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag4.log",&fiducialmarkers[3]))
-//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
-//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag5.log",&fiducialmarkers[4]))
-//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
-//	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag6.log",&fiducialmarkers[5]))
-//		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
+	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag3EXP.log",&fiducialmarkers[2]))
+		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
+	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag4EXP.log",&fiducialmarkers[3]))
+		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
+	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag5EXP.log",&fiducialmarkers[4]))
+		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!11" <<  std::endl;// Read PoV
+	if(!readPointsOfView("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag6EXP.log",&fiducialmarkers[5]))
+		std::cout << "VoxelMap.cpp::readPointsofView Failed!!!!!22" <<  std::endl;// Read PoV
 	cout << "[READY]" << endl;
 
 	cout << "Assigning POV to Voxel...";
 	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[0]);
 	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[1]);
-//	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[2]);
-//	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[3]);
-//	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[4]);
-//	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[5]);
+	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[2]);
+	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[3]);
+	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[4]);
+	if(globalmap.initialized) assignPOVToVoxel(&fiducialmarkers[5]);
 	cout << "[READY]" << endl;
 
 	findSuperVoxels();
@@ -77,10 +77,10 @@ void VoxelMap::init(){
 	cloudhandler = new PCLVisualization();
 	drawMarkerImage(&fiducialmarkers[0],cloudhandler);
 	drawMarkerImage(&fiducialmarkers[1],cloudhandler);
-//	drawMarkerImage(&fiducialmarkers[2],cloudhandler);
-//	drawMarkerImage(&fiducialmarkers[3],cloudhandler);
-//	drawMarkerImage(&fiducialmarkers[4],cloudhandler);
-//	drawMarkerImage(&fiducialmarkers[5],cloudhandler);
+	drawMarkerImage(&fiducialmarkers[2],cloudhandler);
+	drawMarkerImage(&fiducialmarkers[3],cloudhandler);
+	drawMarkerImage(&fiducialmarkers[4],cloudhandler);
+	drawMarkerImage(&fiducialmarkers[5],cloudhandler);
 	double cloudscale = 1;
 
 	double max_error = 0;
@@ -105,7 +105,7 @@ void VoxelMap::init(){
 				cloudhandler->addVecToCloud(vec3d_,255,0,0);
 			} else {
 				// Show all POV
-				//cloudhandler->addVecToCloud(vec3d_,0,255,0);
+				cloudhandler->addVecToCloud(vec3d_,0,255,0);
 			}
 		} else {
 			//cloudhandler->addVecToCloud(vec3d_,255,0,0);
@@ -137,7 +137,6 @@ void VoxelMap::init(){
 	//output.open ("/home/matthias/Diplomarbeit/GnuPlots/MapTest/maptest.log", std::ios::out | std::ios::app);
 	supervoxel = false;
 	framenumber = 0;
-
 }
 
 //-------------------------------------------------findSuperVoxels()----------------------------------------------------------------------
@@ -192,7 +191,6 @@ void VoxelMap::findSuperVoxels(){
 				sumederrorvec.push_back(ferror);
 			}
 		}
-
 
 		//TEST Normal muss hier > 0 stehen
 		if(sumederrorvec.size() > 1){
@@ -319,44 +317,44 @@ bool VoxelMap::readFiducialMarkers(const char* filename,vector<fiducialmarker>* 
 	if(!ser->readVariable("fiducial2_ROT2",&(fiducial2.rot.y))) return false;
 	if(!ser->readVariable("fiducial2_ROT3",&(fiducial2.rot.z))) return false;
 
-//	if(!ser->readVariable("fiducial3_ID",&(fiducial3.id))) return false;
-//	if(!ser->readVariable("fiducial3_POSX",&(fiducial3.trans.x))) return false;
-//	if(!ser->readVariable("fiducial3_POSY",&(fiducial3.trans.y))) return false;
-//	if(!ser->readVariable("fiducial3_POSZ",&(fiducial3.trans.z))) return false;
-//	if(!ser->readVariable("fiducial3_ROT1",&(fiducial3.rot.x))) return false;
-//	if(!ser->readVariable("fiducial3_ROT2",&(fiducial3.rot.y))) return false;
-//	if(!ser->readVariable("fiducial3_ROT3",&(fiducial3.rot.z))) return false;
-//
-//	if(!ser->readVariable("fiducial4_ID",&(fiducial4.id))) return false;
-//	if(!ser->readVariable("fiducial4_POSX",&(fiducial4.trans.x))) return false;
-//	if(!ser->readVariable("fiducial4_POSY",&(fiducial4.trans.y))) return false;
-//	if(!ser->readVariable("fiducial4_POSZ",&(fiducial4.trans.z))) return false;
-//	if(!ser->readVariable("fiducial4_ROT1",&(fiducial4.rot.x))) return false;
-//	if(!ser->readVariable("fiducial4_ROT2",&(fiducial4.rot.y))) return false;
-//	if(!ser->readVariable("fiducial4_ROT3",&(fiducial4.rot.z))) return false;
-//
-//	if(!ser->readVariable("fiducial5_ID",&(fiducial5.id))) return false;
-//	if(!ser->readVariable("fiducial5_POSX",&(fiducial5.trans.x))) return false;
-//	if(!ser->readVariable("fiducial5_POSY",&(fiducial5.trans.y))) return false;
-//	if(!ser->readVariable("fiducial5_POSZ",&(fiducial5.trans.z))) return false;
-//	if(!ser->readVariable("fiducial5_ROT1",&(fiducial5.rot.x))) return false;
-//	if(!ser->readVariable("fiducial5_ROT2",&(fiducial5.rot.y))) return false;
-//	if(!ser->readVariable("fiducial5_ROT3",&(fiducial5.rot.z))) return false;
-//
-//	if(!ser->readVariable("fiducial6_ID",&(fiducial6.id))) return false;
-//	if(!ser->readVariable("fiducial6_POSX",&(fiducial6.trans.x))) return false;
-//	if(!ser->readVariable("fiducial6_POSY",&(fiducial6.trans.y))) return false;
-//	if(!ser->readVariable("fiducial6_POSZ",&(fiducial6.trans.z))) return false;
-//	if(!ser->readVariable("fiducial6_ROT1",&(fiducial6.rot.x))) return false;
-//	if(!ser->readVariable("fiducial6_ROT2",&(fiducial6.rot.y))) return false;
-//	if(!ser->readVariable("fiducial6_ROT3",&(fiducial6.rot.z))) return false;
+	if(!ser->readVariable("fiducial3_ID",&(fiducial3.id))) return false;
+	if(!ser->readVariable("fiducial3_POSX",&(fiducial3.trans.x))) return false;
+	if(!ser->readVariable("fiducial3_POSY",&(fiducial3.trans.y))) return false;
+	if(!ser->readVariable("fiducial3_POSZ",&(fiducial3.trans.z))) return false;
+	if(!ser->readVariable("fiducial3_ROT1",&(fiducial3.rot.x))) return false;
+	if(!ser->readVariable("fiducial3_ROT2",&(fiducial3.rot.y))) return false;
+	if(!ser->readVariable("fiducial3_ROT3",&(fiducial3.rot.z))) return false;
+
+	if(!ser->readVariable("fiducial4_ID",&(fiducial4.id))) return false;
+	if(!ser->readVariable("fiducial4_POSX",&(fiducial4.trans.x))) return false;
+	if(!ser->readVariable("fiducial4_POSY",&(fiducial4.trans.y))) return false;
+	if(!ser->readVariable("fiducial4_POSZ",&(fiducial4.trans.z))) return false;
+	if(!ser->readVariable("fiducial4_ROT1",&(fiducial4.rot.x))) return false;
+	if(!ser->readVariable("fiducial4_ROT2",&(fiducial4.rot.y))) return false;
+	if(!ser->readVariable("fiducial4_ROT3",&(fiducial4.rot.z))) return false;
+
+	if(!ser->readVariable("fiducial5_ID",&(fiducial5.id))) return false;
+	if(!ser->readVariable("fiducial5_POSX",&(fiducial5.trans.x))) return false;
+	if(!ser->readVariable("fiducial5_POSY",&(fiducial5.trans.y))) return false;
+	if(!ser->readVariable("fiducial5_POSZ",&(fiducial5.trans.z))) return false;
+	if(!ser->readVariable("fiducial5_ROT1",&(fiducial5.rot.x))) return false;
+	if(!ser->readVariable("fiducial5_ROT2",&(fiducial5.rot.y))) return false;
+	if(!ser->readVariable("fiducial5_ROT3",&(fiducial5.rot.z))) return false;
+
+	if(!ser->readVariable("fiducial6_ID",&(fiducial6.id))) return false;
+	if(!ser->readVariable("fiducial6_POSX",&(fiducial6.trans.x))) return false;
+	if(!ser->readVariable("fiducial6_POSY",&(fiducial6.trans.y))) return false;
+	if(!ser->readVariable("fiducial6_POSZ",&(fiducial6.trans.z))) return false;
+	if(!ser->readVariable("fiducial6_ROT1",&(fiducial6.rot.x))) return false;
+	if(!ser->readVariable("fiducial6_ROT2",&(fiducial6.rot.y))) return false;
+	if(!ser->readVariable("fiducial6_ROT3",&(fiducial6.rot.z))) return false;
 
 	afiducialmarkers->push_back(fiducial1);
 	afiducialmarkers->push_back(fiducial2);
-//	afiducialmarkers->push_back(fiducial3);
-//	afiducialmarkers->push_back(fiducial4);
-//	afiducialmarkers->push_back(fiducial5);
-//	afiducialmarkers->push_back(fiducial6);
+	afiducialmarkers->push_back(fiducial3);
+	afiducialmarkers->push_back(fiducial4);
+	afiducialmarkers->push_back(fiducial5);
+	afiducialmarkers->push_back(fiducial6);
 
 	ser->close();
 	delete ser;

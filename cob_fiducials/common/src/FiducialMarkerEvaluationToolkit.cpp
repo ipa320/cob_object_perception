@@ -24,18 +24,13 @@ FiducialMarkerEvaluationToolkit::~FiducialMarkerEvaluationToolkit() {
 void FiducialMarkerEvaluationToolkit::init(){
 
 	//Video
-	//cap.open("/home/matthias/Diplomarbeit/Videos/WP_20130824_018.mp4");// 2 min video inside and outside  //Sequence 2
-	//cap.open("/home/matthias/Diplomarbeit/Videos/WP_20130823_004.mp4");// 1265images only outside // Sequence 1
-	//cap.open("/home/matthias/Diplomarbeit/Videos/WP_20130824_002.mp4");//
-	cap.open("/home/matthias/Diplomarbeit/Videos/WP_20130826_001.mp4");//
-	if(!cap.isOpened())  {
-		std::cout << "Failed to Load Video" << std::endl;
-	}
-	cap.set(CV_CAP_PROP_POS_FRAMES,300);
-	cap.get(CV_CAP_PROP_FRAME_COUNT);
+//	cap.open("/home/matthias/Diplomarbeit/Videos/WP_20130826_001.mp4");
+//	if(!cap.isOpened())  {
+//		std::cout << "Failed to Load Video" << std::endl;
+//	}
+//	cap.set(CV_CAP_PROP_POS_FRAMES,300);
+//	cap.get(CV_CAP_PROP_FRAME_COUNT);
 	bool video = false;
-
-	output_detectionTime.open("/home/matthias/Diplomarbeit/GnuPlots/RealWorldEvaluation/Sequence1/FPITAG_DT_FRAMES.log");
 	//Video
 
 	//File Parser Serialize IO
@@ -47,7 +42,7 @@ void FiducialMarkerEvaluationToolkit::init(){
     //Variable init
     imagenumber = 0;//280 für stark verdrehte 1.39
     actdepth = 0;
-    lastimage = 0;
+    lastimage = -1;
     tp = 0;
     fp = 0;
     fn = 0;
@@ -55,53 +50,45 @@ void FiducialMarkerEvaluationToolkit::init(){
     debug = false;
 
     //Read Number of images in current file
-    //datafile.open("/home/matthias/Diplomarbeit/Data/Marker/Syntetic_Markers/PiTag10/Background_black/a_pitag.log");
     datafile.open("/media/DATEN/Extended_PiTag10/MAP/Tag1/a_pitag.log");
 
-    char tmp[100];
-	datafile.getline(tmp,100);
-	datafile.getline(tmp,100);
-    while(!datafile.eof()){
+    //If no specific lastimage is given (-1).. read the number of images from the info file
+    if(lastimage == -1){
+    	char tmp[100];
     	datafile.getline(tmp,100);
-    	lastimage++;
-    }
-    lastimage = lastimage - 2;
-    datafile.close();
-
-    if(debug){
-    	lastimage = 153;
+    	datafile.getline(tmp,100);
+    	while(!datafile.eof()){
+    		datafile.getline(tmp,100);
+    		lastimage++;
+    	}
+    	lastimage = lastimage - 2;
+    	datafile.close();
     }
 
     //Video
     if(video){
     	lastimage = cap.get(CV_CAP_PROP_FRAME_COUNT);
     }
-
     dt_frame = 0;
     //Video
 
 	// File Init
-		//Output
-		outputfile.open ("/media/DATEN/Extended_PiTag10/Results/blured15/trash/pitag_output.log", std::ios::out | std::ios::app);
-		outputtheta.open ("/media/DATEN/Extended_PiTag10/Results/blured15/trash/aa_theta.log", std::ios::out | std::ios::app);
-		output_eucdist.open ("/media/DATEN/Extended_PiTag10/Results/blured15/trash/aa_eucdist.log", std::ios::out | std::ios::app);
+	//Output
+	outputfile.open ("/media/DATEN/Extended_PiTag10/Results/blured15/trash/pitag_output.log", std::ios::out | std::ios::app);
+	outputtheta.open ("/media/DATEN/Extended_PiTag10/Results/blured15/trash/aa_theta.log", std::ios::out | std::ios::app);
+	output_eucdist.open ("/media/DATEN/Extended_PiTag10/Results/blured15/trash/aa_eucdist.log", std::ios::out | std::ios::app);
 
-//		outputfile.open ("/home/matthias/Diplomarbeit/Data/Marker/Syntetic_Markers/PiTag10/Background_black_Results/blured15/bullshit.log", std::ios::out | std::ios::app);
-//		outputtheta.open ("/home/matthias/Diplomarbeit/Data/Marker/Syntetic_Markers/PiTag10/Background_black_Results/blured15/pitag_theta.log", std::ios::out | std::ios::app);
-//		output_eucdist.open ("/home/matthias/Diplomarbeit/Data/Marker/Syntetic_Markers/PiTag10/Background_black_Results/blured15/pitag_eucdist.log", std::ios::out | std::ios::app);
+	//Input
+	char s[100];
+	datafile.open("/media/DATEN/Extended_PiTag10/MAP/Tag1/a_pitag.log");
+	datafile.getline(s,100);
+	datafile.getline(s,100);
+	//Start from Image number X
+	for(unsigned int i = 0; i < imagenumber ;i++){
+		datafile.getline(s,100);
+	}
 
-
-		//Input
-		char s[100];
-	    datafile.open("/media/DATEN/Extended_PiTag10/MAP/Tag1/a_pitag.log");
-    	datafile.getline(s,100);
-    	datafile.getline(s,100);
-    	//Start from Image number X
-    	for(unsigned int i = 0; i < imagenumber ;i++){
-    		datafile.getline(s,100);
-    	}
-
-
+	//Camera Parameters
     //AVT GE1050
 //	cv::Mat intrinsics = cv::Mat::zeros(3,3,CV_64FC1);
 //	intrinsics.at<double>(0,0) = 1269.29;
@@ -127,6 +114,7 @@ void FiducialMarkerEvaluationToolkit::init(){
 //	intrinsics.at<double>(2,2) = 1;
 
 	setIntrinsicMatrix(intrinsics);
+	//Camera Parameters
 }
 
 //--------------------------readIMage()-------------------------------------------------------------
@@ -159,11 +147,6 @@ cv::Mat FiducialMarkerEvaluationToolkit::readImage(){
 //	cv::undistort(dframe,frame,getIntrinsicMatrix(),dist);
 	//Video
 
-	//cv::Mat img = cv::imread("/home/matthias/BlenderRender/Aruco/aruco" + ss.str() + ".png", CV_LOAD_IMAGE_GRAYSCALE);
-	//cv::Mat img = cv::imread("/home/matthias/Diplomarbeit/Data/Marker/Syntetic_Markers/Aruco10/Background_black/aruco10_" + ss.str() + ".png", CV_LOAD_IMAGE_COLOR);
-	//cv::Mat img = cv::imread("/media/DATEN/Aruco10/Background_1/aruco" + ss.str() + ".png", CV_LOAD_IMAGE_COLOR);
-	//cv::Mat img = cv::imread("/home/matthias/Diplomarbeit/Data/Marker/Syntetic_Markers/PiTag10/Background_black/pitag.png" + ss.str() + ".png", CV_LOAD_IMAGE_COLOR);
-	//cv::Mat img = cv::imread("/home/matthias/BlenderRender/Diplomarbeit/PiTag10/Background_1/pitag" + ss.str() + ".png", CV_LOAD_IMAGE_COLOR);
 	cv::Mat img = cv::imread("/media/DATEN/Extended_PiTag10/MAP/Tag1/pitag" + ss.str() + ".png", CV_LOAD_IMAGE_COLOR);
 	//cv::GaussianBlur(img,img,cv::Size(15,15),0,0);
 
@@ -215,33 +198,33 @@ std::vector<double> FiducialMarkerEvaluationToolkit::readFile(){
 			}
 		}
 
-		char number_1[1];
-		char number_2[2];
-		char number_3[3];
-		char number_4[4];
+//		char number_1[1];
+//		char number_2[2];
+//		char number_3[3];
+//		char number_4[4];
 		if(line[i] == ':') {
-			if(i == 1){
-				number_1[0] = line[i-1];
-				//imagenumber = std::atoi(number_1);
-			}
-			if(i == 2){
-				number_2[0] = line[i-2];
-				number_2[1] = line[i-1];
-				//imagenumber = std::atoi(number_2);
-			}
-			if(i == 3){
-				number_3[0] = line[i-3];
-				number_3[1] = line[i-2];
-				number_3[2] = line[i-1];
-				//imagenumber = std::atoi(number_3);
-			}
-			if(i == 4){
-				number_4[0] = line[i-4];
-				number_4[1] = line[i-3];
-				number_4[2] = line[i-2];
-				number_4[3] = line[i-1];
-				//imagenumber = std::atoi(number_4);
-			}
+//			if(i == 1){
+//				number_1[0] = line[i-1];
+//				//imagenumber = std::atoi(number_1);
+//			}
+//			if(i == 2){
+//				number_2[0] = line[i-2];
+//				number_2[1] = line[i-1];
+//				//imagenumber = std::atoi(number_2);
+//			}
+//			if(i == 3){
+//				number_3[0] = line[i-3];
+//				number_3[1] = line[i-2];
+//				number_3[2] = line[i-1];
+//				//imagenumber = std::atoi(number_3);
+//			}
+//			if(i == 4){
+//				number_4[0] = line[i-4];
+//				number_4[1] = line[i-3];
+//				number_4[2] = line[i-2];
+//				number_4[3] = line[i-1];
+//				//imagenumber = std::atoi(number_4);
+//			}
 			init_reading = true;
 		}
 
@@ -279,13 +262,6 @@ void FiducialMarkerEvaluationToolkit::writeFile(bool validmatching,std::vector<d
 	std::stringstream ss_theta;
 	std::stringstream ss_eucdist;
 
-
-	std::cout << dt_frame << std::endl;
-  	std::stringstream ss_dt;
-  	ss_dt << imagenumber << " ";
-    ss_dt << dt_frame << "\n";
-  	output_detectionTime << ss_dt.str();
-
   	ss_gt << "[" << imagenumber << "]";
   	ss_gt << "[" << "gt"<< "]:";
   	ss_gt << "[" << gtdata[0] << "]";
@@ -306,6 +282,7 @@ void FiducialMarkerEvaluationToolkit::writeFile(bool validmatching,std::vector<d
   	}
 
 	//Fileparser
+  	//Write ground truth
 	std::vector<double> parse_out;
 	for(unsigned int i = 0; i < gtdata.size(); i++)
 		parse_out.push_back(gtdata[i]);
@@ -322,7 +299,6 @@ void FiducialMarkerEvaluationToolkit::writeFile(bool validmatching,std::vector<d
   		gt_trans.at<double>(0) = 0;
   		gt_trans.at<double>(1) = 0;
   		gt_trans.at<double>(2) = gtdata[2];
-
 
   		cv::Mat cp_rot_matrix(3,3,CV_64FC1);
   		cv::Mat cp_rot_vec(3,1,CV_64FC1);
@@ -397,8 +373,6 @@ void FiducialMarkerEvaluationToolkit::writeFile(bool validmatching,std::vector<d
   		outputfile <<  ss.str();
 
   		ROS_INFO("[fiducials/validationmode] No marker detected!!!!");
-//		std::cout << "Type" << std::endl;
-//		std::cin.ignore();
   	}
 
 
@@ -586,29 +560,9 @@ void FiducialMarkerEvaluationToolkit::setStartAnalysis() {
 
 	writeFile(validmatch,computedmarker);
 
-//	std::cout << "Type" << std::endl;
-//	std::cin.ignore();
 	imagenumber++;
 }
-//STUFFFFFFFFFFFFFFFFFF_----------------------------------------
-//		std::stringstream ss;
-//		if(actdepth < -gtdata[2] + 1){
-//
-//		} else {
-//			actdepth = -gtdata[2];
-//			ss << '\n';
-//		}
-//		outputtheta << min_angle_deg << " ";
 
-		//Show -> Matrices
-//		std::cout << gt_rot_matrix << std::endl;
-//		std::cout << cp_rot_matrix << std::endl;
-
-//		std::vector<double> gt_quat = matrixToQuat(gt_rot_matrix);
-//		std::vector<double> cp_quat = matrixToQuat(cp_rot_matrix);
-//		std::cout << "[" << gt_quat[0] << "][" << gt_quat[1] << "][" << gt_quat[2] << "][" << gt_quat[3] << "]" << std::endl;
-//		std::cout << "[" << cp_quat[0] << "][" << cp_quat[1] << "][" << cp_quat[2] << "][" << cp_quat[3] << "]" << std::endl;
-//		std::cout << fnorm << "...." << min_angle_deg << std::endl;
 
 //--------------------------getIntrinsicMatrix------------------------------------------------------
 cv::Mat FiducialMarkerEvaluationToolkit::getIntrinsicMatrix(){
@@ -618,15 +572,15 @@ cv::Mat FiducialMarkerEvaluationToolkit::getIntrinsicMatrix(){
 //--------------------------getNextMarker-----------------------------------------------------------
 cv::Mat FiducialMarkerEvaluationToolkit::getNextMarker(){
 
-	if(imagenumber >= lastimage){ // Do stuff before programm exits.
+	if(imagenumber >= (unsigned int)lastimage){ // Do stuff before programm exits.
 		//Fileparser
 		fileparser->closeArray();
 		fileparser->close();
+
 		//Fileparser
 		outputfile.close();
 		outputtheta.close();
 		output_eucdist.close();
-		output_detectionTime.close();
 		double time_per_marker = dif/(lastimage+1);
 		std::cout << "ImageNumber: " << imagenumber-1 << std::endl;
 		std::cout << "True Positive: " << tp << std::endl;
@@ -652,12 +606,10 @@ cv::Mat FiducialMarkerEvaluationToolkit::getNextMarker(){
 	}
 
 	//Video
-	double time_per_marker = dif/(imagenumber+1);
 	std::cout << "ImageNumber: " << imagenumber-1 << std::endl;
 	std::cout << "True Positive: " << tp << std::endl;
 	std::cout << "False Positive: " << fp << std::endl;
 	std::cout << "False Negative: " << fn << std::endl;
-	std::cout << "Used Time in seconds : " << time_per_marker << std::endl;
 	//Video
 
 	detectedmarkers_vec.clear();
@@ -803,139 +755,89 @@ cv::Mat FiducialMarkerEvaluationToolkit::eulerToMatrix(double rot1, double rot2,
 
 	return m;
 }
-//cv::Mat FiducialMarkerEvaluationToolkit::eulerToMatrix(double rot1, double rot2, double rot3) {
-//
-//	cv::Mat m(3,3,CV_64FC1);
-//
-//	cv::Mat X_rot(3,3,CV_64F);
-//	cv::Mat Y_rot(3,3,CV_64F);
-//	cv::Mat Z_rot(3,3,CV_64F);
-//
-////	double alpha =   rot1 + PI;
-////	double beta  =  -rot2 + PI;
-////	double gamma =  -rot3 + PI;
-//
-//	double alpha =  rot1 + PI;
-//	double beta  =  rot2;
-//	double gamma =  -rot3;
-//
-//	//Achtung auf Rotationsreihenfolge achten....  sonst stimmt die Darstellung nicht
-//	X_rot.at<double>(0,0) =  1.0;
-//	X_rot.at<double>(0,1) =  0.0;
-//	X_rot.at<double>(0,2) =  0.0;
-//	X_rot.at<double>(1,0) =  0.0;
-//	X_rot.at<double>(1,1) =  cos(alpha);
-//	X_rot.at<double>(1,2) =  -sin(alpha);
-//	X_rot.at<double>(2,0) =  0.0;
-//	X_rot.at<double>(2,1) =  sin(alpha);
-//	X_rot.at<double>(2,2) =  cos(alpha);
-//
-//	Y_rot.at<double>(0,0) =  cos(beta);
-//	Y_rot.at<double>(0,1) =  0.0;
-//	Y_rot.at<double>(0,2) =  sin(beta);
-//	Y_rot.at<double>(1,0) =  0.0;
-//	Y_rot.at<double>(1,1) =  1.0;
-//	Y_rot.at<double>(1,2) =  0.0;
-//	Y_rot.at<double>(2,0) =  -sin(beta);
-//	Y_rot.at<double>(2,1) =  0.0;
-//	Y_rot.at<double>(2,2) =  cos(beta);
-//
-//	Z_rot.at<double>(0,0) =  cos(gamma);
-//	Z_rot.at<double>(0,1) =  -sin(gamma);
-//	Z_rot.at<double>(0,2) =  0.0;
-//	Z_rot.at<double>(1,0) =  sin(gamma);
-//	Z_rot.at<double>(1,1) =  cos(gamma);
-//	Z_rot.at<double>(1,2) =  0.0;
-//	Z_rot.at<double>(2,0) =  0.0;
-//	Z_rot.at<double>(2,1) =  0.0;
-//	Z_rot.at<double>(2,2) =  1.0;
-//
-//	m = Z_rot*X_rot;
-//
-//	return m;
-//}
+
 //-------------Visualization-----------------------
-unsigned long FiducialMarkerEvaluationToolkit::RenderPose(cv::Mat& image, cv::Mat& rot_3x3_CfromO, cv::Mat& trans_3x1_CfromO)
-{
-	cv::Mat object_center(3, 1, CV_64FC1);
-	double* p_object_center = object_center.ptr<double>(0);
-	p_object_center[0] = 0;
-	p_object_center[1] = 0;
-	p_object_center[2] = 0;
-
-	cv::Mat rot_inv = rot_3x3_CfromO.inv();
-
-	// Compute coordinate axis for visualization
-	cv::Mat pt_axis(4, 3, CV_64FC1);
-	double* p_pt_axis = pt_axis.ptr<double>(0);
-	p_pt_axis[0] = 0 + p_object_center[0];
-	p_pt_axis[1] = 0 + p_object_center[1];
-	p_pt_axis[2] = 0 + p_object_center[2];
-	p_pt_axis = pt_axis.ptr<double>(1);
-	p_pt_axis[0] = 0.1 + p_object_center[0];
-	p_pt_axis[1] = 0 + p_object_center[1];
-	p_pt_axis[2] = 0 + p_object_center[2];
-	p_pt_axis = pt_axis.ptr<double>(2);
-	p_pt_axis[0] = 0 + p_object_center[0];
-	p_pt_axis[1] = 0.1 + p_object_center[1];
-	p_pt_axis[2] = 0 + p_object_center[2];
-	p_pt_axis = pt_axis.ptr<double>(3);
-	p_pt_axis[0] = 0 + p_object_center[0];
-	p_pt_axis[1] = 0 + p_object_center[1];
-	p_pt_axis[2] = 0.1 + p_object_center[2];
-
-	// Transform data points
-	std::vector<cv::Point> vec_2d(4, cv::Point());
-	for (int i=0; i<4; i++)
-	{
-		cv::Mat vec_3d = pt_axis.row(i).clone();
-		vec_3d = vec_3d.t();
-		vec_3d = rot_3x3_CfromO*vec_3d;
-		vec_3d += trans_3x1_CfromO;
-		double* p_vec_3d = vec_3d.ptr<double>(0);
-
-		ReprojectXYZ(p_vec_3d[0], p_vec_3d[1], p_vec_3d[2],
-			vec_2d[i].x , vec_2d[i].y);
-	}
-
-	// Render results
-	int line_width = 1;
-	cv::line(image, vec_2d[0], vec_2d[1], cv::Scalar(0, 0, 255), line_width);
-	cv::line(image, vec_2d[0], vec_2d[2], cv::Scalar(0, 255, 0), line_width);
-	cv::line(image, vec_2d[0], vec_2d[3], cv::Scalar(255, 0, 0), line_width);
-
-	return 1;
-}
-
-
-unsigned long FiducialMarkerEvaluationToolkit::ReprojectXYZ(double x, double y, double z, int& u, int& v)
-{
-	cv::Mat XYZ(3, 1, CV_64FC1);
-	cv::Mat UVW(3, 1, CV_64FC1);
-
-	double* d_ptr = 0;
-	double du = 0;
-	double dv = 0;
-	double dw = 0;
-
-	x *= 1000;
-	y *= 1000;
-	z *= 1000;
-
-	d_ptr = XYZ.ptr<double>(0);
-	d_ptr[0] = x;
-	d_ptr[1] = y;
-	d_ptr[2] = z;
-
-	UVW = camera_intrinsics * XYZ;
-
-	d_ptr = UVW.ptr<double>(0);
-	du = d_ptr[0];
-	dv = d_ptr[1];
-	dw = d_ptr[2];
-
-	u = cvRound(du/dw);
-	v = cvRound(dv/dw);
-
-	return 1;
-}
+//I think thi stuff is not used... Kick it out if your sure
+//unsigned long FiducialMarkerEvaluationToolkit::RenderPose(cv::Mat& image, cv::Mat& rot_3x3_CfromO, cv::Mat& trans_3x1_CfromO)
+//{
+//	cv::Mat object_center(3, 1, CV_64FC1);
+//	double* p_object_center = object_center.ptr<double>(0);
+//	p_object_center[0] = 0;
+//	p_object_center[1] = 0;
+//	p_object_center[2] = 0;
+//
+//	cv::Mat rot_inv = rot_3x3_CfromO.inv();
+//
+//	// Compute coordinate axis for visualization
+//	cv::Mat pt_axis(4, 3, CV_64FC1);
+//	double* p_pt_axis = pt_axis.ptr<double>(0);
+//	p_pt_axis[0] = 0 + p_object_center[0];
+//	p_pt_axis[1] = 0 + p_object_center[1];
+//	p_pt_axis[2] = 0 + p_object_center[2];
+//	p_pt_axis = pt_axis.ptr<double>(1);
+//	p_pt_axis[0] = 0.1 + p_object_center[0];
+//	p_pt_axis[1] = 0 + p_object_center[1];
+//	p_pt_axis[2] = 0 + p_object_center[2];
+//	p_pt_axis = pt_axis.ptr<double>(2);
+//	p_pt_axis[0] = 0 + p_object_center[0];
+//	p_pt_axis[1] = 0.1 + p_object_center[1];
+//	p_pt_axis[2] = 0 + p_object_center[2];
+//	p_pt_axis = pt_axis.ptr<double>(3);
+//	p_pt_axis[0] = 0 + p_object_center[0];
+//	p_pt_axis[1] = 0 + p_object_center[1];
+//	p_pt_axis[2] = 0.1 + p_object_center[2];
+//
+//	// Transform data points
+//	std::vector<cv::Point> vec_2d(4, cv::Point());
+//	for (int i=0; i<4; i++)
+//	{
+//		cv::Mat vec_3d = pt_axis.row(i).clone();
+//		vec_3d = vec_3d.t();
+//		vec_3d = rot_3x3_CfromO*vec_3d;
+//		vec_3d += trans_3x1_CfromO;
+//		double* p_vec_3d = vec_3d.ptr<double>(0);
+//
+//		ReprojectXYZ(p_vec_3d[0], p_vec_3d[1], p_vec_3d[2],
+//			vec_2d[i].x , vec_2d[i].y);
+//	}
+//
+//	// Render results
+//	int line_width = 1;
+//	cv::line(image, vec_2d[0], vec_2d[1], cv::Scalar(0, 0, 255), line_width);
+//	cv::line(image, vec_2d[0], vec_2d[2], cv::Scalar(0, 255, 0), line_width);
+//	cv::line(image, vec_2d[0], vec_2d[3], cv::Scalar(255, 0, 0), line_width);
+//
+//	return 1;
+//}
+//
+//unsigned long FiducialMarkerEvaluationToolkit::ReprojectXYZ(double x, double y, double z, int& u, int& v)
+//{
+//	cv::Mat XYZ(3, 1, CV_64FC1);
+//	cv::Mat UVW(3, 1, CV_64FC1);
+//
+//	double* d_ptr = 0;
+//	double du = 0;
+//	double dv = 0;
+//	double dw = 0;
+//
+//	x *= 1000;
+//	y *= 1000;
+//	z *= 1000;
+//
+//	d_ptr = XYZ.ptr<double>(0);
+//	d_ptr[0] = x;
+//	d_ptr[1] = y;
+//	d_ptr[2] = z;
+//
+//	UVW = camera_intrinsics * XYZ;
+//
+//	d_ptr = UVW.ptr<double>(0);
+//	du = d_ptr[0];
+//	dv = d_ptr[1];
+//	dw = d_ptr[2];
+//
+//	u = cvRound(du/dw);
+//	v = cvRound(dv/dw);
+//
+//	return 1;
+//}

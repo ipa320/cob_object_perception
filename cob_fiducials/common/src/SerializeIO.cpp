@@ -11,7 +11,7 @@
 using namespace std;
 
 //---------------------Constructor/Destructor---------------------------------------------------------------------------------------------------------
-// 'i' -> infile , 'o' -> outfile
+// 'i' -> infile(read from file) , 'o' -> outfile(write to file)
 SerializeIO::SerializeIO(char const* filename, char io) {
 
 	if(io == 'i') {
@@ -41,7 +41,7 @@ SerializeIO::SerializeIO(char const* filename, char io) {
 }
 
 SerializeIO::~SerializeIO() {
-	// TODO Auto-generated destructor stub
+
 }
 //--------------------------------------------openArray() && closeArray()------------------------------------------------------------------------------------------
 //Need to call before and after writing to an Array
@@ -76,6 +76,7 @@ bool SerializeIO::closeArray(){
 	return false;
 }
 
+
 //--------------------------------------------writeVariableToFile()------------------------------------------------------------------------------------------
 void SerializeIO::writeVariableToFile(string name,string value){
 
@@ -84,47 +85,7 @@ void SerializeIO::writeVariableToFile(string name,string value){
 	file << ss.str();
 }
 
-//--------------------------------------------writeVectorToFile()------------------------------------------------------------------------------------------
-void SerializeIO::writeVectorToFile(std::vector<double> vec){
 
-	stringstream ss;
-	ss << arrayindex;
-	string index = ss.str();
-	ss.str(string());
-
-	ss << "<set " << "name=\"" << index << "\">";
-	for(unsigned int i = 0; i < vec.size(); i++)
-		ss << "<var " << "name=\"" << i << "\">" << vec[i] << "</var>";
-	ss << "</set>" << "\n";
-
-	file << ss.str();
-	arrayindex++;
-}
-
-//--------------------------------------------writeVecvtor()------------------------------------------------------------------------------------------
-//Write the lines of an Array
-void SerializeIO::writeVector(std::vector<int> vec){
-
-	std::vector<double> vecd;
-
-	for(unsigned int i=0; i<vec.size(); i++){
-		vecd.push_back((double)vec[i]);
-	}
-	writeVectorToFile(vecd);
-}
-void SerializeIO::writeVector(std::vector<float> vec){
-
-	std::vector<double> vecd;
-
-	for(unsigned int i=0; i<vec.size(); i++){
-		vecd.push_back((double)vec[i]);
-	}
-	writeVectorToFile(vecd);
-}
-void SerializeIO::writeVector(std::vector<double> vec){
-
-	writeVectorToFile(vec);
-}
 
 //--------------------------------------------writeVariable()------------------------------------------------------------------------------------------
 
@@ -221,7 +182,7 @@ bool SerializeIO::readVariable(char const* tofind, double* val){
 }
 
 //--------------------------------------------readVarFromCchar()------------------------------------------------------------------------------------------
-//private methods to reads vars from char const*
+//private methods to read variables from char const*
 bool SerializeIO::readVarFromCchar(char const* toparse,char const* tofind, int* val){
 
 	char *parsed_data = NULL;
@@ -259,212 +220,10 @@ bool SerializeIO::readVarFromCchar(char const* toparse,char const* tofind, doubl
 	return ret;
 }
 
-//--------------------------------------------readArray()------------------------------------------------------------------------------------------
-//Overloaded function to read array data structure
-
-//Overloaded with int
-bool SerializeIO::readArray(char const* tofind, std::vector<std::vector<int> >* vec){
-
-	vector<int> v;
-
-	char *parsed_data = NULL;
-	parse(&parsed_data,tofind);
-
-	//**************************************************************************************** <set><var>xxx</var></set>
-	stringstream ss;
-	for(unsigned int i = 0; parsed_data[i] != '\0';i++)
-		ss << parsed_data[i];
-
-	char *parsed_data_set = NULL;
-
-	int row = 0;
-	stringstream ss_;
-	ss_ << row;
-	// Run through <set></set>
-	while(parseKey(&parsed_data_set,ss.str().c_str(),ss_.str().c_str(),keywords[2])){ // Be patient with keywords
-
-		//*********************************************************** <var>xxx</var>
-		stringstream ss___;
-		for(unsigned int i = 0; parsed_data_set[i] != '\0';i++)
-			ss___ << parsed_data_set[i];
-
-
-		std::vector<int> var;
-		char *parsed_data_var = NULL;
-		int elem = 0;
-		stringstream ss__;
-		ss__ << elem;
-		//Run through <var name="0"></var> <var name="1"></var> etc.
-		while(parseKey(&parsed_data_var,ss___.str().c_str(),ss__.str().c_str(),keywords[0])){ // Be patient with keywords
-
-			//******************************************* xxx
-				stringstream ss____;
-				for(unsigned int i = 0; parsed_data_var[i] != '\0';i++)
-					ss____ << parsed_data_var[i];
-
-				int val = 0;
-				if(!readVarFromCchar(ss____.str().c_str(),ss__.str().c_str(),&val)) return false;
-
-				var.push_back(val);//save var to row vec
-
-			//******************************************* xxx
-
-			//prepare for next iteration
-			elem++;
-			ss__.str(string());
-			ss__ << elem;
-			parsed_data_set = NULL;
-		}
-
-		vec->push_back(var); // save row vec to list
-
-		//*********************************************************** <var>xxx</var>
-		//prepare for next iteration
-		row++;
-		ss_.str(string());
-		ss_ << row;
-		parsed_data_set = NULL;
-	}
-	//************************************************************************************************ <set><var>xxx</var></set>
-	return true;
-}
-
-//Overloaded with float
-bool SerializeIO::readArray(char const* tofind, std::vector<std::vector<float> >* vec){
-
-	vector<int> v;
-
-	char *parsed_data = NULL;
-	parse(&parsed_data,tofind);
-
-	//**************************************************************************************** <set><var>xxx</var></set>
-	stringstream ss;
-	for(unsigned int i = 0; parsed_data[i] != '\0';i++)
-		ss << parsed_data[i];
-
-	char *parsed_data_set = NULL;
-
-	int row = 0;
-	stringstream ss_;
-	ss_ << row;
-	// Run through <set></set>
-	while(parseKey(&parsed_data_set,ss.str().c_str(),ss_.str().c_str(),keywords[2])){ // Be patient with keywords
-
-		//*********************************************************** <var>xxx</var>
-		stringstream ss___;
-		for(unsigned int i = 0; parsed_data_set[i] != '\0';i++)
-			ss___ << parsed_data_set[i];
-
-
-		std::vector<float> var;
-		char *parsed_data_var = NULL;
-		int elem = 0;
-		stringstream ss__;
-		ss__ << elem;
-		//Run through <var name="0"></var> <var name="1"></var> etc.
-		while(parseKey(&parsed_data_var,ss___.str().c_str(),ss__.str().c_str(),keywords[0])){ // Be patient with keywords
-
-			//******************************************* xxx
-				stringstream ss____;
-				for(unsigned int i = 0; parsed_data_var[i] != '\0';i++)
-					ss____ << parsed_data_var[i];
-
-				float val = 0;
-				if(!readVarFromCchar(ss____.str().c_str(),ss__.str().c_str(),&val)) return false;
-
-				var.push_back(val);//save var to row vec
-
-			//******************************************* xxx
-
-			//prepare for next iteration
-			elem++;
-			ss__.str(string());
-			ss__ << elem;
-			parsed_data_set = NULL;
-		}
-
-		vec->push_back(var); // save row vec to list
-
-		//*********************************************************** <var>xxx</var>
-		//prepare for next iteration
-		row++;
-		ss_.str(string());
-		ss_ << row;
-		parsed_data_set = NULL;
-	}
-	//************************************************************************************************ <set><var>xxx</var></set>
-	return true;
-}
-
-//Overloaded with double
-bool SerializeIO::readArray(char const* tofind, std::vector<std::vector<double> >* vec){
-
-	vector<int> v;
-
-	char *parsed_data = NULL;
-	parse(&parsed_data,tofind);
-
-	//**************************************************************************************** <set><var>xxx</var></set>
-	stringstream ss;
-	for(unsigned int i = 0; parsed_data[i] != '\0';i++)
-		ss << parsed_data[i];
-
-	char *parsed_data_set = NULL;
-	int row = 0;
-	stringstream ss_;
-	ss_ << row;
-	// Run through <set></set>
-	while(parseKey(&parsed_data_set,ss.str().c_str(),ss_.str().c_str(),keywords[2])){ // Be patient with keywords
-
-		//*********************************************************** <var>xxx</var>
-		stringstream ss___;
-		for(unsigned int i = 0; parsed_data_set[i] != '\0';i++)
-			ss___ << parsed_data_set[i];
-
-
-		std::vector<double> var;
-		char *parsed_data_var = NULL;
-		int elem = 0;
-		stringstream ss__;
-		ss__ << elem;
-		//Run through <var name="0"></var> <var name="1"></var> etc.
-		while(parseKey(&parsed_data_var,ss___.str().c_str(),ss__.str().c_str(),keywords[0])){ // Be patient with keywords
-
-			//******************************************* xxx
-				stringstream ss____;
-				for(unsigned int i = 0; parsed_data_var[i] != '\0';i++)
-					ss____ << parsed_data_var[i];
-
-				double val = 0;
-				if(!readVarFromCchar(ss____.str().c_str(),ss__.str().c_str(),&val)) return false;
-
-				var.push_back(val);//save var to row vec
-
-			//******************************************* xxx
-
-			//prepare for next iteration
-			elem++;
-			ss__.str(string());
-			ss__ << elem;
-			parsed_data_set = NULL;
-		}
-
-		vec->push_back(var); // save row vec to list
-		//*********************************************************** <var>xxx</var>
-		//prepare for next iteration
-		row++;
-		ss_.str(string());
-		ss_ << row;
-		parsed_data_set = NULL;
-	}
-	//************************************************************************************************ <set><var>xxx</var></set>
-	return true;
-}
-
-//--------------------------------------------READ/WRITE ARRAY EXTENSION (EXPERIMENTAL)--------------------------------------------------------------------------------
+//--------------------------------------------READ ARRAY-----------------------------------------------------------------------------------
 //WORK
-//TODO '\n' is missing in parsed_data....
-bool SerializeIO::readArrayEXP(char const* tofind, std::vector<std::vector<int> >* vec){
+//TODO '\n' is missing in parsed_data.... -> workaround with line delimiter |
+bool SerializeIO::readArray(char const* tofind, std::vector<std::vector<int> >* vec){
 
 	vector<int> v;
 	char *ctmp = new char[255];
@@ -497,9 +256,9 @@ bool SerializeIO::readArrayEXP(char const* tofind, std::vector<std::vector<int> 
 	return true;
 }
 
-bool SerializeIO::readArrayEXP(char const* tofind, std::vector<std::vector<double> >* vec){
+bool SerializeIO::readArray(char const* tofind, std::vector<std::vector<float> >* vec){
 
-	vector<double> v;
+	vector<float> v;
 	char *ctmp = new char[255];
 
 	char *parsed_data = NULL;
@@ -530,29 +289,78 @@ bool SerializeIO::readArrayEXP(char const* tofind, std::vector<std::vector<doubl
 	return true;
 }
 
-bool SerializeIO::writeVectorEXP(std::vector<int> vec){
+bool SerializeIO::readArray(char const* tofind, std::vector<std::vector<double> >* vec){
+
+	vector<double> v;
+	char *ctmp = new char[255];
+
+	char *parsed_data = NULL;
+	parse(&parsed_data,tofind);
+
+	//Run through parse_data -> All stuff between <array></array>
+	unsigned int scount = 0;//act. pose in Variable to read
+	for(unsigned int i = 0; parsed_data[i] != '\0';i++){
+
+		if(parsed_data[i] != ' ' && parsed_data[i] != '|'){
+			ctmp[scount] = parsed_data[i];
+			scount++;
+		}
+
+		if(parsed_data[i] == ' ' || parsed_data[i] == '|'){
+			ctmp[scount] = '\0';
+			v.push_back((double)atof(prepareChar(ctmp)));
+			scount = 0;
+		}
+
+		//Reset for new Line
+		if(parsed_data[i] == '|'){
+			scount = 0;
+			vec->push_back(v);
+			v.clear();
+		}
+	}
+	return true;
+}
+
+//------------------------------------------write vector--------------------------------------------------------------------------------------------
+//Write a vector with different data types to an array
+//Each vector is one line in the array
+bool SerializeIO::writeVector(std::vector<int> vec){
 
 	std::vector<double> vecd;
 
 	for(unsigned int i=0; i<vec.size(); i++){
 		vecd.push_back((double)vec[i]);
 	}
-	writeVectorToFileEXP(vecd);
+	writeVectorToFile(vecd);
 	return true;
 }
 
-bool SerializeIO::writeVectorEXP(std::vector<double> vec){
+bool SerializeIO::writeVector(std::vector<float> vec){
+
+	std::vector<double> vecd;
+
+	for(unsigned int i=0; i<vec.size(); i++){
+		vecd.push_back((double)vec[i]);
+	}
+	writeVectorToFile(vecd);
+	return true;
+}
+
+bool SerializeIO::writeVector(std::vector<double> vec){
 
 	std::vector<double> vecd;
 
 	for(unsigned int i=0; i<vec.size(); i++){
 		vecd.push_back(vec[i]);
 	}
-	writeVectorToFileEXP(vecd);
+	writeVectorToFile(vecd);
 	return true;
 }
 
-void SerializeIO::writeVectorToFileEXP(std::vector<double> vec){
+//------------------------------------------write vector to FIle--------------------------------------------------------------------------------------------
+//parses the data to a stringstream and writes the data to file
+void SerializeIO::writeVectorToFile(std::vector<double> vec){
 
 	stringstream ss;
 	ss << arrayindex;
@@ -570,7 +378,7 @@ void SerializeIO::writeVectorToFileEXP(std::vector<double> vec){
 	file << ss.str();
 	arrayindex++;
 }
-//--------------------------------------------READ/WRITE ARRAY EXTENSION (EXPERIMENTAL)--------------------------------------------------------------------------------
+
 
 //--------------------------------------------prepareChar()---------------------------------------------------------------------------------------------
 // prepare a char before convertion to native type like int,float
@@ -697,20 +505,7 @@ bool SerializeIO::parse(char **parsed_data, char const* tofind){
 //choses the further parsing strategy in dependence of the keyword
 bool SerializeIO::chooseInfoParser(char **parsed_data,char const* tofind,char const* toparse,keyword key){
 
-	//var
-	if(!key.keyw_str.compare(keywords[0].keyw_str)){
 		return parseVar(parsed_data,toparse,tofind);
-	}
-	//array
-	if(!key.keyw_str.compare(keywords[1].keyw_str)){
-		return parseVar(parsed_data,toparse,tofind);
-	}
-	//set
-	if(!key.keyw_str.compare(keywords[2].keyw_str)){
-		return parseVar(parsed_data,toparse,tofind);
-	}
-
-	return false;
 }
 
 //--------------------------------------------------parseVar()---------------------------------------------------------------------------------------
@@ -902,3 +697,255 @@ bool SerializeIO::compareName(char const* toparse,char const* tofind,unsigned in
 void SerializeIO::close(){
 	file.close();
 }
+
+
+
+//---------------------------------------------DEPRECATED STUFF--------------------------------------------------------------------------------------------
+
+//--------------------------------------------writeVectorToFile()------------------------------------------------------------------------------------------
+//!!!!!!!Deprecated!!!!!!!!!
+void SerializeIO::writeVectorToFileDEP(std::vector<double> vec){
+
+	stringstream ss;
+	ss << arrayindex;
+	string index = ss.str();
+	ss.str(string());
+
+	ss << "<set " << "name=\"" << index << "\">";
+	for(unsigned int i = 0; i < vec.size(); i++)
+		ss << "<var " << "name=\"" << i << "\">" << vec[i] << "</var>";
+	ss << "</set>" << "\n";
+
+	file << ss.str();
+	arrayindex++;
+}
+
+//--------------------------------------------writeVecvtor()------------------------------------------------------------------------------------------
+//!!!!!!!Deprecated!!!!!!!!!
+//Write the lines of an Array
+void SerializeIO::writeVectorDEP(std::vector<int> vec){
+
+	std::vector<double> vecd;
+
+	for(unsigned int i=0; i<vec.size(); i++){
+		vecd.push_back((double)vec[i]);
+	}
+	writeVectorToFileDEP(vecd);
+}
+void SerializeIO::writeVectorDEP(std::vector<float> vec){
+
+	std::vector<double> vecd;
+
+	for(unsigned int i=0; i<vec.size(); i++){
+		vecd.push_back((double)vec[i]);
+	}
+	writeVectorToFileDEP(vecd);
+}
+void SerializeIO::writeVectorDEP(std::vector<double> vec){
+
+	writeVectorToFileDEP(vec);
+}
+
+//--------------------------------------------readArray()------------------------------------------------------------------------------------------
+//!!!!!!!Deprecated!!!!!!!!!
+//Overloaded function to read array data structure
+
+//Overloaded with int
+bool SerializeIO::readArrayDEP(char const* tofind, std::vector<std::vector<int> >* vec){
+
+	vector<int> v;
+
+	char *parsed_data = NULL;
+	parse(&parsed_data,tofind);
+
+	//**************************************************************************************** <set><var>xxx</var></set>
+	stringstream ss;
+	for(unsigned int i = 0; parsed_data[i] != '\0';i++)
+		ss << parsed_data[i];
+
+	char *parsed_data_set = NULL;
+
+	int row = 0;
+	stringstream ss_;
+	ss_ << row;
+	// Run through <set></set>
+	while(parseKey(&parsed_data_set,ss.str().c_str(),ss_.str().c_str(),keywords[2])){ // Be patient with keywords
+
+		//*********************************************************** <var>xxx</var>
+		stringstream ss___;
+		for(unsigned int i = 0; parsed_data_set[i] != '\0';i++)
+			ss___ << parsed_data_set[i];
+
+
+		std::vector<int> var;
+		char *parsed_data_var = NULL;
+		int elem = 0;
+		stringstream ss__;
+		ss__ << elem;
+		//Run through <var name="0"></var> <var name="1"></var> etc.
+		while(parseKey(&parsed_data_var,ss___.str().c_str(),ss__.str().c_str(),keywords[0])){ // Be patient with keywords
+
+			//******************************************* xxx
+				stringstream ss____;
+				for(unsigned int i = 0; parsed_data_var[i] != '\0';i++)
+					ss____ << parsed_data_var[i];
+
+				int val = 0;
+				if(!readVarFromCchar(ss____.str().c_str(),ss__.str().c_str(),&val)) return false;
+
+				var.push_back(val);//save var to row vec
+
+			//******************************************* xxx
+
+			//prepare for next iteration
+			elem++;
+			ss__.str(string());
+			ss__ << elem;
+			parsed_data_set = NULL;
+		}
+
+		vec->push_back(var); // save row vec to list
+
+		//*********************************************************** <var>xxx</var>
+		//prepare for next iteration
+		row++;
+		ss_.str(string());
+		ss_ << row;
+		parsed_data_set = NULL;
+	}
+	//************************************************************************************************ <set><var>xxx</var></set>
+	return true;
+}
+
+//Overloaded with float
+bool SerializeIO::readArrayDEP(char const* tofind, std::vector<std::vector<float> >* vec){
+
+	vector<int> v;
+
+	char *parsed_data = NULL;
+	parse(&parsed_data,tofind);
+
+	//**************************************************************************************** <set><var>xxx</var></set>
+	stringstream ss;
+	for(unsigned int i = 0; parsed_data[i] != '\0';i++)
+		ss << parsed_data[i];
+
+	char *parsed_data_set = NULL;
+
+	int row = 0;
+	stringstream ss_;
+	ss_ << row;
+	// Run through <set></set>
+	while(parseKey(&parsed_data_set,ss.str().c_str(),ss_.str().c_str(),keywords[2])){ // Be patient with keywords
+
+		//*********************************************************** <var>xxx</var>
+		stringstream ss___;
+		for(unsigned int i = 0; parsed_data_set[i] != '\0';i++)
+			ss___ << parsed_data_set[i];
+
+
+		std::vector<float> var;
+		char *parsed_data_var = NULL;
+		int elem = 0;
+		stringstream ss__;
+		ss__ << elem;
+		//Run through <var name="0"></var> <var name="1"></var> etc.
+		while(parseKey(&parsed_data_var,ss___.str().c_str(),ss__.str().c_str(),keywords[0])){ // Be patient with keywords
+
+			//******************************************* xxx
+				stringstream ss____;
+				for(unsigned int i = 0; parsed_data_var[i] != '\0';i++)
+					ss____ << parsed_data_var[i];
+
+				float val = 0;
+				if(!readVarFromCchar(ss____.str().c_str(),ss__.str().c_str(),&val)) return false;
+
+				var.push_back(val);//save var to row vec
+
+			//******************************************* xxx
+
+			//prepare for next iteration
+			elem++;
+			ss__.str(string());
+			ss__ << elem;
+			parsed_data_set = NULL;
+		}
+
+		vec->push_back(var); // save row vec to list
+
+		//*********************************************************** <var>xxx</var>
+		//prepare for next iteration
+		row++;
+		ss_.str(string());
+		ss_ << row;
+		parsed_data_set = NULL;
+	}
+	//************************************************************************************************ <set><var>xxx</var></set>
+	return true;
+}
+
+//Overloaded with double
+bool SerializeIO::readArrayDEP(char const* tofind, std::vector<std::vector<double> >* vec){
+
+	vector<int> v;
+
+	char *parsed_data = NULL;
+	parse(&parsed_data,tofind);
+
+	//**************************************************************************************** <set><var>xxx</var></set>
+	stringstream ss;
+	for(unsigned int i = 0; parsed_data[i] != '\0';i++)
+		ss << parsed_data[i];
+
+	char *parsed_data_set = NULL;
+	int row = 0;
+	stringstream ss_;
+	ss_ << row;
+	// Run through <set></set>
+	while(parseKey(&parsed_data_set,ss.str().c_str(),ss_.str().c_str(),keywords[2])){ // Be patient with keywords
+
+		//*********************************************************** <var>xxx</var>
+		stringstream ss___;
+		for(unsigned int i = 0; parsed_data_set[i] != '\0';i++)
+			ss___ << parsed_data_set[i];
+
+
+		std::vector<double> var;
+		char *parsed_data_var = NULL;
+		int elem = 0;
+		stringstream ss__;
+		ss__ << elem;
+		//Run through <var name="0"></var> <var name="1"></var> etc.
+		while(parseKey(&parsed_data_var,ss___.str().c_str(),ss__.str().c_str(),keywords[0])){ // Be patient with keywords
+
+			//******************************************* xxx
+				stringstream ss____;
+				for(unsigned int i = 0; parsed_data_var[i] != '\0';i++)
+					ss____ << parsed_data_var[i];
+
+				double val = 0;
+				if(!readVarFromCchar(ss____.str().c_str(),ss__.str().c_str(),&val)) return false;
+
+				var.push_back(val);//save var to row vec
+
+			//******************************************* xxx
+
+			//prepare for next iteration
+			elem++;
+			ss__.str(string());
+			ss__ << elem;
+			parsed_data_set = NULL;
+		}
+
+		vec->push_back(var); // save row vec to list
+		//*********************************************************** <var>xxx</var>
+		//prepare for next iteration
+		row++;
+		ss_.str(string());
+		ss_ << row;
+		parsed_data_set = NULL;
+	}
+	//************************************************************************************************ <set><var>xxx</var></set>
+	return true;
+}
+

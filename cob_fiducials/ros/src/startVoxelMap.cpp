@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 	std::vector<std::vector<double> > in;
 	SerializeIO *sertmp = new SerializeIO("/home/matthias/fuerte_workspace/sandbox/cob_object_perception/cob_fiducials/ros/launch/FiducialSimulation/tag1EXP.log",'i');
 	sertmp->openArray("KickIT");
-	sertmp->readArrayEXP("KickIT",&in);
+	sertmp->readArray("KickIT",&in);
 	sertmp->closeArray();
 	sertmp->close();
 	cout << "Finish - REad" << endl;
