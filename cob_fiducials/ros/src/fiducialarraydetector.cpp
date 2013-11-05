@@ -424,6 +424,7 @@ public:
     bool detectFiducials(cob_object_detection_msgs::DetectionArray& detection_array, cv::Mat& color_image)
     {
     	//Matthias Nösner
+    	//For Debug
     	v->spin();
     	std::vector<std::vector<double> > detectedmarkers;
      	//Matthias Nösner
