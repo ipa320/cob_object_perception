@@ -1,7 +1,7 @@
 <FiducialDetector>	
 	
 	<!-- Flag for using the Fast PiTAg detection method(0 = false, 1 = true) -->
-	<FPITAG value="1" />	
+	<FPITAG value="0" />	
 	
 	<PI>
 		<ID value="1" />
