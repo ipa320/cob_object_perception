@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 2.4.6)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
+# Set the build type. Options are:
+# Coverage : w/ debug symbols, w/o optimization, w/ code-coverage
+# Debug : w/ debug symbols, w/o optimization
+# Release : w/o debug symbols, w/ optimization
+# RelWithDebInfo : w/ debug symbols, w/ optimization
+# MinSizeRel : w/o debug symbols, w/ optimization, stripped binaries
 #set(ROS_BUILD_TYPE RelWithDebInfo)
 
 rosbuild_init()
@@ -28,47 +28,29 @@ rosbuild_gensrv()
 #target_link_libraries(example ${PROJECT_NAME})
 
 rosbuild_add_library(cob_fiducials common/src/pi/FiducialModelPi.cpp
-	common/src/aruco/arucofidmarkers.cpp
-	common/src/aruco/board.cpp
-	common/src/aruco/boarddetector.cpp
-	common/src/aruco/cameraparameters.cpp
-	common/src/aruco/cvdrawingutils.cpp
-	common/src/aruco/FiducialModelAruco.cpp
-	common/src/aruco/marker.cpp
-	common/src/aruco/markerdetector.cpp
+        common/src/aruco/arucofidmarkers.cpp
+        common/src/aruco/board.cpp
+        common/src/aruco/boarddetector.cpp
+        common/src/aruco/cameraparameters.cpp
+        common/src/aruco/cvdrawingutils.cpp
+        common/src/aruco/FiducialModelAruco.cpp
+        common/src/aruco/marker.cpp
+        common/src/aruco/markerdetector.cpp
 )
-#Matthias Nösner
-rosbuild_add_library(cob_fiducials common/src/FiducialMarkerEvaluationToolkit.cpp)
-rosbuild_add_library(cob_fiducials common/src/VoxelMap.cpp)
-rosbuild_add_library(cob_fiducials common/src/SerializeIO.cpp)
-rosbuild_add_library(cob_fiducials common/src/PCLVisualization.cpp)
 
 # add include search paths
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/common/include)
 
 rosbuild_add_executable(fiducials ros/src/fiducials.cpp)
-#Matthias Nösner
-rosbuild_add_executable(startvoxelmap ros/src/startVoxelMap.cpp)
-rosbuild_add_executable(fiducialarraydetector ros/src/fiducialarraydetector.cpp)
-
-include_directories(/usr/include/vtk-5.8)
-
 
 # add compile flag
 rosbuild_add_compile_flags(cob_fiducials -D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2)
 rosbuild_add_compile_flags(fiducials -D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2)
-rosbuild_add_compile_flags(fiducialarraydetector -D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2)
 
 # initialize boost directory search
 rosbuild_add_boost_directories()
 
 target_link_libraries(cob_fiducials tinyxml)
 rosbuild_link_boost(${PROJECT_NAME} filesystem)
-rosbuild_link_boost(${PROJECT_NAME} signals)
 
 target_link_libraries(fiducials cob_fiducials)
-#Matthias Nösner
-target_link_libraries(startvoxelmap cob_fiducials)
-target_link_libraries(startvoxelmap ${PCL_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkRendering.so)
-target_link_libraries(fiducialarraydetector cob_fiducials)
-target_link_libraries(fiducialarraydetector ${PCL_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkRendering.so)
