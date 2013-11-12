@@ -5,86 +5,104 @@
 	
 	<PI>
 		<ID value="1" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.030" AC="0.055" />
-		<CrossRatioLine1 AB="0.025" AC="0.070" />
+		<CrossRatioLine0 AB="0.30" AC="0.55" />
+		<CrossRatioLine1 AB="0.25" AC="0.70" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.05" y="0.05" />
+
+                <!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+                <SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
 	</PI>
 	
 	<PI>
 		<ID value="2" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.025" AC="0.052" />
-		<CrossRatioLine1 AB="0.025" AC="0.062" />
+		<CrossRatioLine0 AB="0.25" AC="0.52" />
+		<CrossRatioLine1 AB="0.25" AC="0.62" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.05" y="0.05" />
+
+                <!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+                <SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
 	</PI>	
 	
 	<PI>
 		<ID value="3" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.045" AC="0.075" />
-		<CrossRatioLine1 AB="0.040" AC="0.074" />
+		<CrossRatioLine0 AB="0.45" AC="0.75" />
+		<CrossRatioLine1 AB="0.40" AC="0.74" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.05" y="0.05" />
+
+                <!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+                <SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
 	</PI>	
 	
 	<PI>
 		<ID value="4" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.03" AC="0.053" />
-		<CrossRatioLine1 AB="0.046" AC="0.074" />
+		<CrossRatioLine0 AB="0.3" AC="0.53" />
+		<CrossRatioLine1 AB="0.46" AC="0.74" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.05" y="0.05" />
+
+                <!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+                <SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
 	</PI>
 	
 	<PI>
 		<ID value="5" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.033" AC="0.055" />
-		<CrossRatioLine1 AB="0.029" AC="0.070" />
+		<CrossRatioLine0 AB="0.33" AC="0.55" />
+		<CrossRatioLine1 AB="0.29" AC="0.70" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.05" y="0.05" />
+
+                <!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+                <SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
 	</PI>
 	
 	<PI>
 		<ID value="6" />
-		<!-- Tag size in [mm] -->
+		<!-- Tag size in [m] -->
 		<LineWidthHeight value="0.100" />
 		
 		<!-- Cross ratios line 0 and 1-->
-		<CrossRatioLine0 AB="0.028" AC="0.054" />
-		<CrossRatioLine1 AB="0.047" AC="0.075" />
+		<CrossRatioLine0 AB="0.28" AC="0.54" />
+		<CrossRatioLine1 AB="0.47" AC="0.75" />
 				
 		<!-- Offset for native tag corrdinates -->
 		<!-- e.g. position of tag in object centric ccordinate system -->
 		<Offset x="-0.05" y="0.05" />
+
+                <!-- Rectangle describing the area for sharpness computation in 2d coordinates within the marker plane with respect to the marker origin -->
+                <SharpnessArea x="-0.01" y="-0.01" width="0.12" height="0.12"/>
 	</PI>
 	
 	
