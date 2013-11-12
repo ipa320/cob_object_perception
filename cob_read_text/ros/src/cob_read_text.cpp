@@ -7,7 +7,7 @@
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 
-#include <pr2_mechanism_controllers/BaseOdometryState.h>
+//#include <pr2_mechanism_controllers/BaseOdometryState.h>
 
 #include <boost/thread/condition.hpp>
 
@@ -59,7 +59,7 @@ public:
 		 */
 		image_pub_ = it_.advertise("text_detect", 1);
 		image_sub_ = it_.subscribe("image_color", 1, &TextReader::imageCb, this);
-		robot_state_sub_ = nh_.subscribe("/base_odometry/state", 1, &TextReader::robotStateCb, this);
+//		robot_state_sub_ = nh_.subscribe("/base_odometry/state", 1, &TextReader::robotStateCb, this);
 
 		//    depth_sub_ = nh_.subscribe("/camera/depth_registered/points", 1, &TextReader::depthCb, this);
 
@@ -83,7 +83,7 @@ public:
 	/* call back function
 	 * in case msg from topic "state" tells that odometry has changed, update last_movement
 	 */
-	void robotStateCb(const pr2_mechanism_controllers::BaseOdometryStateConstPtr& msg)
+/*	void robotStateCb(const pr2_mechanism_controllers::BaseOdometryStateConstPtr& msg)
 	{
 		pthread_mutex_trylock(&pr2_velocity_lock_);
 		x_ = msg->velocity.linear.x;
@@ -91,7 +91,7 @@ public:
 		if (x_ != 0 || y_ != 0)
 			last_movement_ = ros::Time::now();
 		pthread_mutex_unlock(&pr2_velocity_lock_);
-	}
+	}*/
 
 	/* call back function
 	 * cv_ptr gets new picture from topic "image_color"

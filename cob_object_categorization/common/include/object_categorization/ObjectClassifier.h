@@ -28,6 +28,7 @@
 #include <pcl/io/pcd_io.h>
 
 #include <boost/thread/mutex.hpp>
+#include <boost/filesystem.hpp>
 
 typedef BlobList BlobListRiB;
 typedef BlobFeature BlobFeatureRiB;
@@ -307,7 +308,11 @@ public:
 
 	CvMat* mSqrtInverseCovarianceMatrix;		///< The squareroot of the inverse covariance matrix of the local feature point data.
 
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvEM* mLocalFeatureClusterer;		///< Cluster model which performs local feature point clustering for global feature histograms.
+#else
+	cv::EM* mLocalFeatureClusterer;		///< Cluster model which performs local feature point clustering for global feature histograms.
+#endif
 	
 	StatisticsMap mStatisticsMap;		///< Map for the (temporary) storage of the classifier performance statistics for each class' classifier (ClassName, ClassifierPerformanceStruct).
 
@@ -702,14 +707,18 @@ public:
 	int CaptureSegmentedPCD(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void CapturePointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 
-	int HermesDetect(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	// Hermes
+	int HermesLoadCameraCalibration(const std::string& object_name, cv::Mat& projection_matrix);
+	int HermesDetectInit(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	int HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, SharedImage* pSourceImage, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams, double& pan, double& tilt, double& roll, Eigen::Matrix4f& pFinalTransform);
 	int HermesCapture(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void HermesPointcloudCallbackCapture(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	int HermesBuildDetectionModelFromRecordedData(const std::string& object_name, const cv::Mat& projection_matrix, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	int HermesComputeRollHistogram(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, cv::Mat& pHistogram, bool pSmooth=true, bool pDisplay=false);
 	int HermesMatchRollHistogram(std::vector<float>& pReferenceHistogram, cv::Mat& pMatchHistogram, int pCoarseStep, int& pOffset, double& pMatchScore);
 	double HermesHistogramIntersectionKernel(std::vector<float>& pReferenceHistogram, cv::Mat& pMatchHistogram, int pOffset);
-	int HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll);
+	int HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform);
 	bool mFinishCapture;
 	double mPanAngle;
 	double mTiltAngle;

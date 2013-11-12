@@ -3,11 +3,12 @@
 <launch>
 
    <node ns="object_segmentation" pkg="nodelet" type="nodelet" name="object_segmentation_pass_through" args="standalone pcl/PassThrough" output="screen">
-    <remap from="~input" to="/cam3d/rgb/points" />
+    <!--remap from="~input" to="/cam3d/rgb/points" /-->
+    <remap from="~input" to="/camera/depth/points_xyzrgb" />
     <rosparam>
       filter_field_name: z
       filter_limit_min: 0.0
-      filter_limit_max: 2.0
+      filter_limit_max: 1.0
       keep_organized: true
     </rosparam>
   </node>

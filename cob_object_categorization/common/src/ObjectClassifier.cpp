@@ -32,7 +32,7 @@ namespace fs = boost::filesystem;
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/registration/icp.h>
-//#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #ifdef PCL_VERSION_COMPARE //fuerte
 	#ifndef __LINUX__
@@ -1448,6 +1448,7 @@ int ObjectClassifier::ClusterLocalFeatures(std::string pCovarianceMatrixFileName
 
 	
 	/// Perform EM
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvEMParams EMParams = CvEMParams(NumberClustersOptimal, CvEM::COV_MAT_SPHERICAL, CvEM::START_AUTO_STEP, cvTermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 100, FLT_EPSILON), NULL, NULL, NULL, NULL);
 	if (ClusterCentersOptimal != NULL)
 	{
@@ -1478,6 +1479,37 @@ int ObjectClassifier::ClusterLocalFeatures(std::string pCovarianceMatrixFileName
 	mData.mLocalFeatureClusterer->train(AllLocalFeatures, NULL, EMParams, NULL);
 	std::cout << "Second train done (diagonal). LogLikelihood: " << mData.mLocalFeatureClusterer->get_log_likelihood() << "\n";
 	if (pScreenLogFile) *pScreenLogFile << "Second train done (diagonal). LogLikelihood: " << mData.mLocalFeatureClusterer->get_log_likelihood() << "\n";
+#else
+	if (mData.mLocalFeatureClusterer != 0)
+			delete mData.mLocalFeatureClusterer;
+	mData.mLocalFeatureClusterer = new cv::EM(NumberClustersOptimal, cv::EM::COV_MAT_SPHERICAL, cv::TermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 100, FLT_EPSILON));
+	cv::Mat allLocalFeatures(AllLocalFeatures, true);
+	if (ClusterCentersOptimal != NULL)
+	{
+		cv::Mat clusterCentersOptimalMat(ClusterCentersOptimal);
+		mData.mLocalFeatureClusterer->trainE(allLocalFeatures, clusterCentersOptimalMat);
+		std::cout << "\nNumberClustersOptimal: " << NumberClustersOptimal << "   ClusterCentersOptimal: " << ClusterCentersOptimal->rows << " x " << ClusterCentersOptimal->cols << "\n";
+		if (pScreenLogFile) *pScreenLogFile << "\nNumberClustersOptimal: " << NumberClustersOptimal << "   ClusterCentersOptimal: " << ClusterCentersOptimal->rows << " x " << ClusterCentersOptimal->cols << "\n";
+	}
+	else
+	{
+		mData.mLocalFeatureClusterer->train(allLocalFeatures);
+	}
+	std::cout << "First train done (spherical).\n";
+	if (pScreenLogFile) *pScreenLogFile << "First train done (spherical).\n";
+
+	mData.mLocalFeatureClusterer->set("covMatType", cv::EM::COV_MAT_DIAGONAL);
+	cv::Mat means = mData.mLocalFeatureClusterer->get<cv::Mat>("means");
+	std::vector<cv::Mat> covs = mData.mLocalFeatureClusterer->get<std::vector<cv::Mat> >("covs");
+	cv::Mat weights = mData.mLocalFeatureClusterer->get<cv::Mat>("weights");
+	std::cout << covs[0].rows << "   " << covs[0].cols << "\n";
+	std::cout << means.rows << "   " << means.cols << "\n";
+	std::cout << weights.rows << "   " << weights.cols << "\n";
+	if (pScreenLogFile) *pScreenLogFile << covs[0].rows << "   " << covs[0].cols << "\n" << means.rows << "   " << means.cols << "\n" << weights.rows << "   " << weights.cols << "\n";
+	mData.mLocalFeatureClusterer->trainE(allLocalFeatures, means, covs, weights);
+	std::cout << "Second train done (diagonal).\n";
+	if (pScreenLogFile) *pScreenLogFile << "Second train done (diagonal).\n";
+#endif
 
 	/// Save EM
 	std::stringstream FileName;
@@ -1496,9 +1528,11 @@ int ObjectClassifier::ClusterLocalFeatures(std::string pCovarianceMatrixFileName
 	cvReleaseMat(&ClusterCenters);
 *///	cvReleaseMat(&ClusterLabels);
 
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	for (int i=0; i<NumberClustersOptimal; i++) cvReleaseMat(&(Covs[i]));
 	cvReleaseMat(&Means);
 	cvReleaseMat(&Weights);
+#endif
 
 	cvReleaseMat(&AllLocalFeatures);
 	// cvReleaseMat(&CovarMatrixSqrt);  --> pointer taken from mData.mSqrtInverseCovarianceMatrix
@@ -5461,7 +5495,11 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 			bool useRollPoseNormalization = pGlobalFeatureParams.useRollPoseNormalization;	// true;
 
 			int descriptorSize = 0;
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 			if (useFeature["bow"]) descriptorSize += mData.mLocalFeatureClusterer->get_nclusters();
+#else
+			if (useFeature["bow"]) descriptorSize += mData.mLocalFeatureClusterer->get<int>("nclusters");
+#endif
 			if (useFeature["sap"]) descriptorSize += 3+(numberLinesX[0]+numberLinesY[0])*(polynomOrder[0]+1);
 			if (useFeature["sap2"]) descriptorSize += (numberLinesX[1]+numberLinesY[1])*(polynomOrder[1]+1);
 			if (useFeature["pointdistribution"]) descriptorSize += pGlobalFeatureParams.cellCount[0] * pGlobalFeatureParams.cellCount[1];
@@ -5497,7 +5535,12 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 					{
 						CvMat* LocalFeatureVector = cvCreateMat(1, ItBlobFeatures->m_D.size(), CV_32FC1);
 						for (unsigned int j=0; j<ItBlobFeatures->m_D.size(); j++) cvSetReal1D(LocalFeatureVector, j, ItBlobFeatures->m_D[j]);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 						int Bin = cvRound(mData.mLocalFeatureClusterer->predict((const CvMat*)LocalFeatureVector, NULL));		// speedup: replace round by (int)
+#else
+						cv::Mat localFeatureVectorMat(LocalFeatureVector);
+						int Bin = cvRound((mData.mLocalFeatureClusterer->predict(localFeatureVectorMat))[1]);		// speedup: replace round by (int)
+#endif
 						//std::cout << Bin << "\n";
 						cvSetReal1D(*pGlobalFeatures, Bin, cvGetReal1D(*pGlobalFeatures, Bin)+1.0);
 						cvReleaseMat(&LocalFeatureVector);
@@ -5514,7 +5557,11 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 					}
 					if (NumberSamples > 0)
 						cvConvertScale(*pGlobalFeatures, *pGlobalFeatures, 1/(double)NumberSamples, 0);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 					GlobalFeatureVectorPosition += mData.mLocalFeatureClusterer->get_nclusters();		// data is inserted into pGlobalFeatures at this position
+#else
+					GlobalFeatureVectorPosition += mData.mLocalFeatureClusterer->get<int>("nclusters");		// data is inserted into pGlobalFeatures at this position
+#endif
 				}
 
 				/*std::cout << "pGlobalFeatures:\n";
@@ -5524,7 +5571,9 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 					std::cout << "\n";
 				}*/
 			
-				std::ofstream timeFout(pTimingLogFileName.c_str(), std::ios::app);
+				std::ofstream timeFout;
+				if (pTimingLogFileName.compare("") != 0)
+					timeFout.open(pTimingLogFileName.c_str(), std::ios::app);
 				unsigned int numberOfPoints = 0;
 				Timer tim, tim1;
 				double elapsedTime = 0.0;
@@ -6647,7 +6696,12 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 								{
 									CvMat* LocalFeatureVector = cvCreateMat(1, ItBlobFeatures->m_D.size(), CV_32FC1);
 									for (unsigned int j=0; j<ItBlobFeatures->m_D.size(); j++) cvSetReal1D(LocalFeatureVector, j, ItBlobFeatures->m_D[j]);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 									pointl.label = (unsigned char)cvRound(mData.mLocalFeatureClusterer->predict((const CvMat*)LocalFeatureVector, NULL));		// speedup: replace round by (int)
+#else
+									cv::Mat localFeatureVector(LocalFeatureVector);
+									pointl.label = (unsigned char)cvRound((mData.mLocalFeatureClusterer->predict(localFeatureVector))[1]);		// speedup: replace round by (int)
+#endif
 									cvReleaseMat(&LocalFeatureVector);
 								}
 								labels->push_back(pointl);
@@ -6685,12 +6739,15 @@ int ObjectClassifier::ExtractGlobalFeatures(BlobListRiB* pBlobFeatures, CvMat** 
 				}
 				elapsedTime += tim.getElapsedTimeInMicroSec();
 
-				timeFout << numberOfPoints << "\t";
-				timeFout << elapsedTime;
-				for (int i=0; i<7; i++)
-					timeFout << "\t" << elapsedTime1[i];
-				timeFout << std::endl;
-				timeFout.close();
+				if (pTimingLogFileName.compare("") != 0)
+				{
+					timeFout << numberOfPoints << "\t";
+					timeFout << elapsedTime;
+					for (int i=0; i<7; i++)
+						timeFout << "\t" << elapsedTime1[i];
+					timeFout << std::endl;
+					timeFout.close();
+				}
 
 				cvReleaseMat(&BlobFPCoordinates);
 
@@ -8018,17 +8075,243 @@ void ObjectClassifier::HermesPointcloudCallbackCapture(const pcl::PointCloud<pcl
 }
 
 
-int ObjectClassifier::HermesDetect(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
+int ObjectClassifier::HermesBuildDetectionModelFromRecordedData(const std::string& object_name, const cv::Mat& projection_matrix, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
+{
+	// create subfolders for data storage
+	std::string data_storage_path = std::string(getenv("HOME")) + "/.ros/";
+
+	fs::path top_level_directory(data_storage_path);
+	if (fs::is_directory(top_level_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+		std::cerr << "\t ... Path '" << top_level_directory.string() << "' is not a directory." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_storage_directory = top_level_directory / fs::path("cob_object_recording/");
+	if (fs::is_directory(object_recording_data_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_instance_storage_directory = object_recording_data_storage_directory / fs::path(object_name);
+	if (fs::is_directory(object_recording_data_instance_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_instance_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	fs::path object_model_data_storage_directory_package = top_level_directory / fs::path("cob_object_categorization/");
+	if (fs::is_directory(object_model_data_storage_directory_package) == false)
+	{
+		// create subfolder
+		if (fs::create_directory(object_model_data_storage_directory_package) == false)
+		{
+			std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+			std::cerr << "\t ... Could not create path '" << object_model_data_storage_directory_package.string() << "'." << std::endl;
+			return false;
+		}
+	}
+
+	fs::path object_model_data_storage_directory_hermes = object_model_data_storage_directory_package / fs::path("hermes/");
+	if (fs::is_directory(object_model_data_storage_directory_hermes) == false)
+	{
+		// create subfolder
+		if (fs::create_directory(object_model_data_storage_directory_hermes) == false)
+		{
+			std::cerr << "ERROR - ObjectClassifier::HermesBuildDetectionModelFromRecordedData:" << std::endl;
+			std::cerr << "\t ... Could not create path '" << object_model_data_storage_directory_hermes.string() << "'." << std::endl;
+			return false;
+		}
+	}
+
+	std::string metaFileName = object_name + "_labels.txt";
+	fs::path metaFilePath = object_model_data_storage_directory_hermes / fs::path(metaFileName);
+	mLabelFile.open(metaFilePath.string().c_str(), std::ios::out);
+	if (mLabelFile.is_open() == false)
+	{
+		std::cout << "ObjectClassifier::HermesCapture: Error: Could not open " << metaFilePath.string().c_str() << "." << std::endl;
+		return ipa_utils::RET_FAILED;
+	}
+
+	for (fs::directory_iterator classDirIter(object_recording_data_instance_storage_directory.string()); classDirIter!=fs::directory_iterator(); ++classDirIter)
+	{
+		std::string path = classDirIter->path().string();
+		std::string fileName = fs::basename(path);
+		std::string extension = fs::extension(path);
+
+		//std::cout << "path=" << path << "    className=" << fileName << "     extension=" << extension << std::endl;
+
+		if (extension.compare(".pcd") != 0)
+			continue;
+
+		int image_width = 640;
+		int image_height = 480;
+
+		// load pointcloud
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::io::loadPCDFile(path, *pointcloud);
+		std::string pcd_path = object_model_data_storage_directory_hermes.string() + object_name + "_" + fileName + extension;
+		pcl::io::savePCDFile(pcd_path, *pointcloud, true);
+
+		// compute pan and tilt
+		double pan = atan2(pointcloud->sensor_origin_[1], pointcloud->sensor_origin_[0]);
+		double tilt = asin(pointcloud->sensor_origin_[2]/sqrt(pointcloud->sensor_origin_[0]*pointcloud->sensor_origin_[0] + pointcloud->sensor_origin_[1]*pointcloud->sensor_origin_[1] + pointcloud->sensor_origin_[2]*pointcloud->sensor_origin_[2]));
+
+		mLabelFile << pcd_path << "\t" << pan << "\t" << tilt << std::endl;
+		std::cout << pcd_path << "\t" << pan << "\t" << tilt << std::endl;
+
+		// center pointcloud and convert to shared image
+		IplImage* color_image = cvCreateImage(cvSize(image_width, image_height), IPL_DEPTH_8U, 3);
+		cvSetZero(color_image);
+		IplImage* coordinate_image = cvCreateImage(cvSize(image_width, image_height), IPL_DEPTH_32F, 3);
+		cvSetZero(coordinate_image);
+		pcl::PointXYZ avgPoint(0., 0., 0.);
+		unsigned int numberValidPoints = 0;
+		for (unsigned int i=0; i<pointcloud->size(); i++)
+		{
+			if ((*pointcloud)[i].x==0 && (*pointcloud)[i].y==0 && (*pointcloud)[i].z==0)
+				continue;
+			++numberValidPoints;
+			avgPoint.x += (*pointcloud)[i].x;
+			avgPoint.y += (*pointcloud)[i].y;
+			avgPoint.z += (*pointcloud)[i].z;
+			cv::Mat X = (cv::Mat_<double>(4, 1) << (*pointcloud)[i].x, (*pointcloud)[i].y, (*pointcloud)[i].z, 1.0);
+			cv::Mat x = projection_matrix * X;
+			int v = x.at<double>(1)/x.at<double>(2), u = x.at<double>(0)/x.at<double>(2);
+			cvSet2D(color_image, v, u, CV_RGB((*pointcloud)[i].r, (*pointcloud)[i].g, (*pointcloud)[i].b));
+			cvSet2D(coordinate_image, v, u, cvScalar((*pointcloud)[i].x, (*pointcloud)[i].y, (*pointcloud)[i].z));
+		}
+		avgPoint.x /= (double)numberValidPoints;
+		avgPoint.y /= (double)numberValidPoints;
+		avgPoint.z /= (double)numberValidPoints;
+
+		SharedImage si;
+		si.setCoord(coordinate_image);
+		si.setShared(color_image);
+
+		/////////////////////
+		// create a pseudo blob
+		BlobFeatureRiB Blob;
+		BlobListRiB Blobs;
+		ipa_utils::IntVector Keys;
+
+		Blob.m_x = 0;
+		Blob.m_y = 0;
+		Blob.m_r = 2;
+		Blob.m_Phi = 0;
+		Blob.m_Res = 0;
+		Blob.m_Id = 1;
+		for (unsigned int j=0; j<64; j++) Blob.m_D.push_back(1);
+		Blob.m_D.push_back(1);		// min/max curvature approximate
+		Blob.m_D.push_back(1);
+		for (int i=0; i<10; i++) Blobs.push_back(Blob);
+
+		// Use Mask for global feature extraction
+		CvMat** featureVector = new CvMat*;
+		*featureVector = NULL;
+		IplImage* mask = cvCreateImage(cvGetSize(si.Shared()), si.Shared()->depth, 1);
+		cvCvtColor(si.Shared(), mask, CV_RGB2GRAY);
+
+		// SAP feature
+		pGlobalFeatureParams.useFeature["sap"] = true;
+		pGlobalFeatureParams.useFeature["vfh"] = false;
+		ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, NULL, false, "");
+		mLabelFile << "sap-" << pGlobalFeatureParams.numberLinesX[0] << "-" << pGlobalFeatureParams.numberLinesY[0] << "-" << pGlobalFeatureParams.polynomOrder[0] << "\t" << (*featureVector)->cols << "\t";
+		for (int i=0; i<(*featureVector)->cols; i++)
+			mLabelFile << cvGetReal1D(*featureVector, i) << "\t";
+		mLabelFile << std::endl;
+
+		// VFH
+		pGlobalFeatureParams.useFeature["sap"] = false;
+		pGlobalFeatureParams.useFeature["vfh"] = true;
+		ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, NULL, false, "");
+		mLabelFile << "vfh\t" << (*featureVector)->cols << "\t";
+		for (int i=0; i<(*featureVector)->cols; i++)
+			mLabelFile << cvGetReal1D(*featureVector, i) << "\t";
+		mLabelFile << std::endl;
+
+		// roll histogram
+		cv::Mat histogram;
+		HermesComputeRollHistogram(pointcloud, avgPoint, histogram, true, false);
+		mLabelFile << "rollhistogram\t" << histogram.cols << "\t";
+		for (int i=0; i<histogram.cols; i++)
+			mLabelFile << histogram.at<float>(i) << "\t";
+		mLabelFile << std::endl;
+
+		// free memory
+		cvReleaseImage(&mask);
+		si.Release();
+		cvReleaseMat(featureVector);
+
+		/////////////////////
+	}
+
+	mLabelFile.close();
+
+	return ipa_utils::RET_OK;
+}
+
+int ObjectClassifier::HermesLoadCameraCalibration(const std::string& object_name, cv::Mat& projection_matrix)
+{
+	std::string data_storage_path = std::string(getenv("HOME")) + "/.ros/";
+
+	fs::path top_level_directory(data_storage_path);
+	if (fs::is_directory(top_level_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Path '" << top_level_directory.string() << "' is not a directory." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_storage_directory = top_level_directory / fs::path("cob_object_recording/");
+	if (fs::is_directory(object_recording_data_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	fs::path object_recording_data_instance_storage_directory = object_recording_data_storage_directory / fs::path(object_name);
+	if (fs::is_directory(object_recording_data_instance_storage_directory) == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Could not create path '" << object_recording_data_instance_storage_directory.string() << "'." << std::endl;
+		return false;
+	}
+
+	std::string calibration_filename = object_recording_data_instance_storage_directory.string() + "/camera_calibration.txt";
+	std::ifstream calibration_file(calibration_filename.c_str(), std::ios::in);
+	if (calibration_file.is_open() == false)
+	{
+		std::cerr << "ERROR - ObjectClassifier::HermesLoadCameraCalibration:" << std::endl;
+		std::cerr << "\t ... Could not create file '" << calibration_filename << "'." << std::endl;
+		return false;
+	}
+	projection_matrix.create(3, 4, CV_64FC1);
+	for (int v=0; v<3; ++v)
+		for (int u=0; u<4; ++u)
+			calibration_file >> projection_matrix.at<double>(v,u);
+	calibration_file.close();
+
+	return ipa_utils::RET_OK;
+}
+
+
+int ObjectClassifier::HermesDetectInit(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
 {
 	std::cout << "Input object name: ";
 	std::cin >> mFilePrefix;
 
-	std::stringstream metaFileName;
-	metaFileName << "common/files/hermes/" << mFilePrefix << "_labels.txt";
-	mLabelFile.open(metaFileName.str().c_str(), std::ios::in);
+	std::string metaFileName = std::string(getenv("HOME")) + "/.ros/cob_object_categorization/hermes/" + mFilePrefix + "_labels.txt";
+
+	mLabelFile.open(metaFileName.c_str(), std::ios::in);
 	if (mLabelFile.is_open() == false)
 	{
-		std::cout << "ObjectClassifier::HermesCapture: Error: Could not open " << metaFileName.str() << "." << std::endl;
+		std::cout << "ObjectClassifier::HermesCapture: Error: Could not open " << metaFileName << "." << std::endl;
 		return ipa_utils::RET_FAILED;
 	}
 
@@ -8121,6 +8404,8 @@ int ObjectClassifier::HermesDetect(ClusterMode pClusterMode, ClassifierType pCla
 			itInner->second.push_back(avgRollHistogram);
 		}
 	}
+
+	std::cout << "Data for object " << mFilePrefix << " loaded." << std::endl;
 
 #ifndef __LINUX__
 
@@ -8327,135 +8612,145 @@ void ObjectClassifier::HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl:
 			si.setCoord(coordinateImage);
 			si.setShared(colorImage);
 
-			// create a pseudo blob
-			BlobFeatureRiB Blob;
-			BlobListRiB Blobs;
-			ipa_utils::IntVector Keys;
+			double pan=0, tilt=0, roll=0;
+			Eigen::Matrix4f finalTransform;
+			HermesCategorizeObject(cloud_cluster, avgPoint, &si, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams, pan, tilt, roll, finalTransform);
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//			// create a pseudo blob
+//			BlobFeatureRiB Blob;
+//			BlobListRiB Blobs;
+//			ipa_utils::IntVector Keys;
+//
+//			Blob.m_x = 0;
+//			Blob.m_y = 0;
+//			Blob.m_r = 2;
+//			Blob.m_Phi = 0;
+//			Blob.m_Res = 0;
+//			Blob.m_Id = 1;
+//			for (unsigned int j=0; j<64; j++) Blob.m_D.push_back(1);
+//			Blob.m_D.push_back(1);		// min/max curvature approximate
+//			Blob.m_D.push_back(1);
+//			for (int i=0; i<10; i++) Blobs.push_back(Blob);
+//
+//			// Use Mask for global feature extraction
+//			CvMat** featureVector = new CvMat*;
+//			*featureVector = NULL;
+//			IplImage* mask = cvCreateImage(cvGetSize(si.Shared()), si.Shared()->depth, 1);
+//			cvCvtColor(si.Shared(), mask, CV_RGB2GRAY);
+//
+//			std::map<double, std::map<double, std::vector<std::vector<float> > > >::iterator itOuter;
+//			std::map<double, std::vector<std::vector<float> > >::iterator itInner;
+//			std::multimap<double, std::pair<double, double> > sapOrderedList;	// [difference score](pan, tilt)
+//			std::multimap<double, std::pair<double, double> > vfhOrderedList;
+//			std::multimap<double, std::pair<double, double> >::iterator itOrderedList;
+//			CvFont font;
+//			cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 1, 1);
+//			std::stringstream displayText;
+//
+//			// SAP feature
+///*			std::cout << "SAP response:" << std::endl;
+//			pGlobalFeatureParams.useFeature["sap"] = true;
+//			pGlobalFeatureParams.useFeature["vfh"] = false;
+//			ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, false, false, "common/files/timing.txt");
+//			for (itOuter = mSapData.begin(); itOuter != mSapData.end(); itOuter++)
+//			{
+//				for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
+//				{
+//					double diff = 0.;
+//					for (int i=0; i<3; i++)
+//					{
+//						double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
+//						diff += val*val/itInner->second[0][i];
+//					}
+//					for (int i=3;i<(*featureVector)->cols;i+=3)
+//					{
+//						double a = cvGetReal1D(*featureVector, i);
+//						double a_ = a;
+//						if (a_==0.) a_ = 0.01;
+//						double b = cvGetReal1D(*featureVector, i+1);
+//						double c = cvGetReal1D(*featureVector, i+2);
+//						double p = b/(2*a_);
+//						double q = c - p*p*a_;
+//						double ap = itInner->second[0][i];
+//						double ap_ = ap;
+//						if (ap_==0.) { ap = a+0.1; ap_ = 1; }
+//						double bp = itInner->second[0][i+1];
+//						double bp_ = bp;
+//						if (bp_==0.) { bp = b+0.1; bp_ = 1; }
+//						double cp = itInner->second[0][i+2];
+//						double cp_ = cp;
+//						if (cp_==0.) { cp = c+0.1; cp_ = 1; }
+//						double pp = bp/(2*ap_);
+//						double pp_ = pp;
+//						if (pp_==0.) pp_ = 1;
+//						double qp = cp - pp*pp*ap_;
+//						double qp_ = qp;
+//						if (qp_==0.) qp_ = 1;
+//						diff += (a-ap)*(a-ap)/(ap_*ap_) + (b-bp)*(b-bp)/(bp_*bp_) + (c-cp)*(c-cp)/(cp_*cp_);         //(p-pp)*(p-pp)/(pp_*pp_) + (q-qp)*(q-qp)/(qp_*qp_);
+//					}
+//					sapOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
+//				}
+//			}
+//			std::cout << "pan\ttilt\tdiff" << std::endl;
+//			for (itOrderedList = sapOrderedList.begin(); itOrderedList != sapOrderedList.end(); itOrderedList++)
+//				std::cout <<  itOrderedList->second.first << "\t" << itOrderedList->second.second << "\t" << itOrderedList->first << std::endl;
+//			displayText << "p:" << sapOrderedList.begin()->second.first << "  t:" << sapOrderedList.begin()->second.second;
+//			cvPutText(clusterImage, displayText.str().c_str(), cvPoint(umin, max(0,vmin-20)), &font, CV_RGB(0, 255, 0));
+//			*/
+//
+//			// VFH
+//			std::cout << "VFH response:" << std::endl;
+//			pGlobalFeatureParams.useFeature["sap"] = false;
+//			pGlobalFeatureParams.useFeature["vfh"] = true;
+//			ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, NULL, false, "common/files/timing.txt");
+//			for (itOuter = mVfhData.begin(); itOuter != mVfhData.end(); itOuter++)
+//			{
+//				for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
+//				{
+//					double diff = 0.;
+//					for (int i=0; i<(*featureVector)->cols; i++)
+//					{
+//						double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
+//						diff += val*val;
+//					}
+//					vfhOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
+//				}
+//			}
+//			std::cout << "pan\ttilt\tdiff" << std::endl;
+//			for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end(); itOrderedList++)
+//				std::cout <<  itOrderedList->second.first << "\t" << itOrderedList->second.second << "\t" << itOrderedList->first << std::endl;
+//			double pan = vfhOrderedList.begin()->second.first;
+//			double tilt = vfhOrderedList.begin()->second.second;
+//			cv::Mat histogram;
+//			HermesComputeRollHistogram(cloud_cluster, avgPoint, histogram, true, false);
+//			int roll = 0;
+//			double matchScore = 0;
+//			HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll, matchScore);
+//
+//			displayText.str("");
+//			displayText.clear();
+//			displayText << "p:" << pan << "  t:" << tilt << "  r:" << roll;
+//			cvPutText(clusterImage, displayText.str().c_str(), cvPoint(umin, max(0,vmin-20)), &font, CV_RGB(0, 255, 0));
+//
+//			// match full point clouds (ICP)
+//			HermesMatchPointClouds(cloud_cluster, avgPoint, pan, tilt, roll);
+//
+//			// free memory
+//			cvReleaseImage(&mask);
+//			cvReleaseMat(featureVector);
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-			Blob.m_x = 0;
-			Blob.m_y = 0;
-			Blob.m_r = 2;
-			Blob.m_Phi = 0;
-			Blob.m_Res = 0;
-			Blob.m_Id = 1;
-			for (unsigned int j=0; j<64; j++) Blob.m_D.push_back(1);
-			Blob.m_D.push_back(1);		// min/max curvature approximate
-			Blob.m_D.push_back(1);
-			for (int i=0; i<10; i++) Blobs.push_back(Blob);
-
-			// Use Mask for global feature extraction
-			CvMat** featureVector = new CvMat*;
-			*featureVector = NULL;
-			IplImage* mask = cvCreateImage(cvGetSize(si.Shared()), si.Shared()->depth, 1);
-			cvCvtColor(si.Shared(), mask, CV_RGB2GRAY);
-
-			std::map<double, std::map<double, std::vector<std::vector<float> > > >::iterator itOuter;
-			std::map<double, std::vector<std::vector<float> > >::iterator itInner;
-			std::multimap<double, std::pair<double, double> > sapOrderedList;	// [difference score](pan, tilt)
-			std::multimap<double, std::pair<double, double> > vfhOrderedList;
-			std::multimap<double, std::pair<double, double> >::iterator itOrderedList;
 			CvFont font;
 			cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 1, 1);
 			std::stringstream displayText;
-
-			// SAP feature
-/*			std::cout << "SAP response:" << std::endl;
-			pGlobalFeatureParams.useFeature["sap"] = true;
-			pGlobalFeatureParams.useFeature["vfh"] = false;
-			ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, false, false, "common/files/timing.txt");
-			for (itOuter = mSapData.begin(); itOuter != mSapData.end(); itOuter++)
-			{
-				for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
-				{
-					double diff = 0.;
-					for (int i=0; i<3; i++)
-					{
-						double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
-						diff += val*val/itInner->second[0][i];
-					}
-					for (int i=3;i<(*featureVector)->cols;i+=3)
-					{
-						double a = cvGetReal1D(*featureVector, i);
-						double a_ = a;
-						if (a_==0.) a_ = 0.01;
-						double b = cvGetReal1D(*featureVector, i+1);
-						double c = cvGetReal1D(*featureVector, i+2);
-						double p = b/(2*a_);
-						double q = c - p*p*a_;
-						double ap = itInner->second[0][i];
-						double ap_ = ap;
-						if (ap_==0.) { ap = a+0.1; ap_ = 1; }
-						double bp = itInner->second[0][i+1];
-						double bp_ = bp;
-						if (bp_==0.) { bp = b+0.1; bp_ = 1; }
-						double cp = itInner->second[0][i+2];
-						double cp_ = cp;
-						if (cp_==0.) { cp = c+0.1; cp_ = 1; }
-						double pp = bp/(2*ap_);
-						double pp_ = pp;
-						if (pp_==0.) pp_ = 1;
-						double qp = cp - pp*pp*ap_;
-						double qp_ = qp;
-						if (qp_==0.) qp_ = 1;
-						diff += (a-ap)*(a-ap)/(ap_*ap_) + (b-bp)*(b-bp)/(bp_*bp_) + (c-cp)*(c-cp)/(cp_*cp_);         //(p-pp)*(p-pp)/(pp_*pp_) + (q-qp)*(q-qp)/(qp_*qp_);
-					}
-					sapOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
-				}
-			}
-			std::cout << "pan\ttilt\tdiff" << std::endl;
-			for (itOrderedList = sapOrderedList.begin(); itOrderedList != sapOrderedList.end(); itOrderedList++)
-				std::cout <<  itOrderedList->second.first << "\t" << itOrderedList->second.second << "\t" << itOrderedList->first << std::endl;
-			displayText << "p:" << sapOrderedList.begin()->second.first << "  t:" << sapOrderedList.begin()->second.second;
-			cvPutText(clusterImage, displayText.str().c_str(), cvPoint(umin, max(0,vmin-20)), &font, CV_RGB(0, 255, 0));
-			*/
-
-			// VFH
-			std::cout << "VFH response:" << std::endl;
-			pGlobalFeatureParams.useFeature["sap"] = false;
-			pGlobalFeatureParams.useFeature["vfh"] = true;
-			ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, si.Coord(), mask, NULL, false, "common/files/timing.txt");
-			for (itOuter = mVfhData.begin(); itOuter != mVfhData.end(); itOuter++)
-			{
-				for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
-				{
-					double diff = 0.;
-					for (int i=0; i<(*featureVector)->cols; i++)
-					{
-						double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
-						diff += val*val;
-					}
-					vfhOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
-				}
-			}
-			std::cout << "pan\ttilt\tdiff" << std::endl;
-			for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end(); itOrderedList++)
-				std::cout <<  itOrderedList->second.first << "\t" << itOrderedList->second.second << "\t" << itOrderedList->first << std::endl;
-			double pan = vfhOrderedList.begin()->second.first;
-			double tilt = vfhOrderedList.begin()->second.second;
-			cv::Mat histogram;
-			HermesComputeRollHistogram(cloud_cluster, avgPoint, histogram, true, false);
-			int roll = 0;
-			double matchScore = 0;
-			HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll, matchScore);
-
-			displayText.str("");
-			displayText.clear();
 			displayText << "p:" << pan << "  t:" << tilt << "  r:" << roll;
 			cvPutText(clusterImage, displayText.str().c_str(), cvPoint(umin, max(0,vmin-20)), &font, CV_RGB(0, 255, 0));
 
-			// match full point clouds (ICP)
-			HermesMatchPointClouds(cloud_cluster, avgPoint, pan, tilt, roll);
-
-			// free memory
-			cvReleaseImage(&mask);
 			si.Release();
-			cvReleaseMat(featureVector);
-
 			clusterIndex++;
 		}
 
 		cloud_cluster->clear();
-
 	}
 
 	cvShowImage("cluster image", clusterImage);
@@ -8463,6 +8758,130 @@ void ObjectClassifier::HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl:
 	cv::waitKey(1000);
 	//cv::waitKey();
 	cvReleaseImage(&clusterImage);
+}
+
+
+int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, SharedImage* pSourceImage, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams, double& pan, double& tilt, double& roll, Eigen::Matrix4f& pFinalTransform)
+{
+	// create a pseudo blob
+	BlobFeatureRiB Blob;
+	BlobListRiB Blobs;
+	ipa_utils::IntVector Keys;
+
+	Blob.m_x = 0;
+	Blob.m_y = 0;
+	Blob.m_r = 2;
+	Blob.m_Phi = 0;
+	Blob.m_Res = 0;
+	Blob.m_Id = 1;
+	for (unsigned int j=0; j<64; j++) Blob.m_D.push_back(1);
+	Blob.m_D.push_back(1);		// min/max curvature approximate
+	Blob.m_D.push_back(1);
+	for (int i=0; i<10; i++) Blobs.push_back(Blob);
+
+	// Use Mask for global feature extraction
+	CvMat** featureVector = new CvMat*;
+	*featureVector = NULL;
+	IplImage* mask = cvCreateImage(cvGetSize(pSourceImage->Shared()), pSourceImage->Shared()->depth, 1);
+	cvCvtColor(pSourceImage->Shared(), mask, CV_RGB2GRAY);
+
+	std::map<double, std::map<double, std::vector<std::vector<float> > > >::iterator itOuter;
+	std::map<double, std::vector<std::vector<float> > >::iterator itInner;
+	std::multimap<double, std::pair<double, double> > sapOrderedList;	// [difference score](pan, tilt)
+	std::multimap<double, std::pair<double, double> > vfhOrderedList;
+	std::multimap<double, std::pair<double, double> >::iterator itOrderedList;
+
+	// SAP feature
+/*			std::cout << "SAP response:" << std::endl;
+	pGlobalFeatureParams.useFeature["sap"] = true;
+	pGlobalFeatureParams.useFeature["vfh"] = false;
+	ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, pSourceImage.Coord(), mask, false, false, "common/files/timing.txt");
+	for (itOuter = mSapData.begin(); itOuter != mSapData.end(); itOuter++)
+	{
+		for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
+		{
+			double diff = 0.;
+			for (int i=0; i<3; i++)
+			{
+				double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
+				diff += val*val/itInner->second[0][i];
+			}
+			for (int i=3;i<(*featureVector)->cols;i+=3)
+			{
+				double a = cvGetReal1D(*featureVector, i);
+				double a_ = a;
+				if (a_==0.) a_ = 0.01;
+				double b = cvGetReal1D(*featureVector, i+1);
+				double c = cvGetReal1D(*featureVector, i+2);
+				double p = b/(2*a_);
+				double q = c - p*p*a_;
+				double ap = itInner->second[0][i];
+				double ap_ = ap;
+				if (ap_==0.) { ap = a+0.1; ap_ = 1; }
+				double bp = itInner->second[0][i+1];
+				double bp_ = bp;
+				if (bp_==0.) { bp = b+0.1; bp_ = 1; }
+				double cp = itInner->second[0][i+2];
+				double cp_ = cp;
+				if (cp_==0.) { cp = c+0.1; cp_ = 1; }
+				double pp = bp/(2*ap_);
+				double pp_ = pp;
+				if (pp_==0.) pp_ = 1;
+				double qp = cp - pp*pp*ap_;
+				double qp_ = qp;
+				if (qp_==0.) qp_ = 1;
+				diff += (a-ap)*(a-ap)/(ap_*ap_) + (b-bp)*(b-bp)/(bp_*bp_) + (c-cp)*(c-cp)/(cp_*cp_);         //(p-pp)*(p-pp)/(pp_*pp_) + (q-qp)*(q-qp)/(qp_*qp_);
+			}
+			sapOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
+		}
+	}
+	std::cout << "pan\ttilt\tdiff" << std::endl;
+	for (itOrderedList = sapOrderedList.begin(); itOrderedList != sapOrderedList.end(); itOrderedList++)
+		std::cout <<  itOrderedList->second.first << "\t" << itOrderedList->second.second << "\t" << itOrderedList->first << std::endl;
+	displayText << "p:" << sapOrderedList.begin()->second.first << "  t:" << sapOrderedList.begin()->second.second;
+	cvPutText(clusterImage, displayText.str().c_str(), cvPoint(umin, max(0,vmin-20)), &font, CV_RGB(0, 255, 0));
+	*/
+
+	// VFH
+	std::cout << "VFH response:" << std::endl;
+	pGlobalFeatureParams.useFeature["sap"] = false;
+	pGlobalFeatureParams.useFeature["vfh"] = true;
+	ExtractGlobalFeatures(&Blobs, featureVector, pClusterMode, pGlobalFeatureParams, INVALID, pSourceImage->Coord(), mask, NULL, false, "");
+	for (itOuter = mVfhData.begin(); itOuter != mVfhData.end(); itOuter++)
+	{
+		for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
+		{
+			double diff = 0.;
+			for (int i=0; i<(*featureVector)->cols; i++)
+			{
+				double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
+				diff += val*val;
+			}
+			vfhOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
+		}
+	}
+	std::cout << "pan\ttilt\tdiff" << std::endl;
+	for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end(); itOrderedList++)
+		std::cout <<  itOrderedList->second.first << "\t" << itOrderedList->second.second << "\t" << itOrderedList->first << std::endl;
+	pan = vfhOrderedList.begin()->second.first;
+	tilt = vfhOrderedList.begin()->second.second;
+	cv::Mat histogram;
+	HermesComputeRollHistogram(pPointCloud, pAvgPoint, histogram, true, false);
+	int roll_i = 0;
+	double matchScore = 0;
+	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
+	roll = roll_i;
+	roll = 0; // hack
+	std::cout << "best matching roll angle: " << roll << std::endl;
+
+	// match full point clouds (ICP)
+	HermesMatchPointClouds(pPointCloud, pAvgPoint, pan, tilt, roll, pFinalTransform);
+
+	// free memory
+	cvReleaseImage(&mask);
+	cvReleaseMat(featureVector);
+
+	return ipa_utils::RET_OK;
 }
 
 
@@ -8546,25 +8965,38 @@ double ObjectClassifier::HermesHistogramIntersectionKernel(std::vector<float>& p
 }
 
 
-int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll)
+int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform)
 {
 	// look up suitable file for reference point cloud
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr referenceCloudOriginal(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr referenceCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr alignedReferenceCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::io::loadPCDFile(mReferenceFilenames[pan][tilt], *referenceCloud);
+	std::cout << "ObjectClassifier::HermesMatchPointClouds: Loading pcd file... " << std::flush;
+	pcl::io::loadPCDFile(mReferenceFilenames[pan][tilt], *referenceCloudOriginal);
+	std::cout << "finished." << std::endl;
 	pcl::PointXYZ avgRefrencePoint(0,0,0);
-	for (int p=0; p<(int)referenceCloud->points.size(); p++)
+	for (int p=0; p<(int)referenceCloudOriginal->points.size(); p++)
 	{
-		avgRefrencePoint.x += referenceCloud->points[p].x;
-		avgRefrencePoint.y += referenceCloud->points[p].y;
-		avgRefrencePoint.z += referenceCloud->points[p].z;
-		referenceCloud->points[p].r = 255;
-		referenceCloud->points[p].g = 0;
-		referenceCloud->points[p].b = 0;
+		pcl::PointXYZRGB& point = referenceCloudOriginal->points[p];
+		if (point.x == 0 && point.y == 0 && point.z == 0)
+			continue;
+		avgRefrencePoint.x += point.x;
+		avgRefrencePoint.y += point.y;
+		avgRefrencePoint.z += point.z;
+//		point.r = 255;
+//		point.g = 0;
+//		point.b = 0;
+		referenceCloud->push_back(point);
 	}
 	avgRefrencePoint.x /= referenceCloud->points.size();
 	avgRefrencePoint.y /= referenceCloud->points.size();
 	avgRefrencePoint.z /= referenceCloud->points.size();
+	referenceCloud->header = referenceCloudOriginal->header;
+	referenceCloud->height = referenceCloudOriginal->height;
+	referenceCloud->width = referenceCloudOriginal->width;
+	referenceCloud->is_dense = referenceCloudOriginal->is_dense;
+	referenceCloud->sensor_orientation_ = referenceCloudOriginal->sensor_orientation_;
+	referenceCloud->sensor_origin_ = referenceCloudOriginal->sensor_origin_;
 
 	Eigen::Matrix4f transform;
 	transform.setIdentity();
@@ -8598,32 +9030,39 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 	}
 
 	// icp
+	std::cout << "Starting ICP" << std::endl;
 	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
 	icp.setInputCloud(alignedCapturedCloud);
 	icp.setInputTarget(alignedReferenceCloud);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr fusedCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 	icp.align(*fusedCloud);
-	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+	std::cout << "ICP has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
 	std::cout << icp.getFinalTransformation() << std::endl;
+
+	pFinalTransform = icp.getFinalTransformation();
 
 	// display
 	// C:\Users\rmb\Documents\Studienarbeit\Software\object_categorization\common\files\hermes>"C:\Program Files\PCL 1.4.0\bin\pcd_viewer.exe" -bc 255,255,255 -ps 3 -ax 0.01 output.pcd
 	// "C:\Program Files\PCL 1.4.0\bin\pcd_viewer.exe" -bc 255,255,255 -ps 3 -ax 0.01 C:\Users\rmb\Documents\Studienarbeit\Software\object_categorization\common\files\hermes\output.pcd
-	//boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-	//viewer->setBackgroundColor (255, 255, 255);
-	//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(fusedCloud);
-	//viewer->addPointCloud<pcl::PointXYZRGB> (fusedCloud, rgb, "sample cloud");
-	//viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-	//viewer->addCoordinateSystem (1.0);
-	//viewer->initCameraParameters ();
-	//while (!viewer->wasStopped ())
-	//{
-	//	viewer->spinOnce(100);
-	//}
+
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+	viewer->setBackgroundColor (255, 255, 255);
 	*fusedCloud += *alignedReferenceCloud;
-	std::stringstream ss;
-	ss << "common/files/hermes/output.pcd";
-	pcl::io::savePCDFileASCII(ss.str().c_str(), *fusedCloud);
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(fusedCloud);
+	viewer->addPointCloud<pcl::PointXYZRGB>(fusedCloud, rgb, "sample cloud");
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
+	viewer->addCoordinateSystem(1.0);
+	viewer->initCameraParameters ();
+	while (!viewer->wasStopped ())
+	{
+		viewer->spinOnce(100);
+	}
+
+	// output to file to check result
+//	*fusedCloud += *alignedReferenceCloud;
+//	std::stringstream ss;
+//	ss << "common/files/hermes/output.pcd";
+//	pcl::io::savePCDFileASCII(ss.str().c_str(), *fusedCloud);
 
 	return ipa_utils::RET_OK;
 }
@@ -8636,7 +9075,11 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 ClassificationData::ClassificationData()
 {
 	mSqrtInverseCovarianceMatrix = NULL;
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	mLocalFeatureClusterer = new CvEM();
+#else
+	mLocalFeatureClusterer = new cv::EM;
+#endif
 }
 
 ClassificationData::~ClassificationData()
@@ -9709,22 +10152,43 @@ int ClassificationData::SaveLocalFeatureClusterer(std::string pFileName)
 		return ipa_utils::RET_FAILED;
 	}
 
-	f << mLocalFeatureClusterer->get_nclusters() << "\n";			// number of clusters
-
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
+	int numberClusters = mLocalFeatureClusterer->get_nclusters();
 	CvMat* Means = (CvMat*)mLocalFeatureClusterer->get_means();
+	CvMat* Weights = (CvMat*)mLocalFeatureClusterer->get_weights();
+#else
+	int numberClusters = mLocalFeatureClusterer->get<int>("nclusters");
+	cv::Mat meansMat = mLocalFeatureClusterer->get<cv::Mat>("means");
+	CvMat Means_ = (CvMat)meansMat;
+	CvMat* Means = &Means_;
+	cv::Mat weightsMat = mLocalFeatureClusterer->get<cv::Mat>("weights");
+	CvMat Weights_ = (CvMat)weightsMat;
+	CvMat* Weights = &Weights_;
+#endif
+	f << numberClusters << "\n";			// number of clusters
+
 	f << Means->rows << "\t" << Means->cols << "\n";				// size of means matrix
 	f << MatToString(Means);										// means matrix
 
-	CvMat* Weights = (CvMat*)mLocalFeatureClusterer->get_weights();
 	f << Weights->rows << "\t" << Weights->cols << "\n";			// size of weights matrix
 	f << MatToString(Weights);										// weights matrix
 
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvMat** Covs = (CvMat**)mLocalFeatureClusterer->get_covs();
-	for (int i=0; i<mLocalFeatureClusterer->get_nclusters(); i++)
+	for (int i=0; i<numberClusters; i++)
 	{
 		f << (Covs[i])->rows << "\t" << (Covs[i])->cols << "\n";	// size of covariance matrix
 		f << MatToString(Covs[i]);									// covariance matrix
 	}
+#else
+	std::vector<cv::Mat> covsVector = mLocalFeatureClusterer->get<std::vector<cv::Mat> >("covs");
+	for (int i=0; i<numberClusters; i++)
+	{
+		f << covsVector[i].rows << "\t" << covsVector[i].cols << "\n";	// size of covariance matrix
+		CvMat covsI = (CvMat)covsVector[i];
+		f << MatToString(&covsI);									// covariance matrix
+	}
+#endif
 	
 /*	CvMat* Probs = (CvMat*)mLocalFeatureClusterer->get_probs();
 	f << Probs->rows << "\t" << Probs->cols	<< "\n";				// size of probabilities matrix
@@ -9788,8 +10252,22 @@ int ClassificationData::LoadLocalFeatureClusterer(std::string pFileName)
 		return ipa_utils::RET_FAILED;
 	}
 	CvMat* AllLocalFeatures = CreateAllLocalFeatureMatrix(NumberSamples, NumberFeatures);
+#if (CV_MAJOR_VERSION<=2 && CV_MINOR_VERSION<=3)
 	CvEMParams EMParams = CvEMParams(NumberClusters, CvEM::COV_MAT_DIAGONAL, CvEM::START_E_STEP, cvTermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 100, FLT_EPSILON), /*(const CvMat*)Probs*/NULL, (const CvMat*)Weights, (const CvMat*)Means, (const CvMat**)Covs);
 	mLocalFeatureClusterer->train(AllLocalFeatures, NULL, EMParams);
+#else
+	mLocalFeatureClusterer->set("nclusters", NumberClusters);
+	mLocalFeatureClusterer->set("covMatType", cv::EM::COV_MAT_DIAGONAL);
+	mLocalFeatureClusterer->set("maxIters", 100);
+	mLocalFeatureClusterer->set("epsilon", FLT_EPSILON);
+	cv::Mat weightsMat(Weights);
+	cv::Mat meansMat(Means);
+	std::vector<cv::Mat> covsVector(NumberClusters);
+	for (int i=0; i<NumberClusters; i++)
+		covsVector[i] = cv::Mat(Covs[i]);
+	cv::Mat allLocalFeaturesMat(AllLocalFeatures);
+	mLocalFeatureClusterer->trainE(allLocalFeaturesMat, meansMat, covsVector, weightsMat);
+#endif
 	cvReleaseMat(&AllLocalFeatures);
 
 	std::cout << "Local feature clusterer (EM) loaded.\n";

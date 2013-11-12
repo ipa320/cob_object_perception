@@ -92,7 +92,7 @@ protected:
 			seg.setModelType (pcl::SACMODEL_PLANE);
 			seg.setMethodType (pcl::SAC_RANSAC);
 			seg.setMaxIterations (100);
-			seg.setDistanceThreshold (0.02);
+			seg.setDistanceThreshold (0.015);
 
 			int planeRemovals = 0;
 			int nr_points = (int) cloud_filtered->points.size();
@@ -156,7 +156,7 @@ protected:
 
 			std::vector<pcl::PointIndices> cluster_indices;
 			pcl::EuclideanClusterExtraction<PointType> ec;
-			ec.setClusterTolerance (0.5); // 2cm
+			ec.setClusterTolerance (0.1); // 2cm
 			ec.setMinClusterSize (50);
 			ec.setMaxClusterSize (25000);
 			ec.setSearchMethod (tree);
