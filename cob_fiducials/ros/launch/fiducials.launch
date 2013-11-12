@@ -5,8 +5,8 @@
   <!-- arg name="rgb_topic" default="/cam3d/rgb/" /-->
   <!-- arg name="rgb_topic" default="/camera/rgb/" /-->
   <!--arg name="rgb_topic" default="/stereo/left/" /-->
-  <arg name="rgb_topic" default="/camera/rgb/" />
-  <arg name="yaml_file" default="fiducials_fpitag.yaml" />
+  <arg name="rgb_topic" default="/stereo/right/" />
+  <arg name="yaml_file" default="fiducials_0.yaml" />
   
   <!-- send parameters to parameter server -->
   <rosparam command="load" ns="fiducials" file="$(find cob_fiducials)/ros/launch/$(arg yaml_file)"/>
