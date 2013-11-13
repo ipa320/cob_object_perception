@@ -84,6 +84,7 @@ private:
 
 	std::vector<t_pi> m_ref_tag_vec; ///< reference tags to be recognized
 	cv::Mat m_debug_img; ///< image that holds debugging output
+	bool m_use_fast_pi_tag;
 };
 
 } // end namespace ipa_Fiducials
