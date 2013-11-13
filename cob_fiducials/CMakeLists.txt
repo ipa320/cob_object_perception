@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 2.4.6)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
+# Set the build type. Options are:
+# Coverage : w/ debug symbols, w/o optimization, w/ code-coverage
+# Debug : w/ debug symbols, w/o optimization
+# Release : w/o debug symbols, w/ optimization
+# RelWithDebInfo : w/ debug symbols, w/ optimization
+# MinSizeRel : w/o debug symbols, w/ optimization, stripped binaries
 #set(ROS_BUILD_TYPE RelWithDebInfo)
 
 rosbuild_init()
@@ -28,14 +28,14 @@ rosbuild_gensrv()
 #target_link_libraries(example ${PROJECT_NAME})
 
 rosbuild_add_library(cob_fiducials common/src/pi/FiducialModelPi.cpp
-	common/src/aruco/arucofidmarkers.cpp
-	common/src/aruco/board.cpp
-	common/src/aruco/boarddetector.cpp
-	common/src/aruco/cameraparameters.cpp
-	common/src/aruco/cvdrawingutils.cpp
-	common/src/aruco/FiducialModelAruco.cpp
-	common/src/aruco/marker.cpp
-	common/src/aruco/markerdetector.cpp
+        common/src/aruco/arucofidmarkers.cpp
+        common/src/aruco/board.cpp
+        common/src/aruco/boarddetector.cpp
+        common/src/aruco/cameraparameters.cpp
+        common/src/aruco/cvdrawingutils.cpp
+        common/src/aruco/FiducialModelAruco.cpp
+        common/src/aruco/marker.cpp
+        common/src/aruco/markerdetector.cpp
 )
 
 # add include search paths
