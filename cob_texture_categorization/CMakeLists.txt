@@ -17,7 +17,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ros/include
-		    ${PROJECT_SOURCE_DIR}/common/include)
+		    ${PROJECT_SOURCE_DIR}/common/include/cob_texture_categorization)
 
 #uncomment if you have defined messages
 #rosbuild_genmsg()
@@ -32,4 +32,4 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ros/include
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-rosbuild_add_executable(texture_categorization_node ros/src/texture_categorization.cpp)
+rosbuild_add_executable(texture_categorization_node ros/src/texture_categorization.cpp common/src/create_lbp.cpp common/src/get_mapping.cpp common/src/lbp.cpp common/src/splitandmerge.cpp)

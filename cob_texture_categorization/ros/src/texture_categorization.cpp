@@ -1,5 +1,18 @@
 #include <cob_texture_categorization/texture_categorization.h>
 
+#include "create_lbp.h"
+#include "splitandmerge.h"
+
+
+#include <iostream>
+#include <fstream>
+#include <dirent.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+
+
 
 
 TextCategorizationNode::TextCategorizationNode(ros::NodeHandle nh) :
@@ -41,16 +54,25 @@ void TextCategorizationNode::init()
 void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 {
 	ROS_INFO("Input Callback");
-
 	// convert color image to cv::Mat
 	cv_bridge::CvImageConstPtr color_image_ptr;
 	cv::Mat color_image;
+	cv::Mat lbp_image = cv::imread("/home/rmb-dh/Pictures/DSC06325.JPG", CV_8UC3); 	//TEST
 	convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
+
 
 	// do something useful with code located in common/src
 	cv::Mat gray_image, dx;
 	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
 	cv::Sobel(gray_image, dx, -1, 1, 0, 3);
+	double lbp_hist[10];
+	//create_lbp lbp = create_lbp();
+	//lbp.create_lbp_class(lbp_image, 1, 8, false, lbp_hist);
+	cv::Mat bild;
+	splitandmerge test = splitandmerge();
+	bild = test.categorize(lbp_image);
+	//cv::imshow("sam", lbp_image);
+
 
 	cv::imshow("image", color_image);
 	cv::imshow("gray image", gray_image);
