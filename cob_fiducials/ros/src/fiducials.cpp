@@ -273,10 +273,11 @@ public:
 
 	void callback_pub_tf(const ros::TimerEvent& event)
 	{
-		if(marker_tf_.frame_id_.size()>0) {
+		if(marker_tf_.frame_id_.size()>0)
+		{
 			tf_lock_.lock();
 			marker_tf_.stamp_ = ros::Time::now();
-                	tf_broadcaster_.sendTransform(marker_tf_);
+			tf_broadcaster_.sendTransform(marker_tf_);
 			tf_lock_.unlock();
 		}
 	}
