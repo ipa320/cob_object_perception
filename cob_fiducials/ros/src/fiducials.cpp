@@ -368,6 +368,10 @@ public:
 //            cob_object_detection_msgs::DetectionArray detection_array;
             detection_array_.detections.clear();
 			detection_array_.header = color_camera_data->header;
+			//hack for simulation and bag file:
+			//detection_array_.header.stamp = ros::Time::now();
+			//detection_array_.header.frame_id = "/head_cam3d_link";
+
 			detectFiducials(detection_array_, color_mat_8U3_);
             if (ros_node_mode_ == MODE_TOPIC || ros_node_mode_ == MODE_TOPIC_AND_SERVICE)
             {
