@@ -1475,7 +1475,7 @@ unsigned long FiducialModelPi::LoadParameters(std::vector<FiducialPiParameters> 
                 if(std::abs(delta - 1) < 0.05)
                 {
                         std::cout << "[WARNING] FiducialModelPi::LoadCoordinates" << std::endl;
-                        std::cout << "\t ... Skipping fiducial due to equal cross ratios" << std::endl;
+                        std::cout << "\t ... Skipping fiducial "<< ref_tag.parameters.m_id <<" due to equal cross ratios" << std::endl;
                 }
                 else if (delta < 1)
                 {
