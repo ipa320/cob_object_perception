@@ -2557,16 +2557,16 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 					continue;
 				}
 			}
-//			else if (processing_method_==BORMANN)
-//			{
-//				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
-//				if (verticalOverlap * /*1.3*/ 5.0 < std::min(iRect.height, jRect.height))
-//				{
-////					if (debug["showPairs"])
-////						std::cout << "rule 1c violated\n";
-//					continue;
-//				}
-//			}
+			else if (processing_method_==BORMANN)
+			{
+				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
+				if (verticalOverlap * /*1.3*/ 5.0 < std::min(iRect.height, jRect.height))
+				{
+//					if (debug["showPairs"])
+//						std::cout << "rule 1c violated\n";
+					continue;
+				}
+			}
 
 			//medianSw[i] = getMedianStrokeWidth(ccmap, swtmap, iRect, static_cast<int>(i));
 			//medianSw[j] = getMedianStrokeWidth(ccmap, swtmap, jRect, static_cast<int>(j));
@@ -2958,10 +2958,10 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Ma
 		textRegion.originalChainBoundingBox = textRegion.boundingBox;
 		textRegion.originalChainID = i;
 
-		cv::RotatedRect rr = cv::minAreaRect(pointvector);
+//		cv::RotatedRect rr = cv::minAreaRect(pointvector);
 		//std::cout << "textRegion.boundingBox.width=" << textRegion.boundingBox.width << "  textRegion.boundingBox.height=" << textRegion.boundingBox.height << std::endl;
-//		if (textRegion.boundingBox.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * textRegion.boundingBox.height)
-		if (rr.size.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * rr.size.height)
+		if (textRegion.boundingBox.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * textRegion.boundingBox.height)
+// todo:		if (rr.size.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * rr.size.height)
 			textRegions.push_back(textRegion);
 	}
 

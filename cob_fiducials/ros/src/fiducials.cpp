@@ -1,54 +1,54 @@
 /****************************************************************
-*
-* Copyright (c) 2010
-*
-* Fraunhofer Institute for Manufacturing Engineering
-* and Automation (IPA)
-*
-* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-*
-* Project name: care-o-bot
-* ROS stack name: cob_object_perception
-* ROS package name: cob_fiducials
-*
-* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-*
-* Author: Jan Fischer, email:jan.fischer@ipa.fhg.de
-* Supervised by: Jan Fischer, email:jan.fischer@ipa.fhg.de
-*
-* Date of creation: March 2013
-* ToDo:
-*
-* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-*
-* Redistribution and use in source and binary rforms, with or without
-* modification, are permitted provided that the following conditions are met:
-*
-* * Redistributions of source code must retain the above copyright
-* notice, this list of conditions and the following disclaimer.
-* * Redistributions in binary form must reproduce the above copyright
-* notice, this list of conditions and the following disclaimer in the
-* documentation and/or other materials provided with the distribution.
-* * Neither the name of the Fraunhofer Institute for Manufacturing
-* Engineering and Automation (IPA) nor the names of its
-* contributors may be used to endorse or promote products derived from
-* this software without specific prior written permission.
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License LGPL as
-* published by the Free Software Foundation, either version 3 of the
-* License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU Lesser General Public License LGPL for more details.
-*
-* You should have received a copy of the GNU Lesser General Public
-* License LGPL along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*
-****************************************************************/
+ *
+ * Copyright (c) 2010
+ *
+ * Fraunhofer Institute for Manufacturing Engineering
+ * and Automation (IPA)
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ *
+ * Project name: care-o-bot
+ * ROS stack name: cob_object_perception
+ * ROS package name: cob_fiducials
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ *
+ * Author: Jan Fischer, email:jan.fischer@ipa.fhg.de
+ * Supervised by: Jan Fischer, email:jan.fischer@ipa.fhg.de
+ *
+ * Date of creation: March 2013
+ * ToDo:
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ *
+ * Redistribution and use in source and binary rforms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Fraunhofer Institute for Manufacturing
+ *       Engineering and Automation (IPA) nor the names of its
+ *       contributors may be used to endorse or promote products derived from
+ *       this software without specific prior written permission.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License LGPL as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License LGPL for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License LGPL along with this program.
+ * If not, see <http://www.gnu.org/licenses/>.
+ *
+ ****************************************************************/
 
 //##################
 //#### includes ####
@@ -123,8 +123,8 @@ private:
     boost::shared_ptr<image_transport::ImageTransport> image_transport_1_;
 
     // Subscriptions
-    image_transport::SubscriberFilter color_camera_image_sub_;        ///< color camera image topic
-    message_filters::Subscriber<sensor_msgs::CameraInfo> color_camera_info_sub_;        ///< camera information service
+    image_transport::SubscriberFilter color_camera_image_sub_;	///< color camera image topic
+    message_filters::Subscriber<sensor_msgs::CameraInfo> color_camera_info_sub_;	///< camera information service
 
     boost::shared_ptr<message_filters::Synchronizer<ColorImageSyncPolicy > > color_image_sub_sync_; ///< Synchronizer
     tf::TransformListener transform_listener_; ///< tf transforms
@@ -135,7 +135,7 @@ private:
 
     // Service definitions
     ros::ServiceServer detect_fiducials_service_; ///< Service server to request fidcuial detection
-    ros::ServiceServer stop_tf_service_;
+    ros::ServiceServer stop_tf_service_; 
     // Publisher definitions
     ros::Publisher detect_fiducials_pub_;
     ros::Publisher fiducials_marker_array_publisher_;
@@ -145,17 +145,17 @@ private:
     cv::Mat camera_matrix_;
     bool camera_matrix_initialized_;
 
-// ros::Time received_timestamp_;
-// std::string received_frame_id_;
+//    ros::Time received_timestamp_;
+//    std::string received_frame_id_;
     cob_object_detection_msgs::DetectionArray detection_array_;
 
 
     //fiducials::fiducialsConfig launch_reconfigure_config_;
     //dynamic_reconfigure::Server<cob_fiducials::fiducialsConfig> dynamic_reconfigure_server_;
 
-    bool compute_sharpness_measure_;        ///< computes a measure for image sharpness
-    bool log_or_calibrate_sharpness_measurements_;                ///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve or directly calibrated within the program
-    double sharpness_calibration_parameter_m_;                ///< the m and n parameters of the linear calibration function sharpness_score = m * pixel_count + n -> m,n can be determined with the 'log_or_calibrate_sharpness_measurements_' option
+    bool compute_sharpness_measure_;	///< computes a measure for image sharpness
+    bool log_or_calibrate_sharpness_measurements_;		///< if true, the sharpness measurements are logged and saved to disc for calibration of the curve or directly calibrated within the program
+    double sharpness_calibration_parameter_m_;		///< the m and n parameters of the linear calibration function sharpness_score = m * pixel_count + n -> m,n can be determined with the 'log_or_calibrate_sharpness_measurements_' option
     double sharpness_calibration_parameter_n_;
     bool publish_tf_;
     tf::TransformBroadcaster tf_broadcaster_; ///< Broadcast transforms of detected fiducials
@@ -167,7 +167,7 @@ private:
     int debug_verbosity_; ///< verbosity level on output (1=all outputs, 2=only warnings,infos and errors)
 
     static std::string color_image_encoding_; ///< Color encoding of incoming messages
-    CobFiducialsNode::t_Mode ros_node_mode_;        ///< Specifys if node is started as topic or service
+    CobFiducialsNode::t_Mode ros_node_mode_;	///< Specifys if node is started as topic or service
     std::string model_directory_; ///< Working directory, from which models are loaded and saved
     std::string model_filename_;
 
@@ -202,7 +202,7 @@ public:
     void onInit()
     {
         /// Create a handle for this node, initialize node
-        //         node_handle_ = getMTNodeHandle();
+        //	  node_handle_ = getMTNodeHandle();
         image_transport_0_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
         image_transport_1_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(node_handle_));
 
@@ -218,7 +218,7 @@ public:
     {
         if (loadParameters() == false) return false;
 
-        ros::SubscriberStatusCallback imgConnect = boost::bind(&CobFiducialsNode::connectCallback, this);
+        ros::SubscriberStatusCallback imgConnect    = boost::bind(&CobFiducialsNode::connectCallback, this);
         ros::SubscriberStatusCallback imgDisconnect = boost::bind(&CobFiducialsNode::disconnectCallback, this);
 
         // Synchronize inputs of incoming image data.
@@ -247,43 +247,44 @@ public:
         //dynamic_reconfigure_server_.setCallback(f);
 
         ROS_INFO("[fiducials] Setting up tag library");
-        switch(fiducial_type_)
-        {
-        case ipa_Fiducials::TYPE_PI:
-         tag_detector_ = boost::shared_ptr<FiducialModelPi>(new FiducialModelPi());
-                break;
-        case ipa_Fiducials::TYPE_ARUCO:
-         tag_detector_ = boost::shared_ptr<FiducialModelAruco>(new FiducialModelAruco());
-                break;
-        default:
-                ROS_ERROR("[fiducials] Unknown fiducial type");
-                return false;
-        }
+	switch(fiducial_type_)
+	{
+	case ipa_Fiducials::TYPE_PI:
+	        tag_detector_ = boost::shared_ptr<FiducialModelPi>(new FiducialModelPi());
+		break;
+	case ipa_Fiducials::TYPE_ARUCO:
+	        tag_detector_ = boost::shared_ptr<FiducialModelAruco>(new FiducialModelAruco());
+		break;
+	default:
+        	ROS_ERROR("[fiducials] Unknown fiducial type");
+		return false;
+	}
 
-        if(publish_tf_) {
-                tf_pub_timer_.stop();
-                tf_pub_timer_ = node_handle_.createTimer(ros::Duration(0.1), &CobFiducialsNode::callback_pub_tf, this);
-                stop_tf_service_ = node_handle_.advertiseService("stop_tf", &CobFiducialsNode::stopTfServiceCallback, this);
-        }
+	if(publish_tf_) {
+		tf_pub_timer_.stop();
+		tf_pub_timer_ = node_handle_.createTimer(ros::Duration(0.1), &CobFiducialsNode::callback_pub_tf, this);
+		stop_tf_service_ = node_handle_.advertiseService("stop_tf", &CobFiducialsNode::stopTfServiceCallback, this);
+	}
 
         ROS_INFO("[fiducials] Initializing [OK]");
         ROS_INFO("[fiducials] Up and running");
         return true;
     }
 
-        void callback_pub_tf(const ros::TimerEvent& event)
-        {
-                if(marker_tf_.frame_id_.size()>0) {
-                        tf_lock_.lock();
-                        marker_tf_.stamp_ = ros::Time::now();
-                        tf_broadcaster_.sendTransform(marker_tf_);
-                        tf_lock_.unlock();
-                }
-        }
+	void callback_pub_tf(const ros::TimerEvent& event)
+	{
+		if(marker_tf_.frame_id_.size()>0)
+		{
+			tf_lock_.lock();
+			marker_tf_.stamp_ = ros::Time::now();
+			tf_broadcaster_.sendTransform(marker_tf_);
+			tf_lock_.unlock();
+		}
+	}
 
     //void dynamicReconfigureCallback(cob_fiducials::fiducialsConfig &config, uint32_t level)
     //{
-    //        <localVariable> = config.<dynamic_reconfigure_variable>;
+    //	<localVariable> = config.<dynamic_reconfigure_variable>;
     //}
 
 
@@ -306,17 +307,17 @@ public:
     /// Unsubscribe from camera topics if possible.
     void disconnectCallback()
     {
-            if (sub_counter_ > 0)
+    	if (sub_counter_ > 0)
             sub_counter_--;
 
-            if (sub_counter_ == 0)
+    	if (sub_counter_ == 0)
         {
             ROS_INFO("[fiducials] Unsubscribing from camera topics");
 
             color_camera_image_sub_.unsubscribe();
             color_camera_info_sub_.unsubscribe();
         }
-            ROS_INFO("[fiducials] %i subscribers on camera topics [OK]", sub_counter_);
+    	ROS_INFO("[fiducials] %i subscribers on camera topics [OK]", sub_counter_);
     }
 
     /// Callback is executed, when shared mode is selected
@@ -339,12 +340,12 @@ public:
                 camera_matrix_.at<double>(2,2) = 1;
 
                 ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix");
-                
-                                if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_, log_or_calibrate_sharpness_measurements_) & ipa_Utils::RET_FAILED)
-                                {
-                                        ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
-                                        return;
-                                }
+		
+				if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_, log_or_calibrate_sharpness_measurements_) & ipa_Utils::RET_FAILED)
+				{
+					ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
+					return;
+				}
                 camera_matrix_initialized_ = true;
             }
 
@@ -360,22 +361,26 @@ public:
               return;
             }
 
-// received_timestamp_ = color_camera_data->header.stamp;
-// received_frame_id_ = color_camera_data->header.frame_id;
+//            received_timestamp_ = color_camera_data->header.stamp;
+//            received_frame_id_ = color_camera_data->header.frame_id;
             cv::Mat tmp = cv_ptr->image;
             color_mat_8U3_ = tmp.clone();
 
-// cob_object_detection_msgs::DetectionArray detection_array;
+//            cob_object_detection_msgs::DetectionArray detection_array;
             detection_array_.detections.clear();
-                        detection_array_.header = color_camera_data->header;
-                        detectFiducials(detection_array_, color_mat_8U3_);
+			detection_array_.header = color_camera_data->header;
+			//hack for simulation and bag file:
+			//detection_array_.header.stamp = ros::Time::now();
+			//detection_array_.header.frame_id = "/head_cam3d_link";
+
+			detectFiducials(detection_array_, color_mat_8U3_);
             if (ros_node_mode_ == MODE_TOPIC || ros_node_mode_ == MODE_TOPIC_AND_SERVICE)
             {
                 // Publish
                 detect_fiducials_pub_.publish(detection_array_);
             }
 
-// synchronizer_received_ = true;
+//            synchronizer_received_ = true;
 
             // Notify waiting thread
         }
@@ -387,11 +392,11 @@ public:
     {
         ROS_DEBUG("[fiducials] Service Callback");
 
-        tf_lock_.lock();
-        marker_tf_.frame_id_ = "";
-        tf_lock_.unlock();
+	tf_lock_.lock();
+	marker_tf_.frame_id_ = "";
+	tf_lock_.unlock();
 
-        return true;
+	return true;
     }
 
 
@@ -402,7 +407,7 @@ public:
 
         // Connect to image topics
         bool result = false;
-// synchronizer_received_ = false;
+//        synchronizer_received_ = false;
         connectCallback();
 
         // Wait for data
@@ -411,7 +416,7 @@ public:
             boost::system_time const timeout=boost::get_system_time()+ boost::posix_time::milliseconds(5000);
 
             ROS_INFO("[fiducials] Waiting for image data");
-            if (condQ_.timed_wait(lock, timeout))                // wait until condition is set by callback function
+            if (condQ_.timed_wait(lock, timeout))		// wait until condition is set by callback function
                 ROS_INFO("[fiducials] Waiting for image data [OK]");
             else
             {
@@ -424,41 +429,41 @@ public:
             //float nSecIncrement = 0.5;
             //while (!synchronizer_received_ && nSecPassed < 10)
             //{
-            //        ros::Duration(nSecIncrement).sleep();
-            //        nSecPassed += nSecIncrement;
-            //        ROS_INFO("[fiducials] Waiting");
+            //	ros::Duration(nSecIncrement).sleep();
+            //	nSecPassed += nSecIncrement;
+            //	ROS_INFO("[fiducials] Waiting");
             //}
 
             //if (!synchronizer_received_)
             //{
-            //        ROS_WARN("[fiducials] Could not receive image data");
-            //        return false;
+            //	ROS_WARN("[fiducials] Could not receive image data");
+            //	return false;
             //}
             
             
             if (req.object_name.data == "ALL" || req.object_name.data == "")
             {
-                                // Publish all detections
-                                res.object_list = detection_array_;
-                        }
-                        else
-                        {
-                                // Publish specific detections
-                                cob_object_detection_msgs::DetectionArray filtered_detection_array;
-                                filtered_detection_array.header = detection_array_.header;
-                                
-                                for (unsigned int i=0; i<detection_array_.detections.size(); i++)
-                                {
-                                        if (detection_array_.detections[i].label == req.object_name.data)
-                                        {
-                                                
-                                                filtered_detection_array.detections.push_back(detection_array_.detections[i]);
-                                        }
-                                }
+				// Publish all detections
+				res.object_list = detection_array_;
+			}
+			else
+			{
+				// Publish specific detections
+				cob_object_detection_msgs::DetectionArray filtered_detection_array;
+				filtered_detection_array.header = detection_array_.header;
+				
+				for (unsigned int i=0; i<detection_array_.detections.size(); i++)
+				{
+					if (detection_array_.detections[i].label == req.object_name.data)
+					{
+						
+						filtered_detection_array.detections.push_back(detection_array_.detections[i]);
+					}
+				}
                 
-                                res.object_list = filtered_detection_array;
-                        }
-                        
+				res.object_list = filtered_detection_array;
+			}
+			
             
             result = !(res.object_list.detections.empty()); //detectFiducials(res.object_list, color_mat_8U3_);
         }
@@ -477,14 +482,14 @@ public:
         std::vector<ipa_Fiducials::t_pose> tags_vec;
         std::vector<std::vector<double> >vec_vec7d;
 
-        tf_lock_.lock();
-        marker_tf_.frame_id_ = "";
-        tf_lock_.unlock();
+	tf_lock_.lock();
+	marker_tf_.frame_id_ = "";
+	tf_lock_.unlock();
 
-        unsigned long ret_val = ipa_Utils::RET_OK;
-        ret_val = tag_detector_->GetPose(color_image, tags_vec);
+	unsigned long ret_val = ipa_Utils::RET_OK;
+	ret_val = tag_detector_->GetPose(color_image, tags_vec);
 
-        if (ret_val & ipa_Utils::RET_OK)
+	if (ret_val & ipa_Utils::RET_OK)
         {
             pose_array_size = tags_vec.size();
 
@@ -493,9 +498,9 @@ public:
             {
                 cob_object_detection_msgs::Detection fiducial_instance;
 
-                                std::stringstream ss;
-                                ss << "tag_" << tags_vec[i].id;
-                                fiducial_instance.header = detection_array.header;
+				std::stringstream ss;
+				ss << "tag_" << tags_vec[i].id;
+				fiducial_instance.header = detection_array.header;
                 fiducial_instance.label = ss.str();
                 fiducial_instance.detector = tag_detector_->GetType();
                 fiducial_instance.score = 0;
@@ -515,24 +520,24 @@ public:
                 vec_vec7d.push_back(vec7d);
 
                 // Results are given in CfromO
-                fiducial_instance.pose.pose.position.x = vec7d[0];
-                fiducial_instance.pose.pose.position.y = vec7d[1];
-                fiducial_instance.pose.pose.position.z = vec7d[2];
-                fiducial_instance.pose.pose.orientation.w = vec7d[3];
-                fiducial_instance.pose.pose.orientation.x = vec7d[4];
-                fiducial_instance.pose.pose.orientation.y = vec7d[5];
-                fiducial_instance.pose.pose.orientation.z = vec7d[6];
+                fiducial_instance.pose.pose.position.x =  vec7d[0];
+                fiducial_instance.pose.pose.position.y =  vec7d[1];
+                fiducial_instance.pose.pose.position.z =  vec7d[2];
+                fiducial_instance.pose.pose.orientation.w =  vec7d[3];
+                fiducial_instance.pose.pose.orientation.x =  vec7d[4];
+                fiducial_instance.pose.pose.orientation.y =  vec7d[5];
+                fiducial_instance.pose.pose.orientation.z =  vec7d[6];
 
                 fiducial_instance.pose.header = detection_array.header;
-// fiducial_instance.pose.header.stamp = received_timestamp_;
-// fiducial_instance.pose.header.frame_id = received_frame_id_;
+//                fiducial_instance.pose.header.stamp = received_timestamp_;
+//                fiducial_instance.pose.header.frame_id = received_frame_id_;
 
-                        // Analyze the image sharpness at the area inside the detected marker
+        		// Analyze the image sharpness at the area inside the detected marker
                 if (compute_sharpness_measure_ == true)
                 {
-                        double sharpness_measure;
-                        tag_detector_->GetSharpnessMeasure(color_image, tags_vec[i], tag_detector_->GetGeneralFiducialParameters(tags_vec[i].id), sharpness_measure, sharpness_calibration_parameter_m_, sharpness_calibration_parameter_n_);
-                        fiducial_instance.score = sharpness_measure;
+                	double sharpness_measure;
+                	tag_detector_->GetSharpnessMeasure(color_image, tags_vec[i], tag_detector_->GetGeneralFiducialParameters(tags_vec[i].id), sharpness_measure, sharpness_calibration_parameter_m_, sharpness_calibration_parameter_n_);
+                	fiducial_instance.score = sharpness_measure;
                 }
 
                 detection_array.detections.push_back(fiducial_instance);
@@ -569,9 +574,9 @@ public:
                 //tf_name << detection_array.detections[i].label;
                 transform.setOrigin(tf::Vector3(vec_vec7d[i][0], vec_vec7d[i][1], vec_vec7d[i][2]));
                 transform.setRotation(tf::Quaternion(vec_vec7d[i][4], vec_vec7d[i][5], vec_vec7d[i][6], vec_vec7d[i][3]));
-                tf_lock_.lock();
-                marker_tf_ = tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, "marker");        //TODO: make parameter
-                tf_lock_.unlock();
+		tf_lock_.lock();
+		marker_tf_ = tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, "marker");	//TODO: make parameter
+		tf_lock_.unlock();
             }
         }
 
@@ -591,11 +596,11 @@ public:
                 for (unsigned int j=0; j<3; j++)
                 {
                     unsigned int idx = 3*i+j;
-// marker_array_msg_.markers[idx].header.frame_id = received_frame_id_;// "/" + frame_id;//"tf_name.str()";
-// marker_array_msg_.markers[idx].header.stamp = received_timestamp_;
+//                    marker_array_msg_.markers[idx].header.frame_id = received_frame_id_;// "/" + frame_id;//"tf_name.str()";
+//                    marker_array_msg_.markers[idx].header.stamp = received_timestamp_;
                     marker_array_msg_.markers[idx].header = detection_array.header;
                     marker_array_msg_.markers[idx].ns = "fiducials";
-                    marker_array_msg_.markers[idx].id = id_start_idx + idx;
+                    marker_array_msg_.markers[idx].id =  id_start_idx + idx;
                     marker_array_msg_.markers[idx].type = visualization_msgs::Marker::ARROW;
                     marker_array_msg_.markers[idx].action = visualization_msgs::Marker::ADD;
                     marker_array_msg_.markers[idx].color.a = 0.85;
@@ -903,35 +908,35 @@ public:
         else
             ROS_INFO("[fiducials] compute_sharpness_measure: false");
         if (node_handle_.getParam("sharpness_calibration_parameter_m", sharpness_calibration_parameter_m_) == false)
-                {
-                if (compute_sharpness_measure_ == true)
-                {
-                                ROS_ERROR("[fiducials] 'sharpness_calibration_parameter_m=<double>' not specified in yaml file");
-                                return false;
-                }
-                else
-                        sharpness_calibration_parameter_m_ = 0.;
-                }
-                ROS_INFO("[fiducials] sharpness_calibration_parameter_m: %f", sharpness_calibration_parameter_m_);
-                if (node_handle_.getParam("sharpness_calibration_parameter_n", sharpness_calibration_parameter_n_) == false)
-                {
-                        if (compute_sharpness_measure_ == true)
-                        {
-                                ROS_ERROR("[fiducials] 'sharpness_calibration_parameter_n=<double>' not specified in yaml file");
-                                return false;
-                        }
-                        else
-                                sharpness_calibration_parameter_n_ = 0.;
-                }
-                ROS_INFO("[fiducials] sharpness_calibration_parameter_n: %f", sharpness_calibration_parameter_n_);
+		{
+        	if (compute_sharpness_measure_ == true)
+        	{
+				ROS_ERROR("[fiducials] 'sharpness_calibration_parameter_m=<double>' not specified in yaml file");
+				return false;
+        	}
+        	else
+        		sharpness_calibration_parameter_m_ = 0.;
+		}
+		ROS_INFO("[fiducials] sharpness_calibration_parameter_m: %f", sharpness_calibration_parameter_m_);
+		if (node_handle_.getParam("sharpness_calibration_parameter_n", sharpness_calibration_parameter_n_) == false)
+		{
+			if (compute_sharpness_measure_ == true)
+			{
+				ROS_ERROR("[fiducials] 'sharpness_calibration_parameter_n=<double>' not specified in yaml file");
+				return false;
+			}
+			else
+				sharpness_calibration_parameter_n_ = 0.;
+		}
+		ROS_INFO("[fiducials] sharpness_calibration_parameter_n: %f", sharpness_calibration_parameter_n_);
         if (node_handle_.getParam("log_or_calibrate_sharpness_measurements", log_or_calibrate_sharpness_measurements_) == false)
         {
-                log_or_calibrate_sharpness_measurements_ = false;
+        	log_or_calibrate_sharpness_measurements_ = false;
         }
-                if (log_or_calibrate_sharpness_measurements_)
-                        ROS_INFO("[fiducials] log_or_calibrate_sharpness_measurements: true");
-                else
-                        ROS_INFO("[fiducials] log_or_calibrate_sharpness_measurements: false");
+		if (log_or_calibrate_sharpness_measurements_)
+			ROS_INFO("[fiducials] log_or_calibrate_sharpness_measurements: true");
+		else
+			ROS_INFO("[fiducials] log_or_calibrate_sharpness_measurements: false");
         if (node_handle_.getParam("publish_marker_array", publish_marker_array_) == false)
         {
             ROS_ERROR("[fiducials] 'publish_marker_array=[true/false]' not specified in yaml file");
@@ -967,8 +972,8 @@ public:
         ROS_INFO("[fiducials] debug_verbosity: %i", debug_verbosity_);
         //if (node_handle_.getParam("StereoPreFilterCap", StereoPreFilterCap_) == false)
         //{
-        //        ROS_ERROR("[sensor_fusion] StereoPreFilterCap for sensor fusion node not specified");
-        //        return false;
+        //	ROS_ERROR("[sensor_fusion] StereoPreFilterCap for sensor fusion node not specified");
+        //	return false;
         //}
         //launch_reconfigure_config_.preFilterCap = StereoPreFilterCap_;
 
@@ -1002,7 +1007,7 @@ int main(int argc, char** argv)
 
     ros::MultiThreadedSpinner spinner(2); // Use 4 threads
     spinner.spin();
-    //        ros::spin();
+    //	ros::spin();
 
     return 0;
 }
