@@ -90,6 +90,10 @@
 #include <cob_fiducials/pi/FiducialModelPi.h>
 #include <cob_fiducials/aruco/FiducialModelAruco.h>
 
+//seneka project
+#include <seneka_msgs/FiducialArray.h>
+#include <seneka_msgs/Fiducial.h>
+
 #include <boost/thread/mutex.hpp>
 #include <boost/timer.hpp>
 
@@ -140,6 +144,8 @@ private:
     ros::Publisher detect_fiducials_pub_;
     ros::Publisher fiducials_marker_array_publisher_;
     image_transport::Publisher img2D_pub_; ///< Publishes 2D image data to show detection results
+    //seneka publsher
+    ros::Publisher fiducial_publisher_;
 
     cv::Mat color_mat_8U3_;
     cv::Mat camera_matrix_;
@@ -180,6 +186,8 @@ private:
     boost::mutex tf_lock_;
     ros::Timer tf_pub_timer_;
     tf::StampedTransform marker_tf_;
+
+ 
 
 public:
     /// Constructor.
@@ -236,6 +244,8 @@ public:
         // Publisher for visualization/debugging
         fiducials_marker_array_publisher_ = node_handle_.advertise<visualization_msgs::MarkerArray>( "fiducial_marker_array", 0 );
         img2D_pub_= image_transport_1_->advertise("image", 1);
+	//senkea publisher
+	fiducial_publisher_ =  node_handle_.advertise<seneka_msgs::FiducialArray>("fiducial_custom_array", 0);
 
         synchronizer_received_ = false;
         prev_marker_array_size_ = 0;
@@ -562,6 +572,35 @@ public:
             cv_ptr.encoding = CobFiducialsNode::color_image_encoding_;
             img2D_pub_.publish(cv_ptr.toImageMsg());
         }
+
+	// Publish fiducial_custom_array
+	if(publish_tf_){//TODO define own variable in launchfile
+	       seneka_msgs::FiducialArray container_msg;
+	       container_msg.header = detection_array.header;
+
+	       for (unsigned int i=0; i<pose_array_size; i++)
+	       {
+		 seneka_msgs::Fiducial fiducial_msg;
+		 fiducial_msg.fiducial_id = tags_vec[i].id;
+		 
+		 fiducial_msg.origin[0] = vec_vec7d[i][0];
+		 fiducial_msg.origin[1] = vec_vec7d[i][1];
+		 fiducial_msg.origin[2] = vec_vec7d[i][2];
+
+		 fiducial_msg.rotation[0] = vec_vec7d[i][4];
+		 fiducial_msg.rotation[1] = vec_vec7d[i][5];
+		 fiducial_msg.rotation[2] = vec_vec7d[i][6];
+		 fiducial_msg.rotation[3] = vec_vec7d[i][7];
+
+		 container_msg.container.push_back(fiducial_msg);
+	       }
+	       //Test
+	       seneka_msgs::Fiducial fiducial_msgs;
+	       fiducial_msgs.fiducial_id = 1;
+	       container_msg.container.push_back(fiducial_msgs);
+
+	       fiducial_publisher_.publish(container_msg);
+	}
 
         // Publish tf
         if (publish_tf_)
