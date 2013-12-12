@@ -594,10 +594,6 @@ public:
 
 		 container_msg.container.push_back(fiducial_msg);
 	       }
-	       //Test
-	       seneka_msgs::Fiducial fiducial_msgs;
-	       fiducial_msgs.fiducial_id = 1;
-	       container_msg.container.push_back(fiducial_msgs);
 
 	       fiducial_publisher_.publish(container_msg);
 	}
