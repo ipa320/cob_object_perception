@@ -90,10 +90,6 @@
 #include <cob_fiducials/pi/FiducialModelPi.h>
 #include <cob_fiducials/aruco/FiducialModelAruco.h>
 
-//seneka project
-#include <seneka_msgs/FiducialArray.h>
-#include <seneka_msgs/Fiducial.h>
-
 #include <boost/thread/mutex.hpp>
 #include <boost/timer.hpp>
 
