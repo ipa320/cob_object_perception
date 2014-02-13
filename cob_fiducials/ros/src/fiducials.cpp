@@ -144,8 +144,8 @@ private:
     ros::Publisher detect_fiducials_pub_;
     ros::Publisher fiducials_marker_array_publisher_;
     image_transport::Publisher img2D_pub_; ///< Publishes 2D image data to show detection results
-    //seneka publsher
-    ros::Publisher fiducial_publisher_;
+ 
+    ros::Publisher fiducial_publisher_;	
 
     cv::Mat color_mat_8U3_;
     cv::Mat camera_matrix_;
@@ -244,8 +244,9 @@ public:
         // Publisher for visualization/debugging
         fiducials_marker_array_publisher_ = node_handle_.advertise<visualization_msgs::MarkerArray>( "fiducial_marker_array", 0 );
         img2D_pub_= image_transport_1_->advertise("image", 1);
-	//senkea publisher
-	fiducial_publisher_ =  node_handle_.advertise<seneka_msgs::FiducialArray>("fiducial_custom_array", 0);
+
+	// Publisher for Detection Array with marker id's
+	fiducial_publisher_ =  node_handle_.advertise<cob_object_detection_msgs::DetectionArray>("fiducial_detection_array", 0);
 
         synchronizer_received_ = false;
         prev_marker_array_size_ = 0;
@@ -539,8 +540,8 @@ public:
                 fiducial_instance.pose.pose.orientation.z =  vec7d[6];
 
                 fiducial_instance.pose.header = detection_array.header;
-//                fiducial_instance.pose.header.stamp = received_timestamp_;
-//                fiducial_instance.pose.header.frame_id = received_frame_id_;
+//              fiducial_instance.pose.header.stamp = received_timestamp_;
+//              fiducial_instance.pose.header.frame_id = received_frame_id_;
 
         		// Analyze the image sharpness at the area inside the detected marker
                 if (compute_sharpness_measure_ == true)
@@ -573,26 +574,27 @@ public:
             img2D_pub_.publish(cv_ptr.toImageMsg());
         }
 
-	// Publish fiducial_custom_array
-	if(publish_tf_){//TODO define own variable in launchfile
-	       seneka_msgs::FiducialArray container_msg;
+	// Publish DetectionArray with marker id's
+	if(publish_tf_){//TODO define extra variable in launchfile
+
+	       cob_object_detection_msgs::DetectionArray container_msg;
 	       container_msg.header = detection_array.header;
 
 	       for (unsigned int i=0; i<pose_array_size; i++)
 	       {
-		 seneka_msgs::Fiducial fiducial_msg;
-		 fiducial_msg.fiducial_id = tags_vec[i].id;
+		 cob_object_detection_msgs::Detection detection_msg;
+		 detection_msg.id = tags_vec[i].id;
 		 
-		 fiducial_msg.origin[0] = vec_vec7d[i][0];
-		 fiducial_msg.origin[1] = vec_vec7d[i][1];
-		 fiducial_msg.origin[2] = vec_vec7d[i][2];
+		 detection_msg.pose.pose.position.x = vec_vec7d[i][0];
+		 detection_msg.pose.pose.position.y = vec_vec7d[i][1];
+		 detection_msg.pose.pose.position.z = vec_vec7d[i][2];
 
-		 fiducial_msg.rotation[0] = vec_vec7d[i][4];
-		 fiducial_msg.rotation[1] = vec_vec7d[i][5];
-		 fiducial_msg.rotation[2] = vec_vec7d[i][6];
-		 fiducial_msg.rotation[3] = vec_vec7d[i][7];
+		 detection_msg.pose.pose.orientation.w = vec_vec7d[i][3];
+		 detection_msg.pose.pose.orientation.x = vec_vec7d[i][4];
+		 detection_msg.pose.pose.orientation.y = vec_vec7d[i][5];
+		 detection_msg.pose.pose.orientation.z = vec_vec7d[i][6];
 
-		 container_msg.container.push_back(fiducial_msg);
+		 container_msg.detections.push_back(detection_msg);
 	       }
 
 	       fiducial_publisher_.publish(container_msg);
