@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<launch>
+
+   <!--node ns="surface_classification" pkg="nodelet" type="nodelet" name="object_segmentation_pass_through" args="standalone pcl/PassThrough" output="screen">
+    	<remap from="~input" to="/cam3d/rgb/points" />
+
+    <rosparam>
+      filter_field_name: z
+      filter_limit_min: 0.0
+      filter_limit_max: 2.0
+      keep_organized: true
+    </rosparam>
+  </node-->
+
+  <node ns="surface_classification" name="surface_classification" pkg="cob_surface_classification" type="surface_classification" output="screen"><!-- launch-prefix="gdb -ex run args" -->
+   <remap from="pointcloud_in" to="object_segmentation_pass_through/output"/>
+   <!--remap from="pointcloud_in" to="/cam3d/depth/points_xyzrgb"/-->
+   <remap from="pointcloud_in" to="/cam3d/depth/points"/>
+   <!--remap from="pointcloud_in" to="/cam3d/depth_registered/points"/-->
+   <!--remap from="colorimage_in" to="/cam3d/rgb/image"/-->
+   <remap from="colorimage_in" to="/cam3d/rgb/image_raw"/>
+   <!--<remap from="pointcloud_in" to="/camera/depth/points"/>-->
+  <!-- <remap from="colorimage_in" to="/camera/rgb/image_color"/>-->
+  </node>
+
+</launch>
