@@ -88,6 +88,9 @@
 #include <boost/tuple/tuple.hpp>
 
 
+#define I_CONCAVE 8
+#define I_CONVEX 9
+
 class Evaluation {
 public:
 	Evaluation();

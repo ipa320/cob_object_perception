@@ -81,10 +81,10 @@ Evaluation::Evaluation() {
 
 	//colors of the classification categories in the ground truth
 	color_tab.resize(NUM_LABELS);
-	color_tab[I_EDGE] = EVAL_COL_EDGE;
-	color_tab[I_PLANE] = EVAL_COL_PLANE;
-	color_tab[I_CONCAVE]= EVAL_COL_CONC;
-	color_tab[I_CONVEX]= EVAL_COL_CONV;
+	color_tab[I_EDGE] = LBL_EDGE; //EVAL_COL_EDGE;
+	color_tab[I_PLANE] = LBL_PLANE; //EVAL_COL_PLANE;
+	color_tab[I_CONCAVE]= LBL_CYL; //EVAL_COL_CONC;
+	color_tab[I_CONVEX]= LBL_CYL_CVX; //EVAL_COL_CONV;
 }
 
 Evaluation::~Evaluation() {

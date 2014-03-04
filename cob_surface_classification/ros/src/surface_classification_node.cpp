@@ -60,16 +60,16 @@
 /*switches for execution of processing steps*/
 
 #define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
-#define COMPUTATION_MODE			false		//computations without record
+#define COMPUTATION_MODE			true		//computations without record
 #define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
-#define EVALUATION_ONLINE_MODE		true		//computations plus evaluation of current computations plus record of evaluation
+#define EVALUATION_ONLINE_MODE		false		//computations plus evaluation of current computations plus record of evaluation
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						true 	//segmentation + refinement
+#define SEG 						false 	//segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement according to curvatures (outdated)
-#define CLASSIFY 					true	//classification
+#define CLASSIFY 					false	//classification
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
@@ -201,17 +201,17 @@ public:
 			{
 				//matrix indices: row y, column x!
 				pcl::PointXYZRGB& point = cloud->at(u,v);
-//				if(point.z == point.z)	//test nan
-					depth_image.at< float >(v,u) = point.z;
+				if(point.z == point.z)	//test nan
+					depth_image.at<float>(v,u) = point.z;
 
 			}
 		}
 
 		//visualization
-//		cv::Mat depth_im_scaled;
-//		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
-//		cv::imshow("depth_image", depth_im_scaled);
-//		cv::waitKey(10);
+		cv::Mat depth_im_scaled;
+		cv::normalize(depth_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
+		cv::imshow("depth_image", depth_im_scaled);
+		cv::waitKey(10);
 
 		//draw crossline
 		//int lineLength = 20;
@@ -241,8 +241,106 @@ public:
 
 		int key = 0;
 		cv::imshow("image", color_image);
-		if(!EVALUATION_ONLINE_MODE) cv::waitKey(50);
-		if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
+		if(!EVALUATION_ONLINE_MODE)
+			cv::waitKey(10);
+		//if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
+
+
+		cv::Mat dx, dy;
+		cv::Mat average_slope = cv::Mat::zeros(depth_image.rows, depth_image.cols, CV_32FC1);
+		cv::Mat average_dx = cv::Mat::zeros(depth_image.rows, depth_image.cols, CV_32FC1);
+		cv::Mat edge = cv::Mat::zeros(depth_image.rows, depth_image.cols, CV_8UC1);
+		//cv::medianBlur(depth_image, depth_image, 5);
+		cv::Sobel(depth_image, dx, -1, 1, 0, 5, 1./(6.*16.));
+		cv::Sobel(depth_image, dy, -1, 0, 1, 5, 1./(6.*16.));
+//		cv::Mat kx, ky;
+//		cv::getDerivKernels(kx, ky, 1, 0, 5, false, CV_32F);
+//		std::cout << "kx:\n";
+//		for (int i=0; i<kx.rows; ++i)
+//		{
+//			for (int j=0; j<kx.cols; ++j)
+//				std::cout << kx.at<float>(i,j) << "\t";
+//			std::cout << std::endl;
+//		}
+//		std::cout << "\nky:\n";
+//		for (int i=0; i<ky.rows; ++i)
+//		{
+//			for (int j=0; j<ky.cols; ++j)
+//				std::cout << ky.at<float>(i,j) << "\t";
+//			std::cout << std::endl;
+//		}
+		int line_width = 10;
+		for (int v=0; v<dx.rows-line_width; ++v)
+		{
+			for (int u=0; u<dx.cols-line_width; ++u)
+			{
+				double avg_slope = 0., avg_dx = 0.;
+				int number_values = 0;
+				for (int i=0; i<line_width; ++i)
+				{
+					pcl::PointXYZRGB& point1 = cloud->at(u+i, v);
+					pcl::PointXYZRGB& point2 = cloud->at(u+i+1, v);
+					//float val = (point2.z-point1.z)/(point2.x-point1.x);
+					//float val = dx.at<float>(v,u+i);
+					//if (val > -0.05 && val < 0.05)
+					float val = (point2.z-point1.z);
+					if (point2.x-point1.x > 0. && val > -0.05f && val < 0.05f)
+					{
+						avg_slope += val;
+						avg_dx += point2.x-point1.x;
+						++number_values;
+					}
+					// else jump edge
+				}
+				//std::cout << avg_slope/(double)number_values << "\t";
+				if (number_values > 0)
+				{
+					average_slope.at<float>(v,u) = avg_slope/(double)number_values;
+					average_dx.at<float>(v,u) = avg_dx/(double)number_values;
+				}
+				if (dx.at<float>(v,u) <= -0.05 || dx.at<float>(v,u) >= 0.05)
+					edge.at<uchar>(v,u) = 255;
+			}
+		}
+		for (int v=line_width; v<average_slope.rows-line_width-1; ++v)
+		{
+			for (int u=line_width; u<average_slope.cols-line_width-1; ++u)
+			{
+				if (edge.at<uchar>(v,u) != 255)
+				{
+					double alpha_left = atan2(-average_slope.at<float>(v,u-line_width), -average_dx.at<float>(v,u-line_width));
+					double alpha_right = atan2(average_slope.at<float>(v,u+1), average_dx.at<float>(v,u+1));
+					//if (v==240 && u>310 && u<330)
+					//	std::cout << "al: " << alpha_left << "   ar: " << alpha_right << "   diff: " << fabs(alpha_left-alpha_right) << "<" << 160./180.*CV_PI << "?\t";
+					if (fabs(alpha_left-alpha_right) < 145./180.*CV_PI || fabs(alpha_left-alpha_right) > 215./180.*CV_PI)
+						edge.at<uchar>(v,u) = 64+64*2*fabs(CV_PI-fabs(alpha_left-alpha_right))/CV_PI;
+				}
+			}
+		}
+		cv::imshow("dx", dx);
+		//cv::normalize(average_slope, average_slope, 0., 1., cv::NORM_MINMAX);
+		average_slope = average_slope * 15 + 0.5;
+		cv::imshow("average_slope", average_slope);
+		cv::imshow("edge", edge);
+		cv::waitKey(10);
+		return;
+
+
+//		cv::Mat dx2, dy2, dxy2;
+//		cv::medianBlur(depth_image, depth_image, 3);
+//		cv::Sobel(depth_image, dx2, -1, 1, 0, 5);
+//		cv::Sobel(depth_image, dy2 -1, 0, 1, 5);
+//		cv::magnitude(dx2, dy2, dxy2);
+//		cv::normalize(dxy2, dxy2, 0.0, 40.0, cv::NORM_MINMAX);
+//		cv::imshow("dxy2", dxy2);
+//		cv::normalize(dx2, dx2, -39.0, 40.0, cv::NORM_MINMAX);
+//		cv::imshow("dx", dx2);
+//		cv::normalize(dy2, dy2, -39.0, 40.0, cv::NORM_MINMAX);
+//		cv::imshow("dy", dy2);
+//		cv::waitKey(10);
+		return;
+
+
 		//std::cout << key <<endl;
 		//record if "e" is pressed while "image"-window is activated
 		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
@@ -262,7 +360,7 @@ public:
 //		oneWithoutEdges_.compute(*normalsWithoutEdges);
 
 			cv::Mat edgeImage = cv::Mat::ones(depth_image.rows,depth_image.cols,CV_32FC1);
-			edge_detection_.computeDepthEdges( depth_image, cloud, edgeImage);
+			edge_detection_.computeDepthEdges(depth_image, cloud, edgeImage);
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
@@ -273,7 +371,7 @@ public:
 			//timer.start();
 			//for(int i=0; i<10; i++)
 			//{
-
+/*bring it back
 			one_.setInputCloud(cloud);
 			one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
 			one_.computeMaskManually_increasing(cloud->width);
@@ -282,7 +380,7 @@ public:
 			one_.setSameDirectionThres(0.94);
 			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
 			one_.compute(*normals);
-
+*/
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
 
@@ -395,7 +493,7 @@ public:
 				cc_.setNormalCloudInOut(normals);
 				cc_.setLabelCloudIn(labels);
 				cc_.setPointCloudIn(cloud);
-				cc_.setMaskSizeSmooth(14);
+				//cc_.setMaskSizeSmooth(14);
 				cc_.classify();
 			}
 			if(CLASS_VIS)

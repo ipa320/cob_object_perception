@@ -205,7 +205,7 @@ EdgeDetection<PointInT>::coordinatesMat
 		if(xDist <0)
 			sign = -1;
 
-		for(int i=0; i<lineLength; i ++)
+		for(int i=0; i<lineLength; ++i)
 		{
 			xIter[i] = dotIni.x + i * sign;
 			yIter[i] = dotIni.y;
@@ -217,7 +217,7 @@ EdgeDetection<PointInT>::coordinatesMat
 		if(yDist <0)
 			sign = -1;
 
-		for(int i=0; i<lineLength; i ++)
+		for(int i=0; i<lineLength; ++i)
 		{
 			xIter[i] = dotIni.x;
 			yIter[i] = dotIni.y + i*sign;
@@ -225,38 +225,34 @@ EdgeDetection<PointInT>::coordinatesMat
 	}
 
 
-	float x0,y0; //coordinates of reference point
-
-
-	int iCoord;
-
 	/*timer.start();
 		for(int itim=0;itim<10000;itim++)
 		{*/
 
+	float x0,y0; //coordinates of reference point
 	coordinates = cv::Mat::zeros(lineLength,3,CV_32FC1);
-	iCoord = 0;
+	int iCoord = 0;
 	int iX = 0;
 	int iY = 0;
 	bool first = true;
 
 
-
+	// todo: reduce computation if line direction is fixed
 	while(iX < lineLength && iY < lineLength)
 	{
 		//don't save points with nan-entries (no data available)
-		if((pointcloud->at(xIter[iX],yIter[iY]).z)==(pointcloud->at(xIter[iX],yIter[iY]).z))
+		const PointInT& point = pointcloud->at(xIter[iX],yIter[iY]);
+		if((point.z)==(point.z))
 		{
 			if(first)
 			{
 				//origin of local coordinate system is the first point with valid data. Express coordinates relatively:
-				x0 = pointcloud->at(xIter[iX],yIter[iY]).x;
-				y0 = pointcloud->at(xIter[iX],yIter[iY]).y;
+				x0 = point.x;
+				y0 = point.y;
 				first = false;
 			}
-			coordinates.at<float>(iCoord,0) = (pointcloud->at(xIter[iX],yIter[iY]).x - x0)
-																					+ (pointcloud->at(xIter[iX],yIter[iY]).y - y0);
-			coordinates.at<float>(iCoord,1) = depth_image.at<float>(yIter[iY], xIter[iX]);// - z0;
+			coordinates.at<float>(iCoord,0) = (point.x - x0) + (point.y - y0);
+			coordinates.at<float>(iCoord,1) = point.z;	//depth_image.at<float>(yIter[iY], xIter[iX]);// - z0;   // todo: why not point.z?
 			coordinates.at<float>(iCoord,2) = 1.0;
 
 
@@ -983,8 +979,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 	//-------------------------------------------------------------------------------------------------------------
 
 
-	/*Timer timerFunc;
-		timerFunc.start();*/
+	Timer timerFunc;
+	timerFunc.start();
 
 	//plot z over w, draw estimated lines
 	cv::Mat plotZW (cv::Mat::zeros(windowX_,windowY_,CV_32FC1));
@@ -1001,8 +997,8 @@ EdgeDetection<PointInT>::computeDepthEdges
 	int iY=2*depth_image.rows/3;
 
 
-	Timer timer;
-	//	cout << timerFunc.getElapsedTimeInMilliSec() << " ms for initial definitions before loop\n";
+	//Timer timer;
+	std::cout << timerFunc.getElapsedTimeInMilliSec() << " ms for initial definitions before loop\n";
 
 
 	//loop over rows
@@ -1195,6 +1191,7 @@ EdgeDetection<PointInT>::computeDepthEdges
 		}
 	}	//loop over image
 
+	cout << timerFunc.getElapsedTimeInMilliSec() << " ms until end of loop\n";
 
 	//thin edges in x- and y-direction separately
 	//thinEdges(scalarProductsX, 0);
@@ -1208,12 +1205,13 @@ EdgeDetection<PointInT>::computeDepthEdges
 		for(int iX = lineLength_/2; iX< depth_image.cols-lineLength_/2; iX++)
 		{
 			//Maximum (consider most intense edge):
-			edgeImage.at<float>(iY,iX) = std::max(scalarProductsX.at<float>(iY,iX), scalarProductsY.at<float>(iY,iX));
+			//edgeImage.at<float>(iY,iX) = std::max(scalarProductsX.at<float>(iY,iX), scalarProductsY.at<float>(iY,iX));
+			float max = std::max(scalarProductsX.at<float>(iY,iX), scalarProductsY.at<float>(iY,iX));
 
-			if(edgeImage.at<float>(iY,iX) > th_edge_ && edgeImage.at<float>(iY,iX) < th_plane_)
+			if(max > th_edge_ && max < th_plane_)
 				edgeImage.at<float>(iY,iX) = 0;
-			else
-				edgeImage.at<float>(iY,iX) = 1;
+//			else
+//				edgeImage.at<float>(iY,iX) = 1;
 		}
 	}
 
@@ -1227,6 +1225,9 @@ EdgeDetection<PointInT>::computeDepthEdges
 	if(key==1048677)	//"e"
 		printNeigh(pointcloud, iX,iY);*/
 
+	//timerFunc.stop();
+	cout << timerFunc.getElapsedTimeInMilliSec() << " ms for full function()\n";
+
 	cv::imshow("edge image", edgeImage);
 	cv::waitKey(10);
 
@@ -1235,9 +1236,6 @@ EdgeDetection<PointInT>::computeDepthEdges
 		cv::imshow("x-direction (concave = grey, convex = white, undefined = black)", concaveConvex);
 		cv::waitKey(10);
 	}
-
-	//timerFunc.stop();
-	//cout << timerFunc.getElapsedTimeInMilliSec() << " ms for depth_along_lines()\n";
 
 }
 
