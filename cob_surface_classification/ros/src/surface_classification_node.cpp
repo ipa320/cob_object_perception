@@ -174,6 +174,71 @@ public:
 		image = image_ptr->image;
 	}
 
+	// from https://gist.github.com/volkansalma/2972237
+	//  or  http://lists.apple.com/archives/perfoptimization-dev/2005/Jan/msg00051.html
+	#define PI_FLOAT     3.14159265f
+	#define PIBY2_FLOAT  1.5707963f
+	// |error| < 0.005
+	float fast_atan2f_1(float y, float x)
+	{
+		if (x == 0.0f)
+		{
+			if (y > 0.0f) return PIBY2_FLOAT;
+			if (y == 0.0f) return 0.0f;
+			return -PIBY2_FLOAT;
+		}
+		float atan;
+		float z = y/x;
+		if (fabsf(z) < 1.0f)
+		{
+			atan = z/(1.0f + 0.28f*z*z);
+			if (x < 0.0f)
+			{
+				if (y < 0.0f) return atan - PI_FLOAT;
+				return atan + PI_FLOAT;
+			}
+		}
+		else
+		{
+			atan = PIBY2_FLOAT - z/(z*z + 0.28f);
+			if ( y < 0.0f ) return atan - PI_FLOAT;
+		}
+		return atan;
+	}
+
+	float fast_atan2f_2(float y, float x)
+	{
+		//http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
+		//Volkan SALMA
+
+		const float ONEQTR_PI = M_PI / 4.0;
+		const float THRQTR_PI = 3.0 * M_PI / 4.0;
+		float r, angle;
+		float abs_y = fabs(y) + 1e-10f; // kludge to prevent 0/0 condition
+		if (x < 0.0f)
+		{
+			r = (x + abs_y) / (abs_y - x);
+			angle = THRQTR_PI;
+		}
+		else
+		{
+			r = (x - abs_y) / (x + abs_y);
+			angle = ONEQTR_PI;
+		}
+		angle += (0.1963f * r * r - 0.9817f) * r;
+		if (y < 0.0f)
+			return (-angle); // negate if in quad III or IV
+		else
+			return (angle);
+	}
+
+	float fast_arccosf(float x)
+	{
+		float x2 = x*x;
+		float x4 = x2*x2;
+		return (CV_PI/2.0 - (x + 1./6.*x*x2 + 3./40.*x*x4));
+	}
+
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
 
@@ -253,18 +318,20 @@ public:
 			cv::waitKey(10);
 		//if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
 
-
 		tim.start();
 		cv::Mat x_dx, y_dy, z_dx, z_dy;
-		cv::Mat average_dz_right = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
-		cv::Mat average_dz_left = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
-		cv::Mat average_dx_right = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
-		cv::Mat average_dx_left = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
+		//cv::Mat average_dz_right = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
+		//cv::Mat average_dz_left = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
+		//cv::Mat average_dx_right = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
+		//cv::Mat average_dx_left = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
 		cv::Mat edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
-		//cv::medianBlur(depth_image, depth_image, 5);
+		//cv::medianBlur(z_image, z_image, 5);
 		cv::Sobel(x_image, x_dx, -1, 1, 0, 5, 1./(6.*16.));
+		cv::Sobel(x_image, y_dy, -1, 0, 1, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dx, -1, 1, 0, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dy, -1, 0, 1, 5, 1./(6.*16.));
+		std::cout << "Time for slope Sobel: " << tim.getElapsedTimeInMilliSec() << "\n";
+		tim.start();
 //		cv::Mat kx, ky;
 //		cv::getDerivKernels(kx, ky, 1, 0, 5, false, CV_32F);
 //		std::cout << "kx:\n";
@@ -288,102 +355,110 @@ public:
 		{
 			for (int u = max_line_width; u < z_dx.cols - max_line_width - 1; ++u)
 			{
-				// depth dependent scan line width for slope computation (1px/0.10m)
-				line_width = std::min(int(10 * z_image.at<float>(v, u)), max_line_width);
-				if (line_width == 0)
-					line_width = last_line_width;
-				else
-					last_line_width = line_width;
-
-				double avg_dz = 0., avg_dx = 0.;
-				int number_values = 0;
-				for (int i = -line_width; i < 0; ++i)
-				{
-					float x_val = x_dx.at<float>(v, u + i);
-					float z_val = z_dx.at<float>(v, u + i);
-					if (x_val > 0. && z_val > -0.05f && z_val < 0.05f)
-					{
-						avg_dz += z_val;
-						avg_dx += x_val;
-						++number_values;
-					}
-					// else jump edge
-				}
-				//std::cout << avg_slope/(double)number_values << "\t";
-				if (number_values > 0)
-				{
-					average_dz_left.at<float>(v, u) = avg_dz / (double)number_values;
-					average_dx_left.at<float>(v, u) = avg_dx / (double)number_values;
-				}
-
-				avg_dz = 0.;
-				avg_dx = 0.;
-				number_values = 0;
-				for (int i = 1; i <= line_width; ++i)
-				{
-					// pcl::PointXYZRGB& point1 = cloud->at(u+i, v);
-					// pcl::PointXYZRGB& point2 = cloud->at(u+i+1, v);
-					// float val = (point2.z-point1.z);
-					// if (point2.x-point1.x > 0. && val > -0.05f && val < 0.05f)
-
-					//float val = (point2.z-point1.z)/(point2.x-point1.x);
-					//float val = dx.at<float>(v,u+i);
-					//if (val > -0.05 && val < 0.05)
-
-					float x_val = x_dx.at<float>(v, u + i);
-					float z_val = z_dx.at<float>(v, u + i);
-					if (x_val > 0. && z_val > -0.05f && z_val < 0.05f)
-					{
-						avg_dz += z_val;
-						avg_dx += x_val;
-						++number_values;
-					}
-					// else jump edge
-				}
-				//std::cout << avg_slope/(double)number_values << "\t";
-				if (number_values > 0)
-				{
-					average_dz_right.at<float>(v, u) = avg_dz / (double)number_values;
-					average_dx_right.at<float>(v, u) = avg_dx / (double)number_values;
-				}
-
 				if (z_dx.at<float>(v, u) <= -0.05 || z_dx.at<float>(v, u) >= 0.05)
 					edge.at<uchar>(v, u) = 255;
-			}
-		}
-		std::cout << "Time for slope: " << tim.getElapsedTimeInMilliSec() << "\n";
-		tim.start();
-		for (int v = max_line_width; v < average_dz_right.rows - max_line_width - 1; ++v)
-		{
-			for (int u = max_line_width; u < average_dz_right.cols - max_line_width - 1; ++u)
-			{
-				if (edge.at<uchar>(v, u) != 255)
+				else
 				{
-					double alpha_left = atan2(-average_dz_left.at<float>(v, u), -average_dx_left.at<float>(v, u));
-					double alpha_right = atan2(average_dz_right.at<float>(v, u), average_dx_right.at<float>(v, u));
-					//if (v==240 && u>310 && u<330)
-					// std::cout << "al: " << alpha_left << " ar: " << alpha_right << " diff: " << fabs(alpha_left-alpha_right) << "<" << 160./180.*CV_PI << "?\t";
-					if (fabs(alpha_left - alpha_right) < 145. / 180. * CV_PI || fabs(alpha_left - alpha_right) > 215. / 180. * CV_PI)
-						edge.at<uchar>(v, u) = 64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+					// depth dependent scan line width for slope computation (1px/0.10m)
+					line_width = std::min(int(10 * z_image.at<float>(v, u)), max_line_width);
+					if (line_width == 0)
+						line_width = last_line_width;
+					else
+						last_line_width = line_width;
+
+					double avg_dz_l = 0., avg_dx_l = 0.;
+//					int number_values = 0;
+					for (int i = -line_width; i < 0; ++i)
+					{
+						float x_val = x_dx.at<float>(v, u + i);
+						float z_val = z_dx.at<float>(v, u + i);
+						if (x_val > 0. && z_val > -0.05f && z_val < 0.05f)
+						{
+							avg_dz_l += z_val;
+							avg_dx_l += x_val;
+//							++number_values;
+						}
+						// else jump edge
+					}
+					//std::cout << avg_slope/(double)number_values << "\t";
+//					if (number_values > 0)
+//					{
+//						//average_dz_left.at<float>(v, u) = avg_dz / (double)number_values;
+//						//average_dx_left.at<float>(v, u) = avg_dx / (double)number_values;
+//						avg_dz_l /= (double)number_values;
+//						avg_dx_l /= (double)number_values;
+//					}
+
+					double avg_dz_r = 0.;
+					double avg_dx_r = 0.;
+//					number_values = 0;
+					for (int i = 1; i <= line_width; ++i)
+					{
+						float x_val = x_dx.at<float>(v, u + i);
+						float z_val = z_dx.at<float>(v, u + i);
+						if (x_val > 0. && z_val > -0.05f && z_val < 0.05f)
+						{
+							avg_dz_r += z_val;
+							avg_dx_r += x_val;
+//							++number_values;
+						}
+						// else jump edge
+					}
+					//std::cout << avg_slope/(double)number_values << "\t";
+//					if (number_values > 0)
+//					{
+//						//average_dz_right.at<float>(v, u) = avg_dz / (double)number_values;
+//						//average_dx_right.at<float>(v, u) = avg_dx / (double)number_values;
+//						avg_dz_r /= (double)number_values;
+//						avg_dx_r /= (double)number_values;
+//					}
+
+					double alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
+					double alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
+					double diff = fabs(alpha_left - alpha_right);
+					if (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI)
+						edge.at<uchar>(v, u) = 128;//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
 				}
 			}
 		}
-		std::cout << "Time for edge image: " << tim.getElapsedTimeInMilliSec() << "\n";
+		std::cout << "Time for slope: " << tim.getElapsedTimeInMilliSec() << std::endl;
+//		tim.start();
+//		for (int v = max_line_width; v < average_dz_right.rows - max_line_width - 1; ++v)
+//		{
+//			for (int u = max_line_width; u < average_dz_right.cols - max_line_width - 1; ++u)
+//			{
+//				if (edge.at<uchar>(v, u) != 255)
+//				{
+//					//double alpha_left_acc = atan2(-average_dz_left.at<float>(v, u), -average_dx_left.at<float>(v, u));
+//					//double alpha_right_acc = atan2(average_dz_right.at<float>(v, u), average_dx_right.at<float>(v, u));
+//					double alpha_left = fast_atan2f_1(-average_dz_left.at<float>(v, u), -average_dx_left.at<float>(v, u));
+//					double alpha_right = fast_atan2f_1(average_dz_right.at<float>(v, u), average_dx_right.at<float>(v, u));
+//					double diff = fabs(alpha_left - alpha_right);
+//					//if (fabs(alpha_left-alpha_left_acc)>0.011 || fabs(alpha_right-alpha_right_acc)>0.011)
+//					//	std::cout << "Large error: " << alpha_left-alpha_left_acc  << "   " << alpha_right-alpha_right_acc << "\n";
+//					if (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI)
+//						edge.at<uchar>(v, u) = 128;//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+//					//if (v==240 && u>310 && u<330)
+//					//	std::cout << "al: " << alpha_left << " ar: " << alpha_right << " diff: " << fabs(alpha_left-alpha_right) << "<" << 160./180.*CV_PI << "?\t";
+//				}
+//			}
+//		}
+//		std::cout << "Time for edge image: " << tim.getElapsedTimeInMilliSec() << "\n";
 
 		cv::imshow("z_dx", z_dx);
 		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
 		cv::imshow("x_dx", x_dx);
 		//cv::normalize(average_slope, average_slope, 0., 1., cv::NORM_MINMAX);
-		average_dz_right = average_dz_right * 15 + 0.5;
-		cv::imshow("average_slope", average_dz_right);
+//		average_dz_right = average_dz_right * 15 + 0.5;
+//		cv::imshow("average_slope", average_dz_right);
 		cv::imshow("edge", edge);
 		cv::waitKey(10);
 		return;
 
 //		cv::Mat dx2, dy2, dxy2;
-//		cv::medianBlur(depth_image, depth_image, 3);
-//		cv::Sobel(depth_image, dx2, -1, 1, 0, 5);
-//		cv::Sobel(depth_image, dy2 -1, 0, 1, 5);
+//		cv::medianBlur(z_image, z_image, 3);
+//		cv::Sobel(z_image, dx2, -1, 1, 0, 5);
+//		cv::Sobel(z_image, dy2 -1, 0, 1, 5);
 //		cv::magnitude(dx2, dy2, dxy2);
 //		cv::normalize(dxy2, dxy2, 0.0, 40.0, cv::NORM_MINMAX);
 //		cv::imshow("dxy2", dxy2);
