@@ -431,14 +431,19 @@ public:
 		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
 		for (int v = max_line_width; v < z_dx.rows - max_line_width - 1; ++v)
 		{
+			int edge_start_index = -1;
 			for (int u = max_line_width; u < z_dx.cols - max_line_width - 1; ++u)
 			{
-				if (z_dx.at<float>(v, u) <= -0.05 || z_dx.at<float>(v, u) >= 0.05)
+				float depth = z_image.at<float>(v, u);
+				//if (z_dx.at<float>(v, u) <= -0.05 || z_dx.at<float>(v, u) >= 0.05)
+				if (z_dx.at<float>(v, u) <= -0.02*depth || z_dx.at<float>(v, u) >= 0.02*depth)
+				{
 					edge.at<uchar>(v, u) = 255;
+				}
 				else
 				{
 					// depth dependent scan line width for slope computation (1px/0.10m)
-					line_width = std::min(int(10 * z_image.at<float>(v, u)), max_line_width);
+					line_width = std::min(int(10 * depth), max_line_width);
 					if (line_width == 0)
 						line_width = last_line_width;
 					else
@@ -455,7 +460,19 @@ public:
 					float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
 					float diff = fabs(alpha_left - alpha_right);
 					if (diff!=0 && (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI))
-						edge.at<uchar>(v, u) = 128;//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+					{
+						//edge.at<uchar>(v, u) = 32; //(diff < 145. / 180. * CV_PI ? -64 : 64);//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+						if (edge_start_index == -1)
+							edge_start_index = u;
+					}
+					else
+					{
+						if (edge_start_index != -1)
+						{
+							edge.at<uchar>(v, (edge_start_index+u-1)/2) = 192;
+							edge_start_index = -1;
+						}
+					}
 				}
 			}
 		}
@@ -464,16 +481,21 @@ public:
 		last_line_width = 10;
 		cv::Mat y_dy_integralY, z_dy_integralY;
 		computeIntegralImageY(y_dy, y_dy_integralY, z_dy, z_dy_integralY);
+		std::vector<int> edge_start_index(z_dy.cols, -1);
 		for (int v = max_line_width; v < z_dy.rows - max_line_width - 1; ++v)
 		{
 			for (int u = max_line_width; u < z_dy.cols - max_line_width - 1; ++u)
 			{
-				if (z_dy.at<float>(v, u) <= -0.05 || z_dy.at<float>(v, u) >= 0.05)
+				float depth = z_image.at<float>(v, u);
+				//if (z_dy.at<float>(v, u) <= -0.05 || z_dy.at<float>(v, u) >= 0.05)
+				if (z_dy.at<float>(v, u) <= -0.02*depth || z_dy.at<float>(v, u) >= 0.02*depth)
+				{
 					edge.at<uchar>(v, u) = 255;
-				else if (edge.at<uchar>(v, u) == 0)
+				}
+				else if (edge.at<uchar>(v, u) < 34)	//== 0)	// todo: 0
 				{
 					// depth dependent scan line width for slope computation (1px/0.10m)
-					line_width = std::min(int(10 * z_image.at<float>(v, u)), max_line_width);
+					line_width = std::min(int(10 * depth), max_line_width);
 					if (line_width == 0)
 						line_width = last_line_width;
 					else
@@ -490,10 +512,29 @@ public:
 					float alpha_lower = fast_atan2f_1(avg_dz_l, avg_dy_l);
 					float diff = fabs(alpha_upper - alpha_lower);
 					if (diff!=0 && (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI))
-						edge.at<uchar>(v, u) = 128;//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+					{
+						//edge.at<uchar>(v, u) = 32; //128 + (diff < 145. / 180. * CV_PI ? -64 : 64);//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+						if (edge_start_index[u] == -1)
+							edge_start_index[u] = v;
+					}
+					else
+					{
+						if (edge_start_index[u] != -1)
+						{
+							edge.at<uchar>((edge_start_index[u]+v-1)/2, u) = 192;
+							edge_start_index[u] = -1;
+						}
+					}
 				}
 			}
 		}
+		cv::dilate(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
+		cv::erode(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
+		for (int v=0; v<z_image.rows; ++v)
+			for (int u=0; u<z_image.cols; ++u)
+				if (z_image.at<float>(v,u)==0)
+					edge.at<uchar>(v,u)=0;
+		// sprünge = >5cm -> entfernungsabhängig!
 		std::cout << "Time for slope+edge: " << tim.getElapsedTimeInMilliSec() << std::endl;
 
 
