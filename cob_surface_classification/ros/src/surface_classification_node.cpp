@@ -239,6 +239,7 @@ public:
 		return (CV_PI/2.0 - (x + 1./6.*x*x2 + 3./40.*x*x4));
 	}
 
+	// creates an integral image within x-direction (i.e. line-wise, horizontally) for two source images
 	void computeIntegralImageX(const cv::Mat& srcX, cv::Mat& dstX, const cv::Mat& srcZ, cv::Mat& dstZ)
 	{
 		dstX = cv::Mat(srcX.rows, srcX.cols, CV_32FC1);
@@ -264,6 +265,54 @@ public:
 				*dstZ_ptr = sumZ;
 				srcZ_ptr++;
 				dstZ_ptr++;
+			}
+		}
+	}
+
+	// creates an integral image within y-direction (i.e. column-wise, vertically) for two source images
+	void computeIntegralImageY(const cv::Mat& srcY, cv::Mat& dstY, const cv::Mat& srcZ, cv::Mat& dstZ)
+	{
+		dstY = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
+		dstZ = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
+		float* dstY_ptr = (float*)dstY.ptr(0);
+		const float* srcY_ptr = (const float*)srcY.ptr(0);
+		float* dstZ_ptr = (float*)dstZ.ptr(0);
+		const float* srcZ_ptr = (const float*)srcZ.ptr(0);
+		// copy first line
+		for (int u=0; u<srcY.cols; ++u)
+		{
+			*dstY_ptr = *srcY_ptr;
+			dstY_ptr++; srcY_ptr++;
+			*dstZ_ptr = *srcZ_ptr;
+			dstZ_ptr++; srcZ_ptr++;
+		}
+		// process remainder
+		for (int v=1; v<srcY.rows; ++v)
+		{
+			float* dstY_ptr = (float*)dstY.ptr(v);
+			float* dstYprev_ptr = (float*)dstY.ptr(v-1);
+			const float* srcY_ptr = (const float*)srcY.ptr(v);
+			float* dstZ_ptr = (float*)dstZ.ptr(v);
+			float* dstZprev_ptr = (float*)dstZ.ptr(v-1);
+			const float* srcZ_ptr = (const float*)srcZ.ptr(v);
+			for (int u=0; u<srcY.cols; ++u)
+			{
+				if (*srcY_ptr > 0.f)
+				{
+					*dstY_ptr = *dstYprev_ptr + *srcY_ptr;
+					*dstZ_ptr = *dstZprev_ptr + *srcZ_ptr;
+				}
+				else
+				{
+					*dstY_ptr = *dstYprev_ptr;
+					*dstZ_ptr = *dstZprev_ptr;
+				}
+				srcY_ptr++;
+				dstY_ptr++;
+				dstYprev_ptr++;
+				srcZ_ptr++;
+				dstZ_ptr++;
+				dstZprev_ptr++;
 			}
 		}
 	}
@@ -313,7 +362,7 @@ public:
 		cv::Mat depth_im_scaled;
 		cv::normalize(z_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
 		cv::imshow("depth_image", depth_im_scaled);
-		cv::waitKey(10);
+//		cv::waitKey(10);
 
 		//draw crossline
 		//int lineLength = 20;
@@ -352,7 +401,7 @@ public:
 		cv::Mat edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
 		//cv::medianBlur(z_image, z_image, 5);
 		cv::Sobel(x_image, x_dx, -1, 1, 0, 5, 1./(6.*16.));
-		cv::Sobel(x_image, y_dy, -1, 0, 1, 5, 1./(6.*16.));
+		cv::Sobel(y_image, y_dy, -1, 0, 1, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dx, -1, 1, 0, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dy, -1, 0, 1, 5, 1./(6.*16.));
 		std::cout << "Time for slope Sobel: " << tim.getElapsedTimeInMilliSec() << "\n";
@@ -373,7 +422,9 @@ public:
 //				std::cout << ky.at<float>(i,j) << "\t";
 //			std::cout << std::endl;
 //		}
-		int max_line_width = 30;
+
+		// x lines
+		const int max_line_width = 30;
 		int line_width = 10; // 1px/0.10m
 		int last_line_width = 10;
 		cv::Mat x_dx_integralX, z_dx_integralX;
@@ -408,30 +459,52 @@ public:
 				}
 			}
 		}
-		std::cout << "Time for slope: " << tim.getElapsedTimeInMilliSec() << std::endl;
+		// y lines
+		line_width = 10; // 1px/0.10m
+		last_line_width = 10;
+		cv::Mat y_dy_integralY, z_dy_integralY;
+		computeIntegralImageY(y_dy, y_dy_integralY, z_dy, z_dy_integralY);
+		for (int v = max_line_width; v < z_dy.rows - max_line_width - 1; ++v)
+		{
+			for (int u = max_line_width; u < z_dy.cols - max_line_width - 1; ++u)
+			{
+				if (z_dy.at<float>(v, u) <= -0.05 || z_dy.at<float>(v, u) >= 0.05)
+					edge.at<uchar>(v, u) = 255;
+				else if (edge.at<uchar>(v, u) == 0)
+				{
+					// depth dependent scan line width for slope computation (1px/0.10m)
+					line_width = std::min(int(10 * z_image.at<float>(v, u)), max_line_width);
+					if (line_width == 0)
+						line_width = last_line_width;
+					else
+						last_line_width = line_width;
 
-		cv::imshow("z_dx", z_dx);
-		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
-		cv::imshow("x_dx", x_dx);
+					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
+					double avg_dy_u = y_dy_integralY.at<float>(v-1, u) - y_dy_integralY.at<float>(v-line_width, u);
+					double avg_dz_u = z_dy_integralY.at<float>(v-1, u) - z_dy_integralY.at<float>(v-line_width, u);
+					float avg_dy_l = y_dy_integralY.at<float>(v+line_width, u) - y_dy_integralY.at<float>(v+1, u);
+					float avg_dz_l = z_dy_integralY.at<float>(v+line_width, u) - z_dy_integralY.at<float>(v+1, u);
+
+					// estimate angle difference
+					float alpha_upper = fast_atan2f_1(-avg_dz_u, -avg_dy_u);
+					float alpha_lower = fast_atan2f_1(avg_dz_l, avg_dy_l);
+					float diff = fabs(alpha_upper - alpha_lower);
+					if (diff!=0 && (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI))
+						edge.at<uchar>(v, u) = 128;//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+				}
+			}
+		}
+		std::cout << "Time for slope+edge: " << tim.getElapsedTimeInMilliSec() << std::endl;
+
+
+//		cv::imshow("z_dx", z_dx);
+//		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
+//		cv::imshow("x_dx", x_dx);
 		//cv::normalize(average_slope, average_slope, 0., 1., cv::NORM_MINMAX);
 //		average_dz_right = average_dz_right * 15 + 0.5;
 //		cv::imshow("average_slope", average_dz_right);
 		cv::imshow("edge", edge);
 		cv::waitKey(10);
-		return;
-
-//		cv::Mat dx2, dy2, dxy2;
-//		cv::medianBlur(z_image, z_image, 3);
-//		cv::Sobel(z_image, dx2, -1, 1, 0, 5);
-//		cv::Sobel(z_image, dy2 -1, 0, 1, 5);
-//		cv::magnitude(dx2, dy2, dxy2);
-//		cv::normalize(dxy2, dxy2, 0.0, 40.0, cv::NORM_MINMAX);
-//		cv::imshow("dxy2", dxy2);
-//		cv::normalize(dx2, dx2, -39.0, 40.0, cv::NORM_MINMAX);
-//		cv::imshow("dx", dx2);
-//		cv::normalize(dy2, dy2, -39.0, 40.0, cv::NORM_MINMAX);
-//		cv::imshow("dy", dy2);
-//		cv::waitKey(10);
 		return;
 
 
