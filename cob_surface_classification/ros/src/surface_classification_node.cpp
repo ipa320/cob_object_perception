@@ -239,6 +239,35 @@ public:
 		return (CV_PI/2.0 - (x + 1./6.*x*x2 + 3./40.*x*x4));
 	}
 
+	void computeIntegralImageX(const cv::Mat& srcX, cv::Mat& dstX, const cv::Mat& srcZ, cv::Mat& dstZ)
+	{
+		dstX = cv::Mat(srcX.rows, srcX.cols, CV_32FC1);
+		dstZ = cv::Mat(srcX.rows, srcX.cols, CV_32FC1);
+		for (int v=0; v<srcX.rows; ++v)
+		{
+			float* dstX_ptr = (float*)dstX.ptr(v);
+			const float* srcX_ptr = (const float*)srcX.ptr(v);
+			float* dstZ_ptr = (float*)dstZ.ptr(v);
+			const float* srcZ_ptr = (const float*)srcZ.ptr(v);
+			float sumX = 0.f;
+			float sumZ = 0.f;
+			for (int u=0; u<srcX.cols; ++u)
+			{
+				if (*srcX_ptr > 0.f)
+				{
+					sumX += *srcX_ptr;
+					sumZ += *srcZ_ptr;
+				}
+				*dstX_ptr = sumX;
+				srcX_ptr++;
+				dstX_ptr++;
+				*dstZ_ptr = sumZ;
+				srcZ_ptr++;
+				dstZ_ptr++;
+			}
+		}
+	}
+
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
 
@@ -351,6 +380,8 @@ public:
 		int max_line_width = 30;
 		int line_width = 10; // 1px/0.10m
 		int last_line_width = 10;
+		cv::Mat x_dx_integralX, z_dx_integralX;
+		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
 		for (int v = max_line_width; v < z_dx.rows - max_line_width - 1; ++v)
 		{
 			for (int u = max_line_width; u < z_dx.cols - max_line_width - 1; ++u)
@@ -366,20 +397,22 @@ public:
 					else
 						last_line_width = line_width;
 
-					double avg_dz_l = 0., avg_dx_l = 0.;
-//					int number_values = 0;
-					for (int i = -line_width; i < 0; ++i)
-					{
-						float x_val = x_dx.at<float>(v, u + i);
-						float z_val = z_dx.at<float>(v, u + i);
-						if (x_val > 0. && z_val > -0.05f && z_val < 0.05f)
-						{
-							avg_dz_l += z_val;
-							avg_dx_l += x_val;
-//							++number_values;
-						}
-						// else jump edge
-					}
+					double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-line_width);
+					double avg_dz_l = z_dx_integralX.at<float>(v, u-1) - z_dx_integralX.at<float>(v, u-line_width);
+//					double avg_dz_l = 0., avg_dx_l = 0.;
+////					int number_values = 0;
+//					for (int i = -line_width; i < 0; ++i)
+//					{
+//						float x_val = x_dx.at<float>(v, u + i);
+//						float z_val = z_dx.at<float>(v, u + i);
+//						if (x_val > 0.)// && z_val > -0.05f && z_val < 0.05f)
+//						{
+//							avg_dz_l += z_val;
+//							avg_dx_l += x_val;
+////							++number_values;
+//						}
+//						// else jump edge
+//					}
 					//std::cout << avg_slope/(double)number_values << "\t";
 //					if (number_values > 0)
 //					{
@@ -389,21 +422,21 @@ public:
 //						avg_dx_l /= (double)number_values;
 //					}
 
-					double avg_dz_r = 0.;
-					double avg_dx_r = 0.;
-//					number_values = 0;
-					for (int i = 1; i <= line_width; ++i)
-					{
-						float x_val = x_dx.at<float>(v, u + i);
-						float z_val = z_dx.at<float>(v, u + i);
-						if (x_val > 0. && z_val > -0.05f && z_val < 0.05f)
-						{
-							avg_dz_r += z_val;
-							avg_dx_r += x_val;
-//							++number_values;
-						}
-						// else jump edge
-					}
+					float avg_dx_r = x_dx_integralX.at<float>(v, u+line_width) - x_dx_integralX.at<float>(v, u+1);
+					float avg_dz_r = z_dx_integralX.at<float>(v, u+line_width) - z_dx_integralX.at<float>(v, u+1);
+////					number_values = 0;
+//					for (int i = 1; i <= line_width; ++i)
+//					{
+//						float x_val = x_dx.at<float>(v, u + i);
+//						float z_val = z_dx.at<float>(v, u + i);
+//						if (x_val > 0.)// && z_val > -0.05f && z_val < 0.05f)
+//						{
+//							avg_dz_r += z_val;
+//							avg_dx_r += x_val;
+////							++number_values;
+//						}
+//						// else jump edge
+//					}
 					//std::cout << avg_slope/(double)number_values << "\t";
 //					if (number_values > 0)
 //					{
@@ -413,10 +446,10 @@ public:
 //						avg_dx_r /= (double)number_values;
 //					}
 
-					double alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
-					double alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
-					double diff = fabs(alpha_left - alpha_right);
-					if (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI)
+					float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
+					float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
+					float diff = fabs(alpha_left - alpha_right);
+					if (diff!=0 && (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI))
 						edge.at<uchar>(v, u) = 128;//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
 				}
 			}
