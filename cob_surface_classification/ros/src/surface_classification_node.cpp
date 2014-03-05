@@ -349,10 +349,6 @@ public:
 
 		tim.start();
 		cv::Mat x_dx, y_dy, z_dx, z_dy;
-		//cv::Mat average_dz_right = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
-		//cv::Mat average_dz_left = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
-		//cv::Mat average_dx_right = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
-		//cv::Mat average_dx_left = cv::Mat::zeros(z_image.rows, z_image.cols, CV_32FC1);
 		cv::Mat edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
 		//cv::medianBlur(z_image, z_image, 5);
 		cv::Sobel(x_image, x_dx, -1, 1, 0, 5, 1./(6.*16.));
@@ -397,55 +393,13 @@ public:
 					else
 						last_line_width = line_width;
 
+					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 					double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-line_width);
 					double avg_dz_l = z_dx_integralX.at<float>(v, u-1) - z_dx_integralX.at<float>(v, u-line_width);
-//					double avg_dz_l = 0., avg_dx_l = 0.;
-////					int number_values = 0;
-//					for (int i = -line_width; i < 0; ++i)
-//					{
-//						float x_val = x_dx.at<float>(v, u + i);
-//						float z_val = z_dx.at<float>(v, u + i);
-//						if (x_val > 0.)// && z_val > -0.05f && z_val < 0.05f)
-//						{
-//							avg_dz_l += z_val;
-//							avg_dx_l += x_val;
-////							++number_values;
-//						}
-//						// else jump edge
-//					}
-					//std::cout << avg_slope/(double)number_values << "\t";
-//					if (number_values > 0)
-//					{
-//						//average_dz_left.at<float>(v, u) = avg_dz / (double)number_values;
-//						//average_dx_left.at<float>(v, u) = avg_dx / (double)number_values;
-//						avg_dz_l /= (double)number_values;
-//						avg_dx_l /= (double)number_values;
-//					}
-
 					float avg_dx_r = x_dx_integralX.at<float>(v, u+line_width) - x_dx_integralX.at<float>(v, u+1);
 					float avg_dz_r = z_dx_integralX.at<float>(v, u+line_width) - z_dx_integralX.at<float>(v, u+1);
-////					number_values = 0;
-//					for (int i = 1; i <= line_width; ++i)
-//					{
-//						float x_val = x_dx.at<float>(v, u + i);
-//						float z_val = z_dx.at<float>(v, u + i);
-//						if (x_val > 0.)// && z_val > -0.05f && z_val < 0.05f)
-//						{
-//							avg_dz_r += z_val;
-//							avg_dx_r += x_val;
-////							++number_values;
-//						}
-//						// else jump edge
-//					}
-					//std::cout << avg_slope/(double)number_values << "\t";
-//					if (number_values > 0)
-//					{
-//						//average_dz_right.at<float>(v, u) = avg_dz / (double)number_values;
-//						//average_dx_right.at<float>(v, u) = avg_dx / (double)number_values;
-//						avg_dz_r /= (double)number_values;
-//						avg_dx_r /= (double)number_values;
-//					}
 
+					// estimate angle difference
 					float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
 					float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
 					float diff = fabs(alpha_left - alpha_right);
@@ -455,28 +409,6 @@ public:
 			}
 		}
 		std::cout << "Time for slope: " << tim.getElapsedTimeInMilliSec() << std::endl;
-//		tim.start();
-//		for (int v = max_line_width; v < average_dz_right.rows - max_line_width - 1; ++v)
-//		{
-//			for (int u = max_line_width; u < average_dz_right.cols - max_line_width - 1; ++u)
-//			{
-//				if (edge.at<uchar>(v, u) != 255)
-//				{
-//					//double alpha_left_acc = atan2(-average_dz_left.at<float>(v, u), -average_dx_left.at<float>(v, u));
-//					//double alpha_right_acc = atan2(average_dz_right.at<float>(v, u), average_dx_right.at<float>(v, u));
-//					double alpha_left = fast_atan2f_1(-average_dz_left.at<float>(v, u), -average_dx_left.at<float>(v, u));
-//					double alpha_right = fast_atan2f_1(average_dz_right.at<float>(v, u), average_dx_right.at<float>(v, u));
-//					double diff = fabs(alpha_left - alpha_right);
-//					//if (fabs(alpha_left-alpha_left_acc)>0.011 || fabs(alpha_right-alpha_right_acc)>0.011)
-//					//	std::cout << "Large error: " << alpha_left-alpha_left_acc  << "   " << alpha_right-alpha_right_acc << "\n";
-//					if (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI)
-//						edge.at<uchar>(v, u) = 128;//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
-//					//if (v==240 && u>310 && u<330)
-//					//	std::cout << "al: " << alpha_left << " ar: " << alpha_right << " diff: " << fabs(alpha_left-alpha_right) << "<" << 160./180.*CV_PI << "?\t";
-//				}
-//			}
-//		}
-//		std::cout << "Time for edge image: " << tim.getElapsedTimeInMilliSec() << "\n";
 
 		cv::imshow("z_dx", z_dx);
 		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
