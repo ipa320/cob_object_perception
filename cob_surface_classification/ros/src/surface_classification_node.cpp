@@ -72,7 +72,7 @@
 #define CLASSIFY 					false	//classification
 
 
-#define NORMAL_VIS 					false 	//visualisation of normals
+#define NORMAL_VIS 					true 	//visualisation of normals
 #define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	//visualisation of classification
@@ -398,12 +398,13 @@ public:
 
 		tim.start();
 		cv::Mat x_dx, y_dy, z_dx, z_dy;
-		cv::Mat edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
 		//cv::medianBlur(z_image, z_image, 5);
 		cv::Sobel(x_image, x_dx, -1, 1, 0, 5, 1./(6.*16.));
 		cv::Sobel(y_image, y_dy, -1, 0, 1, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dx, -1, 1, 0, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dy, -1, 0, 1, 5, 1./(6.*16.));
+		cv::medianBlur(z_dx, z_dx, 5);
+		cv::medianBlur(z_dy, z_dy, 5);
 		std::cout << "Time for slope Sobel: " << tim.getElapsedTimeInMilliSec() << "\n";
 		tim.start();
 //		cv::Mat kx, ky;
@@ -423,8 +424,27 @@ public:
 //			std::cout << std::endl;
 //		}
 
-		// x lines
+		// depth discontinuities
+		cv::Mat edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
 		const int max_line_width = 30;
+		for (int v = max_line_width; v < z_dx.rows - max_line_width - 1; ++v)
+		{
+			for (int u = max_line_width; u < z_dx.cols - max_line_width - 1; ++u)
+			{
+				float depth = z_image.at<float>(v, u);
+				if (depth==0.f)
+					continue;
+				if (z_dx.at<float>(v, u) <= -0.02*depth || z_dx.at<float>(v, u) >= 0.02*depth ||
+						z_dy.at<float>(v, u) <= -0.02*depth || z_dy.at<float>(v, u) >= 0.02*depth)
+					edge.at<uchar>(v, u) = 255;
+			}
+		}
+		cv::Mat edge_integral;
+		cv::integral(edge, edge_integral, CV_32S);
+		std::cout << "Time for edge+integral: " << tim.getElapsedTimeInMilliSec() << "\n";
+
+		// surface discontinuities
+		// x lines
 		int line_width = 10; // 1px/0.10m
 		int last_line_width = 10;
 		cv::Mat x_dx_integralX, z_dx_integralX;
@@ -435,19 +455,24 @@ public:
 			for (int u = max_line_width; u < z_dx.cols - max_line_width - 1; ++u)
 			{
 				float depth = z_image.at<float>(v, u);
+				if (depth==0.f)
+					continue;
 				//if (z_dx.at<float>(v, u) <= -0.05 || z_dx.at<float>(v, u) >= 0.05)
-				if (z_dx.at<float>(v, u) <= -0.02*depth || z_dx.at<float>(v, u) >= 0.02*depth)
-				{
-					edge.at<uchar>(v, u) = 255;
-				}
-				else
-				{
+//				if (z_dx.at<float>(v, u) <= -0.02*depth || z_dx.at<float>(v, u) >= 0.02*depth)
+//				{
+//					edge.at<uchar>(v, u) = 255;
+//				}
+//				else
+//				{
 					// depth dependent scan line width for slope computation (1px/0.10m)
 					line_width = std::min(int(10 * depth), max_line_width);
 					if (line_width == 0)
 						line_width = last_line_width;
 					else
 						last_line_width = line_width;
+					// do not compute if a depth discontinuity is on the line
+					if (edge_integral.at<int>(v,u+line_width)-edge_integral.at<int>(v,u-line_width)-edge_integral.at<int>(v-1,u+line_width)+edge_integral.at<int>(v-1,u-line_width) != 0)
+						continue;
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 					double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-line_width);
@@ -469,11 +494,11 @@ public:
 					{
 						if (edge_start_index != -1)
 						{
-							edge.at<uchar>(v, (edge_start_index+u-1)/2) = 192;
+							edge.at<uchar>(v, (edge_start_index+u-1)/2) = 255;	//192
 							edge_start_index = -1;
 						}
 					}
-				}
+//				}
 			}
 		}
 		// y lines
@@ -487,12 +512,15 @@ public:
 			for (int u = max_line_width; u < z_dy.cols - max_line_width - 1; ++u)
 			{
 				float depth = z_image.at<float>(v, u);
+				if (depth==0.f)
+					continue;
 				//if (z_dy.at<float>(v, u) <= -0.05 || z_dy.at<float>(v, u) >= 0.05)
-				if (z_dy.at<float>(v, u) <= -0.02*depth || z_dy.at<float>(v, u) >= 0.02*depth)
-				{
-					edge.at<uchar>(v, u) = 255;
-				}
-				else if (edge.at<uchar>(v, u) < 34)	//== 0)	// todo: 0
+//				if (z_dy.at<float>(v, u) <= -0.02*depth || z_dy.at<float>(v, u) >= 0.02*depth)
+//				{
+//					edge.at<uchar>(v, u) = 255;
+//				}
+//				else
+				if (edge.at<uchar>(v, u) == 0)
 				{
 					// depth dependent scan line width for slope computation (1px/0.10m)
 					line_width = std::min(int(10 * depth), max_line_width);
@@ -500,6 +528,9 @@ public:
 						line_width = last_line_width;
 					else
 						last_line_width = line_width;
+					// do not compute if a depth discontinuity is on the line
+					if (edge_integral.at<int>(v+line_width,u)-edge_integral.at<int>(v-line_width,u)-edge_integral.at<int>(v+line_width,u-1)+edge_integral.at<int>(v-line_width,u-1) != 0)
+						continue;
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 					double avg_dy_u = y_dy_integralY.at<float>(v-1, u) - y_dy_integralY.at<float>(v-line_width, u);
@@ -521,7 +552,7 @@ public:
 					{
 						if (edge_start_index[u] != -1)
 						{
-							edge.at<uchar>((edge_start_index[u]+v-1)/2, u) = 192;
+							edge.at<uchar>((edge_start_index[u]+v-1)/2, u) = 255;  //192;
 							edge_start_index[u] = -1;
 						}
 					}
@@ -534,9 +565,11 @@ public:
 			for (int u=0; u<z_image.cols; ++u)
 				if (z_image.at<float>(v,u)==0)
 					edge.at<uchar>(v,u)=0;
-		// sprünge = >5cm -> entfernungsabhängig!
-		std::cout << "Time for slope+edge: " << tim.getElapsedTimeInMilliSec() << std::endl;
+		std::cout << "Time for slope+edge: " << tim.getElapsedTimeInMilliSec() << "\n";
 
+		// remaining problems:
+		// 1. some edges = double edges
+		// 2. noise -> speckle filter in the beginning?
 
 //		cv::imshow("z_dx", z_dx);
 //		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
@@ -560,15 +593,20 @@ public:
 			ST::Graph::Ptr graph(new ST::Graph);
 			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 
-
-//		oneWithoutEdges_.setInputCloud(cloud);
-//		oneWithoutEdges_.setPixelSearchRadius(8,1,1);
-//		oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
-//		oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-//		oneWithoutEdges_.compute(*normalsWithoutEdges);
-
+/*
+			tim.start();
+			oneWithoutEdges_.setInputCloud(cloud);
+			oneWithoutEdges_.setPixelSearchRadius(8,1,1);
+			oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
+			oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+			oneWithoutEdges_.compute(*normalsWithoutEdges);
+			std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+/*/
 			cv::Mat edgeImage = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
-			edge_detection_.computeDepthEdges(z_image, cloud, edgeImage);
+			for (int v=0; v<edge.rows; ++v)
+				for (int u=0; u<edge.cols; ++u)
+					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
+			//edge_detection_.computeDepthEdges(z_image, cloud, edgeImage);
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
@@ -579,7 +617,8 @@ public:
 			//timer.start();
 			//for(int i=0; i<10; i++)
 			//{
-/*bring it back
+
+			tim.start();
 			one_.setInputCloud(cloud);
 			one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
 			one_.computeMaskManually_increasing(cloud->width);
@@ -588,10 +627,11 @@ public:
 			one_.setSameDirectionThres(0.94);
 			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
 			one_.compute(*normals);
-*/
+			std::cout << "Normal computation: " << tim.getElapsedTimeInMilliSec() << "\n";
+
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
-
+//*/
 
 
 			if(NORMAL_VIS)
@@ -603,6 +643,7 @@ public:
 
 				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
 				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
+				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
 				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 
 				while (!viewerNormals.wasStopped ())
@@ -611,6 +652,8 @@ public:
 				}
 				viewerNormals.removePointCloud("cloud");
 			}
+
+			return;
 
 			if(SEG || EVALUATION_ONLINE_MODE)
 			{
