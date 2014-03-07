@@ -139,6 +139,13 @@ public:
 	SurfaceClassificationNode(ros::NodeHandle nh)
 	: node_handle_(nh)
 	{
+		runtime_total_ = 0.;
+		runtime_depth_image_ = 0.;
+		runtime_sobel_ = 0.;	// image derivatives
+		runtime_edge_ = 0.;
+		runtime_visibility_ = 0.;
+		number_processed_images_ = 0;
+
 		it_ = 0;
 		sync_input_ = 0;
 
@@ -382,7 +389,8 @@ public:
 				++z_ptr;
 			}
 		}
-		std::cout << "Time for x/y/z images: " << tim.getElapsedTimeInMilliSec() << "\n";
+		//std::cout << "Time for x/y/z images: " << tim.getElapsedTimeInMilliSec() << "\n";
+		runtime_depth_image_ += tim.getElapsedTimeInMilliSec();
 
 		//visualization
 		cv::Mat depth_im_scaled;
@@ -422,6 +430,8 @@ public:
 			cv::waitKey(10);
 		//if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
 
+		Timer total;
+		total.start();
 		tim.start();
 		cv::Mat x_dx, y_dy, z_dx, z_dy;
 		//cv::medianBlur(z_image, z_image, 5);
@@ -433,7 +443,9 @@ public:
 		//cv::medianBlur(z_dy, z_dy, 5);
 		cv::GaussianBlur(z_dx, z_dx, cv::Size(5,5), 0, 0);
 		cv::GaussianBlur(z_dy, z_dy, cv::Size(5,5), 0, 0);
-		std::cout << "Time for slope Sobel: " << tim.getElapsedTimeInMilliSec() << "\n";
+		//std::cout << "Time for slope Sobel: " << tim.getElapsedTimeInMilliSec() << "\n";
+		runtime_sobel_ += tim.getElapsedTimeInMilliSec();
+
 		tim.start();
 //		cv::Mat kx, ky;
 //		cv::getDerivKernels(kx, ky, 1, 0, 5, false, CV_32F);
@@ -469,7 +481,7 @@ public:
 		}
 		cv::Mat edge_integral;
 		cv::integral(edge, edge_integral, CV_32S);
-		std::cout << "Time for edge+integral: " << tim.getElapsedTimeInMilliSec() << "\n";
+		//std::cout << "Time for edge+integral: " << tim.getElapsedTimeInMilliSec() << "\n";
 
 		// surface discontinuities
 		// x lines
@@ -593,21 +605,12 @@ public:
 			for (int u=0; u<z_image.cols; ++u)
 				if (z_image.at<float>(v,u)==0)
 					edge.at<uchar>(v,u)=0;
-		std::cout << "Time for slope+edge: " << tim.getElapsedTimeInMilliSec() << "\n";
+		//std::cout << "Time for slope+edge: " << tim.getElapsedTimeInMilliSec() << "\n";
+		runtime_edge_ += tim.getElapsedTimeInMilliSec();
 
 		// remaining problems:
 		// 1. some edges = double edges
 		// 2. noise -> speckle filter in the beginning?
-
-//		cv::imshow("z_dx", z_dx);
-//		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
-//		cv::imshow("x_dx", x_dx);
-		//cv::normalize(average_slope, average_slope, 0., 1., cv::NORM_MINMAX);
-//		average_dz_right = average_dz_right * 15 + 0.5;
-//		cv::imshow("average_slope", average_dz_right);
-		cv::imshow("edge", edge);
-		cv::waitKey(10);
-//		return;
 
 		tim.start();
 		const int radius = 8;
@@ -739,7 +742,25 @@ public:
 //				}
 			}
 		}
-		std::cout << "Time for visibility: " << tim.getElapsedTimeInMilliSec() << "\n";
+		//std::cout << "Time for visibility: " << tim.getElapsedTimeInMilliSec() << "\n";
+		runtime_visibility_ += tim.getElapsedTimeInMilliSec();
+		runtime_total_ += total.getElapsedTimeInMilliSec();
+		++number_processed_images_;
+
+		std::cout << "runtime_total: " << runtime_total_/(double)number_processed_images_ <<
+					"\nruntime_depth_image: " << runtime_depth_image_/(double)number_processed_images_ <<
+					"\nruntime_sobel: " << runtime_sobel_/(double)number_processed_images_ <<
+					"\nruntime_edge: " << runtime_edge_/(double)number_processed_images_ <<
+					"\nruntime_visibility: " << runtime_visibility_/(double)number_processed_images_ << std::endl;
+
+//		cv::imshow("z_dx", z_dx);
+//		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
+//		cv::imshow("x_dx", x_dx);
+		//cv::normalize(average_slope, average_slope, 0., 1., cv::NORM_MINMAX);
+//		average_dz_right = average_dz_right * 15 + 0.5;
+//		cv::imshow("average_slope", average_dz_right);
+		cv::imshow("edge", edge);
+		cv::waitKey(10);
 		return;
 
 
@@ -762,6 +783,7 @@ public:
 			oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 			oneWithoutEdges_.compute(*normalsWithoutEdges);
 			std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+			return;
 /*/
 			cv::Mat edgeImage = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
 			for (int v=0; v<edge.rows; ++v)
@@ -972,6 +994,14 @@ private:
 
 	//evaluation
 	Evaluation eval_;
+
+	double runtime_total_;
+	double runtime_depth_image_;
+	double runtime_sobel_;	// image derivatives
+	double runtime_edge_;
+	double runtime_visibility_;
+	int number_processed_images_;
+
 
 };
 
