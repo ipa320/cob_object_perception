@@ -428,8 +428,19 @@ cob_features::OrganizedNormalEstimation<PointInT,PointOutT,LabelOutT>::computeFe
 		labels_->width = input_->width;
 	}
 
+//	int radius = mask_.size();
+//	std::vector<std::vector<int> >::iterator it_c; // circle iterator
+//	std::vector<int>::iterator it_ci; // points in circle iterator
+//	std::vector<std::vector<std::vector<bool> > > visibility(edgeImage_.rows, std::vector<std::vector<bool> >(edgeImage_.cols, std::vector<bool>(true, (2*radius+1)*(2*radius+1))));
 	for (std::vector<int>::iterator it=indices_->begin(); it != indices_->end(); ++it)
 	{
+//		for (it_c = mask_.begin(); it_c != mask_.end(); ++it_c) // iterate circles
+//		{
+//			for (it_ci = (*it_c).begin(); it_ci != (*it_c).end(); ++it_ci) // iterate current circle
+//			{
+//
+//			}
+//		}
 
 		if(!NEIGHBOURH_VIS || count % 660== 0)	//computations for visualization only at every 660th point
 		{

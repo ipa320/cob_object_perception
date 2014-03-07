@@ -317,6 +317,24 @@ public:
 		}
 	}
 
+	int isign(int x)
+	{
+		if (x==0)
+			return 0;
+		else if (x<0)
+			return 1;
+		return -1;
+	}
+
+	int sign(int x)
+	{
+		if (x==0)
+			return 0;
+		else if (x<0)
+			return -1;
+		return 1;
+	}
+
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
 
@@ -344,16 +362,24 @@ public:
 		int i=0;
 		for (unsigned int v=0; v<cloud->height; v++)
 		{
+			float* x_ptr = (float*)x_image.ptr(v);
+			float* y_ptr = (float*)y_image.ptr(v);
+			float* z_ptr = (float*)z_image.ptr(v);
 			for (unsigned int u=0; u<cloud->width; u++, i++)
 			{
 				//matrix indices: row y, column x!
 				pcl::PointXYZRGB& point = cloud->at(u,v);
+
 				if(point.z == point.z)	//test nan
 				{
-					x_image.at<float>(v,u) = point.x;
-					y_image.at<float>(v,u) = point.y;
-					z_image.at<float>(v,u) = point.z;
+					*x_ptr = point.x;
+					*y_ptr = point.y;
+					*z_ptr = point.z;
+					//z_image.at<float>(v,u) = point.z;
 				}
+				++x_ptr;
+				++y_ptr;
+				++z_ptr;
 			}
 		}
 		std::cout << "Time for x/y/z images: " << tim.getElapsedTimeInMilliSec() << "\n";
@@ -403,8 +429,10 @@ public:
 		cv::Sobel(y_image, y_dy, -1, 0, 1, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dx, -1, 1, 0, 5, 1./(6.*16.));
 		cv::Sobel(z_image, z_dy, -1, 0, 1, 5, 1./(6.*16.));
-		cv::medianBlur(z_dx, z_dx, 5);
-		cv::medianBlur(z_dy, z_dy, 5);
+		//cv::medianBlur(z_dx, z_dx, 5);
+		//cv::medianBlur(z_dy, z_dy, 5);
+		cv::GaussianBlur(z_dx, z_dx, cv::Size(5,5), 0, 0);
+		cv::GaussianBlur(z_dy, z_dy, cv::Size(5,5), 0, 0);
 		std::cout << "Time for slope Sobel: " << tim.getElapsedTimeInMilliSec() << "\n";
 		tim.start();
 //		cv::Mat kx, ky;
@@ -486,7 +514,7 @@ public:
 					float diff = fabs(alpha_left - alpha_right);
 					if (diff!=0 && (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI))
 					{
-						//edge.at<uchar>(v, u) = 32; //(diff < 145. / 180. * CV_PI ? -64 : 64);//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
+						//edge.at<uchar>(v, u) = 16; //(diff < 145. / 180. * CV_PI ? -64 : 64);//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
 						if (edge_start_index == -1)
 							edge_start_index = u;
 					}
@@ -579,6 +607,139 @@ public:
 //		cv::imshow("average_slope", average_dz_right);
 		cv::imshow("edge", edge);
 		cv::waitKey(10);
+//		return;
+
+		tim.start();
+		const int radius = 8;
+		const int step_width = 17;//2*radius+1;
+		std::vector<cv::Point2i> indices(step_width*step_width-1);
+		int idx = 0;
+		for (int r=1; r<=radius; ++r)
+		{
+			for (int dv=-r; dv<=r; ++dv)
+			{
+				for (int du=-r; du<=r; ++du)
+				{
+					if (dv!=r && dv!=-r && du!=r && du!=-r)
+						continue;
+					indices[idx].x = du;
+					indices[idx].y = dv;
+					++idx;
+				}
+			}
+		}
+		bool visibility[(2*radius+1)*(2*radius+1)];
+		for (int v=radius; v<edge.rows-radius-1; ++v)
+		{
+			for (int u=radius; u<edge.cols-radius-1; ++u)
+			{
+				if (edge.at<uchar>(v,u)==255)
+					continue;
+				for (int i=0; i<(2*radius+1)*(2*radius+1); ++i)
+					visibility[i] = true;
+//				for (int r=1; r<=radius; ++r)
+//				{
+					for (int dv=-radius; dv<=radius; ++dv)
+					{
+						for (int du=-radius; du<=radius; ++du)
+						{
+							if (du==0 && dv==0)
+								continue;
+//							if (dv!=r && dv!=-r && du!=r && du!=-r)
+//								continue;
+
+							int index = (dv+radius)*step_width+du+radius;
+							if (edge.at<uchar>(v+dv,u+du)==255)
+							{
+								visibility[index] = false;
+							}
+							else //if (r>1)
+							{
+								float curr_v = v+dv, curr_u = u+du;
+								float su, sv;
+								int adu = abs(du);
+								int adv = abs(dv);
+								int iterations;
+								if (adu == adv)
+								{
+									su = isign(du);
+									sv = isign(dv);
+									iterations = adu;
+								}
+								else if (adu > adv)
+								{
+									su = isign(du);
+									sv = -(float)dv/(float)adu;
+									iterations = adu;
+									curr_v += 0.5f*sign(dv);
+								}
+								else
+								{
+									su = -(float)du/(float)adv;
+									sv = isign(dv);
+									iterations = adv;
+									curr_u += 0.5f*sign(du);
+								}
+
+								for (int i=0; i<iterations; ++i)
+								{
+									if (edge.at<uchar>(curr_v,curr_u)==255)
+									{
+										visibility[index] = false;
+										break;
+									}
+									curr_u += su;
+									curr_v += sv;
+								}
+							}
+
+
+//							int index = (dv+radius)*step_width+du+radius;
+//							if (visibility[index]==false)
+//								continue;
+//
+//							if (edge.at<uchar>(v+dv,u+du)==255)
+//							{
+//								if (du==0)
+//								{
+//									if (dv<0)
+//										for (int nv=0; nv>=-radius-dv; --nv)
+//											visibility[index+nv*step_width] = false;
+//									else
+//										for (int nv=0; nv<=radius-dv; ++nv)
+//											visibility[index+nv*step_width] = false;
+//								}
+//								else if (dv==0)
+//								{
+//									if (du<0)
+//										for (int nu=0; nu>=-radius-du; --nu)
+//											visibility[index+nu] = false;
+//									else
+//										for (int nu=0; nu<=radius-du; ++nu)
+//											visibility[index+nu] = false;
+//								}
+//							}
+						}
+					}
+//				}
+				// todo: check for correctness
+//				int visibility_count = 0;
+//				for (int i=0; i<(2*radius+1)*(2*radius+1); ++i)
+//					if (visibility[i] == false)
+//						++visibility_count;
+//				if (visibility_count > 200)
+//				{
+//					std:: cout << "(u,v)=" << u << ", " << v << std::endl;
+//					cv::Mat disp = 255*cv::Mat::ones(step_width, step_width, CV_8UC1);
+//					for (int i=0; i<(2*radius+1)*(2*radius+1); ++i)
+//						if (visibility[i] == false)
+//							disp.at<uchar>(i/step_width, i%step_width) = 0;
+//					cv::imshow("disp", disp);
+//					cv::waitKey();
+//				}
+			}
+		}
+		std::cout << "Time for visibility: " << tim.getElapsedTimeInMilliSec() << "\n";
 		return;
 
 
