@@ -615,22 +615,22 @@ public:
 		tim.start();
 		const int radius = 8;
 		const int step_width = 17;//2*radius+1;
-		std::vector<cv::Point2i> indices(step_width*step_width-1);
-		int idx = 0;
-		for (int r=1; r<=radius; ++r)
-		{
-			for (int dv=-r; dv<=r; ++dv)
-			{
-				for (int du=-r; du<=r; ++du)
-				{
-					if (dv!=r && dv!=-r && du!=r && du!=-r)
-						continue;
-					indices[idx].x = du;
-					indices[idx].y = dv;
-					++idx;
-				}
-			}
-		}
+//		std::vector<cv::Point2i> indices(step_width*step_width-1);
+//		int idx = 0;
+//		for (int r=1; r<=radius; ++r)
+//		{
+//			for (int dv=-r; dv<=r; ++dv)
+//			{
+//				for (int du=-r; du<=r; ++du)
+//				{
+//					if (dv!=r && dv!=-r && du!=r && du!=-r)
+//						continue;
+//					indices[idx].x = du;
+//					indices[idx].y = dv;
+//					++idx;
+//				}
+//			}
+//		}
 		bool visibility[(2*radius+1)*(2*radius+1)];
 		for (int v=radius; v<edge.rows-radius-1; ++v)
 		{
