@@ -115,13 +115,14 @@
 //internal includes
 #include <cob_surface_classification/edge_detection.h>
 //#include <cob_surface_classification/surface_classification.h>
-#include <cob_surface_classification/organized_normal_estimation.h>
+//#include <cob_surface_classification/organized_normal_estimation.h>
 #include <cob_surface_classification/refine_segmentation.h>
 
 //package includes
 #include <cob_3d_segmentation/depth_segmentation.h>
 #include <cob_3d_segmentation/cluster_classifier.h>
 #include <cob_3d_mapping_common/point_types.h>
+#include <cob_3d_features/organized_normal_estimation_omp.h>
 
 
 //records
@@ -761,7 +762,7 @@ public:
 //		cv::imshow("average_slope", average_dz_right);
 		cv::imshow("edge", edge);
 		cv::waitKey(10);
-		return;
+//		return;
 
 
 		//std::cout << key <<endl;
@@ -775,16 +776,16 @@ public:
 			ST::Graph::Ptr graph(new ST::Graph);
 			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 
-/*
+//*
 			tim.start();
 			oneWithoutEdges_.setInputCloud(cloud);
-			oneWithoutEdges_.setPixelSearchRadius(8,1,1);
+			oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
 			oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
 			oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 			oneWithoutEdges_.compute(*normalsWithoutEdges);
 			std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
 			return;
-/*/
+//*/
 			cv::Mat edgeImage = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
 			for (int v=0; v<edge.rows; ++v)
 				for (int u=0; u<edge.cols; ++u)
@@ -801,16 +802,16 @@ public:
 			//for(int i=0; i<10; i++)
 			//{
 
-			tim.start();
-			one_.setInputCloud(cloud);
-			one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
-			one_.computeMaskManually_increasing(cloud->width);
-			one_.setEdgeImage(edgeImage);
-			one_.setOutputLabels(labels);
-			one_.setSameDirectionThres(0.94);
-			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
-			one_.compute(*normals);
-			std::cout << "Normal computation: " << tim.getElapsedTimeInMilliSec() << "\n";
+//			tim.start();
+//			one_.setInputCloud(cloud);
+//			one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
+//			one_.computeMaskManually_increasing(cloud->width);
+//			one_.setEdgeImage(edgeImage);
+//			one_.setOutputLabels(labels);
+//			one_.setSameDirectionThres(0.94);
+//			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
+//			one_.compute(*normals);
+//			std::cout << "Normal computation: " << tim.getElapsedTimeInMilliSec() << "\n";
 
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
@@ -981,8 +982,8 @@ private:
 	//records
 	Scene_recording rec_;
 
-	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
-	cob_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> oneWithoutEdges_;
+	cob_3d_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
+	cob_3d_features::OrganizedNormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal, PointLabel> oneWithoutEdges_;
 
 	EdgeDetection<pcl::PointXYZRGB> edge_detection_;
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> seg_;
