@@ -72,7 +72,7 @@
 #define CLASSIFY 					false	//classification
 
 
-#define NORMAL_VIS 					true 	//visualisation of normals
+#define NORMAL_VIS 					false 	//visualisation of normals
 #define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	//visualisation of classification
@@ -123,6 +123,7 @@
 #include <cob_3d_segmentation/cluster_classifier.h>
 #include <cob_3d_mapping_common/point_types.h>
 #include <cob_3d_features/organized_normal_estimation_omp.h>
+#include <cob_3d_features/organized_normal_estimation_edge_omp.h>
 
 
 //records
@@ -145,6 +146,8 @@ public:
 		runtime_sobel_ = 0.;	// image derivatives
 		runtime_edge_ = 0.;
 		runtime_visibility_ = 0.;
+		runtime_normal_original_ = 0.;
+		runtime_normal_edge_ = 0.;
 		number_processed_images_ = 0;
 
 		it_ = 0;
@@ -427,8 +430,8 @@ public:
 
 		int key = 0;
 		cv::imshow("image", color_image);
-		if(!EVALUATION_ONLINE_MODE)
-			cv::waitKey(10);
+//		if(!EVALUATION_ONLINE_MODE)
+//			cv::waitKey(10);
 		//if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
 
 		Timer total;
@@ -511,8 +514,8 @@ public:
 						line_width = last_line_width;
 					else
 						last_line_width = line_width;
-					// do not compute if a depth discontinuity is on the line
-					if (edge_integral.at<int>(v,u+line_width)-edge_integral.at<int>(v,u-line_width)-edge_integral.at<int>(v-1,u+line_width)+edge_integral.at<int>(v-1,u-line_width) != 0)
+					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
+					if (edge_integral.at<int>(v+1,u+line_width+1)-edge_integral.at<int>(v+1,u-line_width)-edge_integral.at<int>(v,u+line_width+1)+edge_integral.at<int>(v,u-line_width) != 0)
 						continue;
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
@@ -569,8 +572,8 @@ public:
 						line_width = last_line_width;
 					else
 						last_line_width = line_width;
-					// do not compute if a depth discontinuity is on the line
-					if (edge_integral.at<int>(v+line_width,u)-edge_integral.at<int>(v-line_width,u)-edge_integral.at<int>(v+line_width,u-1)+edge_integral.at<int>(v-line_width,u-1) != 0)
+					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
+					if (edge_integral.at<int>(v+line_width+1,u+1)-edge_integral.at<int>(v-line_width,u+1)-edge_integral.at<int>(v+line_width+1,u)+edge_integral.at<int>(v-line_width,u) != 0)
 						continue;
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
@@ -612,10 +615,11 @@ public:
 		// remaining problems:
 		// 1. some edges = double edges
 		// 2. noise -> speckle filter in the beginning?
-
+/*
 		tim.start();
 		const int radius = 8;
-		const int step_width = 17;//2*radius+1;
+		const int step_width = 2*radius+1;
+		const int step_width2 = step_width*step_width;
 //		std::vector<cv::Point2i> indices(step_width*step_width-1);
 //		int idx = 0;
 //		for (int r=1; r<=radius; ++r)
@@ -632,15 +636,21 @@ public:
 //				}
 //			}
 //		}
-		bool visibility[(2*radius+1)*(2*radius+1)];
+		bool visibility[step_width2];
+		bool full_visibility[step_width2*640];
+		//boost::shared_ptr<bool> full_visibility(new bool[step_width2*640*480]);
+		//bool* full_visibility_ptr = full_visibility.get();
+		//bool* full_visibility = new bool[step_width2*640];
 		for (int v=radius; v<edge.rows-radius-1; ++v)
 		{
 			for (int u=radius; u<edge.cols-radius-1; ++u)
 			{
 				if (edge.at<uchar>(v,u)==255)
 					continue;
-				for (int i=0; i<(2*radius+1)*(2*radius+1); ++i)
+				for (int i=0; i<step_width2; ++i)
 					visibility[i] = true;
+				for (int i=u*step_width2; i<(u+1)*step_width2; ++i)
+					full_visibility[i] = true;
 //				for (int r=1; r<=radius; ++r)
 //				{
 					for (int dv=-radius; dv<=radius; ++dv)
@@ -652,10 +662,10 @@ public:
 //							if (dv!=r && dv!=-r && du!=r && du!=-r)
 //								continue;
 
-							int index = (dv+radius)*step_width+du+radius;
+							int index = u*step_width2+    (dv+radius)*step_width+du+radius;
 							if (edge.at<uchar>(v+dv,u+du)==255)
 							{
-								visibility[index] = false;
+								full_visibility[index] = false;
 							}
 							else //if (r>1)
 							{
@@ -689,7 +699,7 @@ public:
 								{
 									if (edge.at<uchar>(curr_v,curr_u)==255)
 									{
-										visibility[index] = false;
+										full_visibility[index] = false;
 										break;
 									}
 									curr_u += su;
@@ -726,6 +736,7 @@ public:
 						}
 					}
 //				}
+
 				// todo: check for correctness
 //				int visibility_count = 0;
 //				for (int i=0; i<(2*radius+1)*(2*radius+1); ++i)
@@ -741,18 +752,21 @@ public:
 //					cv::imshow("disp", disp);
 //					cv::waitKey();
 //				}
+
 			}
 		}
 		//std::cout << "Time for visibility: " << tim.getElapsedTimeInMilliSec() << "\n";
 		runtime_visibility_ += tim.getElapsedTimeInMilliSec();
+		///delete visibility;
+*/
 		runtime_total_ += total.getElapsedTimeInMilliSec();
 		++number_processed_images_;
 
 		std::cout << "runtime_total: " << runtime_total_/(double)number_processed_images_ <<
 					"\nruntime_depth_image: " << runtime_depth_image_/(double)number_processed_images_ <<
 					"\nruntime_sobel: " << runtime_sobel_/(double)number_processed_images_ <<
-					"\nruntime_edge: " << runtime_edge_/(double)number_processed_images_ <<
-					"\nruntime_visibility: " << runtime_visibility_/(double)number_processed_images_ << std::endl;
+					"\nruntime_edge: " << runtime_edge_/(double)number_processed_images_ << std::endl;
+					//"\nruntime_visibility: " << runtime_visibility_/(double)number_processed_images_ <<
 
 //		cv::imshow("z_dx", z_dx);
 //		cv::normalize(x_dx, x_dx, 0., 1., cv::NORM_MINMAX);
@@ -776,20 +790,21 @@ public:
 			ST::Graph::Ptr graph(new ST::Graph);
 			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 
-//*
+/*
 			tim.start();
 			oneWithoutEdges_.setInputCloud(cloud);
 			oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
 			oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
 			oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 			oneWithoutEdges_.compute(*normalsWithoutEdges);
-			std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
-			return;
-//*/
-			cv::Mat edgeImage = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
-			for (int v=0; v<edge.rows; ++v)
-				for (int u=0; u<edge.cols; ++u)
-					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
+			//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+			runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
+			//return;
+/*/
+//			cv::Mat edgeImage = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
+//			for (int v=0; v<edge.rows; ++v)
+//				for (int u=0; u<edge.cols; ++u)
+//					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
 			//edge_detection_.computeDepthEdges(z_image, cloud, edgeImage);
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
@@ -802,16 +817,21 @@ public:
 			//for(int i=0; i<10; i++)
 			//{
 
-//			tim.start();
-//			one_.setInputCloud(cloud);
-//			one_.setPixelSearchRadius(8,1,1);	//call before calling computeMaskManually()!!!
-//			one_.computeMaskManually_increasing(cloud->width);
-//			one_.setEdgeImage(edgeImage);
-//			one_.setOutputLabels(labels);
-//			one_.setSameDirectionThres(0.94);
-//			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
-//			one_.compute(*normals);
-//			std::cout << "Normal computation: " << tim.getElapsedTimeInMilliSec() << "\n";
+			tim.start();
+			one_.setInputCloud(cloud);
+			one_.setPixelSearchRadius(4,2,2);	//call before calling computeMaskManually()!!!
+			//one_.computeMaskManually_increasing(cloud->width);
+			one_.computeMaskManually(cloud->width);
+			one_.computePointAngleLookupTable(16);
+			one_.setEdgeImage(edge);
+			one_.setOutputLabels(labels);
+			//one_.setSameDirectionThres(0.94);
+			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
+			one_.compute(*normals);
+			//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+			runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
+			std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
+						"\nruntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
 
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
@@ -982,7 +1002,7 @@ private:
 	//records
 	Scene_recording rec_;
 
-	cob_3d_features::OrganizedNormalEstimation<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
+	cob_3d_features::OrganizedNormalEstimationEdgeOMP<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
 	cob_3d_features::OrganizedNormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal, PointLabel> oneWithoutEdges_;
 
 	EdgeDetection<pcl::PointXYZRGB> edge_detection_;
@@ -1001,6 +1021,8 @@ private:
 	double runtime_sobel_;	// image derivatives
 	double runtime_edge_;
 	double runtime_visibility_;
+	double runtime_normal_original_;
+	double runtime_normal_edge_;
 	int number_processed_images_;
 
 
