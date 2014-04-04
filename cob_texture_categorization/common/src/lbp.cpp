@@ -47,8 +47,8 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 		float circle_piece = (2*M_PI)/samples_in;
 		for(int i = 1; i<=samples_in; i++)
 		{
-			spoints[i][0] = -radius_in*sin((i-1)*circle_piece);
-			spoints[i][1] = radius_in*cos((i-1)*circle_piece);
+			spoints[i-1][0] = -radius_in*sin((i-1)*circle_piece);
+			spoints[i-1][1] = radius_in*cos((i-1)*circle_piece);
 //			std::cout << spoints[i][0]<< "spoints" << i << "/0 "<<spoints[i][1] <<"spoints" << i << "/1 ";
 		}
 		if(mapping != NULL)
@@ -93,10 +93,14 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 //	std::cout << rows << "rows " << cols << "cols ";
 
 
-	double miny = spoints[0][0];
-	double maxy = spoints[0][0];
-	double minx = spoints[0][1];
-	double maxx = spoints[0][1];
+//	double miny = spoints[0][0];
+//	double maxy = spoints[0][0];
+//	double minx = spoints[0][1];
+//	double maxx = spoints[0][1];
+	double miny = 1;
+	double maxy = 0;
+	double minx = 1;
+	double maxx = 0;
 
 	for(int i = 0; i<samples_in; i++)
 	{
@@ -129,6 +133,7 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 	int dx = cols - bsizex;
 	int dy = rows - bsizey;
 //	std::cout << dx << "dx " << dy << "dy ";
+
 
 	// Fill the center pixel matrix C.
 
@@ -363,7 +368,7 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 //			for(int rgb = 0; rgb<3 ; rgb++)
 //			{
 //				int test = result.at<cv::Vec3b>(i,j)[rgb];
-//				std::cout << test <<"__";
+//			//	std::cout << test <<"__";
 //			}
 //		}
 //	}
@@ -408,21 +413,22 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 					}
 				}
 			}
+			//  std::cout << histogram_results[z] << "--";
 		}
-		if(mode == "nh")
-		{
-			  int sum = 0;
-			  for(int i = 0; i<(*mapping).num; i++)
-			  {
-				  sum = sum + histogram_results[i];
-			  }
-			  for(int i = 0; i<(*mapping).num; i++)
-			  {
-				  histogram_results[i] = histogram_results[i]/sum;
-				  // std::cout << histogram_results[i] << "--";
-
-			  }
-		}
+//		if(mode == "nh")
+//		{
+//			  int sum = 0;
+//			  for(int i = 0; i<(*mapping).num; i++)
+//			  {
+//				  sum = sum + histogram_results[i];
+//			  }
+//			  for(int i = 0; i<(*mapping).num; i++)
+//			  {
+//				  histogram_results[i] = histogram_results[i]/sum;
+//				  // std::cout << histogram_results[i] << "--";
+//
+//			  }
+//		}
 	}
 	else
 	{
@@ -456,8 +462,8 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 	for(int i = 0; i<10; i++)
 	{
 		hist[i] = histogram_results[i];
-		//std::cout << histogram_results[i] << "lbp  ";
-	}
+//		std::cout << histogram_results[i]<<"__";
+	}//std::cout << "lbp_lbp"<<std::endl;
 }
 
 

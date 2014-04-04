@@ -54,7 +54,7 @@ public:
 
 protected:
 
-//	ros::Subscriber input_color_camera_info_sub_;	///< camera calibration of incoming color image data
+	ros::Subscriber input_color_camera_info_sub_;	///< camera calibration of incoming color image data
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 	bool camera_matrix_received_;
@@ -83,6 +83,8 @@ protected:
 	/// Callback function for receiving the camera calibration.
 	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
+
+	void inputCallbackNoCam();
 
 };
 

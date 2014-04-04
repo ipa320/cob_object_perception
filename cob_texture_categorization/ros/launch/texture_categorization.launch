@@ -8,7 +8,7 @@
     <remap from="pointcloud_in" to="/cam3d/depth/points_xyzrgb"/>
     <remap from="colorimage_in" to="/cam3d/rgb/image"/>
     <!--remap from="input_marker_detections" to="/fiducials/detect_fiducials"/-->
-    <!--remap from="input_color_camera_info" to="/camera/rgb/camera_info"/--> 
+    <remap from="input_color_camera_info" to="/camera/rgb/camera_info"/> 
   </node>
 
 </launch>

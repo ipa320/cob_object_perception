@@ -2,7 +2,9 @@
 
 #include "create_lbp.h"
 #include "splitandmerge.h"
-
+#include "texture_features.h"
+#include "compute_textures.h"
+#include "depth_image.h"
 
 #include <iostream>
 #include <fstream>
@@ -11,6 +13,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "run_meanshift_test.h"
+
+//#include <pcl_ros/point_cloud.h>
+//#include <pcl/impl/point_types.hpp>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/kdtree/kdtree.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+
+
+
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 
 
 
@@ -29,9 +51,11 @@ node_handle_(nh)
 	colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
 	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
+
 	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
 	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
 	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
+//	TextCategorizationNode::inputCallbackNoCam();
 
 }
 
@@ -49,6 +73,14 @@ void TextCategorizationNode::init()
 {
 }
 
+void TextCategorizationNode::inputCallbackNoCam()
+{
+	ROS_INFO("Input Callback No Cam");
+	compute_textures test = compute_textures();
+	test.compute_textures_all();
+	std::cout<<"test ";
+//	cv::waitKey(10);
+}
 
 /// callback for the incoming  data stream
 void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
@@ -57,26 +89,122 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 	// convert color image to cv::Mat
 	cv_bridge::CvImageConstPtr color_image_ptr;
 	cv::Mat color_image;
-	cv::Mat lbp_image = cv::imread("/home/rmb-dh/Pictures/DSC06325.JPG", CV_8UC3); 	//TEST
 	convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
+	cv::imshow("RGB", color_image);
+	cv::moveWindow("RGB", 10,600);
 
+
+
+
+	cv::Mat dst;
+
+
+/// convert depth data to cv::Mat
+	cv::Mat depth(480, 640, CV_32F);
+	depth_image dimage = depth_image();
+	dimage.get_depth_image(pointcloud_msg, &depth);
+	cv::imshow("3D",depth);
+	cv::moveWindow("3D", 800,600);
+
+///	Filter to smooth depthimage
+
+	/// Medianfilter
+//		dimage.medianfilter(&depth);
+
+	///	Morphological closeing
+		dimage.close_operation(&depth);
+
+		cv::imshow("Smoothened 3D", depth);
+
+
+//	Run meanshift with rgbxy and rgbxyd
+//	run_meanshift_test test = run_meanshift_test();
+//	test.run_test(color_image, depth);
+
+
+
+
+//	cv::Mat test1 = cv::imread("/home/rmb-dh/obst.jpg"); //TEST
+//	cv::Mat test2 = cv::imread("/home/rmb-dh/strasse.jpg"); //TEST
+//	cv::Mat test3 = cv::imread("/home/rmb-dh/strasse2.jpg"); //TEST
+//	cv::Mat test4 = cv::imread("/home/rmb-dh/stadt.jpg"); //TEST
+//	cv::Mat test5 = cv::imread("/home/rmb-dh/test4.jpg"); //TEST
+//	cv::Mat test6 = cv::imread("/home/rmb-dh/test5.jpg"); //TEST
+//	resize(test4, test4, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
 
 	// do something useful with code located in common/src
-	cv::Mat gray_image, dx;
-	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
-	cv::Sobel(gray_image, dx, -1, 1, 0, 3);
-	double lbp_hist[10];
-	//create_lbp lbp = create_lbp();
-	//lbp.create_lbp_class(lbp_image, 1, 8, false, lbp_hist);
-	cv::Mat bild;
-	splitandmerge test = splitandmerge();
-	bild = test.categorize(lbp_image);
-	//cv::imshow("sam", lbp_image);
+//	cv::Mat gray_image, dx;
+//	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
+//	cv::Sobel(gray_image, dx, -1, 1, 0, 3);
+//	double lbp_hist[10];
 
 
-	cv::imshow("image", color_image);
-	cv::imshow("gray image", gray_image);
-	cv::imshow("dx image", dx);
+
+
+
+
+	//LBP only
+//	create_lbp lbp = create_lbp();
+//	lbp.create_lbp_class(test4, 1, 8, false, lbp_hist);
+//	for(int i=0;i<10;i++)
+//	{
+//		std::cout << lbp_hist[i]<<"--" << i << "- ";
+//	}std::cout <<std::endl;
+
+
+	//Split and Merge with LBP
+
+//	for(int i=0; i<newimg.rows-2;i++)
+//	{for(int j=0;j<newimg.cols;j++)
+//	{for(int rgb=0;rgb<3;rgb++)
+//	{
+//		newimg.at<cv::Vec3b>(i,j)[rgb]=255;
+//	}
+//	}
+//	}
+//
+//	splitandmerge test = splitandmerge();
+//	cv::Mat pic1 = test.categorize(test1);
+//	cv::Mat pic2 = test.categorize(test2);
+//	cv::Mat pic3 = test.categorize(test3);
+//	cv::Mat pic4 = test.categorize(test4);
+//	cv::Mat pic5 = test.categorize(test5);
+//	cv::Mat pic6 = test.categorize(test6);
+//	cv::imshow("sam1", pic1);
+//	cv::moveWindow("sam1", 0,0);
+//	cv::imshow("sam2", pic2);
+//	cv::moveWindow("sam2", 1380,0);
+//	cv::imshow("sam3", pic3);
+//	cv::moveWindow("sam3", 740,0);
+//	cv::imshow("sam4", pic4);
+//	cv::moveWindow("sam4", 0,480);
+//	cv::imshow("sam5", pic5);
+//	cv::moveWindow("sam5", 1380,480);
+//	cv::imshow("sam6", pic6);
+//	cv::moveWindow("sam6", 740,480);
+//	cv::imshow("sam6o", test6);
+//	cv::imshow("orig1", test1);
+//	cv::imshow("orig2", test2);
+//	cv::imshow("orig3", test3);
+//	cv::imshow("orig4", test4);
+//	cv::imshow("orig5", test5);
+
+
+//	cv::Mat picstream = test.categorize(color_image);
+//	cv::imshow("image", color_image);
+//	cv::imshow("image2", picstream);
+
+//	texture_features edge = texture_features();
+//	edge.primitive_size(test1);
+
+
+
+//	compute_textures test = compute_textures();
+//	test.compute_textures_all();
+
+
+//	cv::imshow("gray image", gray_image);
+//	cv::imshow("dx image", dx);
 	cv::waitKey(10);
 
 //	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);

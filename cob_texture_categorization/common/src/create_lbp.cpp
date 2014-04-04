@@ -30,7 +30,6 @@ void create_lbp::create_lbp_class(cv::Mat image_in, int radius, int samples, boo
 
 	//double lbphist;
 	struct mapping mapping;
-	//int index = static_cast<int>(pow(samples, 2));
 	//int orbits[samples+2][index-1];
 	int index = static_cast<int>(pow(2,samples));
 	int table[index];
@@ -67,7 +66,8 @@ void create_lbp::create_lbp_class(cv::Mat image_in, int radius, int samples, boo
 	for(int i = 0;i<10;i++)
 	{
 		lbp_hist[i] =hist[i];
-	}
+//		std::cout<<hist[i]<<"__";
+	}//std::cout<<"createlbp"<<std::endl;
 
 
 

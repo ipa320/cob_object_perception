@@ -1,9 +1,7 @@
 #include "get_mapping.h"
-//#include "categorization_fkt.h"
+
 #include <cmath>
 #include <string>
-//#include <lbp.h>
-//#include <svm.h>
 
 
 int count_1bit(int n)
@@ -112,12 +110,6 @@ if(mappingtype == "riu2")
 		}
 	}
 }
-
-//for(int i = 0; i<256; i++)
-//{
-//	std::cout << table[i] << "  ";
-//}
-
 
 (*map).samples=samples;
 (*map).num=newMax;
