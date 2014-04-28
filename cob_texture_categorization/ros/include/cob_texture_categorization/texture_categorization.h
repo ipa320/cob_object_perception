@@ -40,6 +40,7 @@
 
 #include <vector>
 
+#include <visualization_msgs/MarkerArray.h>
 
 
 class TextCategorizationNode
@@ -50,9 +51,17 @@ public:
 	~TextCategorizationNode();
 	void init();
 
+	ros::Publisher coordinatesystem;
+	visualization_msgs::MarkerArray marker;
+	ros::Publisher cloudpub;
+//	typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+	visualization_msgs::Marker cloud;
+	ros::Publisher pub_cloud;
 
 
 protected:
+
+
 
 	ros::Subscriber input_color_camera_info_sub_;	///< camera calibration of incoming color image data
 

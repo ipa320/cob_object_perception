@@ -84,7 +84,7 @@ cv::Mat image_new(480, 640, CV_8UC3);
 	{
 		int x = i%640;
 		int y = (int)floor(i/641);
-		int z = floor((*cloud).points[i].z*51);
+		int z = floor((*cloud).points[i].z);//*51);
 
 		if(z>255)z=255;
 		image_new.at<cv::Vec3b>(y,x)[0]=0;
@@ -96,7 +96,7 @@ cv::Mat image_new(480, 640, CV_8UC3);
 	}else{
 		int x = i%640;
 		int y = (int)floor(i/641);
-		int z = floor((*cloud).points[i].z*85);
+		int z = floor((*cloud).points[i].z);//*85);
 
 		if(z>255)z=255;
 

@@ -5,6 +5,8 @@
 #include "texture_features.h"
 #include "compute_textures.h"
 #include "depth_image.h"
+#include "segment_trans.h"
+#include "perspective_transformation.h"
 
 #include <iostream>
 #include <fstream>
@@ -29,10 +31,18 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
+//#include <pcl_ros/point_cloud.h>
+
+
+
+
 
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+
 
 
 
@@ -41,6 +51,8 @@ TextCategorizationNode::TextCategorizationNode(ros::NodeHandle nh) :
 node_handle_(nh)
 {
 //	camera_matrix_received_ = false;
+
+
 
 	// subscribers
 
@@ -57,6 +69,15 @@ node_handle_(nh)
 	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
 //	TextCategorizationNode::inputCallbackNoCam();
 
+
+
+
+
+
+
+
+
+
 }
 
 
@@ -71,6 +92,10 @@ TextCategorizationNode::~TextCategorizationNode()
 
 void TextCategorizationNode::init()
 {
+//   	coordinatesystem = node_handle_.advertise<visualization_msgs::MarkerArray>("markertest", 1 );
+////    cloudpub = node_handle_.advertise<PointCloud> ("points2", 1);
+//    pub_cloud = node_handle_.advertise<sensor_msgs::PointCloud2> ("cloud", 1);
+
 }
 
 void TextCategorizationNode::inputCallbackNoCam()
@@ -90,8 +115,7 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 	cv_bridge::CvImageConstPtr color_image_ptr;
 	cv::Mat color_image;
 	convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
-	cv::imshow("RGB", color_image);
-	cv::moveWindow("RGB", 10,600);
+
 
 
 
@@ -103,8 +127,10 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 	cv::Mat depth(480, 640, CV_32F);
 	depth_image dimage = depth_image();
 	dimage.get_depth_image(pointcloud_msg, &depth);
-	cv::imshow("3D",depth);
-	cv::moveWindow("3D", 800,600);
+//	cv::imshow("3D",depth);
+//	cv::moveWindow("3D", 800,600);
+
+
 
 ///	Filter to smooth depthimage
 
@@ -114,12 +140,41 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 	///	Morphological closeing
 		dimage.close_operation(&depth);
 
-		cv::imshow("Smoothened 3D", depth);
+//		cv::imshow("Smoothened 3D", depth);
+
+
+// Imagetransformation
+
+
+//		cv::Mat rotated(480, 640, CV_8UC3);
+//
+//		segment_trans seg_test = segment_trans();
+//		seg_test.transformation(&color_image, &rotated, &depth);
+//		cv::waitKey(1000);
+
+
+		cv::Rect rbb= cv::Rect(70, 90, 300, 300);
+		cv::Mat test=color_image(rbb);
+		cv::Mat test2=depth(rbb);
+		cv::imshow("test", color_image);
+
+		p_transformation transform = p_transformation();
+		transform.run_pca(&color_image, &depth, pointcloud_msg, &marker);
+
+
+
+//			    coordinatesystem.publish(marker);
+////			    cloudpub.publish(msg);
+//			    pub_cloud.publish(pointcloud_msg);
 
 
 //	Run meanshift with rgbxy and rgbxyd
 //	run_meanshift_test test = run_meanshift_test();
 //	test.run_test(color_image, depth);
+//		cv::imshow("Rotated", rotated);
+//		cv::imshow("RGB", color_image);
+//		cv::moveWindow("RGB", 10,600);
+
 
 
 
@@ -286,9 +341,20 @@ int main (int argc, char** argv)
 	// Create a handle for this node, initialize node
 	ros::NodeHandle nh;
 
+
+
+
+
+
 	// Create and initialize an instance of Object
 	TextCategorizationNode texture_categorization(nh);
 	texture_categorization.init();
+
+
+
+
+
+
 
 	ros::spin();
 
