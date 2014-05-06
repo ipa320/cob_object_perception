@@ -195,9 +195,9 @@ public:
 				single_legs.points.push_back(p);
 		}
 
-		for (unsigned int k=0; k<human_positions.polygon.points.size(); ++k)
-			std::cout << "leg: " << human_positions.polygon.points[k].x << ", " << human_positions.polygon.points[k].y << std::endl;
-		std::cout << "------------------------------------" << std::endl;
+//		for (unsigned int k=0; k<human_positions.polygon.points.size(); ++k)
+//			std::cout << "leg: " << human_positions.polygon.points[k].x << ", " << human_positions.polygon.points[k].y << std::endl;
+//		std::cout << "------------------------------------" << std::endl;
 
 		// publish
 		if (human_positions.polygon.points.size() > 0)
