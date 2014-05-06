@@ -1,0 +1,23 @@
+# max z distance between neighboring points within segments
+# double
+z_gap: 0.10
+
+# minimal leg width
+# double
+leg_width_min: 0.10
+
+# maximal leg width
+# double
+leg_width_max: 0.25
+
+# minimum laser scanner points on leg
+# double
+min_leg_points: 8
+
+# max distance between both legs [m]
+# double
+max_leg_distance: 0.5
+
+# target coordinate system for detected humans
+# string
+target_frame: "base_link"

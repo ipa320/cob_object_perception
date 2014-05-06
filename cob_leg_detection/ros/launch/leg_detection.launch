@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- send parameters to parameter server -->
+  <rosparam command="load" ns="leg_detection" file="$(find cob_leg_detection)/ros/launch/leg_detection_params.yaml"/>
+
+  <!--  -->
+  <node pkg="cob_leg_detection" ns="leg_detection" type="leg_detection" name="leg_detection" output="screen">	<!-- ns=namespace (arbitrary), type=name of executable, name=node name (arbitrary) -->
+	<!--launch-prefix="/usr/bin/gdb"-->
+	<remap from="scan" to="/scan_front"/>
+  </node>
+
+
+</launch>

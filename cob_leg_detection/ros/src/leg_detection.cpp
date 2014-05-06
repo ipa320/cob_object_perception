@@ -61,8 +61,10 @@
 #include "ros/ros.h"
 
 #include "tf/tf.h"
+#include "tf/transform_listener.h"
 
 #include "sensor_msgs/LaserScan.h"
+#include "geometry_msgs/PolygonStamped.h"
 
 #include <vector>
 
@@ -75,19 +77,31 @@ public:
 	: node_handle_(nh)
 	{
 		laser_scanner_sub_ = node_handle_.subscribe<sensor_msgs::LaserScan>("scan", 1, &LegDetection::legDetectionCallback, this);
-		//person_location_pub_ = node_handle_.advertise<geometry_msgs::>("detected_humans_laser", 1);
+		person_location_pub_ = node_handle_.advertise<geometry_msgs::PolygonStamped>("detected_humans_laser", 1);
 	}
 
 	void init()
 	{
 		// Parameters
 		z_gap_ = 0.10;
-		leg_width_min_ = 0.07;
-		leg_width_max_ = 0.2;
-		min_leg_points_ = 5;
-//		std::cout << "\n--------------------------\Leg Detection Parameters:\n--------------------------\n";
-//		node_handle_.param("dirt_detection/spectralResidualGaussianBlurIterations", spectralResidualGaussianBlurIterations_, 2);
-//		std::cout << "spectralResidualGaussianBlurIterations = " << spectralResidualGaussianBlurIterations_ << std::endl;
+		leg_width_min_ = 0.10;
+		leg_width_max_ = 0.25;
+		min_leg_points_ = 8;
+		target_frame_ = "base_link";
+		max_leg_distance_ = 0.5;
+		std::cout << "\n--------------------------\nLeg Detection Parameters:\n--------------------------\n";
+		node_handle_.param("leg_detection/z_gap", z_gap_, 0.10);
+		std::cout << "z_gap = " << z_gap_ << std::endl;
+		node_handle_.param("leg_detection/leg_width_min", leg_width_min_, 0.10);
+		std::cout << "leg_width_min = " << leg_width_min_ << std::endl;
+		node_handle_.param("leg_detection/leg_width_max", leg_width_max_, 0.25);
+		std::cout << "leg_width_max = " << leg_width_max_ << std::endl;
+		node_handle_.param("leg_detection/min_leg_points", min_leg_points_, 8);
+		std::cout << "min_leg_points = " << min_leg_points_ << std::endl;
+		node_handle_.param("leg_detection/max_leg_distance", max_leg_distance_, 0.5);
+		std::cout << "max_leg_distance = " << max_leg_distance_ << std::endl;
+		node_handle_.param<std::string>("leg_detection/target_frame", target_frame_, "base_link");
+		std::cout << "target_frame = " << target_frame_ << std::endl;
 	}
 
 	void legDetectionCallback(const sensor_msgs::LaserScanConstPtr& laser_scan_msg)
@@ -110,13 +124,16 @@ public:
 			segment.push_back(Point2d(x,y));
 		}
 
-		// classify segments as leg/non-leg
+		// classify segments as leg/non-leg and publish detected humans
+		geometry_msgs::PolygonStamped human_positions;
+		human_positions.header = laser_scan_msg->header;
+		human_positions.header.frame_id = target_frame_;
 		for (unsigned int i=0; i<segments.size(); ++i)
 		{
 			std::vector<Point2d>& seg = segments[i];
 
 			// 1. point count
-			if (seg.size() < min_leg_points_)
+			if (seg.size() < (unsigned int)min_leg_points_)
 				continue;
 
 			// 2. bounding box
@@ -133,13 +150,55 @@ public:
 				if (seg[j].y > maxBB.y)
 					maxBB.y = seg[j].y;
 			}
-			double diag2 = (maxBB.x-minBB.x)*(maxBB.x-minBB.x) + (maxBB.y-minBB.y)*(maxBB.y-minBB.y);
-			if (diag2 <= leg_width_min_*leg_width_min_ || diag2 >= leg_width_max_*leg_width_max_)
+			double diag = sqrt((maxBB.x-minBB.x)*(maxBB.x-minBB.x) + (maxBB.y-minBB.y)*(maxBB.y-minBB.y));
+			if (diag <= leg_width_min_ || diag >= leg_width_max_)
 				continue;
 
-			// 3. leg shape
+			// todo: 3. leg shape
+//			for (unsigned int j=0; j<seg.size(); ++j)
+//			{
+//
+//			}
 
+			// convert to target coordinate system
+			geometry_msgs::PointStamped ps_s, ps_t;
+			ps_s.header = laser_scan_msg->header;
+			ps_s.point.x = (minBB.x + maxBB.x)/2.0;
+			ps_s.point.y = (minBB.y + maxBB.y)/2.0;
+			ps_s.point.z = 0.0;
+			tf_listener_.transformPoint(target_frame_, ps_s, ps_t);
+
+			// add to detection list
+			geometry_msgs::Point32 p;
+			p.x = ps_t.point.x;
+			p.y = ps_t.point.y;
+			p.z = ps_t.point.z;
+			bool found_second_leg = false;
+			for (unsigned int k=0; k<human_positions.polygon.points.size(); ++k)
+			{
+				// todo: only accept when two legs are found --> no phantom leg in background
+				geometry_msgs::Point32& q = human_positions.polygon.points[k];
+				double dist = sqrt((p.x-q.x)*(p.x-q.x)+(p.y-q.y)*(p.y-q.y));
+				if (dist < max_leg_distance_)
+				{
+					q.x = (p.x+q.x)/2.0;
+					q.y = (p.y+q.y)/2.0;
+					q.z = (p.z+q.z)/2.0;
+					found_second_leg = true;
+					break;
+				}
+			}
+			if (found_second_leg == false)
+				human_positions.polygon.points.push_back(p);
 		}
+
+		for (unsigned int k=0; k<human_positions.polygon.points.size(); ++k)
+			std::cout << "leg: " << human_positions.polygon.points[k].x << ", " << human_positions.polygon.points[k].y << std::endl;
+		std::cout << "------------------------------------" << std::endl;
+
+		// publish
+		if (human_positions.polygon.points.size() > 0)
+			person_location_pub_.publish(human_positions);
 	}
 
 private:
@@ -147,12 +206,15 @@ private:
 	ros::NodeHandle node_handle_;
 	ros::Subscriber laser_scanner_sub_;
 	ros::Publisher person_location_pub_;
+	tf::TransformListener tf_listener_;
 
 	// parameters
 	double z_gap_;	// in [m]
 	double leg_width_min_;
 	double leg_width_max_;
 	int min_leg_points_;
+	double max_leg_distance_;	// max distance between both legs [m]
+	std::string target_frame_;
 
 	struct Point2d
 	{
@@ -174,6 +236,10 @@ int main(int argc, char **argv)
 
 	ros::NodeHandle n;
 
+	LegDetection ld(n);
+	ld.init();
+
+	ros::spin();
 
 	return 0;
 }
