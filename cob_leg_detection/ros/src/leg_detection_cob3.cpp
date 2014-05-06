@@ -67,6 +67,8 @@
 
 #include <vector>
 
+#include <boost/thread/mutex.hpp>
+
 
 class LegDetectionAccumulator
 {
@@ -78,46 +80,100 @@ public:
 		person_location_sub_front_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_front", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_sub_rear_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_rear", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_sub_top_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_top", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
+		person_location_pub_ = node_handle_.advertise<geometry_msgs::PolygonStamped>("detected_humans_laser", 1);
 	}
 
 	void init()
 	{
 		// Parameters
 		std::cout << "\n--------------------------\nLeg Detection Accumulator Parameters:\n--------------------------\n";
-//		node_handle_.param("leg_detection/max_leg_distance", max_leg_distance_, 0.5);
-//		std::cout << "max_leg_distance = " << max_leg_distance_ << std::endl;
+		node_handle_.param("leg_detection/same_detection_radius", same_detection_radius_, 0.8);
+		std::cout << "same_detection_radius = " << same_detection_radius_ << std::endl;
+		node_handle_.param("leg_detection/maximum_detection_lifetime", maximum_detection_lifetime_, 2.0);
+		std::cout << "maximum_detection_lifetime = " << maximum_detection_lifetime_ << std::endl;
 	}
 
 	void humanDetectionCallback(const geometry_msgs::PolygonStampedConstPtr& detection_msg)
 	{
+		boost::mutex::scoped_lock lock(mutex_detection_accumulator_);
 
+		// delete old entries in accumulator
+		for (unsigned int j=0; j<detection_accumulator_.size(); ++j)
+		{
+			if ((ros::Time::now()-detection_accumulator_[j].observation_time).toSec() > maximum_detection_lifetime_)
+			{
+				detection_accumulator_.erase(detection_accumulator_.begin()+j);
+				--j;
+			}
+		}
+
+		// update accumulator with detections
+		for (unsigned int i=0; i<detection_msg->polygon.points.size(); ++i)
+		{
+			// check for existence in detection accumulator
+			bool already_in_accumulator = false;
+			for (unsigned int j=0; j<detection_accumulator_.size(); ++j)
+			{
+				double dist = sqrt((detection_accumulator_[j].x-detection_msg->polygon.points[i].x)*(detection_accumulator_[j].x-detection_msg->polygon.points[i].x)+
+						(detection_accumulator_[j].y-detection_msg->polygon.points[i].y)*(detection_accumulator_[j].y-detection_msg->polygon.points[i].y));
+				if (dist < same_detection_radius_)
+				{
+					detection_accumulator_[j].x = detection_msg->polygon.points[i].x;
+					detection_accumulator_[j].y = detection_msg->polygon.points[i].y;
+					detection_accumulator_[j].z = detection_msg->polygon.points[i].z;
+					detection_accumulator_[j].observation_time = ros::Time::now();
+					already_in_accumulator = true;
+					break;
+				}
+			}
+			if (already_in_accumulator == false)
+				detection_accumulator_.push_back(Point3d(detection_msg->polygon.points[i].x, detection_msg->polygon.points[i].y, detection_msg->polygon.points[i].z));
+		}
+
+		// publish accumulated results
+		geometry_msgs::PolygonStamped detected_humans;
+		detected_humans.header = detection_msg->header;
+		detected_humans.polygon.points.resize(detection_accumulator_.size());
+		for (unsigned int j=0; j<detection_accumulator_.size(); ++j)
+		{
+			detected_humans.polygon.points[j].x = detection_accumulator_[j].x;
+			detected_humans.polygon.points[j].y = detection_accumulator_[j].y;
+			detected_humans.polygon.points[j].z = detection_accumulator_[j].z;
+		}
+		person_location_pub_.publish(detected_humans);
 	}
 
 private:
 
-	struct Point2d
+	struct Point3d
 	{
-		Point2d(double x_, double y_)
+		Point3d(double x_, double y_, double z_)
 		{
 			x = x_;
 			y = y_;
+			z = z_;
 			observation_time = ros::Time::now();
 		}
 
 		double x;
 		double y;
+		double z;
 		ros::Time observation_time;
 	};
 
 	ros::NodeHandle node_handle_;
 	ros::Subscriber person_location_sub_front_;
 	ros::Subscriber person_location_sub_rear_;
-	ros::Subscriber person_location_sub_top_
+	ros::Subscriber person_location_sub_top_;
+	ros::Publisher person_location_pub_;
 	tf::TransformListener tf_listener_;
 
-	std::vector<Point2d> detection_accumulator_;
+	std::vector<Point3d> detection_accumulator_;
+	boost::mutex mutex_detection_accumulator_;
 
 	// parameters
+	double same_detection_radius_;
+	double maximum_detection_lifetime_;
 };
 
 

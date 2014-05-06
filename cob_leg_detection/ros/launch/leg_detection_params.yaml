@@ -21,3 +21,14 @@ max_leg_distance: 0.5
 # target coordinate system for detected humans
 # string
 target_frame: "base_link"
+
+#-------------------------------------------------------
+# only relevant for accumulators
+
+# distance threshold for recognizing another detection as the same person when using different laser scanners with potentially different publish times [m]
+# double
+same_detection_radius: 0.8
+
+# maximum life time of a detection before it becomes deleted from the accumulator, can be updated by re-detections, in [s]
+# double
+maximum_detection_lifetime: 3.0
