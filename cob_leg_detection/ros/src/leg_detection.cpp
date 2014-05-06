@@ -75,12 +75,16 @@ public:
 	: node_handle_(nh)
 	{
 		laser_scanner_sub_ = node_handle_.subscribe<sensor_msgs::LaserScan>("scan", 1, &LegDetection::legDetectionCallback, this);
-		//detection_map_pub_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("detection_map", 1);
+		//person_location_pub_ = node_handle_.advertise<geometry_msgs::>("detected_humans_laser", 1);
 	}
 
 	void init()
 	{
 		// Parameters
+		z_gap_ = 0.10;
+		leg_width_min_ = 0.07;
+		leg_width_max_ = 0.2;
+		min_leg_points_ = 5;
 //		std::cout << "\n--------------------------\Leg Detection Parameters:\n--------------------------\n";
 //		node_handle_.param("dirt_detection/spectralResidualGaussianBlurIterations", spectralResidualGaussianBlurIterations_, 2);
 //		std::cout << "spectralResidualGaussianBlurIterations = " << spectralResidualGaussianBlurIterations_ << std::endl;
@@ -88,20 +92,53 @@ public:
 
 	void legDetectionCallback(const sensor_msgs::LaserScanConstPtr& laser_scan_msg)
 	{
-		std::vector<std::vector<Point2d> > segments(1);
+		// divide laser scan into single segments (by z-distance thresholding)
+		std::vector<std::vector<Point2d> > segments;
 		std::vector<Point2d> segment;
-		for (unsigned int i=0; i<(int)laser_scan_msg->ranges.size(); ++i)
+		for (unsigned int i=0; i<laser_scan_msg->ranges.size(); ++i)
 		{
-			double angle = i*laser_scan_msg->angle_increment; //[rad]
+			double angle = laser_scan_msg->angle_min + i*laser_scan_msg->angle_increment; //[rad]
 			double z = laser_scan_msg->ranges[i];
 			double y = z*sin(angle);
 			double x = z*cos(angle);
 
-			segment.push_back(Point2d(x,y));
-
-			if (i>0 && fabs(laser_scan_msg->ranges[i]-laser_scan_msg->ranges[i-1])<)
+			if (i!=0 && fabs(laser_scan_msg->ranges[i]-laser_scan_msg->ranges[i-1])>z_gap_)
 			{
+				segments.push_back(segment);
+				segment.clear();
 			}
+			segment.push_back(Point2d(x,y));
+		}
+
+		// classify segments as leg/non-leg
+		for (unsigned int i=0; i<segments.size(); ++i)
+		{
+			std::vector<Point2d>& seg = segments[i];
+
+			// 1. point count
+			if (seg.size() < min_leg_points_)
+				continue;
+
+			// 2. bounding box
+			Point2d minBB(1e10, 1e10);
+			Point2d maxBB(-1e10, -1e10);
+			for (unsigned int j=0; j<seg.size(); ++j)
+			{
+				if (seg[j].x < minBB.x)
+					minBB.x = seg[j].x;
+				if (seg[j].y < minBB.y)
+					minBB.y = seg[j].y;
+				if (seg[j].x > maxBB.x)
+					maxBB.x = seg[j].x;
+				if (seg[j].y > maxBB.y)
+					maxBB.y = seg[j].y;
+			}
+			double diag2 = (maxBB.x-minBB.x)*(maxBB.x-minBB.x) + (maxBB.y-minBB.y)*(maxBB.y-minBB.y);
+			if (diag2 <= leg_width_min_*leg_width_min_ || diag2 >= leg_width_max_*leg_width_max_)
+				continue;
+
+			// 3. leg shape
+
 		}
 	}
 
@@ -109,11 +146,13 @@ private:
 
 	ros::NodeHandle node_handle_;
 	ros::Subscriber laser_scanner_sub_;
+	ros::Publisher person_location_pub_;
 
 	// parameters
 	double z_gap_;	// in [m]
 	double leg_width_min_;
 	double leg_width_max_;
+	int min_leg_points_;
 
 	struct Point2d
 	{

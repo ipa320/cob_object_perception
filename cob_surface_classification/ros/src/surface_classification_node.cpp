@@ -349,7 +349,7 @@ public:
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
 
-		ROS_INFO("Input Callback");
+		//ROS_INFO("Input Callback");
 
 		// convert color image to cv::Mat
 		cv_bridge::CvImageConstPtr color_image_ptr;
@@ -515,8 +515,8 @@ public:
 					else
 						last_line_width = line_width;
 					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
-					if (edge_integral.at<int>(v+1,u+line_width+1)-edge_integral.at<int>(v+1,u-line_width)-edge_integral.at<int>(v,u+line_width+1)+edge_integral.at<int>(v,u-line_width) != 0)
-						continue;
+		//			if (edge_integral.at<int>(v+1,u+line_width+1)-edge_integral.at<int>(v+1,u-line_width)-edge_integral.at<int>(v,u+line_width+1)+edge_integral.at<int>(v,u-line_width) != 0)
+		//				continue;
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 					double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-line_width);
@@ -573,8 +573,8 @@ public:
 					else
 						last_line_width = line_width;
 					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
-					if (edge_integral.at<int>(v+line_width+1,u+1)-edge_integral.at<int>(v-line_width,u+1)-edge_integral.at<int>(v+line_width+1,u)+edge_integral.at<int>(v-line_width,u) != 0)
-						continue;
+		//			if (edge_integral.at<int>(v+line_width+1,u+1)-edge_integral.at<int>(v-line_width,u+1)-edge_integral.at<int>(v+line_width+1,u)+edge_integral.at<int>(v-line_width,u) != 0)
+		//todo:				continue;
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 					double avg_dy_u = y_dy_integralY.at<float>(v-1, u) - y_dy_integralY.at<float>(v-line_width, u);
@@ -762,10 +762,10 @@ public:
 		runtime_total_ += total.getElapsedTimeInMilliSec();
 		++number_processed_images_;
 
-		std::cout << "runtime_total: " << runtime_total_/(double)number_processed_images_ <<
-					"\nruntime_depth_image: " << runtime_depth_image_/(double)number_processed_images_ <<
-					"\nruntime_sobel: " << runtime_sobel_/(double)number_processed_images_ <<
-					"\nruntime_edge: " << runtime_edge_/(double)number_processed_images_ << std::endl;
+//		std::cout << "runtime_total: " << runtime_total_/(double)number_processed_images_ <<
+//					"\nruntime_depth_image: " << runtime_depth_image_/(double)number_processed_images_ <<
+//					"\nruntime_sobel: " << runtime_sobel_/(double)number_processed_images_ <<
+//					"\nruntime_edge: " << runtime_edge_/(double)number_processed_images_ << std::endl;
 					//"\nruntime_visibility: " << runtime_visibility_/(double)number_processed_images_ <<
 
 //		cv::imshow("z_dx", z_dx);
@@ -775,7 +775,7 @@ public:
 //		average_dz_right = average_dz_right * 15 + 0.5;
 //		cv::imshow("average_slope", average_dz_right);
 		cv::imshow("edge", edge);
-		cv::waitKey(10);
+		key = cv::waitKey(10);
 //		return;
 
 
@@ -790,17 +790,20 @@ public:
 			ST::Graph::Ptr graph(new ST::Graph);
 			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 
-/*
-			tim.start();
-			oneWithoutEdges_.setInputCloud(cloud);
-			oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
-			oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
-			oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-			oneWithoutEdges_.compute(*normalsWithoutEdges);
-			//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
-			runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
-			//return;
-/*/
+//*
+			if (key=='n')
+			{
+				tim.start();
+				oneWithoutEdges_.setInputCloud(cloud);
+				oneWithoutEdges_.setPixelSearchRadius(8,2,2);	//(8,1,1)   (8,2,2)
+				oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
+				oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+				oneWithoutEdges_.compute(*normalsWithoutEdges);
+				//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+				runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
+				//return;
+			}
+//*/
 //			cv::Mat edgeImage = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
 //			for (int v=0; v<edge.rows; ++v)
 //				for (int u=0; u<edge.cols; ++u)
@@ -816,29 +819,31 @@ public:
 			//timer.start();
 			//for(int i=0; i<10; i++)
 			//{
-
-			tim.start();
-			one_.setInputCloud(cloud);
-			one_.setPixelSearchRadius(4,2,2);	//call before calling computeMaskManually()!!!
-			//one_.computeMaskManually_increasing(cloud->width);
-			one_.computeMaskManually(cloud->width);
-			one_.computePointAngleLookupTable(16);
-			one_.setEdgeImage(edge);
-			one_.setOutputLabels(labels);
-			//one_.setSameDirectionThres(0.94);
-			one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
-			one_.compute(*normals);
-			//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
-			runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
-			std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
-						"\nruntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
-
+/*
+			if (key=='n')
+			{
+				tim.start();
+				one_.setInputCloud(cloud);
+				one_.setPixelSearchRadius(8,2,2);	//call before calling computeMaskManually()!!!
+				//one_.computeMaskManually_increasing(cloud->width);
+				one_.computeMaskManually(cloud->width);
+				one_.computePointAngleLookupTable(16);
+				one_.setEdgeImage(edge);
+				one_.setOutputLabels(labels);
+				//one_.setSameDirectionThres(0.94);
+				one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
+				one_.compute(*normals);
+				//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
+				std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
+							"\nruntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
+			}
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
 //*/
 
 
-			if(NORMAL_VIS)
+			if(NORMAL_VIS || key=='n')
 			{
 				// visualize normals
 				pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
@@ -846,8 +851,8 @@ public:
 				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(cloud);
 
 				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
-				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
-				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
+				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
+				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
 				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 
 				while (!viewerNormals.wasStopped ())
