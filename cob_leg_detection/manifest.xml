@@ -1,0 +1,20 @@
+<package>
+  <description brief="cob_leg_detection">
+
+     cob_leg_detection
+
+  </description>
+  <author>Richard Bormann</author>
+  <license>LGPL</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/cob_leg_detection</url>
+
+  <depend package="roscpp"/>
+  <depend package="opencv2"/>
+  <depend package="tf"/>
+  <depend package="sensor_msgs"/>
+  <depend package="geometry_msgs"/>
+
+</package>
+
+
