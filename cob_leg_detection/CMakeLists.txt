@@ -31,3 +31,4 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 
 rosbuild_add_executable(leg_detection ros/src/leg_detection.cpp)
+rosbuild_add_executable(leg_detection_cob3 ros/src/leg_detection_cob3.cpp)

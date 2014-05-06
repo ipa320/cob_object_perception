@@ -12,19 +12,19 @@
 * \note
 * Project name: care-o-bot
 * \note
-* ROS stack name: cob_scenario_states
+* ROS stack name: cob_object_perception
 * \note
-* ROS package name: cob_generic_states_experimental
+* ROS package name: cob_leg_detection
 *
 * \author
 * Author: Richard Bormann
 * \author
 * Supervised by:
 *
-* \date Date of creation: August 2013
+* \date Date of creation: May 2014
 *
 * \brief
-* cob_map_accessibility_analysis receives the map from navigation as well as obstacles and inflates_obstacles topics to assemble a common obstacle map. Upon request, this node checks the accessibility of poses within thin map by (i) checking whether the pose itself is free and by (ii) checking whether there is a closed path from robot to the goal pose.
+* A simple laser scanner based leg detector.
 *
 *****************************************************************
 *
@@ -128,6 +128,7 @@ public:
 		geometry_msgs::PolygonStamped human_positions;
 		human_positions.header = laser_scan_msg->header;
 		human_positions.header.frame_id = target_frame_;
+		geometry_msgs::Polygon single_legs;
 		for (unsigned int i=0; i<segments.size(); ++i)
 		{
 			std::vector<Point2d>& seg = segments[i];
@@ -174,10 +175,10 @@ public:
 			p.y = ps_t.point.y;
 			p.z = ps_t.point.z;
 			bool found_second_leg = false;
-			for (unsigned int k=0; k<human_positions.polygon.points.size(); ++k)
+			for (unsigned int k=0; k<single_legs.points.size(); ++k)
 			{
-				// todo: only accept when two legs are found --> no phantom leg in background
-				geometry_msgs::Point32& q = human_positions.polygon.points[k];
+				// only accept when two legs are found --> no phantom leg in background between two legs
+				geometry_msgs::Point32& q = single_legs.points[k];
 				double dist = sqrt((p.x-q.x)*(p.x-q.x)+(p.y-q.y)*(p.y-q.y));
 				if (dist < max_leg_distance_)
 				{
@@ -185,11 +186,13 @@ public:
 					q.y = (p.y+q.y)/2.0;
 					q.z = (p.z+q.z)/2.0;
 					found_second_leg = true;
+					human_positions.polygon.points.push_back(q);
+					single_legs.points.erase((single_legs.points.begin()+k));
 					break;
 				}
 			}
 			if (found_second_leg == false)
-				human_positions.polygon.points.push_back(p);
+				single_legs.points.push_back(p);
 		}
 
 		for (unsigned int k=0; k<human_positions.polygon.points.size(); ++k)
