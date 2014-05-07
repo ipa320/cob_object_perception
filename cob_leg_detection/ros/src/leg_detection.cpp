@@ -167,7 +167,18 @@ public:
 			ps_s.point.x = (minBB.x + maxBB.x)/2.0;
 			ps_s.point.y = (minBB.y + maxBB.y)/2.0;
 			ps_s.point.z = 0.0;
-			tf_listener_.transformPoint(target_frame_, ps_s, ps_t);
+			try
+			{
+				ros::Time time = ros::Time::now();
+				tf_listener_.waitForTransform(target_frame_, ps_s.header.frame_id, time, ros::Duration(2.0));
+				tf_listener_.transformPoint(target_frame_, ps_s, ps_t);
+			}
+			catch (tf::TransformException ex)
+			{
+				ROS_ERROR("%s",ex.what());
+				return;
+			}
+
 
 			// add to detection list
 			geometry_msgs::Point32 p;

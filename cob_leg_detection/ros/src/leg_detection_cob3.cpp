@@ -64,6 +64,7 @@
 #include "tf/transform_listener.h"
 
 #include "geometry_msgs/PolygonStamped.h"
+#include "cob_leg_detection/TrackedHumans.h"
 
 #include <vector>
 
@@ -118,6 +119,10 @@ public:
 						(detection_accumulator_[j].y-detection_msg->polygon.points[i].y)*(detection_accumulator_[j].y-detection_msg->polygon.points[i].y));
 				if (dist < same_detection_radius_)
 				{
+//					dx = detection_msg->polygon.points[i].x - detection_accumulator_[j].x;
+//					dy = detection_msg->polygon.points[i].y - detection_accumulator_[j].y;
+//					dz = detection_msg->polygon.points[i].z - detection_accumulator_[j].z;
+
 					detection_accumulator_[j].x = detection_msg->polygon.points[i].x;
 					detection_accumulator_[j].y = detection_msg->polygon.points[i].y;
 					detection_accumulator_[j].z = detection_msg->polygon.points[i].z;
@@ -152,12 +157,18 @@ private:
 			x = x_;
 			y = y_;
 			z = z_;
+			dx = 0.0;
+			dy = 0.0;
+			dz = 0.0;
 			observation_time = ros::Time::now();
 		}
 
 		double x;
 		double y;
 		double z;
+		double dx;
+		double dy;
+		double dz;
 		ros::Time observation_time;
 	};
 
