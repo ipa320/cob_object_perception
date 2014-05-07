@@ -81,7 +81,7 @@ public:
 		person_location_sub_front_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_front", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_sub_rear_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_rear", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_sub_top_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_top", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
-		person_location_pub_ = node_handle_.advertise<geometry_msgs::PolygonStamped>("detected_humans_laser", 1);
+		person_location_pub_ = node_handle_.advertise<cob_leg_detection::TrackedHumans>("detected_humans_laser", 1);
 	}
 
 	void init()
@@ -104,6 +104,7 @@ public:
 			if ((ros::Time::now()-detection_accumulator_[j].observation_time).toSec() > maximum_detection_lifetime_)
 			{
 				detection_accumulator_.erase(detection_accumulator_.begin()+j);
+				detection_accumulator_speed_.erase(detection_accumulator_speed_.begin()+j);
 				--j;
 			}
 		}
@@ -119,9 +120,16 @@ public:
 						(detection_accumulator_[j].y-detection_msg->polygon.points[i].y)*(detection_accumulator_[j].y-detection_msg->polygon.points[i].y));
 				if (dist < same_detection_radius_)
 				{
-//					dx = detection_msg->polygon.points[i].x - detection_accumulator_[j].x;
-//					dy = detection_msg->polygon.points[i].y - detection_accumulator_[j].y;
-//					dz = detection_msg->polygon.points[i].z - detection_accumulator_[j].z;
+					double dx = detection_msg->polygon.points[i].x - detection_accumulator_[j].x;
+					double dy = detection_msg->polygon.points[i].y - detection_accumulator_[j].y;
+					double dz = detection_msg->polygon.points[i].z - detection_accumulator_[j].z;
+					if (dx*dx+dy*dy > 0.2*0.2)
+					{
+						detection_accumulator_speed_[j].x = dx;
+						detection_accumulator_speed_[j].y = dy;
+						detection_accumulator_speed_[j].z = dz;
+						detection_accumulator_speed_[j].observation_time = ros::Time::now();
+					}
 
 					detection_accumulator_[j].x = detection_msg->polygon.points[i].x;
 					detection_accumulator_[j].y = detection_msg->polygon.points[i].y;
@@ -132,18 +140,29 @@ public:
 				}
 			}
 			if (already_in_accumulator == false)
+			{
 				detection_accumulator_.push_back(Point3d(detection_msg->polygon.points[i].x, detection_msg->polygon.points[i].y, detection_msg->polygon.points[i].z));
+				detection_accumulator_speed_.push_back(Point3d(0.0, 0.0, 0.0));
+			}
 		}
 
 		// publish accumulated results
-		geometry_msgs::PolygonStamped detected_humans;
-		detected_humans.header = detection_msg->header;
-		detected_humans.polygon.points.resize(detection_accumulator_.size());
+		cob_leg_detection::TrackedHumans detected_humans;
+		detected_humans.trackedHumans.resize(detection_accumulator_.size());
 		for (unsigned int j=0; j<detection_accumulator_.size(); ++j)
 		{
-			detected_humans.polygon.points[j].x = detection_accumulator_[j].x;
-			detected_humans.polygon.points[j].y = detection_accumulator_[j].y;
-			detected_humans.polygon.points[j].z = detection_accumulator_[j].z;
+			geometry_msgs::PointStamped p;
+			p.header = detection_msg->header;
+			p.point.x = detection_accumulator_[j].x;
+			p.point.y = detection_accumulator_[j].y;
+			p.point.z = detection_accumulator_[j].z;
+			detected_humans.trackedHumans[j].location = p;
+			geometry_msgs::Vector3Stamped v;
+			v.header = detection_msg->header;
+			v.vector.x = detection_accumulator_speed_[j].x;
+			v.vector.y = detection_accumulator_speed_[j].y;
+			v.vector.z = detection_accumulator_speed_[j].z;
+			detected_humans.trackedHumans[j].speed;
 		}
 		person_location_pub_.publish(detected_humans);
 	}
@@ -180,6 +199,7 @@ private:
 	tf::TransformListener tf_listener_;
 
 	std::vector<Point3d> detection_accumulator_;
+	std::vector<Point3d> detection_accumulator_speed_;
 	boost::mutex mutex_detection_accumulator_;
 
 	// parameters
