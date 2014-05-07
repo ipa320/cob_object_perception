@@ -20,7 +20,7 @@ max_leg_distance: 0.5
 
 # target coordinate system for detected humans
 # string
-target_frame: "base_link"
+target_frame: "map"
 
 #-------------------------------------------------------
 # only relevant for accumulators

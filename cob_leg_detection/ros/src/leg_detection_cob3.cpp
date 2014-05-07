@@ -87,9 +87,9 @@ public:
 	{
 		// Parameters
 		std::cout << "\n--------------------------\nLeg Detection Accumulator Parameters:\n--------------------------\n";
-		node_handle_.param("leg_detection/same_detection_radius", same_detection_radius_, 0.8);
+		node_handle_.param("/leg_detection/same_detection_radius", same_detection_radius_, 0.8);
 		std::cout << "same_detection_radius = " << same_detection_radius_ << std::endl;
-		node_handle_.param("leg_detection/maximum_detection_lifetime", maximum_detection_lifetime_, 2.0);
+		node_handle_.param("/leg_detection/maximum_detection_lifetime", maximum_detection_lifetime_, 2.0);
 		std::cout << "maximum_detection_lifetime = " << maximum_detection_lifetime_ << std::endl;
 	}
 

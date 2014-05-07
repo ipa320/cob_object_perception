@@ -83,24 +83,24 @@ public:
 	void init()
 	{
 		// Parameters
-		z_gap_ = 0.10;
-		leg_width_min_ = 0.10;
-		leg_width_max_ = 0.25;
-		min_leg_points_ = 8;
-		target_frame_ = "base_link";
-		max_leg_distance_ = 0.5;
+//		z_gap_ = 0.10;
+//		leg_width_min_ = 0.10;
+//		leg_width_max_ = 0.25;
+//		min_leg_points_ = 8;
+//		target_frame_ = "base_link";
+//		max_leg_distance_ = 0.5;
 		std::cout << "\n--------------------------\nLeg Detection Parameters:\n--------------------------\n";
-		node_handle_.param("leg_detection/z_gap", z_gap_, 0.10);
+		node_handle_.param("/leg_detection/z_gap", z_gap_, 0.10);
 		std::cout << "z_gap = " << z_gap_ << std::endl;
-		node_handle_.param("leg_detection/leg_width_min", leg_width_min_, 0.10);
+		node_handle_.param("/leg_detection/leg_width_min", leg_width_min_, 0.10);
 		std::cout << "leg_width_min = " << leg_width_min_ << std::endl;
-		node_handle_.param("leg_detection/leg_width_max", leg_width_max_, 0.25);
+		node_handle_.param("/leg_detection/leg_width_max", leg_width_max_, 0.25);
 		std::cout << "leg_width_max = " << leg_width_max_ << std::endl;
-		node_handle_.param("leg_detection/min_leg_points", min_leg_points_, 8);
+		node_handle_.param("/leg_detection/min_leg_points", min_leg_points_, 8);
 		std::cout << "min_leg_points = " << min_leg_points_ << std::endl;
-		node_handle_.param("leg_detection/max_leg_distance", max_leg_distance_, 0.5);
+		node_handle_.param("/leg_detection/max_leg_distance", max_leg_distance_, 0.5);
 		std::cout << "max_leg_distance = " << max_leg_distance_ << std::endl;
-		node_handle_.param<std::string>("leg_detection/target_frame", target_frame_, "base_link");
+		node_handle_.param<std::string>("/leg_detection/target_frame", target_frame_, "base_link");
 		std::cout << "target_frame = " << target_frame_ << std::endl;
 	}
 
