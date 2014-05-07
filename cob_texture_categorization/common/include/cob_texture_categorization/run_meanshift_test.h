@@ -16,7 +16,7 @@ class run_meanshift_test
 {
 public:
 	run_meanshift_test();
-	void run_test(cv::Mat image, cv::Mat depth);
+	void run_test(cv::Mat* image, cv::Mat depth, std::vector < std::vector<cv::Mat> >* regions);
 
 };
 #endif

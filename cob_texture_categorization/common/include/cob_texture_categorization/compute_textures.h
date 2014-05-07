@@ -16,5 +16,6 @@ class compute_textures
 public:
 	compute_textures();
 	void compute_textures_all();
+	void compute_textures_one();
 };
 #endif /* AMADASUN_H_ */

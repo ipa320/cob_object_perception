@@ -9,35 +9,39 @@ p_transformation::p_transformation()
 {
 }
 
-void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msgs::PointCloud2ConstPtr& pointcloud, visualization_msgs::MarkerArray* marker)
+void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msgs::PointCloud2ConstPtr& pointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff)
 {
 
-// Initialize Vectors
-	std::vector<float> eigen1;
-	std::vector<float> eigen2;
-	std::vector<float> eigen3;
-	float a,b,c,d;
-	cv::Mat test=(*source).clone();
-//	Set color points without depth to 0
-	for(int i=0;i<(*source).rows;i++)
-	{
-		for(int j=0;j<(*source).cols;j++)
-		{
-			if((*depth).at<float>(i,j)<=0 || (*depth).at<float>(i,j)!=(*depth).at<float>(i,j))
-			{
-				(*source).at<cv::Vec3b>(i,j)[0]=0;
-				(*source).at<cv::Vec3b>(i,j)[1]=0;
-				(*source).at<cv::Vec3b>(i,j)[2]=0;
-			}
-		}
-	}
-
-	cv::imshow("test", (*source));
-
-	float orig_x,orig_y,orig_z;
 
 	try
 	{
+		cv::Mat workimage = cv::Mat::zeros((*source).rows, (*source).cols, CV_8UC3);
+		//	Set color points without depth to 0
+			for(int i=0;i<(*source).rows;i++)
+			{
+				for(int j=0;j<(*source).cols;j++)
+				{
+					if((*depth).at<float>(i,j)<=0 || (*depth).at<float>(i,j)!=(*depth).at<float>(i,j))
+					{
+						workimage.at<cv::Vec3b>(i,j)[0]=0;
+						workimage.at<cv::Vec3b>(i,j)[1]=0;
+						workimage.at<cv::Vec3b>(i,j)[2]=0;
+					}else{
+						workimage.at<cv::Vec3b>(i,j)[0]=(*source).at<cv::Vec3b>(i,j)[0];
+						workimage.at<cv::Vec3b>(i,j)[1]=(*source).at<cv::Vec3b>(i,j)[1];
+						workimage.at<cv::Vec3b>(i,j)[2]=(*source).at<cv::Vec3b>(i,j)[2];
+					}
+				}
+			}
+
+
+		// Initialize Vectors
+		std::vector<float> eigen1;
+		std::vector<float> eigen2;
+		std::vector<float> eigen3;
+		float a,b,c,d;
+		float orig_x,orig_y,orig_z;
+
 		pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud2 (new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::fromROSMsg(*pointcloud, *input_cloud2);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -68,9 +72,9 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 
 				Eigen::Vector4f meanpoint = pca.getMean();
 
-				std::cout<<eigen1[0]<<" "<<eigen1[1]<<" "<<eigen1[2]<<"eigen1"<<std::endl;
-				std::cout<<eigen2[0]<<" "<<eigen2[1]<<" "<<eigen2[2]<<"eigen2"<<std::endl;
-				std::cout<<eigen3[0]<<" "<<eigen3[1]<<" "<<eigen3[2]<<"eigen3"<<std::endl;
+//				std::cout<<eigen1[0]<<" "<<eigen1[1]<<" "<<eigen1[2]<<"eigen1"<<std::endl;
+//				std::cout<<eigen2[0]<<" "<<eigen2[1]<<" "<<eigen2[2]<<"eigen2"<<std::endl;
+//				std::cout<<eigen3[0]<<" "<<eigen3[1]<<" "<<eigen3[2]<<"eigen3"<<std::endl;
 	//			Set z direction
 				if(eigen3[2]<0)
 				{
@@ -90,14 +94,41 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 				orig_x=(double)meanpoint[0];
 				orig_y=(double)meanpoint[1];
 				orig_z=(double)meanpoint[2];
+				(*plane_coeff).push_back(a);
+				(*plane_coeff).push_back(b);
+				(*plane_coeff).push_back(c);
+				(*plane_coeff).push_back(d);
 	//End PCA
 
 
+				float dist_sum=0;
+				int used_points=0;
+	//			std::vector<float> var_depth;
+				pcl::PointXYZRGB point;
+				for(int i=0;i<(*depth).rows;i++)
+				{
+					for(int j=0;j<(*depth).cols;j++)
+					{
+						if((*depth).at<float>(i,j)>0)
+						{
+	//					var_depth.push_back(depth.at<float>(i,j));
 
+							point = (*input_cloud)[i*640+j];
+	//						std::cout<<point<<" "<<point.z<<" "<<(float)point.z<<std::endl;
+							if(point.z==point.z)
+							{
+							dist_sum = dist_sum + std::abs(((-a*point.x-b*point.y+d)/c)-point.z);
+							used_points++;
+							}
+						}
 
+					}
+				}
+				std::cout<<point<<"point"<<std::endl;
+				std::cout<<dist_sum<<"absoluter_abstand "<<(dist_sum/used_points)*10<<"normierter abstand "<<used_points<<"points "<<std::endl;
 
-
-
+				if(((dist_sum/used_points)*10)<1)
+				{
 
 	// Uebernomme version
 		cv::Point3d p1, p2;
@@ -168,7 +199,7 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 			return;
 		}
 
-		std::cout<<a<<"a "<<b<<"b "<<c<<"c "<<d<<"d "<<std::endl;
+//		std::cout<<a<<"a "<<b<<"b "<<c<<"c "<<d<<"d "<<std::endl;
 
 		// compute two normalized directions
 		cv::Point3d dirS, dirT, normal(a,b,c);
@@ -302,10 +333,13 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 
 
 
+
+
 		std::vector<cv::Point2f> pointsCamera, pointsPlane;
 	// Get matched points to compute transformation matrix
-		bool color, distance;
-		float maxDistanceToCamera = 30.0;
+		bool color;//, distance;
+		float depth_test=0;
+//		float maxDistanceToCamera = 30.0;
 		cv::Point2f minPlane(1e20,1e20), maxPlane(-1e20,-1e20);
 		for(int i=0;i<(*source).rows;i++)
 		{
@@ -313,14 +347,17 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 			{
 				//Check if point is not black
 				color = false;
-				if((*source).at<cv::Vec3b>(i,j)[0]!=0 &&(*source).at<cv::Vec3b>(i,j)[1]!=0&&(*source).at<cv::Vec3b>(i,j)[2]!=0)color = true;
+				if(workimage.at<cv::Vec3b>(i,j)[0]!=0 &&workimage.at<cv::Vec3b>(i,j)[1]!=0&&workimage.at<cv::Vec3b>(i,j)[2]!=0)color = true;
 				//Check distance to camera
-				pcl::PointXYZRGB point = (*input_cloud)[i*(source->cols)+j];
+
+
 	//			distance = false;
 	//			if (point.x*point.x + point.y*point.y + point.z*point.z > maxDistanceToCamera*maxDistanceToCamera) distance = true;
 
 				if(color)
 				{
+//					pcl::PointXYZRGB point = (*input_cloud)[i*(source->cols)+j];
+					point = (*input_cloud)[i*(source->cols)+j];
 					cv::Mat pointPlane;
 
 					// determine max and min x and y coordinates of the plane
@@ -331,6 +368,7 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 
 						pointsPlane.push_back(cv::Point2f(pointPlane.at<double>(0),pointPlane.at<double>(1)));
 						pointsCamera.push_back(cv::Point2f(j, i));
+						depth_test = depth_test+point.z;
 
 
 						if (minPlane.x>(float)pointPlane.at<double>(0))
@@ -348,7 +386,19 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 			}
 		}
 
-		//	Initialize Final image
+		//Get Size of segment
+
+		point = (*input_cloud)[100*(source->cols)+100];
+		std::cout<<point<<"point1"<<std::endl;
+		point = (*input_cloud)[100*(source->cols)+101];
+		std::cout<<point<<"point1"<<std::endl;
+		point = (*input_cloud)[100*(source->cols)+102];
+		std::cout<<point<<"point1"<<std::endl;
+		point = (*input_cloud)[100*(source->cols)+103];
+		std::cout<<point<<"point1"<<std::endl;
+		point = (*input_cloud)[100*(source->cols)+104];
+		std::cout<<point<<"point1"<<std::endl;
+
 
 
 	//	Homography H
@@ -371,19 +421,24 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 
 
 
-
+		std::cout<<depth_test<<"Testtiefe "<<std::endl;
 
 
 		cv::Mat H = findHomography(inputpoint, outputpoint);
-		std::cout<<H <<"homogr"<<std::endl;
+//		std::cout<<H <<"homogr"<<std::endl;
 		cv::Mat imageH = cv::Mat::zeros(480,640,CV_8UC3);
 
-		cv::warpPerspective((*source), imageH, H, imageH.size());
-		cv::imshow("Homogrtestt", imageH);
-		(*source)=imageH;
+		cv::warpPerspective((*source), workimage, H, workimage.size());
+//		cv::warpPerspective((*depth), imageH, H, workimage.size());
+//		cv::imshow("Homogrtestt", workimage);
+		(*source)=workimage;
+//		(*depth)=imageH;
+				}else{
+					std::cout<<"No transformation found:"<<std::endl;
+				}
 	}catch(...)
 	{
-		cv::imshow("Homogrtestt", test);
+//		cv::imshow("Homogrtestt", (*source));
 		std::cout<<"No transformation found:"<<std::endl;
 	}
 

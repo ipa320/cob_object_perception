@@ -7,6 +7,9 @@
 #include "depth_image.h"
 #include "segment_trans.h"
 #include "perspective_transformation.h"
+#include "create_train_data.h"
+#include "train_svm.h"
+#include "predict_svm.h"
 
 #include <iostream>
 #include <fstream>
@@ -64,13 +67,10 @@ node_handle_(nh)
 	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
 
-	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
-	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
-	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
-//	TextCategorizationNode::inputCallbackNoCam();
-
-
-
+//	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
+//	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
+//	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
+	TextCategorizationNode::inputCallbackNoCam();
 
 
 
@@ -92,6 +92,7 @@ TextCategorizationNode::~TextCategorizationNode()
 
 void TextCategorizationNode::init()
 {
+//		Display normals of transforamtion
 //   	coordinatesystem = node_handle_.advertise<visualization_msgs::MarkerArray>("markertest", 1 );
 ////    cloudpub = node_handle_.advertise<PointCloud> ("points2", 1);
 //    pub_cloud = node_handle_.advertise<sensor_msgs::PointCloud2> ("cloud", 1);
@@ -101,9 +102,22 @@ void TextCategorizationNode::init()
 void TextCategorizationNode::inputCallbackNoCam()
 {
 	ROS_INFO("Input Callback No Cam");
-	compute_textures test = compute_textures();
-	test.compute_textures_all();
-	std::cout<<"test ";
+//	compute_textures test = compute_textures();
+//	test.compute_textures_all();
+//	test.compute_textures_one();
+
+//	create_train_data bla = create_train_data();
+//	bla.compute_data();
+//	std::cout<<"test ";
+
+//	std::string data = "/home/rmb-dh/Test_dataset/training_data.yml";
+//	std::string label = "/home/rmb-dh/Test_dataset/train_data_respons.yml";
+//	train_svm traintest = train_svm();
+//	traintest.run_training(&data,&label);
+
+	predict_svm prediction = predict_svm();
+	prediction.run_prediction();
+
 //	cv::waitKey(10);
 }
 
@@ -139,41 +153,93 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 	///	Morphological closeing
 		dimage.close_operation(&depth);
+//		cv::imshow("smoothed depth", depth);
 
-//		cv::imshow("Smoothened 3D", depth);
+//		std::vector<float> var_depth_first;
+//		for(int i=0;i<depth.rows;i++)
+//		{
+//			for(int j=0;j<depth.cols;j++)
+//			{
+//				if(depth.at<float>(i,j)!=0)
+//				{
+//				var_depth_first.push_back(depth.at<float>(i,j));
+//				}
+//			}
+//		}
+//		cv::Scalar means_first, stds_first;
+//				cv::meanStdDev(var_depth_first, means_first, stds_first);
+//				std::cout<<means_first<<"meansfirst "<<stds_first<<"stdsfirst "<<std::endl;
 
 
-// Imagetransformation
-
-
-//		cv::Mat rotated(480, 640, CV_8UC3);
+//	Image segmentation
+//		Run meanshift with rgbxy and rgbxyd
+//		std::vector < std::vector<cv::Mat> > segmented_regions;
+//		run_meanshift_test segmentation_test = run_meanshift_test();
+//		segmentation_test.run_test(&color_image, depth, &segmented_regions);
 //
-//		segment_trans seg_test = segment_trans();
-//		seg_test.transformation(&color_image, &rotated, &depth);
-//		cv::waitKey(1000);
+//
+//		for(int i=0;i<segmented_regions.size();i++)
+//		{
+//			int j = cv::countNonZero((segmented_regions[i][1]));
+//			if(j<600)
+//			{
+//				segmented_regions.erase(segmented_regions.begin()+i);
+//			}
+//		}
+//		std::cout<<segmented_regions.size()<<"segmented size"<<std::endl;
 
 
-		cv::Rect rbb= cv::Rect(70, 90, 300, 300);
-		cv::Mat test=color_image(rbb);
-		cv::Mat test2=depth(rbb);
+// 		Imagetransformation
 		cv::imshow("test", color_image);
+		std::vector<float> plane_coeff;
 
-		p_transformation transform = p_transformation();
-		transform.run_pca(&color_image, &depth, pointcloud_msg, &marker);
+//		for(int i=0;i<segmented_regions.size();i=i+10)
+//		{
+			p_transformation transform = p_transformation();
+			transform.run_pca(&color_image, &depth, pointcloud_msg, &marker, &plane_coeff);
+//			cv::imshow("segment", segmented_regions[2][0]);
+//			transform.run_pca(&segmented_regions[2][0], &depth, pointcloud_msg, &marker);
+//		}
+			cv::imshow("transformed region", color_image);
+			cv::imshow("transformed depth", depth);
+
+//			float dist_sum=0;
+//			int used_points=0;
+//			pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+//			pcl::fromROSMsg(*pointcloud_msg, *input_cloud);
+////			std::vector<float> var_depth;
+//			pcl::PointXYZRGB point;
+//			for(int i=0;i<depth.rows;i++)
+//			{
+//				for(int j=0;j<depth.cols;j++)
+//				{
+//					if(depth.at<float>(i,j)>0)
+//					{
+////					var_depth.push_back(depth.at<float>(i,j));
+//
+//						point = (*input_cloud)[i*640+j];
+////						std::cout<<point<<" "<<point.z<<" "<<(float)point.z<<std::endl;
+//						if(point.z==point.z)
+//						{
+//						dist_sum = dist_sum + std::abs(((-plane_coeff[0]*point.x-plane_coeff[1]*point.y+plane_coeff[3])/plane_coeff[2])-point.z);
+//						used_points++;
+//						}
+//					}
+//
+//				}
+//			}
+//			std::cout<<point<<"point"<<std::endl;
+//			std::cout<<dist_sum<<"absoluter_abstand "<<(dist_sum/used_points)*10<<"normierter abstand "<<used_points<<"points "<<std::endl;
+//			cv::Scalar means, stds;
+//			cv::meanStdDev(var_depth, means, stds);
+//			std::cout<<means<<"means "<<stds<<"stds "<<std::endl;
+
+//		display normals of transformation
+//			coordinatesystem.publish(marker);
+////		 cloudpub.publish(msg);
+//			pub_cloud.publish(pointcloud_msg);
 
 
-
-//			    coordinatesystem.publish(marker);
-////			    cloudpub.publish(msg);
-//			    pub_cloud.publish(pointcloud_msg);
-
-
-//	Run meanshift with rgbxy and rgbxyd
-//	run_meanshift_test test = run_meanshift_test();
-//	test.run_test(color_image, depth);
-//		cv::imshow("Rotated", rotated);
-//		cv::imshow("RGB", color_image);
-//		cv::moveWindow("RGB", 10,600);
 
 
 

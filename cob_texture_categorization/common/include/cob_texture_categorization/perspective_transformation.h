@@ -15,6 +15,6 @@ class p_transformation
 {
 public:
 	p_transformation();
-	void run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msgs::PointCloud2ConstPtr& pointcloud, visualization_msgs::MarkerArray* marker);
+	void run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msgs::PointCloud2ConstPtr& pointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff);
 };
 #endif /* PERSPECTIVE_TRANSFORMATION_H_ */

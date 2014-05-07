@@ -7,12 +7,15 @@
 
 
 
+
 #include <iostream>
 #include <fstream>
 #include <dirent.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <sys/time.h>
 
 compute_textures::compute_textures()
 {
@@ -109,4 +112,84 @@ void compute_textures::compute_textures_all()
 	    closedir(pDIR);
 	  }
 	  std::cin.get();
+}
+
+void compute_textures::compute_textures_one()
+{
+
+	struct feature_results results_modul, results_whole;
+
+
+	        std::string str = "/home/rmb-dh/test_dataset/Bread_06_02.JPG";
+
+
+	    	cv::Mat image = cv::imread(str);
+	    	std::cout<<str<<":   ";
+
+//	    		struct color_vals color_results;
+//	    		color_parameter color = color_parameter();
+//	    		color.get_color_parameter(image, &results_whole);
+//
+	    	struct timeval zeit;
+	    	gettimeofday(&zeit, 0);
+//
+	    	texture_features edge = texture_features();
+	    	edge.primitive_size(image, &results_whole);
+	    	struct timeval zeit2;
+	    	gettimeofday(&zeit2, 0);
+
+
+	    	edge.compute_features(&image, &results_modul);
+	    	struct timeval zeit3;
+	    	gettimeofday(&zeit3, 0);
+//	    	std::cout<< "Feature computing completed: "<<(count/number_of_images)*100<<"%   Picnum"<<count<<std::endl;
+
+	    	 std::cout << zeit3.tv_sec << ':' << zeit3.tv_usec << std::endl;
+	    	 std::cout << zeit2.tv_sec << ':' << zeit2.tv_usec << std::endl;
+	    	 std::cout << zeit.tv_sec << ':' << zeit.tv_usec << std::endl;
+//	    	 std::cout << zeit3.tv_sec-zeit2.tv_sec << ':' << zeit3.tv_usec-zeit2.tv_usec << std::endl;
+//	    	 std::cout << zeit2.tv_sec-zeit.tv_sec << ':' << zeit2.tv_usec-zeit.tv_sec <<"whole"<< std::endl;
+//	     	 std::cout << zeit3.tv_sec-zeit2.tv_sec << ':' << zeit3.tv_usec-zeit2.tv_usec<<"module " << std::endl;
+
+
+	    	std::cout<<"old results"<<std::endl;
+	    	std::cout<<"3: colorfullness:              "<< results_whole.colorfulness<<std::endl;
+	    	std::cout<<"4: dominant color:             "<<results_whole.dom_color<<std::endl;
+	    	std::cout<<"5: dominant color2:            "<<results_whole.dom_color2<<std::endl;
+	    	std::cout<<"6: v_mean:                     "<<results_whole.v_mean<<std::endl;
+	    	std::cout<<"7: v_std:                      "<<results_whole.v_std<<std::endl;
+	    	std::cout<<"8: s_mean:                     "<<results_whole.s_mean<<std::endl;
+	    	std::cout<<"9: s_std:                      "<<results_whole.s_std<<std::endl;
+	    	std::cout<<"10: average primitive size:     "<<results_whole.avg_size<<std::endl;
+	    	std::cout<<"11: number of primitives:       "<<results_whole.prim_num<<std::endl;
+	    	std::cout<<"12: strength of primitives:    "<<results_whole.prim_strength<<std::endl;
+	    	std::cout<<"13: regularity of primitives:  "<<results_whole.prim_regularity<<std::endl;
+	    	std::cout<<"14: contrast:                  "<<results_whole.contrast<<std::endl;
+	    	std::cout<<"15: line-likeness:             "<<results_whole.line_likeness<<std::endl;
+	    	std::cout<<"16: 3D roughness:              "<<results_whole.roughness<<std::endl;
+	    	std::cout<<"17: directionality/regularity: "<<results_whole.direct_reg<<std::endl;
+	    	std::cout<<"18: lined:                     "<<results_whole.lined<<std::endl;
+	    	std::cout<<"20: checked:                   "<<results_whole.checked<<std::endl;
+	    	std::cout<<std::endl<<"new results"<<std::endl;
+	    	std::cout<<"3: colorfullness:              "<< results_modul.colorfulness<<std::endl;
+	    	std::cout<<"4: dominant color:             "<<results_modul.dom_color<<std::endl;
+	    	std::cout<<"5: dominant color2:            "<<results_modul.dom_color2<<std::endl;
+	    	std::cout<<"6: v_mean:                     "<<results_modul.v_mean<<std::endl;
+	    	std::cout<<"7: v_std:                      "<<results_modul.v_std<<std::endl;
+	    	std::cout<<"8: s_mean:                     "<<results_modul.s_mean<<std::endl;
+	    	std::cout<<"9: s_std:                      "<<results_modul.s_std<<std::endl;
+	    	std::cout<<"10: average primitive size:     "<<results_modul.avg_size<<std::endl;
+	    	std::cout<<"11: number of primitives:       "<<results_modul.prim_num<<std::endl;
+	    	std::cout<<"12: strength of primitives:    "<<results_modul.prim_strength<<std::endl;
+	    	std::cout<<"13: regularity of primitives:  "<<results_modul.prim_regularity<<std::endl;
+	    	std::cout<<"14: contrast:                  "<<results_modul.contrast<<std::endl;
+	    	std::cout<<"15: line-likeness:             "<<results_modul.line_likeness<<std::endl;
+	    	std::cout<<"16: 3D roughness:              "<<results_modul.roughness<<std::endl;
+	    	std::cout<<"17: directionality/regularity: "<<results_modul.direct_reg<<std::endl;
+	    	std::cout<<"18: lined:                     "<<results_modul.lined<<std::endl;
+	    	std::cout<<"20: checked:                   "<<results_modul.checked<<std::endl;
+	    	std::cout<<std::endl;
+	      	std::cout<<std::endl;
+
+
 }

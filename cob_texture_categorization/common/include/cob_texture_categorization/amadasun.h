@@ -17,5 +17,6 @@ class amadasun
 public:
 	amadasun();
 	void get_amadasun(cv::Mat img, double d, struct feature_results *results);
+
 };
 #endif /* AMADASUN_H_ */
