@@ -123,7 +123,7 @@ public:
 					double dx = detection_msg->polygon.points[i].x - detection_accumulator_[j].x;
 					double dy = detection_msg->polygon.points[i].y - detection_accumulator_[j].y;
 					double dz = detection_msg->polygon.points[i].z - detection_accumulator_[j].z;
-					if (dx*dx+dy*dy > 0.2*0.2)
+					if (dx*dx+dy*dy > 0.15*0.15)
 					{
 						detection_accumulator_speed_[j].x = dx;
 						detection_accumulator_speed_[j].y = dy;
@@ -162,7 +162,7 @@ public:
 			v.vector.x = detection_accumulator_speed_[j].x;
 			v.vector.y = detection_accumulator_speed_[j].y;
 			v.vector.z = detection_accumulator_speed_[j].z;
-			detected_humans.trackedHumans[j].speed;
+			detected_humans.trackedHumans[j].speed = v;
 		}
 		person_location_pub_.publish(detected_humans);
 	}
