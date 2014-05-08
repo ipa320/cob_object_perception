@@ -27,7 +27,7 @@ target_frame: "map"
 
 # distance threshold for recognizing another detection as the same person when using different laser scanners with potentially different publish times [m]
 # double
-same_detection_radius: 0.8
+same_detection_radius: 0.5
 
 # minimum speed so that a speed vector can be computed without creating noisy speed estimates, in [m] offset to last measurement
 # double
