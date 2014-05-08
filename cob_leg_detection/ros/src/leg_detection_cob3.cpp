@@ -98,6 +98,8 @@ public:
 		std::cout << "\n--------------------------\nLeg Detection Accumulator Parameters:\n--------------------------\n";
 		node_handle_.param("/leg_detection/same_detection_radius", same_detection_radius_, 0.8);
 		std::cout << "same_detection_radius = " << same_detection_radius_ << std::endl;
+		node_handle_.param("/leg_detection/minimum_speed_for_speed_vector", minimum_speed_for_speed_vector_, 0.2);
+		std::cout << "minimum_speed_for_speed_vector = " << minimum_speed_for_speed_vector_ << std::endl;
 		node_handle_.param("/leg_detection/maximum_detection_lifetime", maximum_detection_lifetime_, 2.0);
 		std::cout << "maximum_detection_lifetime = " << maximum_detection_lifetime_ << std::endl;
 	}
@@ -131,7 +133,7 @@ public:
 					double dx = detection_msg->polygon.points[i].x - detection_accumulator_[j].x;
 					double dy = detection_msg->polygon.points[i].y - detection_accumulator_[j].y;
 					double dz = detection_msg->polygon.points[i].z - detection_accumulator_[j].z;
-					if (dx*dx+dy*dy > 0.15*0.15)
+					if (dx*dx+dy*dy > minimum_speed_for_speed_vector_*minimum_speed_for_speed_vector_)
 					{
 						detection_accumulator_speed_[j].x = dx;
 						detection_accumulator_speed_[j].y = dy;
@@ -282,8 +284,9 @@ private:
 	unsigned int prev_marker_array_size_; ///< Size of previously published marker array
 
 	// parameters
-	double same_detection_radius_;
-	double maximum_detection_lifetime_;
+	double same_detection_radius_;  // distance threshold for recognizing another detection as the same person when using different laser scanners with potentially different publish times [m]
+	double minimum_speed_for_speed_vector_;  // minimum speed so that a speed vector can be computed without creating noisy speed estimates, in [m] offset to last measurement
+	double maximum_detection_lifetime_;  // maximum life time of a detection before it becomes deleted from the accumulator, can be updated by re-detections, in [s]
 };
 
 
