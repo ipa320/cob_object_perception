@@ -65,6 +65,8 @@
 
 #include "geometry_msgs/PolygonStamped.h"
 #include "cob_leg_detection/TrackedHumans.h"
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <vector>
 
@@ -82,6 +84,12 @@ public:
 		person_location_sub_rear_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_rear", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_sub_top_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_top", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_pub_ = node_handle_.advertise<cob_leg_detection::TrackedHumans>("detected_humans_laser", 1);
+		person_location_marker_array_publisher_ = node_handle_.advertise<visualization_msgs::MarkerArray>("recording_pose_marker_array", 1);
+	}
+
+	~LegDetectionAccumulator()
+	{
+		person_location_marker_array_publisher_.shutdown();
 	}
 
 	void init()
@@ -167,6 +175,73 @@ public:
 		person_location_pub_.publish(detected_humans);
 	}
 
+	void publishMarkers(cob_leg_detection::TrackedHumans& detection_msg)
+	{
+		// bubble and arrow for each detected person
+		unsigned int marker_array_size = 2*detection_msg.trackedHumans.size();
+		if (marker_array_size >= prev_marker_array_size_)
+			marker_array_msg_.markers.resize(marker_array_size);
+
+		// Publish marker array
+		for (unsigned int i=0; i<detection_msg.trackedHumans.size(); ++i)
+		{
+			// arrow
+			unsigned int idx = 2*i;
+			marker_array_msg_.markers[idx].header = detection_msg.trackedHumans[i].location.header;
+			marker_array_msg_.markers[idx].ns = "leg_detection";
+			marker_array_msg_.markers[idx].id =  idx;
+			marker_array_msg_.markers[idx].type = visualization_msgs::Marker::ARROW;
+			marker_array_msg_.markers[idx].action = visualization_msgs::Marker::ADD;
+			marker_array_msg_.markers[idx].color.a = 0.75;
+			marker_array_msg_.markers[idx].color.r = 0;
+			marker_array_msg_.markers[idx].color.g = 0;
+			marker_array_msg_.markers[idx].color.b = 255;
+
+			marker_array_msg_.markers[idx].points.resize(2);
+			marker_array_msg_.markers[idx].points[0].x = detection_msg.trackedHumans[i].location.point.x;
+			marker_array_msg_.markers[idx].points[0].y = detection_msg.trackedHumans[i].location.point.y;
+			marker_array_msg_.markers[idx].points[0].z = detection_msg.trackedHumans[i].location.point.z;
+			marker_array_msg_.markers[idx].points[1].x = detection_msg.trackedHumans[i].speed.vector.x;
+			marker_array_msg_.markers[idx].points[1].y = detection_msg.trackedHumans[i].speed.vector.y;
+			marker_array_msg_.markers[idx].points[1].z = detection_msg.trackedHumans[i].speed.vector.z;
+
+			marker_array_msg_.markers[idx].lifetime = ros::Duration(maximum_detection_lifetime_);
+			marker_array_msg_.markers[idx].scale.x = 0.01; // shaft diameter
+			marker_array_msg_.markers[idx].scale.y = 0.015; // head diameter
+			marker_array_msg_.markers[idx].scale.z = 0.0; // head length 0=default
+
+			// bubble
+			++idx;
+			marker_array_msg_.markers[idx].header = detection_msg.trackedHumans[i].location.header;
+			marker_array_msg_.markers[idx].ns = "leg_detection";
+			marker_array_msg_.markers[idx].id =  idx;
+			marker_array_msg_.markers[idx].type = visualization_msgs::Marker::SPHERE;
+			marker_array_msg_.markers[idx].action = visualization_msgs::Marker::ADD;
+			marker_array_msg_.markers[idx].color.a = 0.6;
+			marker_array_msg_.markers[idx].color.r = 0;
+			marker_array_msg_.markers[idx].color.g = 0;
+			marker_array_msg_.markers[idx].color.b = 255;
+
+			tf::Pose pose(tf::Quaternion(0.0, 0.0, 0.0, 1.0), tf::Vector3(detection_msg.trackedHumans[i].location.point.x, detection_msg.trackedHumans[i].location.point.y, detection_msg.trackedHumans[i].location.point.z));
+			tf::poseTFToMsg(pose, marker_array_msg_.markers[idx].pose);
+			marker_array_msg_.markers[idx].lifetime = ros::Duration(maximum_detection_lifetime_);
+			marker_array_msg_.markers[idx].scale.x = 0.2;
+			marker_array_msg_.markers[idx].scale.y = 0.2;
+			marker_array_msg_.markers[idx].scale.z = 0.05;
+		}
+
+		if (prev_marker_array_size_ > marker_array_size)
+		{
+			for (unsigned int i = marker_array_size; i < prev_marker_array_size_; ++i)
+			{
+				marker_array_msg_.markers[i].action = visualization_msgs::Marker::DELETE;
+			}
+		}
+		prev_marker_array_size_ = marker_array_size;
+
+		person_location_marker_array_publisher_.publish(marker_array_msg_);
+	}
+
 private:
 
 	struct Point3d
@@ -196,11 +271,15 @@ private:
 	ros::Subscriber person_location_sub_rear_;
 	ros::Subscriber person_location_sub_top_;
 	ros::Publisher person_location_pub_;
+	ros::Publisher person_location_marker_array_publisher_;
 	tf::TransformListener tf_listener_;
 
 	std::vector<Point3d> detection_accumulator_;
 	std::vector<Point3d> detection_accumulator_speed_;
 	boost::mutex mutex_detection_accumulator_;
+
+	visualization_msgs::MarkerArray marker_array_msg_;
+	unsigned int prev_marker_array_size_; ///< Size of previously published marker array
 
 	// parameters
 	double same_detection_radius_;
