@@ -84,7 +84,7 @@ public:
 		person_location_sub_rear_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_rear", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_sub_top_ = node_handle_.subscribe<geometry_msgs::PolygonStamped>("detected_humans_laser_top", 5, &LegDetectionAccumulator::humanDetectionCallback, this);
 		person_location_pub_ = node_handle_.advertise<cob_leg_detection::TrackedHumans>("detected_humans_laser", 1);
-		person_location_marker_array_publisher_ = node_handle_.advertise<visualization_msgs::MarkerArray>("recording_pose_marker_array", 1);
+		person_location_marker_array_publisher_ = node_handle_.advertise<visualization_msgs::MarkerArray>("person_location_marker_array", 1);
 	}
 
 	~LegDetectionAccumulator()
@@ -175,6 +175,8 @@ public:
 			detected_humans.trackedHumans[j].speed = v;
 		}
 		person_location_pub_.publish(detected_humans);
+
+		publishMarkers(detected_humans);
 	}
 
 	void publishMarkers(cob_leg_detection::TrackedHumans& detection_msg)
@@ -203,13 +205,13 @@ public:
 			marker_array_msg_.markers[idx].points[0].x = detection_msg.trackedHumans[i].location.point.x;
 			marker_array_msg_.markers[idx].points[0].y = detection_msg.trackedHumans[i].location.point.y;
 			marker_array_msg_.markers[idx].points[0].z = detection_msg.trackedHumans[i].location.point.z;
-			marker_array_msg_.markers[idx].points[1].x = detection_msg.trackedHumans[i].speed.vector.x;
-			marker_array_msg_.markers[idx].points[1].y = detection_msg.trackedHumans[i].speed.vector.y;
-			marker_array_msg_.markers[idx].points[1].z = detection_msg.trackedHumans[i].speed.vector.z;
+			marker_array_msg_.markers[idx].points[1].x = detection_msg.trackedHumans[i].location.point.x + detection_msg.trackedHumans[i].speed.vector.x;
+			marker_array_msg_.markers[idx].points[1].y = detection_msg.trackedHumans[i].location.point.y + detection_msg.trackedHumans[i].speed.vector.y;
+			marker_array_msg_.markers[idx].points[1].z = detection_msg.trackedHumans[i].location.point.z + detection_msg.trackedHumans[i].speed.vector.z;
 
 			marker_array_msg_.markers[idx].lifetime = ros::Duration(maximum_detection_lifetime_);
-			marker_array_msg_.markers[idx].scale.x = 0.01; // shaft diameter
-			marker_array_msg_.markers[idx].scale.y = 0.015; // head diameter
+			marker_array_msg_.markers[idx].scale.x = 0.1; // shaft diameter
+			marker_array_msg_.markers[idx].scale.y = 0.2; // head diameter
 			marker_array_msg_.markers[idx].scale.z = 0.0; // head length 0=default
 
 			// bubble
