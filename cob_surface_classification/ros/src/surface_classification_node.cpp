@@ -397,9 +397,9 @@ public:
 		runtime_depth_image_ += tim.getElapsedTimeInMilliSec();
 
 		//visualization
-		cv::Mat depth_im_scaled;
-		cv::normalize(z_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
-		cv::imshow("depth_image", depth_im_scaled);
+//		cv::Mat depth_im_scaled;
+//		cv::normalize(z_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
+//		cv::imshow("depth_image", depth_im_scaled);
 //		cv::waitKey(10);
 
 		//draw crossline
@@ -790,7 +790,7 @@ public:
 			ST::Graph::Ptr graph(new ST::Graph);
 			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 
-//*
+/*
 			if (key=='n')
 			{
 				tim.start();
@@ -819,7 +819,7 @@ public:
 			//timer.start();
 			//for(int i=0; i<10; i++)
 			//{
-/*
+
 			if (key=='n')
 			{
 				tim.start();
@@ -840,7 +840,7 @@ public:
 			}
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
-//*/
+
 
 
 			if(NORMAL_VIS || key=='n')
@@ -851,8 +851,8 @@ public:
 				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(cloud);
 
 				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
-				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
-				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
+				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
+				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
 				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 
 				while (!viewerNormals.wasStopped ())
@@ -862,16 +862,19 @@ public:
 				viewerNormals.removePointCloud("cloud");
 			}
 
-			return;
+			//return;
 
-			if(SEG || EVALUATION_ONLINE_MODE)
+			if(SEG || EVALUATION_ONLINE_MODE || key=='n')
 			{
+				tim.start();
 				seg_.setInputCloud(cloud);
 				seg_.setNormalCloudIn(normals);
 				seg_.setLabelCloudInOut(labels);
 				seg_.setClusterGraphOut(graph);
 				seg_.performInitialSegmentation();
 				seg_.refineSegmentation();
+				double runtime_segmentation = tim.getElapsedTimeInMilliSec();
+				std::cout << "runtime_segmentation: " << runtime_segmentation << std::endl;
 			}
 			if(SEG_WITHOUT_EDGES)
 			{
@@ -882,7 +885,7 @@ public:
 				segWithoutEdges_.performInitialSegmentation();
 			}
 
-			if(SEG_VIS)
+			if(SEG_VIS || key=='n')
 			{
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented(new pcl::PointCloud<pcl::PointXYZRGB>);
 				*segmented = *cloud;
@@ -915,6 +918,9 @@ public:
 					viewerWithoutEdges.spinOnce();
 				}
 			}
+
+			return;
+
 			if(SEG_REFINE)
 			{
 				//merge segments with similar curvature characteristics
