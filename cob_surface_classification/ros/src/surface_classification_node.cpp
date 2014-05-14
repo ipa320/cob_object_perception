@@ -3,7 +3,7 @@
  * \file
  *
  * \note
- * Copyright (c) 2013 \n+
+ * Copyright (c) 2013 \n
  * Fraunhofer Institute for Manufacturing Engineering
  * and Automation (IPA) \n\n
  *
@@ -21,10 +21,10 @@
  * \author
  * Supervised by:
  *
- * \date Date of creation: 07.08.2012
+ * \date Date of creation: 22.04.2013
  *
  * \brief
- * functions for display of people detections
+ *
  *
  *****************************************************************
  *
@@ -185,166 +185,166 @@ public:
 		image = image_ptr->image;
 	}
 
-	// from https://gist.github.com/volkansalma/2972237
-	//  or  http://lists.apple.com/archives/perfoptimization-dev/2005/Jan/msg00051.html
-	#define PI_FLOAT     3.14159265f
-	#define PIBY2_FLOAT  1.5707963f
-	// |error| < 0.005
-	float fast_atan2f_1(float y, float x)
-	{
-		if (x == 0.0f)
-		{
-			if (y > 0.0f) return PIBY2_FLOAT;
-			if (y == 0.0f) return 0.0f;
-			return -PIBY2_FLOAT;
-		}
-		float atan;
-		float z = y/x;
-		if (fabsf(z) < 1.0f)
-		{
-			atan = z/(1.0f + 0.28f*z*z);
-			if (x < 0.0f)
-			{
-				if (y < 0.0f) return atan - PI_FLOAT;
-				return atan + PI_FLOAT;
-			}
-		}
-		else
-		{
-			atan = PIBY2_FLOAT - z/(z*z + 0.28f);
-			if ( y < 0.0f ) return atan - PI_FLOAT;
-		}
-		return atan;
-	}
+//	// from https://gist.github.com/volkansalma/2972237
+//	//  or  http://lists.apple.com/archives/perfoptimization-dev/2005/Jan/msg00051.html
+//	#define PI_FLOAT     3.14159265f
+//	#define PIBY2_FLOAT  1.5707963f
+//	// |error| < 0.005
+//	float fast_atan2f_1(float y, float x)
+//	{
+//		if (x == 0.0f)
+//		{
+//			if (y > 0.0f) return PIBY2_FLOAT;
+//			if (y == 0.0f) return 0.0f;
+//			return -PIBY2_FLOAT;
+//		}
+//		float atan;
+//		float z = y/x;
+//		if (fabsf(z) < 1.0f)
+//		{
+//			atan = z/(1.0f + 0.28f*z*z);
+//			if (x < 0.0f)
+//			{
+//				if (y < 0.0f) return atan - PI_FLOAT;
+//				return atan + PI_FLOAT;
+//			}
+//		}
+//		else
+//		{
+//			atan = PIBY2_FLOAT - z/(z*z + 0.28f);
+//			if ( y < 0.0f ) return atan - PI_FLOAT;
+//		}
+//		return atan;
+//	}
+//
+//	float fast_atan2f_2(float y, float x)
+//	{
+//		//http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
+//		//Volkan SALMA
+//
+//		const float ONEQTR_PI = M_PI / 4.0;
+//		const float THRQTR_PI = 3.0 * M_PI / 4.0;
+//		float r, angle;
+//		float abs_y = fabs(y) + 1e-10f; // kludge to prevent 0/0 condition
+//		if (x < 0.0f)
+//		{
+//			r = (x + abs_y) / (abs_y - x);
+//			angle = THRQTR_PI;
+//		}
+//		else
+//		{
+//			r = (x - abs_y) / (x + abs_y);
+//			angle = ONEQTR_PI;
+//		}
+//		angle += (0.1963f * r * r - 0.9817f) * r;
+//		if (y < 0.0f)
+//			return (-angle); // negate if in quad III or IV
+//		else
+//			return (angle);
+//	}
+//
+//	float fast_arccosf(float x)
+//	{
+//		float x2 = x*x;
+//		float x4 = x2*x2;
+//		return (CV_PI/2.0 - (x + 1./6.*x*x2 + 3./40.*x*x4));
+//	}
 
-	float fast_atan2f_2(float y, float x)
-	{
-		//http://pubs.opengroup.org/onlinepubs/009695399/functions/atan2.html
-		//Volkan SALMA
+//	// creates an integral image within x-direction (i.e. line-wise, horizontally) for two source images
+//	void computeIntegralImageX(const cv::Mat& srcX, cv::Mat& dstX, const cv::Mat& srcZ, cv::Mat& dstZ)
+//	{
+//		dstX = cv::Mat(srcX.rows, srcX.cols, CV_32FC1);
+//		dstZ = cv::Mat(srcX.rows, srcX.cols, CV_32FC1);
+//		for (int v=0; v<srcX.rows; ++v)
+//		{
+//			float* dstX_ptr = (float*)dstX.ptr(v);
+//			const float* srcX_ptr = (const float*)srcX.ptr(v);
+//			float* dstZ_ptr = (float*)dstZ.ptr(v);
+//			const float* srcZ_ptr = (const float*)srcZ.ptr(v);
+//			float sumX = 0.f;
+//			float sumZ = 0.f;
+//			for (int u=0; u<srcX.cols; ++u)
+//			{
+//				if (*srcX_ptr > 0.f)
+//				{
+//					sumX += *srcX_ptr;
+//					sumZ += *srcZ_ptr;
+//				}
+//				*dstX_ptr = sumX;
+//				srcX_ptr++;
+//				dstX_ptr++;
+//				*dstZ_ptr = sumZ;
+//				srcZ_ptr++;
+//				dstZ_ptr++;
+//			}
+//		}
+//	}
+//
+//	// creates an integral image within y-direction (i.e. column-wise, vertically) for two source images
+//	void computeIntegralImageY(const cv::Mat& srcY, cv::Mat& dstY, const cv::Mat& srcZ, cv::Mat& dstZ)
+//	{
+//		dstY = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
+//		dstZ = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
+//		float* dstY_ptr = (float*)dstY.ptr(0);
+//		const float* srcY_ptr = (const float*)srcY.ptr(0);
+//		float* dstZ_ptr = (float*)dstZ.ptr(0);
+//		const float* srcZ_ptr = (const float*)srcZ.ptr(0);
+//		// copy first line
+//		for (int u=0; u<srcY.cols; ++u)
+//		{
+//			*dstY_ptr = *srcY_ptr;
+//			dstY_ptr++; srcY_ptr++;
+//			*dstZ_ptr = *srcZ_ptr;
+//			dstZ_ptr++; srcZ_ptr++;
+//		}
+//		// process remainder
+//		for (int v=1; v<srcY.rows; ++v)
+//		{
+//			float* dstY_ptr = (float*)dstY.ptr(v);
+//			float* dstYprev_ptr = (float*)dstY.ptr(v-1);
+//			const float* srcY_ptr = (const float*)srcY.ptr(v);
+//			float* dstZ_ptr = (float*)dstZ.ptr(v);
+//			float* dstZprev_ptr = (float*)dstZ.ptr(v-1);
+//			const float* srcZ_ptr = (const float*)srcZ.ptr(v);
+//			for (int u=0; u<srcY.cols; ++u)
+//			{
+//				if (*srcY_ptr > 0.f)
+//				{
+//					*dstY_ptr = *dstYprev_ptr + *srcY_ptr;
+//					*dstZ_ptr = *dstZprev_ptr + *srcZ_ptr;
+//				}
+//				else
+//				{
+//					*dstY_ptr = *dstYprev_ptr;
+//					*dstZ_ptr = *dstZprev_ptr;
+//				}
+//				srcY_ptr++;
+//				dstY_ptr++;
+//				dstYprev_ptr++;
+//				srcZ_ptr++;
+//				dstZ_ptr++;
+//				dstZprev_ptr++;
+//			}
+//		}
+//	}
 
-		const float ONEQTR_PI = M_PI / 4.0;
-		const float THRQTR_PI = 3.0 * M_PI / 4.0;
-		float r, angle;
-		float abs_y = fabs(y) + 1e-10f; // kludge to prevent 0/0 condition
-		if (x < 0.0f)
-		{
-			r = (x + abs_y) / (abs_y - x);
-			angle = THRQTR_PI;
-		}
-		else
-		{
-			r = (x - abs_y) / (x + abs_y);
-			angle = ONEQTR_PI;
-		}
-		angle += (0.1963f * r * r - 0.9817f) * r;
-		if (y < 0.0f)
-			return (-angle); // negate if in quad III or IV
-		else
-			return (angle);
-	}
-
-	float fast_arccosf(float x)
-	{
-		float x2 = x*x;
-		float x4 = x2*x2;
-		return (CV_PI/2.0 - (x + 1./6.*x*x2 + 3./40.*x*x4));
-	}
-
-	// creates an integral image within x-direction (i.e. line-wise, horizontally) for two source images
-	void computeIntegralImageX(const cv::Mat& srcX, cv::Mat& dstX, const cv::Mat& srcZ, cv::Mat& dstZ)
-	{
-		dstX = cv::Mat(srcX.rows, srcX.cols, CV_32FC1);
-		dstZ = cv::Mat(srcX.rows, srcX.cols, CV_32FC1);
-		for (int v=0; v<srcX.rows; ++v)
-		{
-			float* dstX_ptr = (float*)dstX.ptr(v);
-			const float* srcX_ptr = (const float*)srcX.ptr(v);
-			float* dstZ_ptr = (float*)dstZ.ptr(v);
-			const float* srcZ_ptr = (const float*)srcZ.ptr(v);
-			float sumX = 0.f;
-			float sumZ = 0.f;
-			for (int u=0; u<srcX.cols; ++u)
-			{
-				if (*srcX_ptr > 0.f)
-				{
-					sumX += *srcX_ptr;
-					sumZ += *srcZ_ptr;
-				}
-				*dstX_ptr = sumX;
-				srcX_ptr++;
-				dstX_ptr++;
-				*dstZ_ptr = sumZ;
-				srcZ_ptr++;
-				dstZ_ptr++;
-			}
-		}
-	}
-
-	// creates an integral image within y-direction (i.e. column-wise, vertically) for two source images
-	void computeIntegralImageY(const cv::Mat& srcY, cv::Mat& dstY, const cv::Mat& srcZ, cv::Mat& dstZ)
-	{
-		dstY = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
-		dstZ = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
-		float* dstY_ptr = (float*)dstY.ptr(0);
-		const float* srcY_ptr = (const float*)srcY.ptr(0);
-		float* dstZ_ptr = (float*)dstZ.ptr(0);
-		const float* srcZ_ptr = (const float*)srcZ.ptr(0);
-		// copy first line
-		for (int u=0; u<srcY.cols; ++u)
-		{
-			*dstY_ptr = *srcY_ptr;
-			dstY_ptr++; srcY_ptr++;
-			*dstZ_ptr = *srcZ_ptr;
-			dstZ_ptr++; srcZ_ptr++;
-		}
-		// process remainder
-		for (int v=1; v<srcY.rows; ++v)
-		{
-			float* dstY_ptr = (float*)dstY.ptr(v);
-			float* dstYprev_ptr = (float*)dstY.ptr(v-1);
-			const float* srcY_ptr = (const float*)srcY.ptr(v);
-			float* dstZ_ptr = (float*)dstZ.ptr(v);
-			float* dstZprev_ptr = (float*)dstZ.ptr(v-1);
-			const float* srcZ_ptr = (const float*)srcZ.ptr(v);
-			for (int u=0; u<srcY.cols; ++u)
-			{
-				if (*srcY_ptr > 0.f)
-				{
-					*dstY_ptr = *dstYprev_ptr + *srcY_ptr;
-					*dstZ_ptr = *dstZprev_ptr + *srcZ_ptr;
-				}
-				else
-				{
-					*dstY_ptr = *dstYprev_ptr;
-					*dstZ_ptr = *dstZprev_ptr;
-				}
-				srcY_ptr++;
-				dstY_ptr++;
-				dstYprev_ptr++;
-				srcZ_ptr++;
-				dstZ_ptr++;
-				dstZprev_ptr++;
-			}
-		}
-	}
-
-	int isign(int x)
-	{
-		if (x==0)
-			return 0;
-		else if (x<0)
-			return 1;
-		return -1;
-	}
-
-	int sign(int x)
-	{
-		if (x==0)
-			return 0;
-		else if (x<0)
-			return -1;
-		return 1;
-	}
+//	int isign(int x)
+//	{
+//		if (x==0)
+//			return 0;
+//		else if (x<0)
+//			return 1;
+//		return -1;
+//	}
+//
+//	int sign(int x)
+//	{
+//		if (x==0)
+//			return 0;
+//		else if (x<0)
+//			return -1;
+//		return 1;
+//	}
 
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
@@ -364,6 +364,34 @@ public:
 			cloud->width = 640;
 		}
 
+		int key = 0;
+		cv::imshow("image", color_image);
+//		if(!EVALUATION_ONLINE_MODE)
+//			cv::waitKey(10);
+//		if(EVALUATION_ONLINE_MODE)
+			key = cv::waitKey(10);
+
+		//record scene
+		//----------------------------------------
+		if(RECORD_MODE)
+		{
+			cv::Mat im_flipped;
+			cv::flip(color_image, im_flipped,-1);
+			cv::imshow("image", im_flipped);
+			int key = cv::waitKey(50);
+			//record if "r" is pressed while "image"-window is activated
+			if(key == 1048690)
+			{
+				rec_.saveImage(im_flipped,"color");
+				rec_.saveCloud(cloud,"cloud");
+			}
+
+		}
+
+		//----------------------------------------
+
+		Timer tim;
+/*
 		//compute depth_image: greyvalue represents depth z
 		Timer tim;
 		tim.start();
@@ -406,33 +434,6 @@ public:
 		//int lineLength = 20;
 		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 -lineLength/2, 2*depth_image.rows/3),cv::Point2f(2*depth_image.cols/3 +lineLength/2, 2*depth_image.rows/3),CV_RGB(0,1,0),1);
 		//cv::line(color_image,cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 +lineLength/2),cv::Point2f(2*depth_image.cols/3 , 2*depth_image.rows/3 -lineLength/2),CV_RGB(0,1,0),1);
-
-
-
-		//record scene
-		//----------------------------------------
-		if(RECORD_MODE)
-		{
-			cv::Mat im_flipped;
-			cv::flip(color_image, im_flipped,-1);
-			cv::imshow("image", im_flipped);
-			int key = cv::waitKey(50);
-			//record if "r" is pressed while "image"-window is activated
-			if(key == 1048690)
-			{
-				rec_.saveImage(im_flipped,"color");
-				rec_.saveCloud(cloud,"cloud");
-			}
-
-		}
-
-		//----------------------------------------
-
-		int key = 0;
-		cv::imshow("image", color_image);
-//		if(!EVALUATION_ONLINE_MODE)
-//			cv::waitKey(10);
-		//if(EVALUATION_ONLINE_MODE){ key = cv::waitKey(50);}
 
 		Timer total;
 		total.start();
@@ -615,150 +616,7 @@ public:
 		// remaining problems:
 		// 1. some edges = double edges
 		// 2. noise -> speckle filter in the beginning?
-/*
-		tim.start();
-		const int radius = 8;
-		const int step_width = 2*radius+1;
-		const int step_width2 = step_width*step_width;
-//		std::vector<cv::Point2i> indices(step_width*step_width-1);
-//		int idx = 0;
-//		for (int r=1; r<=radius; ++r)
-//		{
-//			for (int dv=-r; dv<=r; ++dv)
-//			{
-//				for (int du=-r; du<=r; ++du)
-//				{
-//					if (dv!=r && dv!=-r && du!=r && du!=-r)
-//						continue;
-//					indices[idx].x = du;
-//					indices[idx].y = dv;
-//					++idx;
-//				}
-//			}
-//		}
-		bool visibility[step_width2];
-		bool full_visibility[step_width2*640];
-		//boost::shared_ptr<bool> full_visibility(new bool[step_width2*640*480]);
-		//bool* full_visibility_ptr = full_visibility.get();
-		//bool* full_visibility = new bool[step_width2*640];
-		for (int v=radius; v<edge.rows-radius-1; ++v)
-		{
-			for (int u=radius; u<edge.cols-radius-1; ++u)
-			{
-				if (edge.at<uchar>(v,u)==255)
-					continue;
-				for (int i=0; i<step_width2; ++i)
-					visibility[i] = true;
-				for (int i=u*step_width2; i<(u+1)*step_width2; ++i)
-					full_visibility[i] = true;
-//				for (int r=1; r<=radius; ++r)
-//				{
-					for (int dv=-radius; dv<=radius; ++dv)
-					{
-						for (int du=-radius; du<=radius; ++du)
-						{
-							if (du==0 && dv==0)
-								continue;
-//							if (dv!=r && dv!=-r && du!=r && du!=-r)
-//								continue;
 
-							int index = u*step_width2+    (dv+radius)*step_width+du+radius;
-							if (edge.at<uchar>(v+dv,u+du)==255)
-							{
-								full_visibility[index] = false;
-							}
-							else //if (r>1)
-							{
-								float curr_v = v+dv, curr_u = u+du;
-								float su, sv;
-								int adu = abs(du);
-								int adv = abs(dv);
-								int iterations;
-								if (adu == adv)
-								{
-									su = isign(du);
-									sv = isign(dv);
-									iterations = adu;
-								}
-								else if (adu > adv)
-								{
-									su = isign(du);
-									sv = -(float)dv/(float)adu;
-									iterations = adu;
-									curr_v += 0.5f*sign(dv);
-								}
-								else
-								{
-									su = -(float)du/(float)adv;
-									sv = isign(dv);
-									iterations = adv;
-									curr_u += 0.5f*sign(du);
-								}
-
-								for (int i=0; i<iterations; ++i)
-								{
-									if (edge.at<uchar>(curr_v,curr_u)==255)
-									{
-										full_visibility[index] = false;
-										break;
-									}
-									curr_u += su;
-									curr_v += sv;
-								}
-							}
-
-
-//							int index = (dv+radius)*step_width+du+radius;
-//							if (visibility[index]==false)
-//								continue;
-//
-//							if (edge.at<uchar>(v+dv,u+du)==255)
-//							{
-//								if (du==0)
-//								{
-//									if (dv<0)
-//										for (int nv=0; nv>=-radius-dv; --nv)
-//											visibility[index+nv*step_width] = false;
-//									else
-//										for (int nv=0; nv<=radius-dv; ++nv)
-//											visibility[index+nv*step_width] = false;
-//								}
-//								else if (dv==0)
-//								{
-//									if (du<0)
-//										for (int nu=0; nu>=-radius-du; --nu)
-//											visibility[index+nu] = false;
-//									else
-//										for (int nu=0; nu<=radius-du; ++nu)
-//											visibility[index+nu] = false;
-//								}
-//							}
-						}
-					}
-//				}
-
-				// todo: check for correctness
-//				int visibility_count = 0;
-//				for (int i=0; i<(2*radius+1)*(2*radius+1); ++i)
-//					if (visibility[i] == false)
-//						++visibility_count;
-//				if (visibility_count > 200)
-//				{
-//					std:: cout << "(u,v)=" << u << ", " << v << std::endl;
-//					cv::Mat disp = 255*cv::Mat::ones(step_width, step_width, CV_8UC1);
-//					for (int i=0; i<(2*radius+1)*(2*radius+1); ++i)
-//						if (visibility[i] == false)
-//							disp.at<uchar>(i/step_width, i%step_width) = 0;
-//					cv::imshow("disp", disp);
-//					cv::waitKey();
-//				}
-
-			}
-		}
-		//std::cout << "Time for visibility: " << tim.getElapsedTimeInMilliSec() << "\n";
-		runtime_visibility_ += tim.getElapsedTimeInMilliSec();
-		///delete visibility;
-*/
 		runtime_total_ += total.getElapsedTimeInMilliSec();
 		++number_processed_images_;
 
@@ -777,7 +635,7 @@ public:
 		cv::imshow("edge", edge);
 		key = cv::waitKey(10);
 //		return;
-
+*/
 
 		//std::cout << key <<endl;
 		//record if "e" is pressed while "image"-window is activated
@@ -804,16 +662,16 @@ public:
 				//return;
 			}
 //*/
-//			cv::Mat edgeImage = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
+			cv::Mat edge; // = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
 //			for (int v=0; v<edge.rows; ++v)
 //				for (int u=0; u<edge.cols; ++u)
 //					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
-			//edge_detection_.computeDepthEdges(z_image, cloud, edgeImage);
+			edge_detection_.computeDepthEdges(cloud, edge);
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
-			//cv::imshow("edge_image", edgeImage);
-			//cv::waitKey(10);
+			cv::imshow("edge", edge);
+			cv::waitKey(10);
 
 			//Timer timer;
 			//timer.start();
@@ -835,6 +693,7 @@ public:
 				one_.compute(*normals);
 				//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
 				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
+				++number_processed_images_;
 				std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
 							"\nruntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
 			}
