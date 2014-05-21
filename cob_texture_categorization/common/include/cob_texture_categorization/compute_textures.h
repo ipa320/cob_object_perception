@@ -17,5 +17,6 @@ public:
 	compute_textures();
 	void compute_textures_all();
 	void compute_textures_one();
+	void compute_test_data();
 };
 #endif /* AMADASUN_H_ */

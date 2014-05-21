@@ -9,25 +9,31 @@ train_svm::train_svm()
 {
 }
 
-void train_svm::run_training(std::string *trainingdata, std::string *traininglabel)
+void train_svm::run_training(std::string *trainingdata, std::string *traininglabel, double gam, double val)
 {
 
 
 	cv::FileStorage fs("/home/rmb-dh/Test_dataset/training_data.yml", cv::FileStorage::READ);
 	cv::Mat training_data;
 	fs["Training_data"] >> training_data;
-	std::cout<<training_data<<"Matrix"<<std::endl;
+//	std::cout<<training_data<<"Matrix"<<std::endl;
 
 	cv::FileStorage fsl("/home/rmb-dh/Test_dataset/train_data_respons.yml", cv::FileStorage::READ);
 	cv::Mat training_label;
 	fsl["Training_label"] >> training_label;
-	std::cout<<training_label<<"Matrix"<<std::endl;
+//	std::cout<<training_label<<"Matrix"<<std::endl;
 
 	// Set up SVM's parameters
 	CvSVMParams params;
 	params.svm_type    = CvSVM::C_SVC;
 	params.kernel_type = CvSVM::LINEAR;
-	params.term_crit   = cvTermCriteria(CV_TERMCRIT_ITER, 100, 1e-6);
+	params.term_crit   = cvTermCriteria(CV_TERMCRIT_ITER, 10000, 1e-8);
+	params.gamma = 8.1;
+	params.degree = gam;
+	params.coef0 = 0.1;
+	params.nu = 0.5;
+	std::cout << gam<<"gamma val"<<std::endl;
+
 
 	CvSVM SVM;
 	SVM.train(training_data, training_label, cv::Mat(), cv::Mat(), params);

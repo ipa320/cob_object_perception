@@ -10,6 +10,8 @@
 #include "create_train_data.h"
 #include "train_svm.h"
 #include "predict_svm.h"
+#include "color_parameter.h"
+#include "train_kneighbor.h"
 
 #include <iostream>
 #include <fstream>
@@ -67,10 +69,10 @@ node_handle_(nh)
 	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
 
-//	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
-//	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
-//	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
-	TextCategorizationNode::inputCallbackNoCam();
+	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
+	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
+	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
+//	TextCategorizationNode::inputCallbackNoCam();
 
 
 
@@ -101,22 +103,54 @@ void TextCategorizationNode::init()
 
 void TextCategorizationNode::inputCallbackNoCam()
 {
-	ROS_INFO("Input Callback No Cam");
+//	ROS_INFO("Input Callback No Cam");
 //	compute_textures test = compute_textures();
 //	test.compute_textures_all();
 //	test.compute_textures_one();
+//	test.compute_test_data();
+
+//	cv::Mat image = cv::imread("/home/rmb-dh/datasetTextur/Texture_database/Wood/Wood_10_01.JPG");
+//	cv::Mat image = cv::imread("/home/rmb-dh/datasetTextur/Texture_database/Cracker/Cracker_06_01.JPG");
+//	cv::Mat image = cv::imread("/home/rmb-dh/datasetTextur/Texture_database/Styrofoam/Styrofoam_04_01.JPG");
+//
+//		struct feature_results results;
+//	    		struct color_vals color_results;
+//	    		color_parameter color = color_parameter();
+//	    		color.get_color_parameter(image, &results);
+//
+//	    		std::cout<<results.colorfulness<<"colorfullness"<<std::endl;
+//	    		std::cout<<results.dom_color<<"dom color"<<std::endl;
+//	    		std::cout<<results.dom_color2<<"dom color2"<<std::endl;
+//
+//	    		cv::waitKey(100);
+
 
 //	create_train_data bla = create_train_data();
 //	bla.compute_data();
 //	std::cout<<"test ";
 
+//	TEST SVM
+//for(double gam = 0.01; gam<=5; gam=gam+0.2)
+//{
+////	for(double val = 0.1; val<=10;val=val+0.5)
+////	{
 //	std::string data = "/home/rmb-dh/Test_dataset/training_data.yml";
 //	std::string label = "/home/rmb-dh/Test_dataset/train_data_respons.yml";
 //	train_svm traintest = train_svm();
-//	traintest.run_training(&data,&label);
+//	traintest.run_training(&data,&label, gam, 0);
+//
+//	predict_svm prediction = predict_svm();
+//	prediction.run_prediction();
+////	}
+//}
 
-	predict_svm prediction = predict_svm();
-	prediction.run_prediction();
+////	TEST K-NEIGHBOR
+//	for(double gam = 5; gam<=5; gam=gam+1)
+//	{
+//	train_kneighbor kn = train_kneighbor();
+//	kn.run_training(gam);
+//	std::cout<< "Used val:"<<gam<<std::endl;
+//}
 
 //	cv::waitKey(10);
 }
@@ -134,13 +168,12 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 
 
-	cv::Mat dst;
 
 
 /// convert depth data to cv::Mat
-	cv::Mat depth(480, 640, CV_32F);
-	depth_image dimage = depth_image();
-	dimage.get_depth_image(pointcloud_msg, &depth);
+//	cv::Mat depth(480, 640, CV_32F);
+//	depth_image dimage = depth_image();
+//	dimage.get_depth_image(pointcloud_msg, &depth);
 //	cv::imshow("3D",depth);
 //	cv::moveWindow("3D", 800,600);
 
@@ -152,7 +185,7 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //		dimage.medianfilter(&depth);
 
 	///	Morphological closeing
-		dimage.close_operation(&depth);
+//		dimage.close_operation(&depth);
 //		cv::imshow("smoothed depth", depth);
 
 //		std::vector<float> var_depth_first;
@@ -190,18 +223,18 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 
 // 		Imagetransformation
-		cv::imshow("test", color_image);
-		std::vector<float> plane_coeff;
+//		cv::imshow("test", color_image);
+//		std::vector<float> plane_coeff;
 
 //		for(int i=0;i<segmented_regions.size();i=i+10)
 //		{
-			p_transformation transform = p_transformation();
-			transform.run_pca(&color_image, &depth, pointcloud_msg, &marker, &plane_coeff);
+//			p_transformation transform = p_transformation();
+//			transform.run_pca(&color_image, &depth, pointcloud_msg, &marker, &plane_coeff);
 //			cv::imshow("segment", segmented_regions[2][0]);
 //			transform.run_pca(&segmented_regions[2][0], &depth, pointcloud_msg, &marker);
 //		}
-			cv::imshow("transformed region", color_image);
-			cv::imshow("transformed depth", depth);
+//			cv::imshow("transformed region", color_image);
+//			cv::imshow("transformed depth", depth);
 
 //			float dist_sum=0;
 //			int used_points=0;
@@ -284,14 +317,15 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //	}
 //	}
 //
-//	splitandmerge test = splitandmerge();
-//	cv::Mat pic1 = test.categorize(test1);
+	cv::imshow("original", color_image);
+	splitandmerge test = splitandmerge();
+	cv::Mat pic1 = test.categorize(color_image);
 //	cv::Mat pic2 = test.categorize(test2);
 //	cv::Mat pic3 = test.categorize(test3);
 //	cv::Mat pic4 = test.categorize(test4);
 //	cv::Mat pic5 = test.categorize(test5);
 //	cv::Mat pic6 = test.categorize(test6);
-//	cv::imshow("sam1", pic1);
+	cv::imshow("sam1", pic1);
 //	cv::moveWindow("sam1", 0,0);
 //	cv::imshow("sam2", pic2);
 //	cv::moveWindow("sam2", 1380,0);

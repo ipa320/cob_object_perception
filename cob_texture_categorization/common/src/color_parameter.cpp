@@ -57,6 +57,12 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	cv::Mat hsv;
 	cv::cvtColor(img, hsv, CV_BGR2HSV);
 
+	int testcount = 0;
+
+	double colorfulness=0;
+	double dom_color;
+	double dom_color2;
+
 //  HUE
 //  look at relevant pixels
 	std::vector<double> rel_pix;
@@ -69,10 +75,11 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 			{
 				double h_val = (hsv.at<cv::Vec3b>(i,j)[0]);
 				rel_pix.push_back(h_val/180);
+				testcount++;
 			}
 		}
 	}
-
+	std::cout<<testcount<<"testcournt;"<<std::endl;
 //  check if ratio of image pixels having a visible color is
 //  sufficient (>ratio)
 	std::vector<double> hue_hist(21);
@@ -145,13 +152,17 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 			pb=0; //no peak
 			b_peak_pos=-1;
 		}
+	}else
+	{
+
+            colorfulness = 0;
+            dom_color = 0;
+            dom_color2 = 0;
 	}
 
 //	colorfullness
 //	plaint-colored --> dominant color
-	double colorfulness;
-	double dom_color;
-	double dom_color2;
+
 	double swap=0;
 	double swap1=0;
 	if(peaks.size()+pb==1)
@@ -186,14 +197,14 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 			}
 		}
 	}else{
-		double num_non_zeros;
+		double num_non_zeros=0;
 		for(int i=0;i<hue_hist.size();i++)
 		{
 			if(hue_hist[i]>threshold_color)num_non_zeros++;
 		}
 		if(hue_hist.size()>0)
 		{
-		colorfulness = ((num_non_zeros/hue_hist.size())*5)/colorful5;
+			colorfulness = ((num_non_zeros/hue_hist.size())*5)/colorful5;
 		}
 		if(colorfulness>5)
 		{
@@ -321,8 +332,8 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	(*results).v_mean = v_mean;
 	(*results).v_std = v_std;
 	(*results).colorfulness = colorfulness;
-	(*results).dom_color = dom_color;
-	(*results).dom_color2 = dom_color2;
+	(*results).dom_color = dom_color/2;
+	(*results).dom_color2 = dom_color2/2;
 //		(*results).dom_color = 1;
 //		(*results).dom_color2 = 2;
 

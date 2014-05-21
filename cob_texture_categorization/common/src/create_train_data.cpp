@@ -29,63 +29,63 @@ void create_train_data::compute_data()
 {
 
 	std::vector<std::string> texture_class;
-	texture_class.push_back("Alufoil");
+	texture_class.push_back("Alufoil");				//0
 	texture_class.push_back("Asphalt");
 	texture_class.push_back("Bookshelf");
 	texture_class.push_back("Bread");
 	texture_class.push_back("Brick");
 	texture_class.push_back("Broccoli");
-//	texture_class.push_back("Carpet");
-//	texture_class.push_back("Cauliflower");
-//	texture_class.push_back("CD");
-//	texture_class.push_back("Chocolate");
-//	texture_class.push_back("Clock");
-//	texture_class.push_back("Coconut");
-//	texture_class.push_back("Coffee");
-//	texture_class.push_back("Concrete");
-//	texture_class.push_back("Corduroy");
-//	texture_class.push_back("Cork");
-//	texture_class.push_back("Cotton");
-//	texture_class.push_back("Cracker");
-//	texture_class.push_back("Cup");
-//	texture_class.push_back("Flakes");
-//	texture_class.push_back("Flour");
-//	texture_class.push_back("Foam");
-//	texture_class.push_back("Football");
-//	texture_class.push_back("Fork");
-//	texture_class.push_back("Fur");
-//	texture_class.push_back("Granite");
-//	texture_class.push_back("Grapes");
-//	texture_class.push_back("Ingrain");
-//	texture_class.push_back("Jalousie");
-//	texture_class.push_back("Kiwi");
-//	texture_class.push_back("Knife");
-//	texture_class.push_back("Leather");
-//	texture_class.push_back("Lemon");
-//	texture_class.push_back("Lime");
-//	texture_class.push_back("Linen");
-//	texture_class.push_back("Marble");
-//	texture_class.push_back("Mouse");
-//	texture_class.push_back("Orange");
-//	texture_class.push_back("Parsley");
-//	texture_class.push_back("Pasta");
-//	texture_class.push_back("Pavingstone");
-//	texture_class.push_back("PCKeyboard");
-//	texture_class.push_back("Pineapple");
-//	texture_class.push_back("Plate");
-//	texture_class.push_back("Rice");
-//	texture_class.push_back("Sand");
-//	texture_class.push_back("Smarties");
-//	texture_class.push_back("Sponge");
-//	texture_class.push_back("Spoon");
-//	texture_class.push_back("Styrofoam");
-//	texture_class.push_back("Telephone");
-//	texture_class.push_back("Texwallpaper");
-//	texture_class.push_back("Tiles");
-//	texture_class.push_back("Tomato");
-//	texture_class.push_back("Varnished");
-//	texture_class.push_back("Washingmachine");
-//	texture_class.push_back("Wood");
+	texture_class.push_back("Carpet");
+	texture_class.push_back("Cauliflower");
+	texture_class.push_back("CD");
+	texture_class.push_back("Chocolate");
+	texture_class.push_back("Clock");				//10
+	texture_class.push_back("Coconut");
+	texture_class.push_back("Coffee");
+	texture_class.push_back("Concrete");
+	texture_class.push_back("Corduroy");
+	texture_class.push_back("Cork");
+	texture_class.push_back("Cotton");
+	texture_class.push_back("Cracker");
+	texture_class.push_back("Cup");
+	texture_class.push_back("Flakes");
+	texture_class.push_back("Flour");				//20
+	texture_class.push_back("Foam");
+	texture_class.push_back("Football");
+	texture_class.push_back("Fork");
+	texture_class.push_back("Fur");
+	texture_class.push_back("Granite");
+	texture_class.push_back("Grapes");
+	texture_class.push_back("Ingrain");
+	texture_class.push_back("Jalousie");
+	texture_class.push_back("Kiwi");
+	texture_class.push_back("Knife");				//30
+	texture_class.push_back("Leather");
+	texture_class.push_back("Lemon");
+	texture_class.push_back("Lime");
+	texture_class.push_back("Linen");
+	texture_class.push_back("Marble");
+	texture_class.push_back("Mouse");
+	texture_class.push_back("Orange");
+	texture_class.push_back("Parsley");
+	texture_class.push_back("Pasta");
+	texture_class.push_back("Pavingstone");			//40
+	texture_class.push_back("PCKeyboard");
+	texture_class.push_back("Pineapple");
+	texture_class.push_back("Plate");
+	texture_class.push_back("Rice");
+	texture_class.push_back("Sand");
+	texture_class.push_back("Smarties");
+	texture_class.push_back("Sponge");
+	texture_class.push_back("Spoon");
+	texture_class.push_back("Styrofoam");
+	texture_class.push_back("Telephone");			//50
+	texture_class.push_back("Texwallpaper");
+	texture_class.push_back("Tiles");
+	texture_class.push_back("Tomato");
+	texture_class.push_back("Varnished");
+	texture_class.push_back("Washingmachine");
+	texture_class.push_back("Wood");
 
 
 
@@ -93,8 +93,8 @@ void create_train_data::compute_data()
 
 //	texture_class.push_back("Exit");
 
-	cv::Mat train_data = cv::Mat::zeros(183, 16, CV_32FC1);
-	cv::Mat responses = cv::Mat::zeros(183, 1, CV_32FC1);
+	cv::Mat train_data = cv::Mat::zeros(133, 16, CV_32FC1);
+	cv::Mat responses = cv::Mat::zeros(133, 1, CV_32FC1);
 
 
 		std::string str, name;
@@ -107,17 +107,19 @@ void create_train_data::compute_data()
 		double count=0;
 
 std::cout<<"BEGINN";
-
+std::vector<int> fehler;
 	for(int j=0;j<texture_class.size();j++)
 	{
 
 
 
 
-	std::string path = "/home/rmb-dh/datasetTextur/Texture_database/";
+	std::string path = "/home/rmb-dh/datasetTextur/Test_data/test/";
 	path = path + texture_class[j];
 	const char *p;
 	p=path.c_str();
+
+
 
 		  if ((pDIR = opendir(p)))
 		  {
@@ -140,7 +142,7 @@ std::cout<<"BEGINN";
 
 
 		    	texture_features edge = texture_features();
-		    	edge.primitive_size(image, &results);
+		    	edge.primitive_size(&image, &results);
 
 		    	responses.at<float>(count,0)=j;
 		    	train_data.at<float>(count,0) = results.colorfulness; // 3: colorfullness
@@ -160,7 +162,14 @@ std::cout<<"BEGINN";
 		    	train_data.at<float>(count,13) = results.direct_reg; // 17: directionality/regularity
 		    	train_data.at<float>(count,14) = results.lined; // 18: lined
 		    	train_data.at<float>(count,15) = results.checked; // 19: checked
-
+		    	for(int i=0;i<16;i++)
+		    	{
+		    		if(train_data.at<float>(count,i)!=train_data.at<float>(count,i))
+		    		{
+		    			fehler.push_back(i);
+		    			train_data.at<float>(count,i)=0;
+		    		}
+		    	}
 				count++;
 		    	std::cout<< "Feature computing completed: "<<(count/number_of_images)*100<<"%   Picnum"<<count<<std::endl;
 
@@ -170,12 +179,24 @@ std::cout<<"BEGINN";
 		  }
 	}
 
-//	Save data to train;
-	cv::FileStorage fs("/home/rmb-dh/Test_dataset/training_data.yml", cv::FileStorage::WRITE);
-	fs << "Training_data" << train_data;
-//	Save responsvalues of traindata
-	cv::FileStorage fsw("/home/rmb-dh/Test_dataset/train_data_respons.yml", cv::FileStorage::WRITE);
-	fsw << "Training_label" << responses;
+ 	for(int i=0;i<fehler.size();i++)
+		    	{
+ 						std::cout<<"fehler in"<<fehler[i]<<std::endl;
+		    	}
+
+////	Save data to train;
+//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/training_data.yml", cv::FileStorage::WRITE);
+//	fs << "Training_data" << train_data;
+////	Save responsvalues of traindata
+//	cv::FileStorage fsw("/home/rmb-dh/Test_dataset/train_data_respons.yml", cv::FileStorage::WRITE);
+//	fsw << "Training_label" << responses;
+
+	//	Save data to test;
+		cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
+		fs << "test_data" << train_data;
+	//	Save responsvalues of test
+		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
+		fsw << "test_label" << responses;
 
 	std::cout<<"Training completed"<<std::endl;
 }

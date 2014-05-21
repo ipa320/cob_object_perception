@@ -53,9 +53,14 @@ void compute_textures::compute_textures_all()
 
 
 	    	texture_features edge = texture_features();
-	    	edge.primitive_size(image, &results);
+	    	edge.primitive_size(&image, &results);
 	    	count++;
 	    	std::cout<< "Feature computing completed: "<<(count/number_of_images)*100<<"%   Picnum"<<count<<std::endl;
+
+	    	if(results.colorfulness!=results.colorfulness)std::cout<<"colorfulness failure"<<std::endl;
+	    	if(results.dom_color!=results.dom_color)std::cout<<"domcolor failure"<<std::endl;
+	    	if(results.dom_color2!=results.dom_color2)std::cout<<"domcolor2 failure"<<std::endl;
+
 
 //	    	std::cout<<std::endl;
 //	    	std::cout<<"3: colorfullness:              "<< results.colorfulness<<std::endl;
@@ -111,7 +116,96 @@ void compute_textures::compute_textures_all()
 	    }
 	    closedir(pDIR);
 	  }
-	  std::cin.get();
+	  std::cout<<"fin"<<std::endl;
+}
+
+void compute_textures::compute_test_data()
+{
+	std::ifstream inn;
+	std::string str, name;
+	DIR *pDIR;
+	struct dirent *entry;
+	unsigned x, y, width, height;
+	std::string word;
+	struct feature_results results;
+	double number_of_images = 1281;
+	double count=0;
+	std::vector<std::string> Label;
+
+//		struct feature_results results;
+    		struct color_vals color_results;
+    		cv::Mat image;
+
+
+	cv::Mat train_data = cv::Mat::zeros(129,16,CV_32F);
+
+	  if ((pDIR = opendir("/home/rmb-dh/datasetTextur/Test_data/test")))
+	  {
+	    while ((entry = readdir(pDIR)))
+	    {
+	      if (entry->d_type == 0x8)//strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+	      {
+	        str = "/home/rmb-dh/datasetTextur/Test_data/test/";
+	        name = entry->d_name;
+	        str.append(entry->d_name);
+
+	    	image = cv::imread(str);
+	    	std::cout<<str<<":   ";
+
+	    	std::cout<<entry->d_name<<std::endl;
+	    	Label.push_back(entry->d_name);
+
+
+	    	std::cout<<str<<":   ";
+
+//	    		color_parameter color = color_parameter();
+////	    		try{
+//	    		color.get_color_parameter(image, &results);
+//	    		}catch(...)
+//	    		    	{
+//	    		    		std::cout<<entry->d_name<<"bild das fehler erzeugt"<<std::endl;
+//	    		    	}
+
+	    	texture_features edge = texture_features();
+
+	    	edge.primitive_size(&image, &results);
+
+//	    	edge.~texture_features();
+
+//	    	train_data.at<float>(count,0) = results.colorfulness; // 3: colorfullness
+//	    	train_data.at<float>(count,1) = results.dom_color; // 4: dominant color
+//	    	train_data.at<float>(count,2) = results.dom_color2; // 5: dominant color2
+//	    	train_data.at<float>(count,3) = results.v_mean; //6: v_mean
+//	    	train_data.at<float>(count,4) = results.v_std; // 7: v_std
+//	    	train_data.at<float>(count,5) = results.s_mean; // 8: s_mean
+//	    	train_data.at<float>(count,6) = results.s_std; // 9: s_std
+//	    	train_data.at<float>(count,7) = results.avg_size; // 10: average primitive size
+//	    	train_data.at<float>(count,8) = results.prim_num; // 11: number of primitives
+//	    	train_data.at<float>(count,9) = results.prim_strength; // 12: strength of primitives
+//	    	train_data.at<float>(count,10) = results.prim_regularity; // 13: regularity of primitives
+//	    	train_data.at<float>(count,11) = results.contrast; // 14: contrast:
+//	    	train_data.at<float>(count,12) = results.line_likeness; // 15: line-likeness
+////	Nicht implementiert	    	train_data.at<float>(count,13) = results.roughness; // 16: 3D roughness
+//	    	train_data.at<float>(count,13) = results.direct_reg; // 17: directionality/regularity
+//	    	train_data.at<float>(count,14) = results.lined; // 18: lined
+//	    	train_data.at<float>(count,15) = results.checked; // 19: checked
+	    	count++;
+
+
+//std::cout<<std::endl;
+	      }
+	      inn.close();
+	    }
+	    closedir(pDIR);
+	  }
+	  std::cout<<"fin"<<std::endl;
+
+	  //	Save data to train;
+//	  	cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
+//	  	fs << "test_data" << train_data;
+//	  //	Save responsvalues of traindata
+//	  	cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
+//	  	fsw << "test_label" << Label;
 }
 
 void compute_textures::compute_textures_one()
@@ -134,7 +228,7 @@ void compute_textures::compute_textures_one()
 	    	gettimeofday(&zeit, 0);
 //
 	    	texture_features edge = texture_features();
-	    	edge.primitive_size(image, &results_whole);
+	    	edge.primitive_size(&image, &results_whole);
 	    	struct timeval zeit2;
 	    	gettimeofday(&zeit2, 0);
 
