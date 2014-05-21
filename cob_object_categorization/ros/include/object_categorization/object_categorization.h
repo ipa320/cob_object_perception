@@ -11,6 +11,8 @@
 // ROS includes
 #include <ros/ros.h>
 #include <ros/package.h>
+#include <tf/tf.h>
+#include <tf/transform_broadcaster.h>
 
 // ROS message includes
 #include <sensor_msgs/Image.h>
@@ -22,6 +24,10 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
+
+// actions
+#include <actionlib/server/simple_action_server.h>
+#include <cob_object_detection_msgs/DetectObjectsAction.h> // here you have to include the header file with exactly the same name as your message in the /action folder (the Message.h is automatically generated from your Message.action file during compilation)
 
 // boost
 #include <boost/bind.hpp>
@@ -48,11 +54,13 @@
 #include <object_categorization/ObjectClassifier.h>
 
 
+// this typedef just establishes the abbreviation SquareActionServer for the long data type
+typedef actionlib::SimpleActionServer<cob_object_detection_msgs::DetectObjectsAction> DetectObjectsActionServer;
+
 class ObjectCategorization
 {
 public:
 
-	ObjectCategorization();
 	ObjectCategorization(ros::NodeHandle nh);
 
 	~ObjectCategorization();
@@ -62,6 +70,11 @@ public:
 protected:
 	/// callback for the incoming pointcloud data stream
 	void inputCallback(const cob_perception_msgs::PointCloud2Array::ConstPtr& input_pointcloud_segments_msg, const sensor_msgs::Image::ConstPtr& input_image_msg);
+
+	void drawObjectCoordinateSystem(const tf::Transform& object_pose, cv::Mat& display_image);
+	cv::Point projectVector3ToUV(tf::Vector3 point_C);
+
+	void detectObjectsCallback(const cob_object_detection_msgs::DetectObjectsGoalConstPtr& goal);
 
 	/// Converts a color image message to cv::Mat format.
 	unsigned long convertColorImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image);
@@ -74,6 +87,11 @@ protected:
 	image_transport::ImageTransport* it_;
 	image_transport::SubscriberFilter color_image_sub_; ///< color camera image topic
 	message_filters::Synchronizer< message_filters::sync_policies::ApproximateTime<cob_perception_msgs::PointCloud2Array, sensor_msgs::Image> >* sync_input_;
+
+	tf::TransformBroadcaster transform_broadcaster_;	///< publish transforms
+	DetectObjectsActionServer detect_objects_action_server_; ///< Action server which accepts requests for detecting objects
+	cob_object_detection_msgs::Detection latest_object_detection_;		///< pose of the last detected object
+	std::string hermes_object_name_;
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 

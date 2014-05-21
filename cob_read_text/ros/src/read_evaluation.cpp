@@ -134,7 +134,7 @@ int readInEstimates(std::vector<img> &images, std::string path, EvaluationRectan
 		if (true)
 		{
 			cmd_ = ros::package::getPath("cob_read_text") + "/bin/run_detect " + imgpath + " " + ros::package::getPath("cob_read_text_data")
-					+ "/fonts/new_correlation.txt " + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary";//_ger";	//todo: make dictionary path a parameter
+					+ "/fonts/new_correlation.txt " + ros::package::getPath("cob_read_text_data") + "/dictionary/full-dictionary_ger";	//todo: make dictionary path a parameter
 			cmd_.append(" eval");
 			if (evaluateOCR == false)
 				cmd_.append(" OCRoff");
@@ -573,7 +573,7 @@ void calculateBoxResults(std::vector<img> &images, float alpha, EvaluationRectan
 		{
 			// compare match from every found rectangle j in ocrImages[imageIndex] and rectangle k in images[imageIndex]
 			double bestMatchScore = 0;
-			int bestMatchIndex = 0;
+//			int bestMatchIndex = 0;
 
 			// Precision
 			for (unsigned int t = 0; t < images[imageIndex].correctRects.size(); t++)
@@ -604,7 +604,7 @@ void calculateBoxResults(std::vector<img> &images, float alpha, EvaluationRectan
 				if (match > bestMatchScore)
 				{
 					bestMatchScore = match;
-					bestMatchIndex = t;
+//					bestMatchIndex = t;
 				}
 				//
 				//        if (intersection / images[imageIndex].correctRects[t].area() == 1.0)
@@ -629,7 +629,7 @@ void calculateBoxResults(std::vector<img> &images, float alpha, EvaluationRectan
 		{
 			// compare match from every rectangle j in images[imageIndex] and found rectangle k in ocrImages[imageIndex]
 			double bestMatchScore = 0;
-			int bestMatchIndex = 0;
+//			int bestMatchIndex = 0;
 
 			for (unsigned int e = 0; e < images[imageIndex].estimatedRects.size(); e++)
 			{
@@ -658,7 +658,7 @@ void calculateBoxResults(std::vector<img> &images, float alpha, EvaluationRectan
 				if (match > bestMatchScore)
 				{
 					bestMatchScore = match;
-					bestMatchIndex = e;
+//					bestMatchIndex = e;
 				}
 			}
 			// bestMatch for ocrImages[imageIndex].rects[bestMatchIndex]

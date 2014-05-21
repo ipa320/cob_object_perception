@@ -19,6 +19,10 @@
   <depend package="image_transport"/>
   <depend package="nodelet"/>
   <depend package="cob_perception_msgs"/>
+  <depend package="cob_object_detection_msgs"/>
+  <depend package="tf"/>
+  <depend package="actionlib"/>
+  <depend package="actionlib_msgs"/>
   
   <!--rosdep name="pcl"/-->
 

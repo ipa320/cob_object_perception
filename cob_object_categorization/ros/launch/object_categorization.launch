@@ -2,15 +2,25 @@
 
 <launch>
 
+  <!-- setup the openni version, if true, the old openni stack is used, otherwise openni2 is used -->
+  <arg name="use_old_openni_version" default="true"/>
+
   <node ns="object_categorization" name="object_categorization" pkg="cob_object_categorization" type="object_categorization" output="screen">
     <remap from="input_pointcloud_segments" to="/object_segmentation/segmented_object"/>  <!-- simple segmentation provided by this package -->
     <!--remap from="input_pointcloud_segments" to="/tabletop_object_cluster/cluster_array"/-->   <!-- segmentation of cob_table_object_cluster -->
     <!--remap from="input_color_image" to="/cam3d/rgb/image_color"/-->
     <!--remap from="input_pointcloud_camera_info" to="/cam3d/depth_registered/camera_info"/-->
-    <remap from="input_color_image" to="/camera/rgb/image"/>
-    <remap from="input_pointcloud_camera_info" to="/camera/depth/camera_info"/>
+    <!--group if="$(arg use_old_openni_version)">
+      <remap from="input_color_image" to="/cam3d/rgb/image_color"/>
+    </group>
+    <group unless="$(arg use_old_openni_version)"-->
+      <remap from="input_color_image" to="/cam3d/rgb/image"/>
+    <!--/group-->
+    <remap from="input_pointcloud_camera_info" to="/cam3d/depth/camera_info"/>
     
-    <param name="mode_of_operation" type="int" value="2"/>
+    <param name="mode_of_operation" type="int" value="2"/>		<!-- 2=Hermes detect,  3=Hermes training -->
+    <param name="object_name" type="string" value="shoe_green"/>	<!-- for Hermes: the object model that shall be loaded or trained on startup -->
+    <param name="start_categorization_on_startup" type="bool" value="true"/>	<!-- if true, categorization publishes continuously from startup, if false, results may only obtained via the action interface -->
   </node>
 
 </launch>

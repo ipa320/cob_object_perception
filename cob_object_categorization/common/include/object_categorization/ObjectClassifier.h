@@ -709,16 +709,16 @@ public:
 
 	// Hermes
 	int HermesLoadCameraCalibration(const std::string& object_name, cv::Mat& projection_matrix);
-	int HermesDetectInit(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
+	int HermesDetectInit(const ClusterMode pClusterMode, const ClassifierType pClassifierTypeGlobal, const GlobalFeatureParams& pGlobalFeatureParams, const std::string& pObjectName);
 	void HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
-	int HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, SharedImage* pSourceImage, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams, double& pan, double& tilt, double& roll, Eigen::Matrix4f& pFinalTransform);
+	int HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, SharedImage* pSourceImage, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams, double& pan, double& tilt, double& roll, Eigen::Matrix4f& pFinalTransform, double& pMatchingScore);
 	int HermesCapture(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	void HermesPointcloudCallbackCapture(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &pInputCloud, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	int HermesBuildDetectionModelFromRecordedData(const std::string& object_name, const cv::Mat& projection_matrix, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams);
 	int HermesComputeRollHistogram(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, cv::Mat& pHistogram, bool pSmooth=true, bool pDisplay=false);
 	int HermesMatchRollHistogram(std::vector<float>& pReferenceHistogram, cv::Mat& pMatchHistogram, int pCoarseStep, int& pOffset, double& pMatchScore);
 	double HermesHistogramIntersectionKernel(std::vector<float>& pReferenceHistogram, cv::Mat& pMatchHistogram, int pOffset);
-	int HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform);
+	int HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform, double& pMatchingScore);
 	bool mFinishCapture;
 	double mPanAngle;
 	double mTiltAngle;

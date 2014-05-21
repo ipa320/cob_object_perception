@@ -8301,10 +8301,15 @@ int ObjectClassifier::HermesLoadCameraCalibration(const std::string& object_name
 }
 
 
-int ObjectClassifier::HermesDetectInit(ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams)
+int ObjectClassifier::HermesDetectInit(const ClusterMode pClusterMode, const ClassifierType pClassifierTypeGlobal, const GlobalFeatureParams& pGlobalFeatureParams, const std::string& pObjectName)
 {
-	std::cout << "Input object name: ";
-	std::cin >> mFilePrefix;
+	if (pObjectName.compare("")==0)
+	{
+		std::cout << "Input object name: ";
+		std::cin >> mFilePrefix;
+	}
+	else
+		mFilePrefix = pObjectName;
 
 	std::string metaFileName = std::string(getenv("HOME")) + "/.ros/cob_object_categorization/hermes/" + mFilePrefix + "_labels.txt";
 
@@ -8614,7 +8619,8 @@ void ObjectClassifier::HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl:
 
 			double pan=0, tilt=0, roll=0;
 			Eigen::Matrix4f finalTransform;
-			HermesCategorizeObject(cloud_cluster, avgPoint, &si, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams, pan, tilt, roll, finalTransform);
+			double matchingScore=1e10;
+			HermesCategorizeObject(cloud_cluster, avgPoint, &si, pClusterMode, pClassifierTypeGlobal, pGlobalFeatureParams, pan, tilt, roll, finalTransform, matchingScore);
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //			// create a pseudo blob
 //			BlobFeatureRiB Blob;
@@ -8761,7 +8767,7 @@ void ObjectClassifier::HermesPointcloudCallbackDetect(const pcl::PointCloud<pcl:
 }
 
 
-int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, SharedImage* pSourceImage, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams, double& pan, double& tilt, double& roll, Eigen::Matrix4f& pFinalTransform)
+int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, SharedImage* pSourceImage, ClusterMode pClusterMode, ClassifierType pClassifierTypeGlobal, GlobalFeatureParams& pGlobalFeatureParams, double& pan, double& tilt, double& roll, Eigen::Matrix4f& pFinalTransform, double& pMatchingScore)
 {
 	// create a pseudo blob
 	BlobFeatureRiB Blob;
@@ -8851,31 +8857,43 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 	{
 		for (itInner = itOuter->second.begin(); itInner != itOuter->second.end(); itInner++)
 		{
-			double diff = 0.;
+//			double diff = 0.;
+//			for (int i=0; i<(*featureVector)->cols; i++)
+//			{
+//				double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
+//				diff += val*val;
+//			}
+			cv::Mat featureVectorMat(1, (*featureVector)->cols, CV_32FC1);
 			for (int i=0; i<(*featureVector)->cols; i++)
-			{
-				double val = cvGetReal1D(*featureVector, i) - itInner->second[0][i];
-				diff += val*val;
-			}
+				featureVectorMat.at<float>(i) = cvGetReal1D(*featureVector, i);
+			double diff = -HermesHistogramIntersectionKernel(itInner->second[0], featureVectorMat, 0);
 			vfhOrderedList.insert(std::pair<double, std::pair<double, double> >(diff, std::pair<double, double>(itOuter->first, itInner->first)));
 		}
 	}
 	std::cout << "pan\ttilt\tdiff" << std::endl;
-	for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end(); itOrderedList++)
-		std::cout <<  itOrderedList->second.first << "\t" << itOrderedList->second.second << "\t" << itOrderedList->first << std::endl;
-	pan = vfhOrderedList.begin()->second.first;
-	tilt = vfhOrderedList.begin()->second.second;
-	cv::Mat histogram;
-	HermesComputeRollHistogram(pPointCloud, pAvgPoint, histogram, true, false);
-	int roll_i = 0;
-	double matchScore = 0;
-	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
-	roll = roll_i;
-	roll = 0; // hack
-	std::cout << "best matching roll angle: " << roll << std::endl;
+	double factor=180./CV_PI;
+	int counter = 0;
+	for (itOrderedList = vfhOrderedList.begin(); itOrderedList != vfhOrderedList.end() && counter<40; ++itOrderedList, ++counter)
+		std::cout <<  itOrderedList->second.first*factor << "\t" << itOrderedList->second.second*factor << "\t" << itOrderedList->first << "\t" << itOrderedList->second.first << "\t" << itOrderedList->second.second << std::endl;
 
-	// match full point clouds (ICP)
-	HermesMatchPointClouds(pPointCloud, pAvgPoint, pan, tilt, roll, pFinalTransform);
+	// check whether the cluster is the object
+	if (vfhOrderedList.begin()->first < -340.0)
+	{
+		// hack: green: 0.511671  0.251772
+		pan = vfhOrderedList.begin()->second.first;
+		tilt = vfhOrderedList.begin()->second.second;
+	//	cv::Mat histogram;
+	//	HermesComputeRollHistogram(pPointCloud, pAvgPoint, histogram, true, false);
+	//	int roll_i = 0;
+	//	double matchScore = 0;
+	//	HermesMatchRollHistogram(mRollHistogram[pan][tilt][0], histogram, 10, roll_i, matchScore);
+	//	roll = roll_i;
+		roll = 0; // hack
+		std::cout << "best matching roll angle: " << roll << std::endl;
+
+		// match full point clouds (ICP)
+		HermesMatchPointClouds(pPointCloud, pAvgPoint, pan, tilt, roll, pFinalTransform, pMatchingScore);
+	}
 
 	// free memory
 	cvReleaseImage(&mask);
@@ -8888,10 +8906,11 @@ int ObjectClassifier::HermesCategorizeObject(pcl::PointCloud<pcl::PointXYZRGB>::
 int ObjectClassifier::HermesComputeRollHistogram(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pPointCloud, pcl::PointXYZ pAvgPoint, cv::Mat& pHistogram, bool pSmooth, bool pDisplay)
 {
 	// get roll orientation
-	cv::Mat histogram(1, 360, CV_32FC1);
-	histogram.setTo(0);
+	cv::Mat histogram = cv::Mat::zeros(1, 360, CV_32FC1);
 	for (int p=0; p<(int)pPointCloud->size(); p++)
 	{
+		if ((*pPointCloud)[p].x==0 && (*pPointCloud)[p].y==0 && (*pPointCloud)[p].z==0)
+			continue;
 		double alpha = 180 + 180/M_PI*atan2(pPointCloud->points[p].y-pAvgPoint.y, pPointCloud->points[p].x-pAvgPoint.x);
 		histogram.at<float>((int)alpha) += 1.;
 	}
@@ -8965,7 +8984,7 @@ double ObjectClassifier::HermesHistogramIntersectionKernel(std::vector<float>& p
 }
 
 
-int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform)
+int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pCapturedCloud, pcl::PointXYZ pAvgPoint, double pan, double tilt, double roll, Eigen::Matrix4f& pFinalTransform, double& pMatchingScore)
 {
 	// look up suitable file for reference point cloud
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr referenceCloudOriginal(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -9040,24 +9059,42 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 	std::cout << icp.getFinalTransformation() << std::endl;
 
 	pFinalTransform = icp.getFinalTransformation();
+	pMatchingScore = icp.getFitnessScore();
 
 	// display
 	// C:\Users\rmb\Documents\Studienarbeit\Software\object_categorization\common\files\hermes>"C:\Program Files\PCL 1.4.0\bin\pcd_viewer.exe" -bc 255,255,255 -ps 3 -ax 0.01 output.pcd
 	// "C:\Program Files\PCL 1.4.0\bin\pcd_viewer.exe" -bc 255,255,255 -ps 3 -ax 0.01 C:\Users\rmb\Documents\Studienarbeit\Software\object_categorization\common\files\hermes\output.pcd
 
-	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+/*	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
 	viewer->setBackgroundColor (255, 255, 255);
+	for (int p=0; p<(int)alignedCapturedCloud->points.size(); p++)
+	{
+		alignedCapturedCloud->points[p].g = 0;
+		alignedCapturedCloud->points[p].b = 255;
+	}
+	*fusedCloud += *alignedCapturedCloud;
 	*fusedCloud += *alignedReferenceCloud;
+
+	// check what transform does -> it transforms the alignedCapturedCloud from before ICP to the position after ICP (i.e. fusedCloud)
+//	for (int p=0; p<(int)alignedCapturedCloud->points.size(); p++)
+//	{
+//		alignedCapturedCloud->points[p].r = 255;
+//		alignedCapturedCloud->points[p].b = 0;
+//	}
+//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr alignedCapturedCloudFinalTransform(new pcl::PointCloud<pcl::PointXYZRGB>);
+//	pcl::transformPointCloud(*alignedCapturedCloud, *alignedCapturedCloudFinalTransform, pFinalTransform);
+//	*fusedCloud += *alignedCapturedCloudFinalTransform;
+
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(fusedCloud);
 	viewer->addPointCloud<pcl::PointXYZRGB>(fusedCloud, rgb, "sample cloud");
 	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-	viewer->addCoordinateSystem(1.0);
+	viewer->addCoordinateSystem(0.1);
 	viewer->initCameraParameters ();
 	while (!viewer->wasStopped ())
 	{
 		viewer->spinOnce(100);
 	}
-
+*/
 	// output to file to check result
 //	*fusedCloud += *alignedReferenceCloud;
 //	std::stringstream ss;
