@@ -9,18 +9,21 @@ train_svm::train_svm()
 {
 }
 
-void train_svm::run_training(std::string *trainingdata, std::string *traininglabel, double gam, double val)
+void train_svm::run_training(std::string *trainingdata, std::string *traininglabel, double gam, double val, std::string *path_)
 {
 
-
-	cv::FileStorage fs("/home/rmb-dh/Test_dataset/training_data.yml", cv::FileStorage::READ);
+	std::string train_path = *path_ + "train_data.yml";
+//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/training_data.yml", cv::FileStorage::READ);
+	cv::FileStorage fs(train_path, cv::FileStorage::READ);
 	cv::Mat training_data;
-	fs["Training_data"] >> training_data;
+	fs["train_data"] >> training_data;
 //	std::cout<<training_data<<"Matrix"<<std::endl;
 
-	cv::FileStorage fsl("/home/rmb-dh/Test_dataset/train_data_respons.yml", cv::FileStorage::READ);
+	std::string label_path = *path_ + "train_data_label.yml";
+//	cv::FileStorage fsl("/home/rmb-dh/Test_dataset/train_data_respons.yml", cv::FileStorage::READ);
+	cv::FileStorage fsl(label_path, cv::FileStorage::READ);
 	cv::Mat training_label;
-	fsl["Training_label"] >> training_label;
+	fsl["train_label"] >> training_label;
 //	std::cout<<training_label<<"Matrix"<<std::endl;
 
 	// Set up SVM's parameters
@@ -40,7 +43,8 @@ void train_svm::run_training(std::string *trainingdata, std::string *traininglab
 
 //	cv::FileStorage fsvm("/home/rmb-dh/Test_dataset/svm.yml", cv::FileStorage::WRITE);
 //	fs << "SVM_Model" << SVM;
-	SVM.save("/home/rmb-dh/Test_dataset/svm.yml", "svm");
+
+	SVM.save("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
 
 	std::cout<<"SVM training completed"<<std::endl;
 

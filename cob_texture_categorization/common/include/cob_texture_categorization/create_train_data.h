@@ -15,7 +15,7 @@ class create_train_data
 {
 public:
 	create_train_data();
-	void compute_data();
+	void compute_data(std::string *path_data, int status, std::string *path_save, int number_pictures);
 
 };
 #endif /* CREATE_TRAIN_DATA_H_ */

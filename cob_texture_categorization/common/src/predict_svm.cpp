@@ -30,7 +30,7 @@ predict_svm::predict_svm()
 {
 }
 
-void predict_svm::run_prediction()
+void predict_svm::run_prediction(std::string *path_)
 {
 //	std::vector<cv::Mat> image;
 //	image.push_back(cv::imread("/home/rmb-dh/datasetTextur/Test_data/Alufoil_06_01.JPG"));
@@ -138,9 +138,17 @@ void predict_svm::run_prediction()
 //	cv::FileStorage fs("/home/rmb-dh/Test_dataset/predict_test_data.yml", cv::FileStorage::WRITE);
 //	fs << "test_data" << train_data;
 
+	std::string train_path = *path_ + "test_data.yml";
 	cv::Mat train_data;
-	cv::FileStorage fs("/home/rmb-dh/Test_dataset/predict_test_data.yml", cv::FileStorage::READ);
+//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/predict_test_data.yml", cv::FileStorage::READ);
+	cv::FileStorage fs(train_path, cv::FileStorage::READ);
 	fs["test_data"] >> train_data;
+
+	cv::Mat test_data_label;
+	std::string test_label = *path_ + "test_data_label.yml";
+//	cv::FileStorage fstl("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::READ);
+	cv::FileStorage fstl(test_label, cv::FileStorage::READ);
+	fstl["test_label"] >> test_data_label;
 
 
 
@@ -149,7 +157,7 @@ void predict_svm::run_prediction()
 	cv::Mat prediction_results;
 
  	CvSVM SVM;
-    SVM.load("/home/rmb-dh/Test_dataset/svm.yml", "svm");
+    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
     SVM.predict(train_data,prediction_results);
 //    std::cout<<prediction_results.size();
 //    std::cout<<" Results Predictionnum "<<":  "<<prediction_results<<"Results prediction"<<std::endl;
@@ -159,7 +167,7 @@ void predict_svm::run_prediction()
     for(int i =0;i<prediction_results.rows;i++)
     {
 //    std::cout<<" Results Predictionnum "<<i<<":  "<<prediction_results.at<float>(i)<<"Results prediction"<<std::endl;
-    	if(i==prediction_results.at<float>(i))
+    	if(test_data_label.at<float>(i,0)==prediction_results.at<float>(i))
     	{
     		right++;
     	}else{

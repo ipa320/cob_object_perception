@@ -15,7 +15,7 @@ class train_svm
 {
 public:
 	train_svm();
-	void run_training(std::string *trainingdata, std::string *traininglabel, double gam, double val);
+	void run_training(std::string *trainingdata, std::string *traininglabel, double gam, double val, std::string *path);
 
 };
 #endif /* TRAIN_SVM_H_ */

@@ -13,7 +13,7 @@
 #include "train_svm.h"
 #include "predict_svm.h"
 #include "color_parameter.h"
-#include "train_kneighbor.h"
+#include "train_ml.h"
 
 #include <iostream>
 #include <fstream>
@@ -70,27 +70,15 @@ node_handle_(nh)
 	colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
 	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
+//DAS ist ein test
 
-//	segmented_pointcloud_.getTopic("segmented_pointcloud");//   (node_handle_, "segmented_pointcloud", 1);
-//	segmented_pointcloud_.subscribe(node_handle_, "/surface_classification/segmented_pointcloud", 1);
-
-
-//	segmented_pointcloud_ = node_handle_.subscribe("/surface_classification/segmented_pointcloud", 1, TextCategorizationNode::inputCallback);
-//	segmented_pointcloud_.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::inputCallback);
-//	segmented_pointcloud_.subscribe(node_handle_, "/surface_classification/segmented_pointcloud", 1);
-	//segmented_pointcloud_ = nh.advertise<cob_surface_classification::SegmentedPointCloud2>("segmented_pointcloud", 1);
-
-	//segmented_pointcloud_.registerCallback(boost::bind(&TextCategorizationNode::segmentCallback, this, _1));
+	//segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
 
 
-
-	segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
-
-
-	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
-	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
-	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
-//	TextCategorizationNode::inputCallbackNoCam();
+//	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
+//	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
+//	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
+	TextCategorizationNode::inputCallbackNoCam();
 
 }
 
@@ -121,6 +109,59 @@ void TextCategorizationNode::init()
 
 void TextCategorizationNode::inputCallbackNoCam()
 {
+
+
+	//Computes trainingdata for training of klassification method. uses texture database
+	//Saves data in file to hardcoded path
+
+	std::string path_data = "/home/rmb-dh/datasetTextur/Texture_database/";			//Pfad zu Trainingsdaten
+	std::string path_label = "/home/rmb-dh/datasetTextur/Test_data/";				//Pfad zu Testdaten
+	std::string path_save_location = "/home/rmb-dh/datasetTextur/yamlfiles/";		//Pfad zu Speicherort der Featurevektoren
+
+
+//	create_train_data traininglabel = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Testen
+//	traininglabel.compute_data(&path_label, 1,&path_save_location, 146);
+//
+//	create_train_data trainingdata = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Trainieren
+//	trainingdata.compute_data(&path_data, 0, &path_save_location, 1135);
+
+
+	//Train and predict with NN
+		double gam =0;																		// Trainiert anhand des Trainingsvektors, testet anhand des Testvektors und gibt Ergebnis aus
+		train_ml kn = train_ml();
+		kn.run_ml(gam, &path_save_location);
+
+
+	//Train and predict with SVM
+																							//Einfaches Training und Auswertung mit SVM
+//			train_svm traintest = train_svm();
+//			traintest.run_training(&path_data,&path_label, gam, 0, &path_save_location);
+//
+//			predict_svm prediction = predict_svm();
+//			prediction.run_prediction(&path_save_location);
+
+
+
+
+		//	TEST SVM																		//Training und Auswertung der SVM mit unterschiedlichen Gamma werten
+//		for(double gam = 0.01; gam<=5; gam=gam+0.2)
+//		{
+//		//	for(double val = 0.1; val<=10;val=val+0.5)
+//		//	{
+//			std::string data = "/home/rmb-dh/Test_dataset/training_data.yml";
+//			std::string label = "/home/rmb-dh/Test_dataset/train_data_respons.yml";
+//			train_svm traintest = train_svm();
+//			traintest.run_training(&path_data,&path_label, gam, 0, &path_save_location);
+//
+//			predict_svm prediction = predict_svm();
+//			prediction.run_prediction(&path_save_location);
+//		//	}
+//		}
+
+
+
+//-----------------------------------Ab hier alter Code -----------------------------------
+
 //	ROS_INFO("Input Callback No Cam");
 //	compute_textures test = compute_textures();
 //	test.compute_textures_all();
@@ -143,24 +184,14 @@ void TextCategorizationNode::inputCallbackNoCam()
 //	    		cv::waitKey(100);
 
 
-//	create_train_data bla = create_train_data();
-//	bla.compute_data();
-//	std::cout<<"test ";
 
-//	TEST SVM
-//for(double gam = 0.01; gam<=5; gam=gam+0.2)
-//{
-////	for(double val = 0.1; val<=10;val=val+0.5)
-////	{
-//	std::string data = "/home/rmb-dh/Test_dataset/training_data.yml";
-//	std::string label = "/home/rmb-dh/Test_dataset/train_data_respons.yml";
-//	train_svm traintest = train_svm();
-//	traintest.run_training(&data,&label, gam, 0);
-//
-//	predict_svm prediction = predict_svm();
-//	prediction.run_prediction();
-////	}
-//}
+
+
+
+
+
+
+
 
 ////	TEST K-NEIGHBOR
 //	for(double gam = 5; gam<=5; gam=gam+1)
@@ -181,6 +212,9 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 	cv_bridge::CvImageConstPtr color_image_ptr;
 	cv::Mat color_image;
 	convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
+
+
+
 
 
 

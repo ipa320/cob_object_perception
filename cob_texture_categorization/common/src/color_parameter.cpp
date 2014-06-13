@@ -79,7 +79,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 			}
 		}
 	}
-	std::cout<<testcount<<"testcournt;"<<std::endl;
+//	std::cout<<testcount<<"testcournt;"<<std::endl;
 //  check if ratio of image pixels having a visible color is
 //  sufficient (>ratio)
 	std::vector<double> hue_hist(21);

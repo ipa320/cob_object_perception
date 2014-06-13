@@ -15,7 +15,7 @@ class predict_svm
 {
 public:
 	predict_svm();
-	void run_prediction();
+	void run_prediction(std::string *path);
 
 };
 #endif /* PREDICT_SVM_H_ */

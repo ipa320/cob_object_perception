@@ -25,7 +25,7 @@ create_train_data::create_train_data()
 {
 }
 
-void create_train_data::compute_data()
+void create_train_data::compute_data(std::string *path_, int status, std::string *path_save, int number_pictures)
 {
 
 	std::vector<std::string> texture_class;
@@ -93,8 +93,8 @@ void create_train_data::compute_data()
 
 //	texture_class.push_back("Exit");
 
-	cv::Mat train_data = cv::Mat::zeros(133, 16, CV_32FC1);
-	cv::Mat responses = cv::Mat::zeros(133, 1, CV_32FC1);
+	cv::Mat train_data = cv::Mat::zeros(number_pictures, 16, CV_32FC1);
+	cv::Mat responses = cv::Mat::zeros(number_pictures, 1, CV_32FC1);
 
 
 		std::string str, name;
@@ -103,8 +103,10 @@ void create_train_data::compute_data()
 		unsigned x, y, width, height;
 		std::string word;
 
-		double number_of_images = 1224;
+		double number_of_images = number_pictures;
 		double count=0;
+	//	std::string path = "/home/rmb-dh/datasetTextur/Test_data/test/";
+		std::string path;
 
 std::cout<<"BEGINN";
 std::vector<int> fehler;
@@ -114,8 +116,8 @@ std::vector<int> fehler;
 
 
 
-	std::string path = "/home/rmb-dh/datasetTextur/Test_data/test/";
-	path = path + texture_class[j];
+
+	path = (*path_) + texture_class[j];
 	const char *p;
 	p=path.c_str();
 
@@ -137,12 +139,12 @@ std::vector<int> fehler;
 		    	std::cout<<str<<":   ";
 		    		struct feature_results results;
 		    		struct color_vals color_results;
-		    		color_parameter color = color_parameter();
+		    		color_parameter color = color_parameter();			//Berechnung der Farbfeatures
 		    		color.get_color_parameter(image, &results);
 
 
-		    	texture_features edge = texture_features();
-		    	edge.primitive_size(&image, &results);
+		    		texture_features edge = texture_features();			//Berechnung der Texturfeatures
+		    		edge.primitive_size(&image, &results);
 
 		    	responses.at<float>(count,0)=j;
 		    	train_data.at<float>(count,0) = results.colorfulness; // 3: colorfullness
@@ -191,12 +193,40 @@ std::vector<int> fehler;
 //	cv::FileStorage fsw("/home/rmb-dh/Test_dataset/train_data_respons.yml", cv::FileStorage::WRITE);
 //	fsw << "Training_label" << responses;
 
-	//	Save data to test;
-		cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
-		fs << "test_data" << train_data;
-	//	Save responsvalues of test
-		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
+ 	if(status == 0)
+ 	{
+	//	Save traindata;
+ 		std::string data = "train_data.yml";
+ 		std::string path_data = *path_save + data;
+//		cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
+		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+		fs << "train_data" << train_data;
+
+		//	Save responsvalues
+	 		std::string label = "train_data_label.yml";
+	 		std::string path_label = *path_save + label;
+	//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
+			cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
+			fsw << "train_label" << responses;
+
+ 	}if(status == 1)
+ 	{
+ 	//	Save testdata;
+ 		std::string data = "test_data.yml";
+ 		std::string path_data = *path_save + data;
+ 	//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
+ 		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+ 		fs << "test_data" << train_data;
+
+
+
+	//	Save responsvalues
+ 		std::string label = "test_data_label.yml";
+ 		std::string path_label = *path_save + label;
+//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
+		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
 		fsw << "test_label" << responses;
+ 	}
 
 	std::cout<<"Training completed"<<std::endl;
 }
