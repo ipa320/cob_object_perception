@@ -1,5 +1,7 @@
 #include <cob_texture_categorization/texture_categorization.h>
 
+
+
 #include "create_lbp.h"
 #include "splitandmerge.h"
 #include "texture_features.h"
@@ -69,17 +71,33 @@ node_handle_(nh)
 	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
 
+//	segmented_pointcloud_.getTopic("segmented_pointcloud");//   (node_handle_, "segmented_pointcloud", 1);
+//	segmented_pointcloud_.subscribe(node_handle_, "/surface_classification/segmented_pointcloud", 1);
+
+
+//	segmented_pointcloud_ = node_handle_.subscribe("/surface_classification/segmented_pointcloud", 1, TextCategorizationNode::inputCallback);
+//	segmented_pointcloud_.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::inputCallback);
+//	segmented_pointcloud_.subscribe(node_handle_, "/surface_classification/segmented_pointcloud", 1);
+	//segmented_pointcloud_ = nh.advertise<cob_surface_classification::SegmentedPointCloud2>("segmented_pointcloud", 1);
+
+	//segmented_pointcloud_.registerCallback(boost::bind(&TextCategorizationNode::segmentCallback, this, _1));
+
+
+
+	segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
+
+
 	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
 	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
 	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
 //	TextCategorizationNode::inputCallbackNoCam();
 
+}
 
 
-
-
-
-
+void TextCategorizationNode::segmentationCallback(const std_msgs::String::ConstPtr& msg)
+{
+	std::cout<<"TEST OK!!!!!!!!!!!!!!!!!!"<<std::endl;
 }
 
 
@@ -453,7 +471,8 @@ int main (int argc, char** argv)
 
 
 
-
+//	ros::Subscriber segmented_pointcloud_;
+//	segmented_pointcloud_ = nh.subscribe("/surface_classification/segmented_pointcloud", 1, TextCategorizationNode::segmentationCallback);
 
 
 	ros::spin();

@@ -43,6 +43,11 @@
 #include <visualization_msgs/MarkerArray.h>
 
 
+#include "std_msgs/String.h"
+
+
+
+
 class TextCategorizationNode
 {
 public:
@@ -51,6 +56,8 @@ public:
 	~TextCategorizationNode();
 	void init();
 
+
+//	Marker to visualize Nomals of plane
 	ros::Publisher coordinatesystem;
 	visualization_msgs::MarkerArray marker;
 	ros::Publisher cloudpub;
@@ -58,12 +65,14 @@ public:
 	visualization_msgs::Marker cloud;
 	ros::Publisher pub_cloud;
 
-
+	void segmentationCallback(const std_msgs::String::ConstPtr& msg);
 protected:
 
 
 
 	ros::Subscriber input_color_camera_info_sub_;	///< camera calibration of incoming color image data
+
+	ros::Subscriber segmented_pointcloud_;
 
 	ros::NodeHandle node_handle_;			///< ROS node handle
 	bool camera_matrix_received_;
