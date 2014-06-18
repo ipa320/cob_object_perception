@@ -17,7 +17,8 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ros/include
-		    ${PROJECT_SOURCE_DIR}/common/include/cob_texture_categorization)
+		    ${PROJECT_SOURCE_DIR}/common/include/cob_texture_categorization
+		    ${PROJECT_SOURCE_DIR}/common/include)
 
 #uncomment if you have defined messages
 #rosbuild_genmsg()
