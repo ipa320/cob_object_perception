@@ -1,5 +1,5 @@
-#include "splitandmerge.h"
-#include "create_lbp.h"
+#include "cob_texture_categorization/splitandmerge.h"
+#include "cob_texture_categorization/create_lbp.h"
 
 
 

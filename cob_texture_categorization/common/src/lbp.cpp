@@ -1,4 +1,4 @@
-#include "lbp.h"
+#include "cob_texture_categorization/lbp.h"
 #include <string>
 
 

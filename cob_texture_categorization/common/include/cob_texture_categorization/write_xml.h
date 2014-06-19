@@ -1,7 +1,7 @@
 #ifndef XML_WRITE_H
 #define XML_WRITE_H
 
-#include <texture_features.h>
+#include <cob_texture_categorization/texture_features.h>
 #include <iostream>
 #include <fstream>
 #include <dirent.h>

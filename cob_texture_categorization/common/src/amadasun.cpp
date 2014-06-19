@@ -1,5 +1,5 @@
-#include "amadasun.h"
-#include "texture_features.h"
+#include "cob_texture_categorization/amadasun.h"
+#include "cob_texture_categorization/texture_features.h"
 
 
 //  MATLAB function to implement the 'Normalized NGTDM' (neighborhood

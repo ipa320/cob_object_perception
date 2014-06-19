@@ -1,4 +1,4 @@
-#include "depth_image.h"
+#include "cob_texture_categorization/depth_image.h"
 #include <cob_texture_categorization/texture_categorization.h>
 
 #include <pcl/ModelCoefficients.h>

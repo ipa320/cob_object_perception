@@ -1,12 +1,12 @@
 #include "cob_texture_categorization/create_train_data.h"
 #include <cob_texture_categorization/texture_categorization.h>
 
-#include "compute_textures.h"
-#include "create_lbp.h"
-#include "splitandmerge.h"
-#include "texture_features.h"
-#include "write_xml.h"
-#include "color_parameter.h"
+#include "cob_texture_categorization/compute_textures.h"
+#include "cob_texture_categorization/create_lbp.h"
+#include "cob_texture_categorization/splitandmerge.h"
+#include "cob_texture_categorization/texture_features.h"
+#include "cob_texture_categorization/write_xml.h"
+#include "cob_texture_categorization/color_parameter.h"
 #include <cv.h>
 #include <highgui.h>
 
@@ -26,71 +26,73 @@
 
 create_train_data::create_train_data()
 {
+	texture_classes_.push_back("Alufoil");				//0
+	texture_classes_.push_back("Asphalt");
+	texture_classes_.push_back("Bookshelf");
+	texture_classes_.push_back("Bread");
+	texture_classes_.push_back("Brick");
+	texture_classes_.push_back("Broccoli");
+	texture_classes_.push_back("Carpet");
+	texture_classes_.push_back("Cauliflower");
+	texture_classes_.push_back("CD");
+	texture_classes_.push_back("Chocolate");
+	texture_classes_.push_back("Clock");				//10
+	texture_classes_.push_back("Coconut");
+	texture_classes_.push_back("Coffee");
+	texture_classes_.push_back("Concrete");
+	texture_classes_.push_back("Corduroy");
+	texture_classes_.push_back("Cork");
+	texture_classes_.push_back("Cotton");
+	texture_classes_.push_back("Cracker");
+	texture_classes_.push_back("Cup");
+	texture_classes_.push_back("Flakes");
+	texture_classes_.push_back("Flour");				//20
+	texture_classes_.push_back("Foam");
+	texture_classes_.push_back("Football");
+	texture_classes_.push_back("Fork");
+	texture_classes_.push_back("Fur");
+	texture_classes_.push_back("Granite");
+	texture_classes_.push_back("Grapes");
+	texture_classes_.push_back("Ingrain");
+	texture_classes_.push_back("Jalousie");
+	texture_classes_.push_back("Kiwi");
+	texture_classes_.push_back("Knife");				//30
+	texture_classes_.push_back("Leather");
+	texture_classes_.push_back("Lemon");
+	texture_classes_.push_back("Lime");
+	texture_classes_.push_back("Linen");
+	texture_classes_.push_back("Marble");
+	texture_classes_.push_back("Mouse");
+	texture_classes_.push_back("Orange");
+	texture_classes_.push_back("Parsley");
+	texture_classes_.push_back("Pasta");
+	texture_classes_.push_back("Pavingstone");			//40
+	texture_classes_.push_back("PCKeyboard");
+	texture_classes_.push_back("Pineapple");
+	texture_classes_.push_back("Plate");
+	texture_classes_.push_back("Rice");
+	texture_classes_.push_back("Sand");
+	texture_classes_.push_back("Smarties");
+	texture_classes_.push_back("Sponge");
+	texture_classes_.push_back("Spoon");
+	texture_classes_.push_back("Styrofoam");
+	texture_classes_.push_back("Telephone");			//50
+	texture_classes_.push_back("Texwallpaper");
+	texture_classes_.push_back("Tiles");
+	texture_classes_.push_back("Tomato");
+	texture_classes_.push_back("Varnished");
+	texture_classes_.push_back("Washingmachine");
+	texture_classes_.push_back("Wood");
+}
+
+std::vector<std::string> create_train_data::get_texture_classes()
+{
+	return texture_classes_;
 }
 
 void create_train_data::compute_data(std::string *path_, int status, std::string *path_save, int number_pictures)
 {
-
-	std::vector<std::string> texture_classes;
-	texture_classes.push_back("Alufoil");				//0
-	texture_classes.push_back("Asphalt");
-	texture_classes.push_back("Bookshelf");
-	texture_classes.push_back("Bread");
-	texture_classes.push_back("Brick");
-	texture_classes.push_back("Broccoli");
-	texture_classes.push_back("Carpet");
-	texture_classes.push_back("Cauliflower");
-	texture_classes.push_back("CD");
-	texture_classes.push_back("Chocolate");
-	texture_classes.push_back("Clock");				//10
-	texture_classes.push_back("Coconut");
-	texture_classes.push_back("Coffee");
-	texture_classes.push_back("Concrete");
-	texture_classes.push_back("Corduroy");
-	texture_classes.push_back("Cork");
-	texture_classes.push_back("Cotton");
-	texture_classes.push_back("Cracker");
-	texture_classes.push_back("Cup");
-	texture_classes.push_back("Flakes");
-	texture_classes.push_back("Flour");				//20
-	texture_classes.push_back("Foam");
-	texture_classes.push_back("Football");
-	texture_classes.push_back("Fork");
-	texture_classes.push_back("Fur");
-	texture_classes.push_back("Granite");
-	texture_classes.push_back("Grapes");
-	texture_classes.push_back("Ingrain");
-	texture_classes.push_back("Jalousie");
-	texture_classes.push_back("Kiwi");
-	texture_classes.push_back("Knife");				//30
-	texture_classes.push_back("Leather");
-	texture_classes.push_back("Lemon");
-	texture_classes.push_back("Lime");
-	texture_classes.push_back("Linen");
-	texture_classes.push_back("Marble");
-	texture_classes.push_back("Mouse");
-	texture_classes.push_back("Orange");
-	texture_classes.push_back("Parsley");
-	texture_classes.push_back("Pasta");
-	texture_classes.push_back("Pavingstone");			//40
-	texture_classes.push_back("PCKeyboard");
-	texture_classes.push_back("Pineapple");
-	texture_classes.push_back("Plate");
-	texture_classes.push_back("Rice");
-	texture_classes.push_back("Sand");
-	texture_classes.push_back("Smarties");
-	texture_classes.push_back("Sponge");
-	texture_classes.push_back("Spoon");
-	texture_classes.push_back("Styrofoam");
-	texture_classes.push_back("Telephone");			//50
-	texture_classes.push_back("Texwallpaper");
-	texture_classes.push_back("Tiles");
-	texture_classes.push_back("Tomato");
-	texture_classes.push_back("Varnished");
-	texture_classes.push_back("Washingmachine");
-	texture_classes.push_back("Wood");
-
-	std::vector< std::vector< std::vector< int > > > data_sample_hierarchy(texture_classes.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entrie_index in feature data matrix
+	std::vector< std::vector< std::vector< int > > > data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entrie_index in feature data matrix
 
 	cv::Mat train_data = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed features
 	cv::Mat responses = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
@@ -106,9 +108,9 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 
 	std::cout<<"BEGIN" << std::endl;
 	std::vector<int> errors;
-	for(int class_index=0;class_index<(int)texture_classes.size();class_index++)
+	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
 	{
-		path = (*path_) + texture_classes[class_index];
+		path = (*path_) + texture_classes_[class_index];
 		const char *p;
 		p=path.c_str();
 
@@ -144,11 +146,11 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 					if (data_sample_hierarchy[class_index].size() < object_number)
 						data_sample_hierarchy[class_index].resize(object_number);
 					if (data_sample_hierarchy[class_index][object_number-1].size() < sample_number)
-						data_sample_hierarchy[class_index][object_number-1].resize(sample_number);
+						data_sample_hierarchy[class_index][object_number-1].resize(sample_number, -1);
 					data_sample_hierarchy[class_index][object_number-1][sample_number-1] = sample_index;
 
-					cv::Mat image = cv::imread(str);
 					std::cout << str << ":   ";
+					cv::Mat image = cv::imread(str);
 					feature_results results;
 					//struct color_vals color_results;
 					color_parameter color = color_parameter(); //Berechnung der Farbfeatures
@@ -216,7 +218,7 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 		fs << "database_data" << train_data;
 
 		//	Save response values
-		std::string label = "database_data_label.yml";
+		std::string label = "database_label.yml";
 		std::string path_label = *path_save + label;
 		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
 		fsw << "database_label" << responses;
@@ -254,27 +256,28 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 		fsw << "test_label" << responses;
 	}
 
-
 	// store hierarchy and check validity of hierarchical data structure
 	std::string filename = *path_save + "data_hierarchy.txt";
 	std::ofstream file(filename.c_str(), std::ios::out);
 	if (file.is_open() == true)
 	{
-		file << texture_classes.size() << std::endl;
+		file << texture_classes_.size() << std::endl;
 		for (unsigned int i=0; i<data_sample_hierarchy.size(); ++i)
 		{
-			file << texture_classes[i] << "\t" << data_sample_hierarchy[i].size() << std::endl;
+			file << texture_classes_[i] << "\t" << data_sample_hierarchy[i].size() << std::endl;
 //			std::cout << texture_classes[i] << ":" << std::endl;
 			if (data_sample_hierarchy[i].size() == 0)
-				std::cout << "Warning: class " << texture_classes[i] << " does not contain any objects." << std::endl;
+				std::cout << "Warning: class " << texture_classes_[i] << " does not contain any objects." << std::endl;
 			for (unsigned int j=0; j<data_sample_hierarchy[i].size(); ++j)
 			{
 				file << "\t" << data_sample_hierarchy[i][j].size() << std::endl;
 //				std::cout << "    O" << j+1 << ":" << std::endl;
 				if (data_sample_hierarchy[i][j].size() == 0)
-					std::cout << "Warning: class " << texture_classes[i] << ", object " << j+1 << " does not contain any samples." << std::endl;
+					std::cout << "Warning: class " << texture_classes_[i] << ", object " << j+1 << " does not contain any samples." << std::endl;
 				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
 				{
+					if (data_sample_hierarchy[i][j][k] == -1)		// invalid entry (caused by files not numbered consecutively)
+						data_sample_hierarchy[i][j].erase(data_sample_hierarchy[i][j].begin()+k);
 //					std::cout << "          I" << k+1 << ": " << data_sample_hierarchy[i][j][k] << std::endl;
 					file << "\t\t" << data_sample_hierarchy[i][j][k] << std::endl;
 				}
@@ -282,11 +285,18 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 		}
 	}
 	file.close();
+	// check data_hierarchy for correct size
+	int count = 0;
+	for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
+		for (uint o=0; o<data_sample_hierarchy[class_index].size(); ++o)
+			count += data_sample_hierarchy[class_index][o].size();
+	assert(count == number_pictures);
+
 
 	std::cout << "Feature computation on database completed." << std::endl;
 }
 
-void create_train_data::load_data_hierarchy(std::string filename, std::vector< std::vector< std::vector< int > > >& data_sample_hierarchy)
+void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy)
 {
 	std::ifstream file(filename.c_str(), std::ios::in);
 	if (file.is_open() == true)

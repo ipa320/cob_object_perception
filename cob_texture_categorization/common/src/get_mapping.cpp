@@ -1,4 +1,4 @@
-#include "get_mapping.h"
+#include "cob_texture_categorization/get_mapping.h"
 
 #include <cmath>
 #include <string>

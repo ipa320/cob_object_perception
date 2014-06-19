@@ -1,4 +1,4 @@
-#include "train_svm.h"
+#include "cob_texture_categorization/train_svm.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>

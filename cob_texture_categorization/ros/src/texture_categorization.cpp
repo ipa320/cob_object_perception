@@ -2,18 +2,19 @@
 
 
 
-#include "create_lbp.h"
-#include "splitandmerge.h"
-#include "texture_features.h"
-#include "compute_textures.h"
-#include "depth_image.h"
-#include "segment_trans.h"
-#include "perspective_transformation.h"
-#include "create_train_data.h"
-#include "train_svm.h"
-#include "predict_svm.h"
-#include "color_parameter.h"
-#include "train_ml.h"
+#include "cob_texture_categorization/create_lbp.h"
+#include "cob_texture_categorization/splitandmerge.h"
+#include "cob_texture_categorization/texture_features.h"
+#include "cob_texture_categorization/compute_textures.h"
+#include "cob_texture_categorization/depth_image.h"
+#include "cob_texture_categorization/segment_trans.h"
+#include "cob_texture_categorization/perspective_transformation.h"
+#include "cob_texture_categorization/create_train_data.h"
+#include "cob_texture_categorization/train_svm.h"
+#include "cob_texture_categorization/predict_svm.h"
+#include "cob_texture_categorization/color_parameter.h"
+#include "cob_texture_categorization/train_ml.h"
+#include "cob_texture_categorization/run_meanshift_test.h"
 
 #include <iostream>
 #include <fstream>
@@ -21,8 +22,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "run_meanshift_test.h"
 
 //#include <pcl_ros/point_cloud.h>
 //#include <pcl/impl/point_types.hpp>
@@ -126,16 +125,17 @@ void TextCategorizationNode::inputCallbackNoCam()
 //	create_train_data trainingdata = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Trainieren
 //	trainingdata.compute_data(&path_traindata, 1, &path_save_location, 1135);
 
-	create_train_data database_data = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Trainieren
-	database_data.compute_data(&path_database, 0, &path_save_location, 1281);
-
-	std::cout << "finished feature computation\n";
-	getchar();
+//	create_train_data database_data = create_train_data();									// computes feature and label matrices of the provided database
+//	database_data.compute_data(&path_database, 0, &path_save_location, 1281);
 
 	//Train and predict with NN
-		double gam =0;																		// Trainiert anhand des Trainingsvektors, testet anhand des Testvektors und gibt Ergebnis aus
-		train_ml kn = train_ml();
-		kn.run_ml(gam, &path_save_location);
+	train_ml ml;
+	//double gam =0;																		// Trainiert anhand des Trainingsvektors, testet anhand des Testvektors und gibt Ergebnis aus
+	//ml.run_ml(gam, &path_save_location);
+	cv::Mat feature_matrix, label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	ml.load_texture_database_features(path_save_location, feature_matrix, label_matrix, data_hierarchy);
+	ml.cross_validation(2, feature_matrix, label_matrix, data_hierarchy);
 
 
 	//Train and predict with SVM
