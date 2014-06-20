@@ -1,4 +1,4 @@
-#include "color_parameter.h"
+#include "cob_texture_categorization/color_parameter.h"
 
 color_parameter::color_parameter()
 {

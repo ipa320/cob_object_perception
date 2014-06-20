@@ -8,7 +8,7 @@
 #ifndef GET_MAPPING_H
 #define GET_MAPPING_H
 
-#include <create_lbp.h>
+#include <cob_texture_categorization/create_lbp.h>
 #include <string>
 
 

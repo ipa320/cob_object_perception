@@ -1,6 +1,6 @@
-#include "create_lbp.h"
-#include "get_mapping.h"
-#include "lbp.h"
+#include "cob_texture_categorization/create_lbp.h"
+#include "cob_texture_categorization/get_mapping.h"
+#include "cob_texture_categorization/lbp.h"
 
 
 

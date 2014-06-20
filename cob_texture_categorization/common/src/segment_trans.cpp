@@ -1,4 +1,4 @@
-#include "segment_trans.h"
+#include "cob_texture_categorization/segment_trans.h"
 
 
 segment_trans::segment_trans()

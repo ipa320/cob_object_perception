@@ -1,6 +1,6 @@
-#include "texture_features.h"
-#include "color_parameter.h"
-#include "amadasun.h"
+#include "cob_texture_categorization/texture_features.h"
+#include "cob_texture_categorization/color_parameter.h"
+#include "cob_texture_categorization/amadasun.h"
 
 #include <math.h>
 

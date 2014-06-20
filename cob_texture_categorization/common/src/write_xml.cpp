@@ -6,8 +6,8 @@
  *
  */
 
-#include <write_xml.h>
-#include <texture_features.h>
+#include <cob_texture_categorization/write_xml.h>
+#include <cob_texture_categorization/texture_features.h>
 
 
 #include <fstream>

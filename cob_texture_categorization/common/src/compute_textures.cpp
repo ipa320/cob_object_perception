@@ -1,9 +1,9 @@
-#include "compute_textures.h"
-#include "create_lbp.h"
-#include "splitandmerge.h"
-#include "texture_features.h"
-#include "write_xml.h"
-#include "color_parameter.h"
+#include "cob_texture_categorization/compute_textures.h"
+#include "cob_texture_categorization/create_lbp.h"
+#include "cob_texture_categorization/splitandmerge.h"
+#include "cob_texture_categorization/texture_features.h"
+#include "cob_texture_categorization/write_xml.h"
+#include "cob_texture_categorization/color_parameter.h"
 
 
 

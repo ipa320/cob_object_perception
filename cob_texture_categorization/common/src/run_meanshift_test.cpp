@@ -4,9 +4,9 @@
 #include "opencv2/imgproc/imgproc_c.h"
 
 
-#include "run_meanshift_test.h"
-#include "meanshift.h"
-#include "meanshift_3d.h"
+#include "cob_texture_categorization/run_meanshift_test.h"
+#include "cob_texture_categorization/meanshift.h"
+#include "cob_texture_categorization/meanshift_3d.h"
 
 using namespace cv;
 

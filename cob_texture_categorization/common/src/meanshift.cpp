@@ -1,5 +1,5 @@
-#include "meanshift.h"
-#include "meanshift_3d.h"
+#include "cob_texture_categorization/meanshift.h"
+#include "cob_texture_categorization/meanshift_3d.h"
 
 //RAList::RAList( void )
 //{
