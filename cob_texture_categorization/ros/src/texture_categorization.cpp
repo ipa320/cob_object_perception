@@ -15,6 +15,7 @@
 #include "cob_texture_categorization/color_parameter.h"
 #include "cob_texture_categorization/train_ml.h"
 #include "cob_texture_categorization/run_meanshift_test.h"
+#include "cob_texture_categorization/attribute_learning.h"
 
 #include <iostream>
 #include <fstream>
@@ -77,7 +78,10 @@ node_handle_(nh)
 //	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
 //	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
 //	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
-	TextCategorizationNode::inputCallbackNoCam();
+
+	// database tests
+	//TextCategorizationNode::inputCallbackNoCam();
+	attributeLearningDatabaseTest();
 
 }
 
@@ -104,6 +108,21 @@ void TextCategorizationNode::init()
 ////    cloudpub = node_handle_.advertise<PointCloud> ("points2", 1);
 //    pub_cloud = node_handle_.advertise<sensor_msgs::PointCloud2> ("cloud", 1);
 
+}
+
+void TextCategorizationNode::attributeLearningDatabaseTest()
+{
+	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_database.txt";		//Pfad zu Speicherort der Featurevektoren
+
+	std::cout << "Loading base features from file ...\n";
+	AttributeLearning al;
+	cv::Mat feature_matrix, attribute_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	al.loadTextureDatabaseBaseFeatures(data_file_name, feature_matrix, attribute_matrix, data_hierarchy);
+	std::cout << "Loading base features from file finished.\n";
+
+	al.crossValidation(10, feature_matrix, attribute_matrix, data_hierarchy);
 }
 
 void TextCategorizationNode::inputCallbackNoCam()
@@ -135,7 +154,7 @@ void TextCategorizationNode::inputCallbackNoCam()
 	cv::Mat feature_matrix, label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
 	ml.load_texture_database_features(path_save_location, feature_matrix, label_matrix, data_hierarchy);
-	ml.cross_validation(2, feature_matrix, label_matrix, data_hierarchy);
+	ml.cross_validation(10, feature_matrix, label_matrix, data_hierarchy);
 
 
 	//Train and predict with SVM
