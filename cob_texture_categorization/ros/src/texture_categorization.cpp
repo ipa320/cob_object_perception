@@ -122,7 +122,7 @@ void TextCategorizationNode::attributeLearningDatabaseTest()
 	al.loadTextureDatabaseBaseFeatures(data_file_name, feature_matrix, attribute_matrix, data_hierarchy);
 	std::cout << "Loading base features from file finished.\n";
 
-	al.crossValidation(10, feature_matrix, attribute_matrix, data_hierarchy);
+	al.crossValidation(20, feature_matrix, attribute_matrix, data_hierarchy, 0);
 }
 
 void TextCategorizationNode::inputCallbackNoCam()
