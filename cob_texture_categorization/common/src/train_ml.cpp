@@ -4,9 +4,9 @@
 #include <float.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <fstream>
+
 #include <cv.h>
-
-
 #include "ml.h"
 #include "highgui.h"
 
@@ -36,11 +36,12 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 	std::vector<int> true_predictions, false_predictions;
 	create_train_data data_object;
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
+	std::stringstream screen_output;
 
 	srand(0);	// random seed --> keep reproducible
 	for (int fold=0; fold<folds; ++fold)
 	{
-		std::cout << "=== fold " << fold << " ===" << std::endl;
+		std::cout << "=== fold " << fold+1 << " ===" << std::endl;		screen_output << "=== fold " << fold+1 << " ===" << std::endl;
 
 		// === distribute data into training and test set ===
 		// select one object per class for testing
@@ -158,30 +159,26 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 
 //	End Bayes Classifier
 
-//	Neural Network
-
+		// Neural Network
 		cv::Mat input;
 		training_data.convertTo(input, CV_32F);
 		cv::Mat output=cv::Mat::zeros(training_data.rows, 57, CV_32FC1);
-
 		cv::Mat labels;
 		training_labels.convertTo(labels, CV_32F);
-
 		for(int i=0; i<training_data.rows; ++i)
 			output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
 
 		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-
-		layers.row(0) = cv::Scalar(16);
-		layers.row(1) = cv::Scalar(400);
+		layers.row(0) = cv::Scalar(training_data.cols);
+		layers.row(1) = cv::Scalar(400);	//400
 		layers.row(2) = cv::Scalar(57);
 
 		CvANN_MLP mlp;
 		CvANN_MLP_TrainParams params;
 		CvTermCriteria criteria;
 
-		criteria.max_iter = 1000;
-		criteria.epsilon  = 0.00001f;
+		criteria.max_iter = 400;
+		criteria.epsilon  = 0.0001f;
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 
 		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
@@ -189,9 +186,9 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 		params.bp_moment_scale = 0.1f;
 		params.term_crit       = criteria;
 
-		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.3,1.2);
+		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
 		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;
+		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
 		// === apply ml classifier to predict test set ===
 		int t = 0, f = 0;
@@ -231,28 +228,39 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 			else
 				f2++;
 
-			std::cout << "value:" << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] <<
-					")   predicted:" << cls << " (" << texture_classes[cls] << ")" << std::endl;
+			std::cout << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << cls << " (" << texture_classes[cls] << ")" << std::endl;
+			screen_output << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << cls << " (" << texture_classes[cls] << ")" << std::endl;
 		}
 
 		true_predictions.push_back(t);
 		false_predictions.push_back(f);
-		std::cout << "true:" << t << " False:" << f << std::endl;
-		std::cout << "true2:" << t2 << " False2:" << f2 << std::endl;
 		double sum = t + f;
 		double percentage = t*(100.0 / sum);
-		std::cout << "Correct classified: " << percentage << "%" << std::endl;
+		std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
+		screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
+		//std::cout << "true2:" << t2 << " False2:" << f2 << std::endl;
+
+		// End Neural Network
 	}
-//	End Neural Network
 
 	std::cout << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
+	screen_output << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
 	int t=0, f=0;
 	for (unsigned int i=0; i<true_predictions.size(); ++i)
 	{
 		t += true_predictions[i];
 		f += false_predictions[i];
 	}
-	std::cout << "Correct classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
+	std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
+	screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
+
+	// write screen outputs to file
+	std::ofstream file("screen_output_classification.txt", std::ios::out);
+	if (file.is_open() == true)
+		file << screen_output.str();
+	else
+		std::cout << "Error: could not write screen output to file.";
+	file.close();
 }
 
 

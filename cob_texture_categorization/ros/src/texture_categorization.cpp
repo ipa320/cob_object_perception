@@ -113,16 +113,29 @@ void TextCategorizationNode::init()
 void TextCategorizationNode::attributeLearningDatabaseTest()
 {
 	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
-	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_database.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_database_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
 
-	std::cout << "Loading base features from file ...\n";
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+	std::cout << "Loading labeled attribute features from file ...\n";
 	AttributeLearning al;
-	cv::Mat feature_matrix, attribute_matrix;
+	cv::Mat attribute_matrix, class_label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
-	al.loadTextureDatabaseBaseFeatures(data_file_name, feature_matrix, attribute_matrix, data_hierarchy);
-	std::cout << "Loading base features from file finished.\n";
+	al.loadTextureDatabaseLabeledAttributeFeatures(data_file_name, attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading labeled attribute features from file finished.\n";
 
-	al.crossValidation(20, feature_matrix, attribute_matrix, data_hierarchy, 0);
+	//Train and predict with NN
+	train_ml ml;
+	ml.cross_validation(10, attribute_matrix, class_label_matrix, data_hierarchy);
+
+//	std::cout << "Loading base features from file ...\n";
+//	AttributeLearning al;
+//	cv::Mat feature_matrix, attribute_matrix;
+//	create_train_data::DataHierarchyType data_hierarchy;
+//	al.loadTextureDatabaseBaseFeatures(data_file_name, feature_matrix, attribute_matrix, data_hierarchy);
+//	std::cout << "Loading base features from file finished.\n";
+//
+//	al.crossValidation(20, feature_matrix, attribute_matrix, data_hierarchy, 0);
 }
 
 void TextCategorizationNode::inputCallbackNoCam()

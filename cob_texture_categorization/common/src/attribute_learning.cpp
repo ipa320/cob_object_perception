@@ -9,8 +9,8 @@
 void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, cv::Mat& feature_matrix, cv::Mat& attribute_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
 {
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
-	const int label_number = 17;
-	const int feature_number = 9688;
+	const int label_number = 17;			// label = attributes
+	const int feature_number = 9688;		// feature = base feature
 	const int total_sample_number = 1281;
 	feature_matrix.create(total_sample_number, feature_number, CV_32FC1);
 	attribute_matrix.create(total_sample_number, label_number, CV_32FC1);
@@ -52,6 +52,53 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, cv
 	file.close();
 }
 
+
+void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string filename, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+{
+	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
+	const int label_number = 1;		// label = class label
+	const int attribute_number = 17;	// feature = attribute
+	const int total_sample_number = 1281;
+	attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
+	class_label_matrix.create(total_sample_number, label_number, CV_32FC1);
+	int sample_index = 0;
+	std::ifstream file(filename.c_str(), std::ios::in);
+	if (file.is_open() == true)
+	{
+		unsigned int class_number = 0;
+		file >> class_number;
+		data_sample_hierarchy.resize(class_number);
+		for (unsigned int i=0; i<class_number; ++i)
+		{
+			std::string class_name;
+			file >> class_name;
+			unsigned int object_number=0;
+			file >> object_number;
+			data_sample_hierarchy[i].resize(object_number);
+			for (unsigned int j=0; j<object_number; ++j)
+			{
+				unsigned int sample_number=0;
+				file >> sample_number;
+				data_sample_hierarchy[i][j].resize(sample_number);
+				for (unsigned int k=0; k<sample_number; ++k)
+				{
+					class_label_matrix.at<float>(sample_index, 0) = i;
+					for (int f=0; f<attribute_number; ++f)
+						file >> attribute_matrix.at<float>(sample_index, f);
+					file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		// go to next line with base features
+					file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		// skip line with base features
+					data_sample_hierarchy[i][j][k] = sample_index;
+					++sample_index;
+				}
+			}
+		}
+	}
+	else
+	{
+		std::cout << "Error: could not open file " << filename << std::endl;
+	}
+	file.close();
+}
 
 
 void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int cross_validation_mode)
@@ -295,7 +342,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	}
 
 	// write screen outputs to file
-	std::ofstream file("screen_output.txt", std::ios::out);
+	std::ofstream file("screen_output_attribute_learning.txt", std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else
