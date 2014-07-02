@@ -150,6 +150,68 @@ std::vector<cv::RotatedRect>& DetectText::getBoxes()
 	return finalBoxes_;
 }
 
+double DetectText::computeLetterDistanceStddev(const std::vector<Letter>& letters)
+{
+	// stddev of letter distances
+	double maxDist = 0.;
+	cv::Point2i maxDistPair(0,1);
+	cv::Mat letterDistances = cv::Mat::zeros(letters.size(), letters.size(), CV_32FC3);	// letter distance differences in x and y (1st index=letters from i, 2nd index= letters from j)
+	for (unsigned int li=0; li<letters.size(); ++li)
+		for (unsigned int li2=li+1; li2<letters.size(); ++li2)
+		{
+			double dx = (letters[li2].centerPoint.x-letters[li].centerPoint.x);
+			double dy = (letters[li2].centerPoint.y-letters[li].centerPoint.y);
+			double dist = sqrt(dx*dx+dy*dy);
+			letterDistances.at<cv::Vec3f>(li,li2)=cv::Vec3f(dx,dy,dist);
+			letterDistances.at<cv::Vec3f>(li2,li)=cv::Vec3f(-dx,-dy,dist);
+			if (dist > maxDist)
+			{
+				maxDist = dist;
+				maxDistPair.x = li;
+				maxDistPair.y = li2;
+			}
+		}
+	cv::Point2d lineDirection(letters[maxDistPair.y].centerPoint.x-letters[maxDistPair.x].centerPoint.x, letters[maxDistPair.y].centerPoint.y-letters[maxDistPair.x].centerPoint.y);  // direction of the text line
+	for (unsigned int li=0; li<letters.size(); ++li)
+		for (unsigned int li2=li+1; li2<letters.size(); ++li2)
+		{
+			cv::Vec3f& v = letterDistances.at<cv::Vec3f>(li,li2);
+			cv::Point2d letterDirection(v.val[0],v.val[1]);
+			if (letterDirection.x*lineDirection.x+letterDirection.y*lineDirection.y > 0.)
+			{
+				// directing in same direction
+				//letterDistances.at<cv::Vec3f>(li2,li).val[2] *= -1;
+				letterDistances.at<cv::Vec3f>(li2,li).val[2] = 1e10;
+			}
+			else
+			{
+				//v.val[2] *= -1;
+				v.val[2] = 1e10;
+			}
+		}
+	std::vector<float> shortestLetterDistances;
+	double avgLetterDistance = 0.;
+	for (unsigned int li=0; li<letters.size(); ++li)
+	{
+		double minDist = 1e10;
+		for (unsigned int li2=0; li2<letters.size(); ++li2)
+			if (minDist > letterDistances.at<cv::Vec3f>(li,li2).val[2])
+				minDist = letterDistances.at<cv::Vec3f>(li,li2).val[2];
+		if (minDist < 1e10)
+		{
+			shortestLetterDistances.push_back(minDist);
+			avgLetterDistance += minDist;
+		}
+	}
+	avgLetterDistance /= (double)shortestLetterDistances.size();
+	double stddevLetterDistance = 0.;
+	for (unsigned int i=0; i<shortestLetterDistances.size(); ++i)
+		stddevLetterDistance += (shortestLetterDistances[i]-avgLetterDistance)*(shortestLetterDistances[i]-avgLetterDistance);
+	stddevLetterDistance = sqrt(stddevLetterDistance/(double)shortestLetterDistances.size());
+
+	return stddevLetterDistance;
+}
+
 void DetectText::detect()
 {
 	// === pre-processing ===
@@ -193,13 +255,226 @@ void DetectText::detect()
 		if (processing_method_ == ORIGINAL_EPSHTEIN)
 			detect_original_epshtein(originalImage_, pow(scale, k));
 		else if (processing_method_ == BORMANN)
-			detect_bormann();
+			detect_bormann(originalImage_, pow(scale, k));
 		else
 			std::cout << "DetectText::detect: Error: Desired processing method is not implemented." << std::endl;
 
 		cv::destroyAllWindows();
 	}
 	originalImage_ = original_image_copy;
+
+	// filter boxes that are only detected at one scale
+	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
+	{
+		TextRegion& itr = finalTextRegions_[i];
+		bool deleteRegion = true;
+		for (int j=(int)finalTextRegions_.size()-1; j>=0; --j)
+		{
+			if (i==j)
+				continue;
+			TextRegion& jtr = finalTextRegions_[j];
+
+			double commonArea = (itr.boundingBox & jtr.boundingBox).area();
+			if (commonArea > 0.9*itr.boundingBox.area() && commonArea > 0.9*jtr.boundingBox.area())
+				deleteRegion = false;
+		}
+		if (deleteRegion == true && !(itr.originalChainID < scale*10000 && itr.boundingBox.height < 40))//20))
+		{
+			finalTextRegions_.erase(finalTextRegions_.begin()+i);
+			i--;
+		}
+	}
+
+
+	// filter overlapping boxes
+	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
+	{
+		if (finalTextRegions_[i].letters.size()==0)
+		{
+			std::cout << "WARNING: DetectText::detect(): letter size is zero.\n";
+			finalTextRegions_.erase(finalTextRegions_.begin()+i);
+			--i;
+			continue;
+		}
+		for (int j=(int)finalTextRegions_.size()-1; j>=0; --j)
+		{
+			if (i==j)
+				continue;
+
+			TextRegion& itr = finalTextRegions_[i];
+			TextRegion& jtr = finalTextRegions_[j];
+
+			if (jtr.letters.size() == 0)
+			{
+				std::cout << "WARNING: DetectText::detect(): letter size is zero.\n";
+				finalTextRegions_.erase(finalTextRegions_.begin()+j);
+				if (i>j)
+					i--;
+				continue;
+			}
+
+			// filter smaller boxes inside a larger box when they reside mostly on letters of the bigger box and have a different font color
+			double commonArea = (itr.boundingBox & jtr.boundingBox).area();
+			if (itr.letters[0].fontColor != jtr.letters[0].fontColor && commonArea <= 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.boundingBox.area())
+			{
+				double commonAreaLetters = 0.;
+				for (unsigned int li=0; li<itr.letters.size(); ++li)
+					commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
+
+				if (commonAreaLetters > 0.5*jtr.boundingBox.area())
+				{
+					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+					if (i>j)
+						i--;
+				}
+			}
+
+
+
+//			// delete smaller boxes (which do not originate from a bigger original box) of same letter color which are located in bigger boxes
+//			commonArea = (itr.boundingBox & jtr.originalChainBoundingBox).area();
+//			if (commonArea <= 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
+//			{
+//				double commonAreaLetters = 0.;
+//				for (unsigned int li=0; li<itr.letters.size(); ++li)
+//					commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
+//
+//				if (commonAreaLetters > 0.5*jtr.boundingBox.area())
+//				{
+//					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+//					if (i>j)
+//						i--;
+//				}
+//			}
+
+//			if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
+//			{
+//				unsigned int numberLetters = 0;
+//				for (unsigned int k=0; k<finalTextRegions_.size(); ++k)
+//				{
+//					if (k==i)
+//						continue;
+//					if (finalTextRegions_[k].originalChainID == jtr.originalChainID)
+//						numberLetters += finalTextRegions_[k].letters.size();
+//				}
+//
+//				if (itr.letters.size() > numberLetters)
+//				{
+//					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+//					if (i>j)
+//						i--;
+//				}
+//				else
+//				{
+//					finalTextRegions_.erase(finalTextRegions_.begin()+i);
+//					i--;
+//					break;
+//				}
+//			}
+		}
+	}
+
+	// filter overlapping boxes
+//	for (unsigned int i=0; i<finalTextRegions_.size(); ++i)
+//	{
+//		for (int j=(int)finalTextRegions_.size()-1; j>=0; --j)
+//		{
+//			if (i==j)
+//				continue;
+//
+//			TextRegion& itr = finalTextRegions_[i];
+//			TextRegion& jtr = finalTextRegions_[j];
+//
+////			std::cout << "---------------"  << " i=" << i << " j=" << j << "\n";
+////			cv::Mat output = originalImage_.clone();
+////			for (unsigned int li=0; li<itr.letters.size(); ++li)
+////				cv::rectangle(output, itr.letters[li].boundingBox, cv::Scalar(255,0,0), 1, 1, 0);
+////			cv::rectangle(output, itr.boundingBox, cv::Scalar(255,0,0), 2, 1, 0);
+////			cv::rectangle(output, jtr.boundingBox, cv::Scalar(255,255,255), 2, 1, 0);
+////			cv::imshow("final regions", output);
+////			cv::waitKey(0);
+//
+//			// if both regions have similar dimension, accept both
+//			double commonArea = (itr.boundingBox & jtr.boundingBox).area();
+//			if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.boundingBox.area())
+//			{
+////				std::cout << "  similar size, accept both\n";
+//				continue;
+//			}
+//
+//			double commonAreaLetters = 0.;
+//			for (unsigned int li=0; li<itr.letters.size(); ++li)
+//				commonAreaLetters += (itr.letters[li].boundingBox & jtr.boundingBox).area();
+//
+////			std::cout << "  commonArea/jtr.boundingBox.area()=" << commonArea/jtr.boundingBox.area() << "  commonAreaLetters/jtr.boundingBox.area()=" << commonAreaLetters/jtr.boundingBox.area() << "\n";
+//
+//			// j lies mostly in i
+//			if (commonArea > 0.85*jtr.boundingBox.area() && commonAreaLetters > 0.5*jtr.boundingBox.area())
+//			{
+////				std::cout << "  j lies in i: ";
+//
+//				// if originalChain is similar to the bigger bounding box, delete the bigger one (which was apparently not broken down into its words)
+//				commonArea = (itr.boundingBox & jtr.originalChainBoundingBox).area();
+////				std::cout << "common area i-jo/itr.boundingBox.area()=" << commonArea/itr.boundingBox.area() << "  commonArea/jtr.originalChainBoundingBox.area()=" << commonArea/jtr.originalChainBoundingBox.area() << "  ";
+//				if (commonArea > 0.85*itr.boundingBox.area() && commonArea > 0.85*jtr.originalChainBoundingBox.area())
+//				{
+////					std::cout << "erase i\n";
+//					//finalTextRegions_.erase(finalTextRegions_.begin()+i);
+//					//i--;
+//					break;
+//				}
+//
+//				double iScore=0., jScore=0.;
+//
+//				// number of letters
+//				if (itr.letters.size()>jtr.letters.size())
+//					iScore += 1.;
+//				else if (itr.letters.size()<jtr.letters.size())
+//					jScore += 1.;
+//				else
+//				{
+//					// same number of letters -> are they the same?
+//				}
+//
+//				// stddev of letter distances
+//				double iAvgDiameter=0., jAvgDiameter=0.;
+//				for (unsigned int d=0; d<itr.letters.size(); ++d)
+//					iAvgDiameter += itr.letters[d].diameter;
+//				iAvgDiameter /= (double)itr.letters.size();
+//				for (unsigned int d=0; d<jtr.letters.size(); ++d)
+//					jAvgDiameter += jtr.letters[d].diameter;
+//				jAvgDiameter /= (double)jtr.letters.size();
+//				double iStddevLetterDistance = computeLetterDistanceStddev(itr.letters);
+//				double jStddevLetterDistance = computeLetterDistanceStddev(jtr.letters);
+//				if (iStddevLetterDistance/iAvgDiameter <= jStddevLetterDistance/jAvgDiameter)
+//					iScore+=1.;
+//				else
+//					jScore+=1.;
+//
+//				if (commonAreaLetters > 0.75*jtr.boundingBox.area())
+//					iScore+=1.;
+//
+////				std::cout << "iScore=" << iScore << " jScore=" << jScore << "  ";
+//				if (iScore > jScore)
+//				{
+////					std::cout << "erase j\n";
+//					finalTextRegions_.erase(finalTextRegions_.begin()+j);
+//					if (i>j)
+//						i--;
+//				}
+//			}
+//		}
+//	}
+
+	// write found bounding boxes into the respective structures
+	for (unsigned int i=0; i<finalTextRegions_.size(); i++)
+	{
+		// compute coordinates on original image size
+		finalBoundingBoxes_.push_back(finalTextRegions_[i].boundingBox);
+		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(finalTextRegions_[i].boundingBox.x+0.5*finalTextRegions_[i].boundingBox.width, finalTextRegions_[i].boundingBox.y+0.5*finalTextRegions_[i].boundingBox.height),
+				cv::Size2f(finalTextRegions_[i].boundingBox.width, finalTextRegions_[i].boundingBox.height), 0.f));
+		finalBoundingBoxesQualityScore_.push_back(finalTextRegions_[i].qualityScore);
+	}
 
 	// === Post-processing ===
 	// filter boxes that lie completely inside others
@@ -233,6 +508,15 @@ void DetectText::detect()
 		}
 	}*/
 
+	transformedImage_.clear();
+	notTransformedImage_.clear();
+	for (unsigned int i=0; i<finalBoundingBoxes_.size(); ++i)
+	{
+		int padding = 1;
+		cv::Rect r(std::max(0, finalBoundingBoxes_[i].x-padding), std::max(0, finalBoundingBoxes_[i].y-padding), std::min(originalImage_.cols-1-finalBoundingBoxes_[i].x, finalBoundingBoxes_[i].width+padding), std::min(originalImage_.rows-1-finalBoundingBoxes_[i].y, finalBoundingBoxes_[i].height+padding));
+		transformedImage_.push_back(originalImage_(r));
+	}
+	notTransformedImage_ = transformedImage_;
 	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
 	// OCR
@@ -414,7 +698,10 @@ void DetectText::detect_original_epshtein(cv::Mat& image, double scale_factor)
 
 
 //		cv::bilateralFilter(dummy, image, 7, 20, 50); // sensor noise
-		cv::bilateralFilter(dummy, image, 13, 40, 10); // sensor noise
+//		cv::bilateralFilter(dummy, image, 13, 40, 10); // sensor noise
+		cv::bilateralFilter(dummy, image, 7, 40, 10); // sensor noise
+
+
 //		image = sharpenImage(image);
 //		dummy = image.clone();
 //		cv::bilateralFilter(dummy, image, 9, 30, 10); // sensor noise
@@ -462,115 +749,7 @@ void DetectText::detect_original_epshtein(cv::Mat& image, double scale_factor)
 
 
 	// merge bright and dark text lines
-	std::vector<TreeNode> nodes(textRegions_.size());
-	for (unsigned int i=0; i<textRegions_.size(); i++)
-	{
-		nodes[i].parent = -1;
-		nodes[i].rank = 0;
-		nodes[i].element = i;
-	}
-	for (unsigned int i=0; i<textRegions_.size(); i++)
-	{
-		int root = i;
-		while (nodes[root].parent != -1)
-			root = nodes[root].parent;
-		for (unsigned int j=0; j<textRegions_.size(); j++)
-		{
-			if (i!=j && sameTextline(textRegions_[nodes[i].element], textRegions_[nodes[j].element])==true)
-			{
-//				cv::Mat mergeImage1 = image.clone();
-//				cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[i].element].boundingBox.x,textRegions_[nodes[i].element].boundingBox.y), cv::Point(textRegions_[nodes[i].element].boundingBox.x+textRegions_[nodes[i].element].boundingBox.width,textRegions_[nodes[i].element].boundingBox.y+textRegions_[nodes[i].element].boundingBox.height), cv::Scalar(255,0,255));
-//				cv::rectangle(mergeImage1, cv::Point(textRegions_[nodes[j].element].boundingBox.x,textRegions_[nodes[j].element].boundingBox.y), cv::Point(textRegions_[nodes[j].element].boundingBox.x+textRegions_[nodes[j].element].boundingBox.width,textRegions_[nodes[j].element].boundingBox.y+textRegions_[nodes[j].element].boundingBox.height), cv::Scalar(255,0,255));
-//				cv::imshow("merged lines pre", mergeImage1);
-//				cv::waitKey();
-
-				int root2 = j;
-				while (nodes[root2].parent != -1)
-					root2 = nodes[root2].parent;
-
-				if (root != root2)
-				{
-					if(nodes[root].rank > nodes[root2].rank)
-						nodes[root2].parent = root;
-					else
-					{
-						nodes[root].parent = root2;
-						nodes[root2].rank += (nodes[root].rank==nodes[root2].rank ? 1 : 0);
-						root = root2;
-					}
-
-					// collapse a branch to direct children of root
-					int node = j;
-					while(nodes[node].parent != -1)
-					{
-						int temp = nodes[node].parent;
-						nodes[node].parent = root;
-						node = temp;
-					}
-					node = i;
-					while(nodes[node].parent != -1)
-					{
-						int temp = nodes[node].parent;
-						nodes[node].parent = root;
-						node = temp;
-					}
-				}
-			}
-		}
-	}
-
-	// merge textline pairs
-//	cv::Mat mergeImage = image.clone();
-	std::vector<TextRegion> mergedTextRegions;
-	int classIndex = 0;
-	for (unsigned int i=0; i<textRegions_.size(); i++)
-	{
-		int root = i;
-		while (nodes[root].parent != -1)
-			root = nodes[root].parent;
-		if (nodes[root].rank >= 0)
-			nodes[root].rank = ~classIndex++;
-
-		int insertIndex = ~nodes[root].rank;
-
-//		std::cout << "i=" << i << "  root=" << root << "   insertIndex=" << insertIndex << "   mergedTextRegions=" << mergedTextRegions.size() << std::endl;
-
-		if (insertIndex < (int)mergedTextRegions.size())
-		{
-			// check whether to keep or replace the existing text region
-//			cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,255));
-//			cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(255,0,255));
-//			cv::imshow("merged lines", mergeImage);
-//			cv::waitKey();
-			if (mergedTextRegions[insertIndex].boundingBox.width < textRegions_[i].boundingBox.width)
-			{
-//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,255,0));
-//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,0,255));
-//				cv::imshow("merged lines", mergeImage);
-//				std::cout<< "replace\n";
-//				cv::waitKey();
-				mergedTextRegions[insertIndex] = textRegions_[i];
-			}
-//			else
-//			{
-//				cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(0,0,255));
-//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,255,0));
-//				cv::imshow("merged lines", mergeImage);
-//				std::cout<< "keep\n";
-//				cv::waitKey();
-//			}
-		}
-		else
-		{
-			// create text region
-//			cv::rectangle(mergeImage, cv::Point(textRegions_[i].boundingBox.x,textRegions_[i].boundingBox.y), cv::Point(textRegions_[i].boundingBox.x+textRegions_[i].boundingBox.width,textRegions_[i].boundingBox.y+textRegions_[i].boundingBox.height), cv::Scalar(255,0,0));
-//			cv::imshow("merged lines", mergeImage);
-//			cv::waitKey();
-			mergedTextRegions.push_back(textRegions_[i]);
-		}
-	}
-	textRegions_ = mergedTextRegions;
-
+	mergeTextRegionsAtSameTextline(textRegions_);
 
 	// separating several lines of text
 //	start_time = clock();
@@ -585,41 +764,82 @@ void DetectText::detect_original_epshtein(cv::Mat& image, double scale_factor)
 	std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
 
 	// write found bounding boxes into the respective structures
-	for (unsigned int i=0; i<textRegions_.size(); i++)
+	for (unsigned int i=0; i<textRegions_.size(); ++i)
 	{
 		// compute coordinates on original image size
 		textRegions_[i].boundingBox.x *= scale_factor;
 		textRegions_[i].boundingBox.y *= scale_factor;
 		textRegions_[i].boundingBox.width *= scale_factor;
 		textRegions_[i].boundingBox.height *= scale_factor;
-		finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
-		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
-				cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
-		finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
+		textRegions_[i].originalChainBoundingBox.x *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.y *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.width *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.height *= scale_factor;
+		textRegions_[i].originalChainID += int(scale_factor*10000);
+		for (unsigned int l=0; l<textRegions_[i].letters.size(); ++l)
+		{
+			textRegions_[i].letters[l].boundingBox.x *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.y *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.width *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.height *= scale_factor;
+		}
+		finalTextRegions_.push_back(textRegions_[i]);
+//		finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
+//		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
+//				cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
+//		finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
 	}
 }
 
-void DetectText::detect_bormann()
+void DetectText::detect_bormann(cv::Mat& image, double scale_factor)
 {
-	// clear data fields
-	finalBoundingBoxes_.clear();
-	finalRotatedBoundingBoxes_.clear();
-	finalBoundingBoxesQualityScore_.clear();
+	// Smooth image
+	if (smoothImage) // default: turned off
+	{
+		if (debug["showEdge"] == true)
+			cv::imshow("original", image);
 
-	// start timer
-	double start_time;
-	double time_in_seconds;
-	start_time = std::clock();
+//		dct(originalImage_);
+//
+//		if (debug["showEdge"] == true)
+//			cv::imshow("original dct", originalImage_);
+
+		cv::Mat dummy = image.clone();
+//		cv::cvtColor(image, dummy, CV_BGR2Lab);	// BGR
+
+
+//		cv::bilateralFilter(dummy, image, 7, 20, 50); // sensor noise
+//		cv::bilateralFilter(dummy, image, 13, 40, 10); // sensor noise
+		cv::bilateralFilter(dummy, image, 7, 40, 10); // sensor noise
+
+
+//		image = sharpenImage(image);
+//		dummy = image.clone();
+//		cv::bilateralFilter(dummy, image, 9, 30, 10); // sensor noise
+
+//		std::vector<cv::Mat> singleChannels;
+//		cv::split(image, singleChannels);
+//		for (int i=0; i<1; i++)
+//			cv::equalizeHist(singleChannels[i], singleChannels[i]);
+//		cv::merge(singleChannels, image);
+
+		if (debug["showEdge"] == true)
+		{
+			cv::imshow("original filtered", image);
+			cv::waitKey();
+		}
+	}
 
 	// grayImage for SWT
-	grayImage_ = cv::Mat(originalImage_.size(), CV_8UC1, cv::Scalar(0));
-	cv::cvtColor(originalImage_, grayImage_, CV_RGB2GRAY);
+	grayImage_ = cv::Mat(image.size(), CV_8UC1, cv::Scalar(0));
+	cv::cvtColor(image, grayImage_, CV_BGR2GRAY);
 
 	// Show image information
 	std::cout << std::endl;
 	std::cout << "Image: " << filename_ << std::endl;
 	std::cout << "Size:" << grayImage_.cols << " x " << grayImage_.rows << std::endl << std::endl;
-	preprocess();
+//	preprocess();
+	textRegions_.clear();
 
 	// bright font
 	firstPass_ = true;
@@ -631,81 +851,178 @@ void DetectText::detect_bormann()
 	pipeline();
 	disposal();		// todo: check whether this harms any of the following processing
 
-	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
 
-	// OCR
-	if (enableOCR_ == true)
+	// some feasibility checks
+//	start_time = clock();
+//	filterBoundingBoxes(boundingBoxes, ccmap, boundingBoxFilterParameter); // filters boxes based on height and width -> makes no sense when text is rotated
+//	time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//	std::cout << "[" << time_in_seconds << " s] in filterBoundingBoxes: " << boundingBoxes.size() << " boundingBoxes found" << std::endl;
+
+
+	// merge bright and dark text lines
+	mergeTextRegionsAtSameTextline(textRegions_);
+
+	// separating several lines of text
+//	start_time = clock();
+//	breakLines(textRegions_);
+//	time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+//	std::cout << "[" << time_in_seconds << " s] in breakLines: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+
+	double start_time = clock();
+	ransacPipeline(textRegions_);
+	double time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
+	std::cout << "[" << time_in_seconds << " s] in ransacPipeline: " << textRegions_.size() << " textRegions_ after ransac" << std::endl << std::endl;
+//	if (firstPass_)
+//	{
+//		std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() << " boundingBoxes remain" << std::endl;
+//		fontColorIndex_ = transformedImage_.size();
+//	}
+//	else
+//		std::cout << "[" << time_in_seconds << " s] in Ransac and Bezier: " << transformedImage_.size() - fontColorIndex_ << " boundingBoxes remain" << std::endl;
+
+	// separate words on a single line
+	start_time = clock();
+	breakLinesIntoWords(textRegions_);
+	time_in_seconds = (clock() - start_time) / (double)CLOCKS_PER_SEC;
+	std::cout << "[" << time_in_seconds << " s] in breakLinesIntoWords: " << textRegions_.size() << " textRegions_ after breaking blocks into lines" << std::endl << std::endl;
+
+	// write found bounding boxes into the respective structures
+	for (unsigned int i=0; i<textRegions_.size(); ++i)
 	{
-		//  ocrPreprocess(transformedBoundingBoxes_);
-		//  ocrPreprocess(notTransformedBoundingBoxes_);
-
-		// delete boxes that are complete inside other boxes
-		//deleteDoubleBrokenWords(boundingBoxes_);
-
-
-		// fill textImages_ with either rectangles or rotated rectangles
-		for (size_t i = 0; i < transformedImage_.size(); i++)
+		// compute coordinates on original image size
+		textRegions_[i].boundingBox.x *= scale_factor;
+		textRegions_[i].boundingBox.y *= scale_factor;
+		textRegions_[i].boundingBox.width *= scale_factor;
+		textRegions_[i].boundingBox.height *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.x *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.y *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.width *= scale_factor;
+		textRegions_[i].originalChainBoundingBox.height *= scale_factor;
+		textRegions_[i].originalChainID += int(scale_factor*10000);
+		for (unsigned int l=0; l<textRegions_[i].letters.size(); ++l)
 		{
-			if (transformImages)
-			{
-				cv::Mat rotatedFlippedBox;
-				cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
-				textImages_.push_back(sharpenImage(transformedImage_[i]));
-				textImages_.push_back(sharpenImage(rotatedFlippedBox));
-			}
-			else
-			{
-				textImages_.push_back(sharpenImage(notTransformedImage_[i]));
-			}
-
-			// sometimes tesseract likes gray images
-			//    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
-			//    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
-			// textImages_.push_back(sharpenImage(grayImage));
-
-			// binary image
-			// textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
-
-			// binary image #2
+			textRegions_[i].letters[l].boundingBox.x *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.y *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.width *= scale_factor;
+			textRegions_[i].letters[l].boundingBox.height *= scale_factor;
 		}
-
-		ocrRead(textImages_);
+		finalTextRegions_.push_back(textRegions_[i]);
+//		finalBoundingBoxes_.push_back(textRegions_[i].boundingBox);
+//		finalRotatedBoundingBoxes_.push_back(cv::RotatedRect(cv::Point2f(textRegions_[i].boundingBox.x+0.5*textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.y+0.5*textRegions_[i].boundingBox.height),
+//				cv::Size2f(textRegions_[i].boundingBox.width, textRegions_[i].boundingBox.height), 0.f));
+//		finalBoundingBoxesQualityScore_.push_back(textRegions_[i].qualityScore);
 	}
-	else
-	{
-		finalBoxes_ = finalRotatedBoundingBoxes_;
-		finalTexts_.resize(finalBoxes_.size(), "");
-	}
-
-	// Draw output on resultImage_
-	showBoundingBoxes(finalBoxes_, finalTexts_);
-
-	std::cout << "eval_: " << eval_ << std::endl;
-
-	// Write results
-	if (eval_)
-		writeTxtsForEval();
-	else
-		cv::imwrite(outputPrefix_ + "_detection.jpg", resultImage_);
-
-	// Show results
-	if (debug["showResult"])
-	{
-		cv::imshow("detection", resultImage_);
-		cvMoveWindow("detection", 0, 0);
-		cv::waitKey(0);
-	}
-
-	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
-	std::cout << std::endl << "[" << time_in_seconds << " s] total in process\n" << std::endl;
 }
+
+//// old original version
+//void DetectText::detect_bormann()
+//{
+//	// clear data fields
+//	finalBoundingBoxes_.clear();
+//	finalRotatedBoundingBoxes_.clear();
+//	finalBoundingBoxesQualityScore_.clear();
+//
+//	// start timer
+//	double start_time;
+//	double time_in_seconds;
+//	start_time = std::clock();
+//
+//	// grayImage for SWT
+//	grayImage_ = cv::Mat(originalImage_.size(), CV_8UC1, cv::Scalar(0));
+//	cv::cvtColor(originalImage_, grayImage_, CV_RGB2GRAY);
+//
+//	// Show image information
+//	std::cout << std::endl;
+//	std::cout << "Image: " << filename_ << std::endl;
+//	std::cout << "Size:" << grayImage_.cols << " x " << grayImage_.rows << std::endl << std::endl;
+//	preprocess();
+//
+//	// bright font
+//	firstPass_ = true;
+//	pipeline();
+//	disposal();
+//
+//	// dark font
+//	firstPass_ = false;
+//	pipeline();
+//	disposal();		// todo: check whether this harms any of the following processing
+//
+//	std::cout << std::endl << "Found " << transformedImage_.size() << " boundingBoxes for OCR." << std::endl << std::endl;
+//
+//	// OCR
+//	if (enableOCR_ == true)
+//	{
+//		//  ocrPreprocess(transformedBoundingBoxes_);
+//		//  ocrPreprocess(notTransformedBoundingBoxes_);
+//
+//		// delete boxes that are complete inside other boxes
+//		//deleteDoubleBrokenWords(boundingBoxes_);
+//
+//
+//		// fill textImages_ with either rectangles or rotated rectangles
+//		for (size_t i = 0; i < transformedImage_.size(); i++)
+//		{
+//			if (transformImages)
+//			{
+//				cv::Mat rotatedFlippedBox;
+//				cv::flip(transformedImage_[i], rotatedFlippedBox, -1);
+//				textImages_.push_back(sharpenImage(transformedImage_[i]));
+//				textImages_.push_back(sharpenImage(rotatedFlippedBox));
+//			}
+//			else
+//			{
+//				textImages_.push_back(sharpenImage(notTransformedImage_[i]));
+//			}
+//
+//			// sometimes tesseract likes gray images
+//			//    cv::Mat grayImage(notTransformedBoundingBoxes_[i].size(), CV_8UC1, cv::Scalar(0));
+//			//    cv::cvtColor(notTransformedBoundingBoxes_[i], grayImage, CV_RGB2GRAY);
+//			// textImages_.push_back(sharpenImage(grayImage));
+//
+//			// binary image
+//			// textImages_.push_back(binarizeViaContrast(transformedBoundingBoxes_[i]));
+//
+//			// binary image #2
+//		}
+//
+//		ocrRead(textImages_);
+//	}
+//	else
+//	{
+//		finalBoxes_ = finalRotatedBoundingBoxes_;
+//		finalTexts_.resize(finalBoxes_.size(), "");
+//	}
+//
+//	// Draw output on resultImage_
+//	showBoundingBoxes(finalBoxes_, finalTexts_);
+//
+//	std::cout << "eval_: " << eval_ << std::endl;
+//
+//	// Write results
+//	if (eval_)
+//		writeTxtsForEval();
+//	else
+//		cv::imwrite(outputPrefix_ + "_detection.jpg", resultImage_);
+//
+//	// Show results
+//	if (debug["showResult"])
+//	{
+//		cv::imshow("detection", resultImage_);
+//		cvMoveWindow("detection", 0, 0);
+//		cv::waitKey(0);
+//	}
+//
+//	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
+//	std::cout << std::endl << "[" << time_in_seconds << " s] total in process\n" << std::endl;
+//}
 
 void DetectText::preprocess()
 {
 	if (processing_method_==ORIGINAL_EPSHTEIN)
 		maxStrokeWidth_ = maxStrokeWidthParameter; // * 640./(double)std::max(grayImage_.cols, grayImage_.rows);
 	else
-		maxStrokeWidth_ = round((std::max(grayImage_.cols, grayImage_.rows)) / (float) maxStrokeWidthParameter);
+		//maxStrokeWidth_ = round((std::max(grayImage_.cols, grayImage_.rows)) / (float) maxStrokeWidthParameter);
+		maxStrokeWidth_ = maxStrokeWidthParameter; // * 640./(double)std::max(grayImage_.cols, grayImage_.rows);
 	initialStrokeWidth_ = maxStrokeWidth_ * 2;
 
 	// outputPrefix_: filename without extension
@@ -768,6 +1085,8 @@ void DetectText::pipeline()
 	start_time = clock();
 	cv::Mat ccmap(grayImage_.size(), CV_32FC1, cv::Scalar(-1));
 	labeledRegions_.clear();
+	labeledRegionPixelCount_.clear();
+	labeledRegionCentroids_.clear();
 	nComponent_ = connectComponentAnalysis(swtmap, ccmap);
 	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
 	std::cout << "[" << time_in_seconds << " s] in connectComponentAnalysis: " << nComponent_ << " components found" << std::endl;
@@ -784,7 +1103,7 @@ void DetectText::pipeline()
 
 	start_time = clock();
 	//std::vector<TextRegion> textRegions; //replace or fuse connectedComponents
-	chainPairs(textRegions_);
+	chainPairs(textRegions_, ccmap);
 	time_in_seconds = (clock() - start_time) / (double) CLOCKS_PER_SEC;
 	std::cout << "[" << time_in_seconds << " s] in chainPairs: " << textRegions_.size() << " chains found" << std::endl;
 
@@ -891,7 +1210,7 @@ void DetectText::strokeWidthTransform(const cv::Mat& image, cv::Mat& swtmap, int
 	{
 		cv::Mat output(originalImage_.size(), CV_8UC3);
 		cv::Mat swtmapNormalized;
-		cv::normalize(swtmap, swtmapNormalized, 0, 255, cv::NORM_MINMAX);
+		cv::normalize(swtmap, swtmapNormalized, 0, 196, cv::NORM_MINMAX);
 		for (int y = 0; y < swtmap.rows; y++)
 			for (int x = 0; x < swtmap.cols; x++)
 			{
@@ -1237,6 +1556,7 @@ cv::Mat DetectText::computeEdgeMap(bool rgbCanny)
 
 	if (debug["showEdge"] == true)
 	{
+		cv::imshow("gray image", grayImage_);
 		cv::imshow("gray color edgemap", edgemap);
 		cvMoveWindow("gray color edgemap", 0, 0);
 	}
@@ -1463,10 +1783,9 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 	//			for (int i = 0; i < pointStack.size(); i++)
 	//				cv::rectangle(outputtemp, cv::Rect(pointStack[i].x, pointStack[i].y, 1, 1), cv::Scalar(0, 255, 0), 1, 1, 0);
 
-				float newSwtVal;
 				if (purpose == UPDATE)// update swt based on dist between edges
 				{
-					newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix)) + 0.5);
+					float newSwtVal = (sqrt((currY - iy) * (currY - iy) + (currX - ix) * (currX - ix)) + 0.5);
 					strokePointsOrderedByLength.insert(std::pair<double, cv::Point>(newSwtVal, cv::Point(ix, iy)));
 					for (size_t i = 0; i < pointStack.size(); i++)
 						swtmap.at<float>(pointStack[i]) = std::min(swtmap.at<float>(pointStack[i]), newSwtVal);
@@ -1474,7 +1793,7 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 				else if (purpose == REFINE) // refine swt based on median
 				{
 					nth_element(SwtValues.begin(), SwtValues.begin() + SwtValues.size() / 2, SwtValues.end());
-					newSwtVal = SwtValues[SwtValues.size() / 2];
+					float newSwtVal = SwtValues[SwtValues.size() / 2];
 					for (size_t i = 0; i < pointStack.size(); i++)
 						swtmap.at<float>(pointStack[i]) = newSwtVal;
 				}
@@ -1504,8 +1823,8 @@ void DetectText::updateStrokeWidth(cv::Mat& swtmap, std::vector<cv::Point>& star
 		// set initial values back to 0
 		for (int y = 0; y < swtmap.rows; y++)
 			for (int x = 0; x < swtmap.cols; x++)
-				if (swtmap.at<float> (y, x) == initialStrokeWidth_)
-					swtmap.at<float> (y, x) = 0;						// todo: check whether this may cause problems when grouping
+				if (swtmap.at<float>(y, x) == initialStrokeWidth_)
+					swtmap.at<float>(y, x) = 0;						// todo: check whether this may cause problems when grouping
 	}
 
 }
@@ -1548,11 +1867,11 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 	// Check all 8 neighbor pixels of each pixel for similar stroke width and for similar color, then form components with enumerative labels
 
 	int ccmapInitialVal = ccmap.at<float>(0, 0);
-	int offsetX8[] = {-1, 1, -1, 0, 1, -1, 0, 1};
+	int offsetX8[] = {-1, 1, -1, 0, 1, -1, 0, 1};	//{-1, 1, 0, 0};
 	//{ -2, -1,  0,  1,  2, -2, -1,  0,  1,  2, -2, -1,  1,  2, -2, -1,  0,  1,  2, -2, -1,  0,  1,  2 };
-	int offsetY8[] = {0, 0, -1, -1, -1, 1, 1, 1};
+	int offsetY8[] = {0, 0, -1, -1, -1, 1, 1, 1};	//{0, 0, -1, 1};
 	//{ -2, -2, -2, -2, -2, -1, -1, -1, -1, -1,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2 };
-	int nNeighbors = 8;//24;//8;
+	int nNeighbors = 8;	//8;//24;//8;
 	int label = 0;
 
 	int vectorSize = ccmap.rows * ccmap.cols;
@@ -1570,7 +1889,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 	{
 		for (int x = 0; x < ccmap.cols; x++)
 		{
-			bool connected = false;
+			int connected = 0;
 			if (ccmap.at<float>(y, x) == ccmapInitialVal) // if pixel wasn't processed up to now
 			{
 				vectorPointer = 0;
@@ -1582,8 +1901,17 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 				cv::Point3d componentMeanColor(0.,0.,0.);
 //				int addedPixels = 0;
 
+//				if (edgemap_.at<unsigned char>(y, x) == 255)
+//				{
+//					//std::cout << "start on edge at " << x << "," << y << std::endl;
+//					stackPointer = -1;
+//					connected = -1;
+//				}
+
 				while (stackPointer >= 0)
 				{
+//					do
+//					{
 					currentPointX = pStack[stackPointer];
 					currentPointY = pStack[stackPointer + 1];
 					stackPointer -= 2;
@@ -1591,6 +1919,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 					pVector[vectorPointer] = currentPointX;
 					pVector[vectorPointer + 1] = currentPointY;
 					vectorPointer += 2;
+//					} while (stackPointer>=0 && edgemap_.at<unsigned char>(currentPointY, currentPointX) == 255);
 
 					//check which one of the neighbors have similar sw and then label the regions belonging together
 					float meanStrokeWidth = swtmap.at<float>(currentPointY, currentPointX);
@@ -1615,30 +1944,37 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 							float sw1 = swtmap.at<float>(ny, nx);
 							//float meanStrokeWidth = swtmap.at<float>(y, x);
 
-							// compute mean color and intensity for pixel (nx,ny)
-							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
-							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
-							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
-							{
-								int my = ny + offsetY8[i];
-								int mx = nx + offsetX8[i];
-								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
-									continue;
-								intensity += (double)grayImage_.at<unsigned char>(my, mx);
-								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
-							}
-							intensity /= (nNeighbors + 1.);
-							color *= 1./(nNeighbors + 1.);
-							if (componentMeanIntensity == 0.)
-							{
-								componentMeanIntensity = intensity;
-								componentMeanColor = color;
-							}
+//							// compute mean color and intensity for pixel (nx,ny)
+//							double intensity = (double)grayImage_.at<unsigned char>(ny, nx);
+//							cv::Point3d color((double)originalImage_.at<bgr>(ny, nx).b, (double)originalImage_.at<bgr>(ny, nx).g, (double)originalImage_.at<bgr>(ny, nx).r);
+//							for (int i = 0; i < nNeighbors; i++) //check all neighbors of actual neighbor for their color
+//							{
+//								int my = ny + offsetY8[i];
+//								int mx = nx + offsetX8[i];
+//								if (my < 0 || mx < 0 || my >= ccmap.rows || mx >= ccmap.cols)
+//									continue;
+//								intensity += (double)grayImage_.at<unsigned char>(my, mx);
+//								color += cv::Point3d((double)originalImage_.at<bgr>(my, mx).b, (double)originalImage_.at<bgr>(my, mx).g, (double)originalImage_.at<bgr>(my, mx).r);
+//							}
+//							intensity /= (nNeighbors + 1.);
+//							color *= 1./(nNeighbors + 1.);
+//							if (componentMeanIntensity == 0.)
+//							{
+//								componentMeanIntensity = intensity;
+//								componentMeanColor = color;
+//							}
+//
+//							double cdx = (componentMeanColor.x-color.x);
+//							double cdy = (componentMeanColor.y-color.y);
+//							double cdz = (componentMeanColor.z-color.z);
+//							double colorDistance = cdx*cdx + cdy*cdy + cdz*cdz;
 
 							// do the pixels have similar stroke width?
-							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth)) // ||		// todo: ratio between a mean value over the component and sw1 better?
+							if (std::max(sw1, meanStrokeWidth) <= swCompareParameter * std::min(sw1, meanStrokeWidth))
+								// ||		// todo: ratio between a mean value over the component and sw1 better?
 								//	(std::max(sw1, meanStrokeWidth) <= 1.5*swCompareParameter * std::min(sw1, meanStrokeWidth) && (fabs(componentMeanIntensity-intensity) < colorCompareParameter) && (fabs(componentMeanColor.x-color.x) < colorCompareParameter) &&
 								//	(fabs(componentMeanColor.y-color.y) < colorCompareParameter) && (fabs(componentMeanColor.z-color.z) < colorCompareParameter)))
+								//&& (colorDistance < 3*3*colorCompareParameter*colorCompareParameter))
 							{
 //								if (processing_method_ == ORIGINAL_EPSHTEIN)
 //								{
@@ -1646,7 +1982,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 									stackPointer += 2;
 									pStack[stackPointer] = nx;
 									pStack[stackPointer + 1] = ny;
-									connected = true;
+									connected = 1;
 
 									// update mean stroke width
 									meanStrokeWidth = (meanStrokeWidth*addedNeighbors + sw1)/(float)(addedNeighbors+1);
@@ -1689,7 +2025,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 //										stackPointer += 2;
 //										pStack[stackPointer] = nx;
 //										pStack[stackPointer + 1] = ny;
-//										connected = true;
+//										connected = 1;
 //									}
 //								}
 							}
@@ -1697,7 +2033,7 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 					}// loop through neighbors
 				}
 
-				if (connected)
+				if (connected == 1)
 				{
 					ccmap.at<float>(y, x) = label;
 					int minY = ccmap.rows, minX = ccmap.cols, maxY = 0, maxX = 0;
@@ -1716,12 +2052,19 @@ int DetectText::connectComponentAnalysis(const cv::Mat& swtmap, cv::Mat& ccmap)
 					labeledRegions_.push_back(letterRoi);
 					label++;
 				}
-				else
+				else //if (connected == 0)
 					// pixel had no neighbor with similar color and sw
 					ccmap.at<float>(y, x) = -2;
 			}
 		}// loop through ccmap
 	}
+
+//	// clear remaining unset pixels in ccmap (may only happen on unassigned border pixels)
+//	for (int y = 0; y < ccmap.rows; y++)
+//		for (int x = 0; x < ccmap.cols; x++)
+//			if (ccmap.at<float>(y, x) == ccmapInitialVal)
+//				ccmap.at<float>(y, x) = -2;
+
 	return label;
 }
 
@@ -1729,9 +2072,10 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 {
 	// todo: parameter
 	if (processing_method_ == ORIGINAL_EPSHTEIN)
-		minLetterHeight_ = 14; //10;//8;
+		minLetterHeight_ = 11; //14; //10;//8;
 	else
-		minLetterHeight_ = std::max(10, 3 + (originalImage_.rows)/480); //default: 10
+		minLetterHeight_ = 11; //14; //10;//8;
+		//minLetterHeight_ = std::max(10, 3 + (originalImage_.rows)/480); //default: 10
 
 	assert(static_cast<size_t>(nComponent_) == labeledRegions_.size());
 	isLetterRegion_.clear();
@@ -1745,30 +2089,51 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 	nLetter_ = 0;
 
+	labeledRegionPixelCount_.resize(labeledRegions_.size(), 0);
+	labeledRegionCentroids_.resize(labeledRegions_.size());
+
+	bool show_texts = false;
+
 	// For every found component
-	for (size_t i = 0; i < nComponent_; i++)
+	for (size_t compIdx = 0; compIdx < nComponent_; compIdx++)
 	{
 		//std::vector<bool> innerComponents(nComponent_, false);
-		isLetterRegion_[i] = false;
+		isLetterRegion_[compIdx] = false;
 		float maxStrokeWidth = 0;
 		double sumStrokeWidth = 0;
 		float currentStrokeWidth;
 		bool isLetter = true;
 
-		cv::Rect itr = labeledRegions_[i];
+		cv::Rect itr = labeledRegions_[compIdx];
+
+		if (show_texts == true)
+		{
+			cv::Mat output = originalImage_.clone();
+			cv::rectangle(output, cv::Point(labeledRegions_[compIdx].x, labeledRegions_[compIdx].y),
+					cv::Point(labeledRegions_[compIdx].x + labeledRegions_[compIdx].width, labeledRegions_[compIdx].y + labeledRegions_[compIdx].height),
+					cv::Scalar((255), (255), (255)), 1);
+			cv::imshow("current letter candidate", output);
+			cv::waitKey(0);
+		}
 
 		// rule #1: height of component [not used atm]
 		// rotated text leads to problems. 90° rotated 'l' may only be 1 pixel high.
 		// nevertheless it might be convenient to implement another rule like rule #1 to check for size
-		if ((processing_method_==ORIGINAL_EPSHTEIN) && (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_ || itr.area() < 75/*38/*50*/))
+		if (/*(processing_method_==ORIGINAL_EPSHTEIN || processing_method_==BORMANN) &&*/ (itr.height > maxLetterHeight_ || itr.height < minLetterHeight_))// || itr.area() < 30/*75*//*38/*50*/))
+		{
+			if (show_texts == true)
+				std::cout << "rule 1\n";
 			continue;
+		}
 
 		// rule #2: aspect ratio has to be within 0.1 and 10
-		if (processing_method_ == ORIGINAL_EPSHTEIN)
+//		if (processing_method_ == ORIGINAL_EPSHTEIN || processing_method_==BORMANN)
 		{
-			double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
-			isLetter = isLetter && (aspectRatio <= 10.0/*7.0*/);
+			//double aspectRatio = (double)std::max(itr.height, itr.width)/(double)std::min(itr.height, itr.width);
+			isLetter = isLetter && ((double)std::max(itr.height, itr.width) <= 10.0/*7.0*/ * (double)std::min(itr.height, itr.width));
 		}
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 2\n";
 
 		float maxY = itr.y + itr.height;
 		float minY = itr.y;
@@ -1779,12 +2144,16 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 		// compute mean and variance of stroke width
 		std::vector<float> iComponentStrokeWidth;
+//		int neighborhoodX[]={-1, 0, 1, -1, 1, -1, 0, 1};
+//		int neighborhoodY[]={1, 1, 1, 0, 0, -1, -1, -1};
+//		cv::Mat borderPixels = cv::Mat::zeros(maxY-minY, maxX-minX, CV_8UC1);
+//		int numberBorderPixels = 0;
 		for (int y = minY; y < maxY; y++)
 		{
 			for (int x = minX; x < maxX; x++)
 			{
 				int component = static_cast<int>(ccmap.at<float>(y, x)); // ccmap-Label = -2 in case no Region; 0,1,2,3... for every region
-				if (component == static_cast<int>(i))
+				if (component == static_cast<int>(compIdx))
 				{
 					m10 += x;
 					m01 += y;
@@ -1795,26 +2164,47 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 					iComponentStrokeWidth.push_back(currentStrokeWidth);
 					maxStrokeWidth = std::max(maxStrokeWidth, currentStrokeWidth);
 					sumStrokeWidth += currentStrokeWidth;
+
+//					for (int i=0; i<8; ++i)
+//					{
+//						int nx = x+neighborhoodX[i];
+//						int ny = y+neighborhoodY[i];
+//						if (nx>=minX && nx<maxX && ny>=minY && ny<maxY && static_cast<int>(compIdx)!=static_cast<int>(ccmap.at<float>(ny, nx)) && borderPixels.at<uchar>(ny-minY,nx-minX)==0)
+//						{
+//							borderPixels.at<uchar>(ny-minY,nx-minX)=1;
+//							++numberBorderPixels;
+//						}
+//					}
 				}
 //				else if (component >= 0)
 //					innerComponents[component] = true;
 			}
 		}
 		double pixelCount = static_cast<double>(iComponentStrokeWidth.size());
+		labeledRegionPixelCount_[compIdx] = static_cast<int>(iComponentStrokeWidth.size());
 
 		double xc = m10/pixelCount;
 		double yc = m01/pixelCount;
+		labeledRegionCentroids_[compIdx] = cv::Point2d(xc,yc);
 		double af = m20/pixelCount - xc*xc;
 		double bf = 2*m11/pixelCount - xc*yc;
 		double cf = m02/pixelCount - yc*yc;
 		double delta = sqrt(bf * bf + (af - cf) * (af - cf));
 		double momentsRatio = sqrt(std::max(af + cf + delta, af + cf - delta) / std::min(af + cf + delta, af + cf - delta));
+		// rule #3: moments ratio
 		if (momentsRatio > 10.0/*8.0*/)
+		{
+			if (show_texts == true)
+				std::cout << "rule 3\n";
 			continue;
+		}
 
-		// rule #2: remove components that are too small/thin		// todo: reactivate
-//		if (pixelCount < 0.1*itr.area())
-//			continue;
+		// rule #4: remove components that are too small/thin		// todo: reactivate
+		if (pixelCount < 0.1*itr.area())
+			continue;
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 4\n";
+
 
 		double meanStrokeWidth = sumStrokeWidth / pixelCount;
 		double varianceStrokeWidth = 0;
@@ -1822,41 +2212,78 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			varianceStrokeWidth += (iComponentStrokeWidth[ii] - meanStrokeWidth) * (iComponentStrokeWidth[ii] - meanStrokeWidth);
 		varianceStrokeWidth = varianceStrokeWidth / pixelCount;
 
-		// rule #2: variance of stroke width of pixels in region that are part of component
-//		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
+		// rule #5: variance of stroke width of pixels in region that are part of component
+//		std::cout << "varianceStrokeWidth=" << std::sqrt(varianceStrokeWidth) << "   meanStrokeWidth=" << meanStrokeWidth << std::endl;
+		isLetter = isLetter && (std::sqrt(varianceStrokeWidth) <= varianceParameter*meanStrokeWidth);
+//		isLetter = isLetter && (varianceStrokeWidth <= varianceParameter*meanStrokeWidth); (almost no effect on precision, but negative on recall)
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 5\n";
 
-		// rule #3: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
+		// rule #6: diagonal of rect must be smaller than x*medianStrokeWidth     // paper: medianStrokeWidth , original text_detect: maxStrokeWidth
 		// std::sort(iComponentStrokeWidth.begin(), iComponentStrokeWidth.end());
 		// unsigned int medianStrokeWidth = iComponentStrokeWidth[iComponentStrokeWidth.size() / 2];
 		//isLetter = isLetter && (sqrt(((itr.width) * (itr.width) + (itr.height) * (itr.height))) < maxStrokeWidth * diagonalParameter);
 		std::nth_element(iComponentStrokeWidth.begin(), iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2, iComponentStrokeWidth.end());
-		medianStrokeWidth_[i] = *(iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2);
+		medianStrokeWidth_[compIdx] = *(iComponentStrokeWidth.begin()+iComponentStrokeWidth.size()/2);
 //		isLetter = isLetter && (pixelCount > 0.2*itr.area() || sqrt((double)(itr.width)*(itr.width) + (itr.height)*(itr.height)) > medianStrokeWidth_[i] * diagonalParameter);		// todo: reactivate
 
-		// rule #4: pixelCount has to be bigger than maxStrokeWidth * x:
-		if (processing_method_==BORMANN)
-			isLetter = isLetter && (pixelCount > maxStrokeWidth * pixelCountParameter);
+//		// rule #6b: component should be consolidated
+//		if ((double)numberBorderPixels/(double)iComponentStrokeWidth.size() > 1.1)
+//			continue;
 
-		// rule #5: width has to be smaller than x * height (x>1)
+		// rule #7: pixelCount has to be bigger than maxStrokeWidth * x:
+//		if (processing_method_==BORMANN)
+			isLetter = isLetter && (pixelCount > maxStrokeWidth * pixelCountParameter);
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 7\n";
+
+
+		// rule #8: width has to be smaller than x * height (x>1)
 		//  isLetter = isLetter && (itr.width < heightParameter * itr.height);
 
-		// rule #6: number of inner components must be small
+		// rule #9: number of inner components must be small
 		// attention: does not make sense at this place! -> this rule is checked after this loop
 		//isLetter = isLetter && (countInnerLetterCandidates(innerComponents) <= innerLetterCandidatesParameter);
 
-		// rule #7: Ratio of background color / foreground color has to be big.
-		meanRGB_[i] = getMeanIntensity(ccmap, itr, static_cast<int>(i), false);
-		meanBgRGB_[i] = getMeanIntensity(ccmap, itr, static_cast<int>(i), true);
-		if (processing_method_==BORMANN && isLetter)
-		{
-			if (itr.area() > 200) // too small areas have bigger color difference
-				if ((std::abs(meanRGB_[i][0] - meanBgRGB_[i][0]) < clrComponentParameter) ||
-						(std::abs(meanRGB_[i][1]-meanBgRGB_[i][1]) < clrComponentParameter) || (std::abs(meanRGB_[i][2]-meanBgRGB_[i][2]) < clrComponentParameter))
-					if ((std::abs(meanRGB_[i][0]-meanBgRGB_[i][0])) + (std::abs(meanRGB_[i][1]-meanBgRGB_[i][1])) + (std::abs(meanRGB_[i][2]-meanBgRGB_[i][2])) < clrComponentParameter * 4)
-						isLetter = false;
-		}
+		// rule #10: Ratio of background color / foreground color has to be big.
+		meanRGB_[compIdx] = getMeanIntensity(ccmap, itr, static_cast<int>(compIdx), false);
+		meanBgRGB_[compIdx] = getMeanIntensity(ccmap, itr, static_cast<int>(compIdx), true);
+//		if (processing_method_==BORMANN && isLetter)
+//		{
+//			if (itr.area() > 200) // too small areas have bigger color difference
+//				if ((std::abs(meanRGB_[compIdx][0] - meanBgRGB_[compIdx][0]) < clrComponentParameter) ||
+//						(std::abs(meanRGB_[compIdx][1]-meanBgRGB_[compIdx][1]) < clrComponentParameter) || (std::abs(meanRGB_[compIdx][2]-meanBgRGB_[compIdx][2]) < clrComponentParameter))
+//					if ((std::abs(meanRGB_[compIdx][0]-meanBgRGB_[compIdx][0])) + (std::abs(meanRGB_[compIdx][1]-meanBgRGB_[compIdx][1])) + (std::abs(meanRGB_[compIdx][2]-meanBgRGB_[compIdx][2])) < clrComponentParameter * 4)
+//						isLetter = false;
+//		}
 
-		// rule #8 fg gray has to correspond to actual font color
+		// rule 10b: foreground color should not occur too often in background
+		// ---------------------------------------------------------
+		float similarityThreshold = 30.f;
+		int numberSimilarBgPixels = 0;
+		int numberBgPixels = 0;
+		for (int v=minY; v<maxY; ++v)
+		{
+			for (int u=minX; u<maxX; ++u)
+			{
+				if (ccmap.at<float>(v, u)!=static_cast<int>(compIdx))
+				{
+					numberBgPixels++;
+					bgr clr = originalImage_.at<bgr>(v, u);
+					//std::cout << "\nr=" << (float)clr.r << "\tg=" << (float)clr.g << "\tb=" << (float)clr.b;
+					if (std::abs((float)clr.r-meanRGB_[compIdx][0])<similarityThreshold && std::abs((float)clr.g-meanRGB_[compIdx][1])<similarityThreshold && std::abs((float)clr.b-meanRGB_[compIdx][2])<similarityThreshold)
+						numberSimilarBgPixels++;
+				}
+			}
+		}
+//		std::cout << "\n numberSimilarBgPixels=" << numberSimilarBgPixels << "\tnumberBgPixels=" << numberBgPixels << "\tboxPixels=" << (maxX-minX)*(maxY-minY) << std::endl;
+		if ((double)numberSimilarBgPixels > 0.5*numberBgPixels)
+			isLetter=false;
+		if (show_texts == true && isLetter==false)
+			std::cout << "rule 10b\n";
+		// ---------------------------------------------------------
+
+		// rule #11 fg gray has to correspond to actual font color
 		//    if (isLetter)
 		//      if (firstPass_)
 		//        if (meanRGB_[i][3] < 75 || meanBgRGB_[i][3] > 175)
@@ -1864,12 +2291,12 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 		//        else if (meanRGB_[i][3] > 175 || meanBgRGB_[i][3] < 75)
 		//          isLetter = false;
 
-		isLetterRegion_[i] = isLetter;
+		isLetterRegion_[compIdx] = isLetter;
 		if (isLetter)
 			nLetter_++;
 	}
 
-	// rule #6: number of inner components must be small
+	// rule #12: number of inner components must be small
 	for (unsigned int i=0; i<nComponent_; i++)
 	{
 		if (isLetterRegion_[i] == false)
@@ -1901,6 +2328,8 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 		if (countInnerLetterCandidates(innerComponents) > innerLetterCandidatesParameter)
 		{
+			if (show_texts == true)
+				std::cout << "rule 12\n";
 			isLetterRegion_[i] = false;
 			nLetter_--;
 		}
@@ -1943,7 +2372,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				{
 					cv::rectangle(output, cv::Point(labeledRegions_[i].x, labeledRegions_[i].y),
 							cv::Point(labeledRegions_[i].x + labeledRegions_[i].width, labeledRegions_[i].y + labeledRegions_[i].height),
-							cv::Scalar((255), (255), (255)), 1);
+							cv::Scalar(0, 0, 0), 1);
 					for (int y = labeledRegions_[i].y; y < labeledRegions_[i].y + labeledRegions_[i].height; y++)
 						for (int x = labeledRegions_[i].x; x < labeledRegions_[i].x + labeledRegions_[i].width; x++)
 						{
@@ -1960,7 +2389,7 @@ void DetectText::identifyLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 				{
 					cv::rectangle(output, cv::Point(labeledRegions_[i].x, labeledRegions_[i].y),
 							cv::Point(labeledRegions_[i].x + labeledRegions_[i].width, labeledRegions_[i].y + labeledRegions_[i].height),
-							cv::Scalar((0), (0), (0)), 1);
+							cv::Scalar(255, 255, 255), 1);
 					for (int y = labeledRegions_[i].y; y < labeledRegions_[i].y + labeledRegions_[i].height; y++)
 						for (int x = labeledRegions_[i].x; x < labeledRegions_[i].x + labeledRegions_[i].width; x++)
 						{
@@ -2011,24 +2440,24 @@ std::vector<float> DetectText::getMeanIntensity(const cv::Mat& ccmap, const cv::
 			{
 				if (ccmap.at<float>(y, x) != felement)
 				{
-					graySum += static_cast<float> (grayImage_.at<unsigned char>(y, x));
+					graySum += static_cast<double> (grayImage_.at<unsigned char>(y, x));
 					count++;
 					clr = originalImage_.at<bgr>(y, x);
-					rSum += (float) clr.r;
-					bSum += (float) clr.b;
-					gSum += (float) clr.g;
+					rSum += (double) clr.r;
+					bSum += (double) clr.b;
+					gSum += (double) clr.g;
 				}
 			}
 			else // foreground pixel color, means letter color
 			{
 				if (ccmap.at<float>(y, x) == felement)
 				{
-					graySum += static_cast<float>(grayImage_.at<unsigned char>(y, x));
+					graySum += static_cast<double>(grayImage_.at<unsigned char>(y, x));
 					count+=1.;
 					clr = originalImage_.at<bgr>(y, x);
-					rSum += (float) clr.r;
-					bSum += (float) clr.b;
-					gSum += (float) clr.g;
+					rSum += (double) clr.r;
+					bSum += (double) clr.b;
+					gSum += (double) clr.g;
 				}
 			}
 		}
@@ -2046,6 +2475,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 	// group 2 letterboxes together if they fit
 
 	//std::vector<float> medianSw(nComponent_);
+
 
 	double largeLetterCountFactor = 1.0;
 	if (nLetter_ > 200)
@@ -2066,39 +2496,76 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 			cv::Rect jRect = labeledRegions_[j];
 
+			cv::Mat output;
+			if (debug["showPairs"])
+				output = originalImage_.clone();
+
 			// rule 1: distance between components
-			double dx = (iRect.x+iRect.width/2 - jRect.x-jRect.width/2);
-			double dy = (iRect.y+iRect.height/2 - jRect.y-jRect.height/2);
+			double dx = labeledRegionCentroids_[j].x-labeledRegionCentroids_[i].x;	//(jRect.x-jRect.width/2 - iRect.x+iRect.width/2);
+			double dy = labeledRegionCentroids_[j].y-labeledRegionCentroids_[i].y;	//(jRect.y-jRect.height/2 - iRect.y+iRect.height/2);
 			double distance = sqrt(dx*dx + dy*dy);
 
 			double iDiagonal = sqrt(iRect.height * iRect.height + iRect.width * iRect.width);
 			double jDiagonal = sqrt(jRect.height * jRect.height + jRect.width * jRect.width);
 
 			// rule 1a: distance of two letters must be small enough
-			if (processing_method_==ORIGINAL_EPSHTEIN)
-			{
+//			if (processing_method_==ORIGINAL_EPSHTEIN)
+//			{
 //				if (distance > std::max(iRect.width, jRect.width) * distanceRatioParameter * largeLetterCountFactor)
 //					continue;
-				if (std::abs(dx) > std::max(iRect.width, jRect.width) * distanceRatioParameter) // * largeLetterCountFactor)
+				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter) // * largeLetterCountFactor)
 					continue;
-			}
-			else
+//				if (std::abs(dx) > std::max(iRect.width, jRect.width) * distanceRatioParameter) // * largeLetterCountFactor)
+//				{
+////					if (debug["showPairs"])
+////						std::cout << "rule 1a violated\n";
+//					continue;
+//				}
+//			}
+//			else
+//			{
+//				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter) // * largeLetterCountFactor)
+//					continue;
+//			}
+
+			// special thresholds for narrow letters like i
+			double heightRatioThreshold = 2.0;
+			double diagonalRatioParameter = diagonalRatioParameter_;
+			if (labeledRegionPixelCount_[i]>0.8*iRect.area() || labeledRegionPixelCount_[j]>0.8*jRect.area())
 			{
-				if (distance > std::min(iDiagonal, jDiagonal) * distanceRatioParameter * largeLetterCountFactor)
-					continue;
+				heightRatioThreshold = 2.3;
+				diagonalRatioParameter = 2.75;
 			}
 
 			// rule 1b: height ratio between two letters must be small enough
-			if (processing_method_==ORIGINAL_EPSHTEIN)
-				if ((double)std::max(iRect.height, jRect.height) > /*1.7*//*2.2*/2.0 * (double)std::min(iRect.height, jRect.height))
+			if (processing_method_==ORIGINAL_EPSHTEIN || processing_method_==BORMANN)
+				if ((double)std::max(iRect.height, jRect.height) > /*1.7*//*2.2*/ heightRatioThreshold * (double)std::min(iRect.height, jRect.height))
+				{
+//					if (debug["showPairs"])
+//						std::cout << "rule 1b violated\n";
 					continue;
+				}
 
 			// rule 1c: vertical overlap should be large
-			if (processing_method_==ORIGINAL_EPSHTEIN)
+			if (processing_method_==ORIGINAL_EPSHTEIN)// || processing_method_==BORMANN)
 			{
 				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
-				if (verticalOverlap * /*1.3*/1.5 < std::min(iRect.height, jRect.height))
+				if (verticalOverlap * /*1.3*/ 1.5 < std::min(iRect.height, jRect.height))
+				{
+//					if (debug["showPairs"])
+//						std::cout << "rule 1c violated\n";
 					continue;
+				}
+			}
+			else if (processing_method_==BORMANN)
+			{
+				int verticalOverlap = std::min(iRect.y + iRect.height, jRect.y + jRect.height) - std::max(iRect.y, jRect.y);
+				if (verticalOverlap * /*1.3*/ 5.0 < std::min(iRect.height, jRect.height))
+				{
+//					if (debug["showPairs"])
+//						std::cout << "rule 1c violated\n";
+					continue;
+				}
 			}
 
 			//medianSw[i] = getMedianStrokeWidth(ccmap, swtmap, iRect, static_cast<int>(i));
@@ -2107,25 +2574,38 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			int negativeScore = 0; //high score is bad
 
 			// rule 2: median of stroke width ratio
+//			std::cout << "medianStrokeWidth_[i]=" << medianStrokeWidth_[i] << "  medianStrokeWidth_[j]=" << medianStrokeWidth_[j] << std::endl;
 			if (std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > medianSwParameter * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])) // &&
 					//(std::abs(meanRGB_[i][3] - meanRGB_[j][3]) < 0.4*grayClrParameter && std::max(medianStrokeWidth_[i], medianStrokeWidth_[j]) > 2.5 * std::min(medianStrokeWidth_[i], medianStrokeWidth_[j])))
+			{
+//				if (debug["showPairs"])
+//					std::cout << "rule 2 violated: medianStrokeWidth_[i]=" << medianStrokeWidth_[i] << "\tmedianStrokeWidth_[j]=" << medianStrokeWidth_[j] << "\n";
 				negativeScore++;
+			}
 
-//			// rule 3: diagonal ratio
-//			if (std::max(iDiagonal, jDiagonal) > diagonalRatioParamter * std::min(iDiagonal, jDiagonal))
-//				negativeScore++;
+			// rule 3: diagonal ratio
+			if (std::max(iDiagonal, jDiagonal) > diagonalRatioParameter * std::min(iDiagonal, jDiagonal))
+			{
+//				if (debug["showPairs"])
+//					std::cout << "rule 3 violated\n";
+				negativeScore++;
+			}
 
 			// rule 4: average gray color of letters
 			if (std::abs(meanRGB_[i][3] - meanRGB_[j][3]) > grayClrParameter)
+			{
+//				if (debug["showPairs"])
+//					std::cout << "rule 4 violated\n";
 				negativeScore++;
+			}
 
 //			if ((iRect & jRect).area() > 0.25 * std::min(iRect.area(), jRect.area()))
 //				negativeScore++;
 
-			if (processing_method_==BORMANN)
+			if (processing_method_==20/*BORMANN*/)
 			{
 //				// rule 3: diagonal ratio
-//				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParamter)
+//				if ((std::max(iDiagonal, jDiagonal) / std::min(iDiagonal, jDiagonal)) > diagonalRatioParameter_)
 //					negativeScore++;
 
 //				// rule 4: average gray color of letters
@@ -2153,7 +2633,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			//   score++;
 
 			// rule #7: Areas of components have to be ~similiar
-			if (processing_method_==BORMANN)
+			if (processing_method_==20/*BORMANN*/)
 			{
 				if ((std::max(iRect.area(), jRect.area()) / (float) std::min(iRect.area(), jRect.area())) > areaParameter)
 					if (std::max(iRect.height, jRect.height) / (float) std::min(iRect.height, jRect.height) > areaParameter * 0.8)
@@ -2184,7 +2664,7 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 			//      }
 
 			bool isGroup = true;
-			if (processing_method_==ORIGINAL_EPSHTEIN)
+			if (processing_method_==ORIGINAL_EPSHTEIN || processing_method_==BORMANN)
 			{
 				if (negativeScore > 0)
 					isGroup = false;
@@ -2197,7 +2677,27 @@ void DetectText::groupLetters(const cv::Mat& swtmap, const cv::Mat& ccmap)
 
 
 			if (isGroup==true)
+			{
 				letterGroups_.push_back(Pair(i, j, dx, dy));
+				//std::cout << "new pair index=" << letterGroups_.size()-1 << std::endl;
+
+				if (debug["showPairs"])
+				{
+					cv::rectangle(output, iRect, cv::Scalar((25 * i + 100) % 255, (35 * (i + 1) + 100) % 255, (45 * (i + 2) + 100) % 255), 1);
+					cv::rectangle(output, jRect, cv::Scalar((25 * i + 100) % 255, (35 * (i + 1) + 100) % 255, (45 * (i + 2) + 100) % 255), 1);
+					if (firstPass_)
+					{
+						cv::imshow("bright pairs", output);
+						cvMoveWindow("bright pairs", 0, 0);
+					}
+					else
+					{
+						cv::imshow("dark pairs", output);
+						cvMoveWindow("dark pairs", 0, 0);
+					}
+					cv::waitKey(0);
+				}
+			}
 
 		}// end for loop j
 	}// end for loop i
@@ -2226,46 +2726,15 @@ float DetectText::getMedianStrokeWidth(const cv::Mat& ccmap, const cv::Mat& swtm
 }
 
 // merges letterGroups_ to chains of letters, finds bounding box of these chains and creates the textRegions data structure
-void DetectText::chainPairs(std::vector<TextRegion>& textRegions)
+void DetectText::chainPairs(std::vector<TextRegion>& textRegions, const cv::Mat& ccmap)
 {
-	if (debug["showPairs"])
-	{
-		cv::Mat output = originalImage_.clone();
-
-		for (unsigned int i = 0; i < letterGroups_.size(); i++)
-		{
-			cv::rectangle(
-					output,
-					cv::Point(labeledRegions_.at(letterGroups_[i].left).x, labeledRegions_.at(letterGroups_[i].left).y),
-					cv::Point(labeledRegions_.at(letterGroups_[i].left).x + labeledRegions_.at(letterGroups_[i].left).width,
-							labeledRegions_.at(letterGroups_[i].left).y + labeledRegions_.at(letterGroups_[i].left).height),
-					cv::Scalar((25 * i + 100) % 255, (35 * (i + 1) + 100) % 255, (45 * (i + 2) + 100) % 255), 1);
-			cv::rectangle(
-					output,
-					cv::Point(labeledRegions_.at(letterGroups_[i].right).x, labeledRegions_.at(letterGroups_[i].right).y),
-					cv::Point(labeledRegions_.at(letterGroups_[i].right).x + labeledRegions_.at(letterGroups_[i].right).width,
-							labeledRegions_.at(letterGroups_[i].right).y + labeledRegions_.at(letterGroups_[i].right).height),
-					cv::Scalar((25 * i + 100) % 255, (35 * (i + 1) + 100) % 255, (45 * (i + 2) + 100) % 255), 1);
-
-			if (firstPass_)
-			{
-				cv::imshow("bright pairs", output);
-				cvMoveWindow("bright pairs", 0, 0);
-			}
-			else
-			{
-				cv::imshow("dark pairs", output);
-				cvMoveWindow("dark pairs", 0, 0);
-			}
-			cv::waitKey(0);
-		}
-	}
-
 	std::vector<std::vector<int> > chains;		// contains letters that belong to the same region, outer index=region index, inner index=letter index (refers to index of labeledRegions)
 	mergePairs(letterGroups_, chains);		// put letters of same regions into one group, yields several of those groups
 
+	std::cout << "chains: " << chains.size() << std::endl;
+
 	//std::vector<cv::Rect> initialBoxes;
-	chainToBox(chains, /*initialBoxes,*/ textRegions); //initialHorizontalBoxes contains rects for every chain component with more than two components(letters)
+	chainToBox(chains, ccmap, /*initialBoxes,*/ textRegions); //initialHorizontalBoxes contains rects for every chain component with more than two components(letters)
 
 	if (debug["showChains"])
 	{
@@ -2287,37 +2756,196 @@ void DetectText::chainPairs(std::vector<TextRegion>& textRegions)
 	}
 }
 
-void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions)
+void DetectText::chainToBox(std::vector<std::vector<int> >& chains, const cv::Mat& ccmap, /*std::vector<cv::Rect>& boundingBox,*/ std::vector<TextRegion>& textRegions)
 {
+//	// for all possible letter rects
+//	for (size_t i = 0; i < labeledRegions_.size(); i++)
+//	{
+//		if (isLetterRegion_[i]==false || 2*labeledRegions_[i].height<originalImage_.rows || 3*labeledRegions_[i].width<originalImage_.cols)
+//			continue;
+//
+//		chains.push_back(std::vector<int>(1, i));
+//		std::cout << "big letter added\n";
+//	}
+
 	for (size_t i = 0; i < chains.size(); i++)
 	{
 		if (chains[i].size() < 3) //Only words with more than 2 letters	// todo: param
-			continue;
+			//if (chains[i].size()==2)
+				continue;
+
+		//std::cout << "chainToBox on chain " << i << std::endl;
 
 		int minX = grayImage_.cols, minY = grayImage_.rows, maxX = 0, maxY = 0;
 		int letterAreaSum = 0;
 		int padding = 0;		// todo: param
 
+		std::vector<cv::Point> pointvector;		// collects border points for rotated bounding box
 		TextRegion textRegion;
+		std::vector<float> meanRGB(3, 0.f);
 		for (size_t j = 0; j < chains[i].size(); j++)
 		{
 			cv::Rect itr = labeledRegions_[chains[i][j]];
+
+			for (unsigned int c=0; c<meanRGB.size(); ++c)
+				meanRGB[c] += meanRGB_[chains[i][j]][c];
+
 			letterAreaSum += itr.width * itr.height;
 			minX = std::min(minX, itr.x);
 			minY = std::min(minY, itr.y);
 			maxX = std::max(maxX, itr.x + itr.width);
 			maxY = std::max(maxY, itr.y + itr.height);
 
+			pointvector.push_back(cv::Point(itr.x, itr.y));
+			pointvector.push_back(cv::Point(itr.x, itr.y+itr.height));
+			pointvector.push_back(cv::Point(itr.x+itr.width, itr.y));
+			pointvector.push_back(cv::Point(itr.x+itr.width, itr.y+itr.height));
+
 			Letter letter;
 			letter.boundingBox = itr;
 			letter.diameter = sqrt(itr.width*itr.width + itr.height*itr.height);
-			letter.centerPoint = cv::Point2d(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
+			letter.centerPoint = labeledRegionCentroids_[chains[i][j]]; //cv::Point2d(itr.x + 0.5 * (double)itr.width, itr.y + 0.5 * (double)itr.height);
 			if (firstPass_)
 				letter.fontColor = BRIGHT;
 			else
 				letter.fontColor = DARK;
 			textRegion.letters.push_back(letter);
 		}
+		// ---------------------------------------------------------
+		// remove chains who have the same foreground color as most of the background has
+		for (unsigned int c=0; c<meanRGB.size(); ++c)
+		{
+			meanRGB[c] /= (float)chains[i].size();
+			//std::cout << "meanRGB[" << c << "]=" << meanRGB[c] << "\t";
+		}
+
+		// count pixels of similar color to foreground in background
+		float similarityThreshold = 30.f;
+		int numberSimilarBgPixels = 0;
+		int numberBgPixels = 0;
+		for (int v=minY; v<maxY; ++v)
+		{
+			for (int u=minX; u<maxX; ++u)
+			{
+				bool isBgPixel = true;
+				for (size_t j = 0; j < chains[i].size(); j++)
+					if (ccmap.at<float>(v, u)==(float)chains[i][j])
+						isBgPixel = false;
+				if (isBgPixel==true)
+				{
+					numberBgPixels++;
+					bgr clr = originalImage_.at<bgr>(v, u);
+					//std::cout << "\nr=" << (float)clr.r << "\tg=" << (float)clr.g << "\tb=" << (float)clr.b;
+					if (std::abs((float)clr.r-meanRGB[0])<similarityThreshold && std::abs((float)clr.g-meanRGB[1])<similarityThreshold && std::abs((float)clr.b-meanRGB[2])<similarityThreshold)
+						numberSimilarBgPixels++;
+				}
+			}
+		}
+		//std::cout << "\n numberSimilarBgPixels=" << numberSimilarBgPixels << "\tnumberBgPixels=" << numberBgPixels << "\tboxPixels=" << (maxX-minX)*(maxY-minY) << std::endl;
+		if ((double)numberSimilarBgPixels > 0.3*numberBgPixels)		// todo: increase 0.3 if little more recall needed
+			continue;
+		// ---------------------------------------------------------
+
+//		// ---------------------------------------------------------
+//		// remove chains that belong to a regular pattern
+//		// 1. bounding box height/width grouping
+//		std::vector<cv::Point2f> appearanceGroupsWh;
+//		std::vector<int> appearanceGroupsCount;
+//		std::vector<std::vector<int> > appearanceGroupsIndices;
+//		double whThreshold = 0.4;	// in [pixel deviation/pixel width]
+//		for (unsigned int l=0; l<textRegion.letters.size(); ++l)
+//		{
+//			cv::Rect& bb = textRegion.letters[l].boundingBox;
+//			bool found = false;
+//			for (unsigned int a=0; a<appearanceGroupsWh.size(); ++a)
+//			{
+//				if ((appearanceGroupsWh[a].x-bb.width)*(appearanceGroupsWh[a].x-bb.width)+(appearanceGroupsWh[a].y-bb.height)*(appearanceGroupsWh[a].y-bb.height) < (whThreshold*appearanceGroupsWh[a].x)*(whThreshold*appearanceGroupsWh[a].x))
+//				{
+//					appearanceGroupsWh[a].x = (appearanceGroupsWh[a].x*appearanceGroupsCount[a]+bb.width)/(float)(appearanceGroupsCount[a]+1);
+//					appearanceGroupsWh[a].y = (appearanceGroupsWh[a].y*appearanceGroupsCount[a]+bb.height)/(float)(appearanceGroupsCount[a]+1);
+//					++(appearanceGroupsCount[a]);
+//					appearanceGroupsIndices[a].push_back(l);
+//					found = true;
+//					break;
+//				}
+//			}
+//			if (found == false)
+//			{
+//				appearanceGroupsWh.push_back(cv::Point2f(bb.width, bb.height));
+//				appearanceGroupsCount.push_back(1);
+//				appearanceGroupsIndices.push_back(std::vector<int>(1,l));
+//			}
+//		}
+//		bool validBox = true;
+//		for (unsigned int a=0; a<appearanceGroupsCount.size(); ++a)
+//		{
+//			if (appearanceGroupsCount[a] > 0.75*textRegion.letters.size())
+//			{
+//				// 2. color grouping
+//				std::vector<std::vector<float> > appearanceGroupsColor;
+//				std::vector<int> appearanceGroupsColorCount;
+//				for (unsigned int l=0; l<appearanceGroupsIndices[a].size(); ++l)
+//				{
+//					cv::Rect& bb = textRegion.letters[appearanceGroupsIndices[a][l]].boundingBox;
+//
+//					// compute color descriptor for letter
+//					double step=0.2;
+//					std::vector<float> meanRGB2(25*3, 0.f);
+//					int insertPosition = 0;
+//					for (double sy=0.; sy<1.; sy+=step)
+//					{
+//						for (double sx=0.; sx<1.; sx+=step)
+//						{
+//							int pixels = 0;
+//							for (int v=bb.y+sy*bb.height; v<bb.y+(sy+step)*bb.height; ++v)
+//							{
+//								for (int u=bb.x+sx*bb.width; u<bb.x+(sx+step)*bb.width; ++u)
+//								{
+//									bgr clr = originalImage_.at<bgr>(v, u);
+//									meanRGB2[insertPosition] += clr.r;
+//									meanRGB2[insertPosition+1] += clr.g;
+//									meanRGB2[insertPosition+2] += clr.b;
+//									pixels++;
+//								}
+//							}
+//							for (int i=0; i<3; ++i)
+//								meanRGB2[insertPosition+i] /= (float)pixels;
+//							insertPosition += 3;
+//						}
+//					}
+//
+//					// compare to existing groups
+//					bool found = false;
+//					for (unsigned int a2=0; a2<appearanceGroupsColor.size(); ++a2)
+//					{
+//						double dist = 0.;
+//						for (unsigned int c=0; c<meanRGB2.size(); c++)
+//							dist += (meanRGB2[c]-appearanceGroupsColor[a2][c])*(meanRGB2[c]-appearanceGroupsColor[a2][c]);
+//						if (dist < (3*meanRGB2.size())*(3*meanRGB2.size()))
+//						{
+//							for (unsigned int c=0; c<meanRGB2.size(); c++)
+//								appearanceGroupsColor[a2][c] = (appearanceGroupsColor[a2][c]*appearanceGroupsColorCount[a2]+meanRGB2[c])/(float)(appearanceGroupsColorCount[a2]+1);
+//							appearanceGroupsColorCount[a2]++;
+//							found=true;
+//							break;
+//						}
+//					}
+//					if (found==false)
+//					{
+//						appearanceGroupsColor.push_back(meanRGB2);
+//						appearanceGroupsColorCount.push_back(1);
+//					}
+//				}
+//				for (unsigned int b=0; b<appearanceGroupsColorCount.size(); ++b)
+//				{
+//					if (appearanceGroupsColorCount[b] > 0.75*textRegion.letters.size())
+//						validBox = false;
+//				}
+//			}
+//		}
+//		if (validBox == false)
+//			continue;
+//		// ---------------------------------------------------------
 
 		// add padding around each box
 		minX = std::max(0, minX - padding);
@@ -2327,30 +2955,27 @@ void DetectText::chainToBox(std::vector<std::vector<int> >& chains, /*std::vecto
 
 		//boundingBox.push_back(cv::Rect(minX, minY, maxX - minX, maxY - minY));
 		textRegion.boundingBox = cv::Rect(minX, minY, maxX - minX, maxY - minY);
+		textRegion.originalChainBoundingBox = textRegion.boundingBox;
+		textRegion.originalChainID = i;
 
-		if (textRegion.boundingBox.width > 2.0/*1.9*/ * textRegion.boundingBox.height)
+//		cv::RotatedRect rr = cv::minAreaRect(pointvector);
+		//std::cout << "textRegion.boundingBox.width=" << textRegion.boundingBox.width << "  textRegion.boundingBox.height=" << textRegion.boundingBox.height << std::endl;
+		if (textRegion.boundingBox.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * textRegion.boundingBox.height)
+// todo:		if (rr.size.width > (textRegion.letters.size()<=3 ? 0.25*textRegion.letters.size() : 2.0)/*std::min(textRegion.letters.size()*0.25/*0.5*//*,2.0)*/ /*2.0/*1.9*/ * rr.size.height)
 			textRegions.push_back(textRegion);
 	}
-}
 
-bool DetectText::sameTextline(const TextRegion& a, const TextRegion& b)
-{
-	int width = std::min(a.boundingBox.x + a.boundingBox.width, b.boundingBox.x + b.boundingBox.width) - std::max(a.boundingBox.x, b.boundingBox.x);
-	int height = std::min(a.boundingBox.y + a.boundingBox.height, b.boundingBox.y + b.boundingBox.height) - std::max(a.boundingBox.y, b.boundingBox.y);
-	/* overlapped 10% */
-	return (width > 0 && height > 0 &&
-			width * height > /*0.1*/0.5 * std::max(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height) &&
-			width * height > /*0.8*/0.9 * std::min(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height));
+//	std::cout << "textRegions.size()=" << textRegions.size() << "\n";
 }
 
 bool DetectText::pairsInLine(const Pair& a, const Pair& b)
 {
 	if (a.left==b.left || a.right==b.right)		// todo: use arbitrary angles
 	{
-		int tn = a.dy * b.dx - a.dx * b.dy;
-		int td = a.dx * b.dx + a.dy * b.dy;
+		int tn = a.dy * b.dx - a.dx * b.dy;		// sine between both vectors without normalization (sine(a) = cos(90-a))
+		int td = a.dx * b.dx + a.dy * b.dy;		// cosine between both vectors without normalization
 		// share the same end, opposite direction
-		if (tn * 7 < -td * 4 && tn * 7 > td * 4)
+		if ((td < 0) && (tn*7 > td*4) && (tn*7 < -td*4))		// tan(30deg)=4/7 -> tan(-30) < tan(a) < tan(30) && scalar product between both vectors is negative
 			return true;
 	}
 	else if (a.left==b.right || a.right==b.left)
@@ -2358,7 +2983,7 @@ bool DetectText::pairsInLine(const Pair& a, const Pair& b)
 		int tn = a.dy * b.dx - a.dx * b.dy;
 		int td = a.dx * b.dx + a.dy * b.dy;
 		// share the other end, same direction
-		if (tn * 7 < td * 4 && tn * 7 > -td * 4)
+		if ((td > 0) && (tn*7 < td*4) && (tn*7 > -td*4))		// tan(30deg)=4/7 -> tan(-30) < tan(a) < tan(30) && scalar product between both vectors is positive
 			return true;
 	}
 	return false;
@@ -2383,6 +3008,8 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			root = nodes[root].parent;
 		for (unsigned int j=0; j<groups.size(); j++)
 		{
+			//std::cout << "group i=" << i << " j=" << j << "  groups[i].left=" << groups[i].left << "  groups[i].right=" << groups[i].right << "  groups[j].left=" << groups[j].left << "  groups[j].right=" << groups[j].right << std::endl;
+
 			if (i!=j && pairsInLine(groups[nodes[i].element], groups[nodes[j].element])==true)
 			{
 				int root2 = j;
@@ -2414,6 +3041,7 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 						nodes[node].parent = root;
 						node = temp;
 					}
+					//std::cout << "   parent=" << root<<std::endl;
 				}
 			}
 		}
@@ -2430,7 +3058,10 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			nodes[root].rank = ~classIndex++;
 
 		int insertIndex = ~nodes[root].rank;
-		if (insertIndex+1 < (int)chains.size())
+
+		//std::cout << "group=" << i << "   root=" << root << "  insertIndex=" << insertIndex << std::endl;
+
+		if (insertIndex/*+1*/ < (int)chains.size())
 		{
 			// add new letters to chain (do not add if the letter is already in the list)
 			for (int letterNumber=0; letterNumber<2; letterNumber++)
@@ -2452,6 +3083,15 @@ void DetectText::mergePairs(const std::vector<Pair>& groups, std::vector< std::v
 			chains[insertIndex].push_back(groups[i].right);
 		}
 	}
+
+//	std::cout << "chains:\n";
+//	for (unsigned int i=0; i<chains.size(); ++i)
+//	{
+//		std::cout << i << ":";
+//		for (unsigned int j=0; j<chains[i].size(); ++j)
+//			std::cout << "\t" << chains[i][j];
+//		std::cout << "\n";
+//	}
 
 //	// ------------ old code (does not obey direction of merged pairs) --------------
 //
@@ -2558,6 +3198,128 @@ void DetectText::merge(const std::vector<int>& token, std::vector<int>& chain)
 			chain.push_back(token[i]);
 		}
 	}
+}
+
+bool DetectText::sameTextline(const TextRegion& a, const TextRegion& b)
+{
+	int width = std::min(a.boundingBox.x + a.boundingBox.width, b.boundingBox.x + b.boundingBox.width) - std::max(a.boundingBox.x, b.boundingBox.x);
+	int height = std::min(a.boundingBox.y + a.boundingBox.height, b.boundingBox.y + b.boundingBox.height) - std::max(a.boundingBox.y, b.boundingBox.y);
+	/* overlapped 10% */
+	return (width > 0 && height > 0 &&
+			width * height > /*0.1*/0.5 * std::max(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height) &&
+			width * height > /*0.8*/0.9 * std::min(a.boundingBox.width * a.boundingBox.height, b.boundingBox.width * b.boundingBox.height));
+}
+
+void DetectText::mergeTextRegionsAtSameTextline(std::vector<TextRegion>& textRegions)
+{
+	std::vector<TreeNode> nodes(textRegions.size());
+	for (unsigned int i=0; i<textRegions.size(); i++)
+	{
+		nodes[i].parent = -1;
+		nodes[i].rank = 0;
+		nodes[i].element = i;
+	}
+	for (unsigned int i=0; i<textRegions.size(); i++)
+	{
+		int root = i;
+		while (nodes[root].parent != -1)
+			root = nodes[root].parent;
+		for (unsigned int j=0; j<textRegions.size(); j++)
+		{
+			if (i!=j && sameTextline(textRegions[nodes[i].element], textRegions[nodes[j].element])==true)
+			{
+//				cv::Mat mergeImage1 = image.clone();
+//				cv::rectangle(mergeImage1, cv::Point(textRegions[nodes[i].element].boundingBox.x,textRegions[nodes[i].element].boundingBox.y), cv::Point(textRegions[nodes[i].element].boundingBox.x+textRegions[nodes[i].element].boundingBox.width,textRegions[nodes[i].element].boundingBox.y+textRegions[nodes[i].element].boundingBox.height), cv::Scalar(255,0,255));
+//				cv::rectangle(mergeImage1, cv::Point(textRegions[nodes[j].element].boundingBox.x,textRegions[nodes[j].element].boundingBox.y), cv::Point(textRegions[nodes[j].element].boundingBox.x+textRegions[nodes[j].element].boundingBox.width,textRegions[nodes[j].element].boundingBox.y+textRegions[nodes[j].element].boundingBox.height), cv::Scalar(255,0,255));
+//				cv::imshow("merged lines pre", mergeImage1);
+//				cv::waitKey();
+
+				int root2 = j;
+				while (nodes[root2].parent != -1)
+					root2 = nodes[root2].parent;
+
+				if (root != root2)
+				{
+					if(nodes[root].rank > nodes[root2].rank)
+						nodes[root2].parent = root;
+					else
+					{
+						nodes[root].parent = root2;
+						nodes[root2].rank += (nodes[root].rank==nodes[root2].rank ? 1 : 0);
+						root = root2;
+					}
+
+					// collapse a branch to direct children of root
+					int node = j;
+					while(nodes[node].parent != -1)
+					{
+						int temp = nodes[node].parent;
+						nodes[node].parent = root;
+						node = temp;
+					}
+					node = i;
+					while(nodes[node].parent != -1)
+					{
+						int temp = nodes[node].parent;
+						nodes[node].parent = root;
+						node = temp;
+					}
+				}
+			}
+		}
+	}
+
+	// merge textline pairs
+//	cv::Mat mergeImage = image.clone();
+	std::vector<TextRegion> mergedTextRegions;
+	int classIndex = 0;
+	for (unsigned int i=0; i<textRegions.size(); i++)
+	{
+		int root = i;
+		while (nodes[root].parent != -1)
+			root = nodes[root].parent;
+		if (nodes[root].rank >= 0)
+			nodes[root].rank = ~classIndex++;
+
+		int insertIndex = ~nodes[root].rank;
+
+//		std::cout << "i=" << i << "  root=" << root << "   insertIndex=" << insertIndex << "   mergedTextRegions=" << mergedTextRegions.size() << std::endl;
+
+		if (insertIndex < (int)mergedTextRegions.size())
+		{
+			// check whether to keep or replace the existing text region
+//			cv::rectangle(mergeImage, cv::Point(textRegions[i].boundingBox.x,textRegions[i].boundingBox.y), cv::Point(textRegions[i].boundingBox.x+textRegions[i].boundingBox.width,textRegions[i].boundingBox.y+textRegions[i].boundingBox.height), cv::Scalar(255,0,255));
+//			cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(255,0,255));
+//			cv::imshow("merged lines", mergeImage);
+//			cv::waitKey();
+			if (mergedTextRegions[insertIndex].boundingBox.width < textRegions[i].boundingBox.width)
+			{
+//				cv::rectangle(mergeImage, cv::Point(textRegions[i].boundingBox.x,textRegions[i].boundingBox.y), cv::Point(textRegions[i].boundingBox.x+textRegions[i].boundingBox.width,textRegions[i].boundingBox.y+textRegions[i].boundingBox.height), cv::Scalar(0,255,0));
+//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,0,255));
+//				cv::imshow("merged lines", mergeImage);
+//				std::cout<< "replace\n";
+//				cv::waitKey();
+				mergedTextRegions[insertIndex] = textRegions[i];
+			}
+//			else
+//			{
+//				cv::rectangle(mergeImage, cv::Point(textRegions[i].boundingBox.x,textRegions[i].boundingBox.y), cv::Point(textRegions[i].boundingBox.x+textRegions[i].boundingBox.width,textRegions[i].boundingBox.y+textRegions[i].boundingBox.height), cv::Scalar(0,0,255));
+//				cv::rectangle(mergeImage, cv::Point(mergedTextRegions[insertIndex].boundingBox.x,mergedTextRegions[insertIndex].boundingBox.y), cv::Point(mergedTextRegions[insertIndex].boundingBox.x+mergedTextRegions[insertIndex].boundingBox.width,mergedTextRegions[insertIndex].boundingBox.y+mergedTextRegions[insertIndex].boundingBox.height), cv::Scalar(0,255,0));
+//				cv::imshow("merged lines", mergeImage);
+//				std::cout<< "keep\n";
+//				cv::waitKey();
+//			}
+		}
+		else
+		{
+			// create text region
+//			cv::rectangle(mergeImage, cv::Point(textRegions[i].boundingBox.x,textRegions[i].boundingBox.y), cv::Point(textRegions[i].boundingBox.x+textRegions[i].boundingBox.width,textRegions[i].boundingBox.y+textRegions[i].boundingBox.height), cv::Scalar(255,0,0));
+//			cv::imshow("merged lines", mergeImage);
+//			cv::waitKey();
+			mergedTextRegions.push_back(textRegions[i]);
+		}
+	}
+	textRegions = mergedTextRegions;
 }
 
 void DetectText::filterBoundingBoxes(std::vector<cv::Rect>& boundingBoxes, cv::Mat& ccmap, int rejectRatio)
@@ -3978,16 +4740,17 @@ void DetectText::ocrRead(std::vector<cv::Mat> textImages)
 				smallestElement = i - 1;
 
 		if (score[smallestElement] < 100) // if anything was found in the ocr software
-		{
 			finalTexts_.push_back(result[smallestElement]);
-			finalScores_.push_back(score[smallestElement]);
+		else
+			finalTexts_.push_back("");
+		finalScores_.push_back(score[smallestElement]);
 
-			if (transformImages)
-				finalBoxes_.push_back(finalRotatedBoundingBoxes_[(std::floor(smallestElement / (float) 2))]);
-			else
-				finalBoxes_.push_back(finalRotatedBoundingBoxes_[smallestElement]);
+		if (transformImages)
+			finalBoxes_.push_back(finalRotatedBoundingBoxes_[(std::floor(smallestElement / (float) 2))]);
+		else
+			finalBoxes_.push_back(finalRotatedBoundingBoxes_[smallestElement]);
 
-		}
+//		}
 		//      else if(debug["showAllBoxes"])
 		//      {
 		//        finalTexts_.push_back("---");
@@ -3995,6 +4758,7 @@ void DetectText::ocrRead(std::vector<cv::Mat> textImages)
 		//        finalScores_.push_back(score[smallestElement]);
 		//      }
 
+		std::cout << "box center: x=" << finalBoxes_[finalBoxes_.size()-1].center.x << "  y=" << finalBoxes_[finalBoxes_.size()-1].center.y << std::endl;
 		std::cout << "size of finalTexts_:" << finalTexts_.size() << std::endl << "-------------------" << std::endl;
 		std::cout << "size of finalBoxes_:" << finalBoxes_.size() << std::endl << "-------------------" << std::endl;
 	}
@@ -4503,248 +5267,273 @@ void DetectText::writeTxtsForEval()
 
 void DetectText::ransacPipeline(std::vector<TextRegion>& textRegions)
 {
-	std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSet;
-
-	std::vector<cv::Rect> ransacBoxes;
+//	std::vector<cv::Rect> ransacBoxes;
+	std::vector<TextRegion> newTextRegions;
 
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
-		//    cv::Mat output = originalImage_.clone();
+		std::cout << "textRegionIndex=" << textRegionIndex << "  textRegions[textRegionIndex].letters.size=" << textRegions[textRegionIndex].letters.size() << std::endl;
 
-		cv::Rect r = textRegions[textRegionIndex].boundingBox;
+//		cv::Rect r = textRegions[textRegionIndex].boundingBox;
 
-		ransacSet = ransac(textRegions[textRegionIndex].letters);
+		std::vector<BezierRansacResult> ransacSet = ransac(textRegions[textRegionIndex].letters);
 
 		// transform text based on bezier line
 		// calculate height and width of transformed image
 		for (unsigned int i = 0; i < ransacSet.size(); i++)
 		{
-			cv::Mat model = createBezierCurve(ransacSet[i].second, debug["showBezier"]); // todo: parameter showBezier
+			TextRegion textRegion;
+			textRegion.originalChainID = textRegions[textRegionIndex].originalChainID;
+			textRegion.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
 
-			float biggestDistance = 0; // -> height of transformed image
-			float minDistance = 1e5;
-			float minDistanceLast = 1e5;
-			float minT = 0, maxT = 1; // -> to calculate width of transformed image
-
-			for (unsigned int j = 0; j < ransacSet[i].first.size(); j++)
-			{
-				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
-				{
-					if ((ransacSet[i].first[j]).inside(textRegions[textRegionIndex].letters[k].boundingBox))
-					{
-						// todo: wouldn't it be sufficient to check the 4 corner points of the bounding box?
-						// probably not because curve is bent
-
-						// get max distance from curve
-						// calculate distance of all border pixels of components to the curve
-						for (int y = textRegions[textRegionIndex].letters[k].boundingBox.y, x = textRegions[textRegionIndex].letters[k].boundingBox.x;
-								y < textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height; y++) // todo: y += height
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-
-							// if actual component is first component of model, get nearest Point on border to calculate minimum t
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							// if actual component is last component of model, get nearest Point on border to calculate maximum t
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-
-						for (int y = textRegions[textRegionIndex].letters[k].boundingBox.y, x = textRegions[textRegionIndex].letters[k].boundingBox.x
-								+ textRegions[textRegionIndex].letters[k].boundingBox.width; y < textRegions[textRegionIndex].letters[k].boundingBox.y
-								+ textRegions[textRegionIndex].letters[k].boundingBox.height; y++)
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-						for (int x = textRegions[textRegionIndex].letters[k].boundingBox.x, y = textRegions[textRegionIndex].letters[k].boundingBox.y;
-								x < textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width; x++)
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-						for (int x = textRegions[textRegionIndex].letters[k].boundingBox.x, y = textRegions[textRegionIndex].letters[k].boundingBox.y
-								+ textRegions[textRegionIndex].letters[k].boundingBox.height; x < textRegions[textRegionIndex].letters[k].boundingBox.x
-								+ textRegions[textRegionIndex].letters[k].boundingBox.width; x++)
-						{
-							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
-							if (biggestDistance < distanceT.first)
-								biggestDistance = distanceT.first;
-							if (ransacSet[i].second[0] == ransacSet[i].first[j])
-								if (distanceT.first < minDistance && distanceT.second < 0)
-								{
-									minDistance = distanceT.first;
-									minT = distanceT.second;
-								}
-
-							if (ransacSet[i].second[2] == ransacSet[i].first[j])
-								if (distanceT.first < minDistanceLast && distanceT.second > 1)
-								{
-									minDistanceLast = distanceT.first;
-									maxT = distanceT.second;
-								}
-						}
-					}
-				}
-			}
-
-			float h = biggestDistance + 2; // 2*2 pixel padding
-			float l = getBezierLength(model, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
-
-			cv::Mat rotatedBezier(h * 2, l, CV_8UC3, cv::Scalar(255, 255, 255));
-
-			// make new bounding box
-			int minX = 1e5, maxX = 0, minY = 1e5, maxY = 0;
-
-			for (unsigned int letterIndex = 0; letterIndex < ransacSet[i].first.size(); letterIndex++)
-			{
-				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
-				{
-					if ((ransacSet[i].first[letterIndex]).inside(textRegions[textRegionIndex].letters[k].boundingBox))
-					{
-						if (textRegions[textRegionIndex].letters[k].boundingBox.x < minX)
-							minX = textRegions[textRegionIndex].letters[k].boundingBox.x;
-						if (textRegions[textRegionIndex].letters[k].boundingBox.y < minY)
-							minY = textRegions[textRegionIndex].letters[k].boundingBox.y;
-						if (textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width > maxX)
-							maxX = textRegions[textRegionIndex].letters[k].boundingBox.x + textRegions[textRegionIndex].letters[k].boundingBox.width;
-						if (textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height > maxY)
-							maxY = textRegions[textRegionIndex].letters[k].boundingBox.y + textRegions[textRegionIndex].letters[k].boundingBox.height;
-					}
-				}
-			}
-
-			cv::Rect newR(minX, minY, maxX - minX, maxY - minY);
-
-			// form rotatedRect
-			if (debug["showRansac"] == true)
-			{
-				std::cout << "point #1: " << model.at<float> (0, 2) << "|" << model.at<float> (1, 2) << std::endl;
-				std::cout << "point #2: " << model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2) << "|" << model.at<float> (1, 0)
-						+ model.at<float> (1, 1) + model.at<float> (1, 2) << std::endl;
-				std::cout << "point #3: " << 0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1) + model.at<float> (0, 2) << "|" << 0.25 * model.at<
-						float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<float> (1, 2) << std::endl;
-			}
+			// find minimum enclosing rotated rectangle
 			std::vector<cv::Point> pointvector;
-			pointvector.push_back(cv::Point(model.at<float> (0, 2), model.at<float> (1, 2)));
-			pointvector.push_back(
-					cv::Point(model.at<float> (0, 0) + model.at<float> (0, 1) + model.at<float> (0, 2),
-							model.at<float> (1, 0) + model.at<float> (1, 1) + model.at<float> (1, 2)));
-			pointvector.push_back(
-					cv::Point(0.25 * model.at<float> (0, 0) + 0.5 * model.at<float> (0, 1) + model.at<float> (0, 2),
-							0.25 * model.at<float> (1, 0) + 0.5 * model.at<float> (1, 1) + model.at<float> (1, 2)));
+			for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
+			{
+				const cv::Rect& rect = textRegions[textRegionIndex].letters[k].boundingBox;
+				for (unsigned int j = 0; j < ransacSet[i].inlierPoints.size(); j++)
+				{
+					if ((ransacSet[i].inlierPoints[j]).inside(rect))
+					{
+						pointvector.push_back(cv::Point(rect.x, rect.y));
+						pointvector.push_back(cv::Point(rect.x, rect.y+rect.height));
+						pointvector.push_back(cv::Point(rect.x+rect.width, rect.y));
+						pointvector.push_back(cv::Point(rect.x+rect.width, rect.y+rect.height));
+						textRegion.letters.push_back(textRegions[textRegionIndex].letters[k]);
+					}
+				}
+			}
 			cv::RotatedRect rr = cv::minAreaRect(pointvector);
-
-			cv::Mat img;
-			cv::Point2f vertices[4];
+			textRegion.boundingBox = rr.boundingRect();
 			if (debug["showRansac"] == true)
 			{
-				img = originalImage_.clone();
+				cv::Point2f vertices[4];
 				rr.points(vertices);
+				cv::Mat img = originalImage_.clone();
 				for (int i = 0; i < 4; i++)
-					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
+					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 0, 255));
 				cv::imshow("img", img);
 			}
 
-			h = biggestDistance;
-			// change height and width of rotatedRect.
-			// as the angle can be ambiguous, the size is changed based on what's bigger.
-			if (rr.size.height > rr.size.width)
-			{
-				rr.size.height = 2 * h > l ? 2 * h : l;
-				rr.size.width = 2 * h > l ? l : 2 * h;
-			}
-			else
-			{
-				rr.size.height = 2 * h > l ? l : 2 * h;
-				rr.size.width = 2 * h > l ? 2 * h : l;
-			}
+			newTextRegions.push_back(textRegion);
 
-			if (debug["showRansac"] == true)
-			{
-				rr.points(vertices);
-				for (int i = 0; i < 4; i++)
-					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 255, 255));
-				cv::imshow("img2", img);
-				std::cout << "rr.angle:" << rr.angle << std::endl;
-				cv::waitKey(0);
-			}
-
-			transformBezier(newR, model, rotatedBezier, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
-
-			transformedImage_.push_back(rotatedBezier);
-			notTransformedImage_.push_back(originalImage_(newR));
-
-			finalBoundingBoxes_.push_back(newR);
-			finalRotatedBoundingBoxes_.push_back(rr);
-
+			// old code
+//			cv::Mat model = ransacSet[i].bezierCurveParameters; //createBezierCurve(ransacSet[i].bezierPoints, debug["showBezier"]);	// todo: double effort -> done already in ransac()
+//
+//			float biggestDistance = 0; // -> height of transformed image
+//			float minDistance = 1e5;
+//			float minDistanceLast = 1e5;
+//			float minT = 0, maxT = 1; // -> to calculate width of transformed image
+//
+//			for (unsigned int j = 0; j < ransacSet[i].inlierPoints.size(); j++)
+//			{
+//				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
+//				{
+//					const cv::Rect& rect = textRegions[textRegionIndex].letters[k].boundingBox;
+//					if ((ransacSet[i].inlierPoints[j]).inside(rect))
+//					{
+//						// todo: wouldn't it be sufficient to check the 4 corner points of the bounding box?
+//						// probably not because curve is bent
+//
+//						// get max distance from curve
+//						// calculate distance of all border pixels of components to the curve
+//						for (int y = rect.y, x = rect.x; y < rect.y + rect.height; ++y) // todo: y += height
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//
+//							// if current component is first component of model, get nearest Point on border to calculate minimum t
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])		// todo: does not work this way any more, below again
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							// if current component is last component of model, get nearest Point on border to calculate maximum t
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//
+//						for (int y = rect.y, x = rect.x + rect.width; y < rect.y + rect.height; ++y)
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//						for (int x = rect.x, y = rect.y; x < rect.x + rect.width; ++x)
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//						for (int x = rect.x, y = rect.y + rect.height; x < rect.x + rect.width; ++x)
+//						{
+//							std::pair<float, float> distanceT = getBezierDistance(model, cv::Point(x, y));
+//							if (biggestDistance < distanceT.first)
+//								biggestDistance = distanceT.first;
+//							if (ransacSet[i].bezierPoints[0] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistance && distanceT.second < 0)
+//								{
+//									minDistance = distanceT.first;
+//									minT = distanceT.second;
+//								}
+//
+//							if (ransacSet[i].bezierPoints[2] == ransacSet[i].inlierPoints[j])
+//								if (distanceT.first < minDistanceLast && distanceT.second > 1)
+//								{
+//									minDistanceLast = distanceT.first;
+//									maxT = distanceT.second;
+//								}
+//						}
+//					}
+//				}
+//			}
+//
+//			float h = biggestDistance + 2; // 2*2 pixel padding
+//			float l = getBezierLength(model, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
+//
+//			cv::Mat rotatedBezier(h * 2, l, CV_8UC3, cv::Scalar(255, 255, 255));
+//
+//			// make new bounding box
+//			int minX = 1e5, maxX = 0, minY = 1e5, maxY = 0;
+//			for (unsigned int letterIndex = 0; letterIndex < ransacSet[i].inlierPoints.size(); letterIndex++)
+//			{
+//				for (unsigned int k = 0; k < textRegions[textRegionIndex].letters.size(); k++)
+//				{
+//					const cv::Rect& rect = textRegions[textRegionIndex].letters[k].boundingBox;
+//					if ((ransacSet[i].inlierPoints[letterIndex]).inside(rect))
+//					{
+//						if (rect.x < minX)
+//							minX = rect.x;
+//						if (rect.y < minY)
+//							minY = rect.y;
+//						if (rect.x + rect.width > maxX)
+//							maxX = rect.x + rect.width;
+//						if (rect.y + rect.height > maxY)
+//							maxY = rect.y + rect.height;
+//					}
+//				}
+//			}
+//			cv::Rect newR(minX, minY, maxX - minX, maxY - minY);
+//
+//			// form rotatedRect
+//			if (debug["showRansac"] == true)
+//			{
+//				std::cout << "point #1: " << model.at<float>(0, 2) << "|" << model.at<float>(1, 2) << std::endl;
+//				std::cout << "point #2: " << model.at<float>(0, 0) + model.at<float>(0, 1) + model.at<float>(0, 2) << "|" << model.at<float>(1, 0) + model.at<float>(1, 1) + model.at<float>(1, 2) << std::endl;
+//				std::cout << "point #3: " << 0.25 * model.at<float>(0, 0) + 0.5 * model.at<float>(0, 1) + model.at<float>(0, 2) << "|" << 0.25 * model.at<float>(1, 0) + 0.5 * model.at<float>(1, 1) + model.at<float>(1, 2) << std::endl;
+//			}
+//			std::vector<cv::Point> pointvector;
+//			pointvector.push_back(cv::Point(model.at<float>(0, 2), model.at<float>(1, 2)));
+//			pointvector.push_back(cv::Point(model.at<float>(0, 0) + model.at<float>(0, 1) + model.at<float>(0, 2), model.at<float>(1, 0) + model.at<float>(1, 1) + model.at<float>(1, 2)));
+//			pointvector.push_back(cv::Point(0.25 * model.at<float>(0, 0) + 0.5 * model.at<float>(0, 1) + model.at<float>(0, 2), 0.25 * model.at<float>(1, 0) + 0.5 * model.at<float>(1, 1) + model.at<float>(1, 2)));
+//			cv::RotatedRect rr = cv::minAreaRect(pointvector);
+//
+//			cv::Mat img;
+//			cv::Point2f vertices[4];
+//			if (debug["showRansac"] == true)
+//			{
+//				img = originalImage_.clone();
+//				rr.points(vertices);
+//				for (int i = 0; i < 4; i++)
+//					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 0, 255));
+//				cv::imshow("img", img);
+//			}
+//
+//			h = biggestDistance;
+//			// change height and width of rotatedRect.
+//			// as the angle can be ambiguous, the size is changed based on what's bigger.
+//			if (rr.size.height > rr.size.width)
+//			{
+//				rr.size.height = 2 * h > l ? 2 * h : l;
+//				rr.size.width = 2 * h > l ? l : 2 * h;
+//			}
+//			else
+//			{
+//				rr.size.height = 2 * h > l ? l : 2 * h;
+//				rr.size.width = 2 * h > l ? 2 * h : l;
+//			}
+//
+//			if (debug["showRansac"] == true)
+//			{
+//				rr.points(vertices);
+//				for (int i = 0; i < 4; i++)
+//					cv::line(img, vertices[i], vertices[(i + 1) % 4], cv::Scalar(0, 255, 255));
+//				cv::imshow("img2", img);
+//				std::cout << "rr.angle:" << rr.angle << std::endl;
+//				cv::waitKey(0);
+//			}
+//
+//			transformBezier(newR, model, rotatedBezier, minT < 0 ? minT * 1.1 : minT * 0.9, maxT * 1.1);
+//
+//			transformedImage_.push_back(rotatedBezier);
+//			notTransformedImage_.push_back(originalImage_(newR));
+//
+//			finalBoundingBoxes_.push_back(newR);
+//			finalRotatedBoundingBoxes_.push_back(rr);
+//
 		}
 	}
+	textRegions = newTextRegions;
 }
 
-std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > DetectText::ransac(std::vector<Letter> dataset)
+std::vector<DetectText::BezierRansacResult> DetectText::ransac(std::vector<Letter> dataset)
 {
 	// calculates best quadratic Bézier Curves out of all points in dataset
-	// returns 1 or more models, each returned vector-element includes all points that support the model and as second pair-element the 3 model-describing points
+	// returns 1 or more models, each returned vector-element includes all points that support the model and the 3 model-describing points, and the Bezier curve model
 
 	// Algorithm Parameters
 	unsigned int bezierDegree = 3; // => quadratic
 	float e; // (number of outliers in data / number of points in data)
 	float n; // number of iteration steps
 
-	std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSubset; // to be returned
+//	std::vector<std::pair<std::vector<cv::Point>, std::vector<cv::Point> > > ransacSubset; // to be returned
+	std::vector<BezierRansacResult> ransacSubset; // to be returned
 
 	cv::Mat output;
 
 	// if box contains lines of text, a sub-dataset is build at the end of every iteration with the remaining points that were not used.
-	// when sub-dataset doesn't contain more than 2 components anymore, the algorithm ends
+	// when sub-dataset doesn't contain more than 2 components anymore, the algorithm terminates
 	while (dataset.size() >= 3)
 	{
 		// calculate e (percent outliers) based on pca
 		cv::Mat pcaData(dataset.size(), 2, CV_32FC1);
 		for (unsigned int i = 0; i < dataset.size(); i++)
 		{
-			pcaData.at<float> (i, 0) = dataset[i].centerPoint.x;
-			pcaData.at<float> (i, 1) = dataset[i].centerPoint.y;
+			pcaData.at<float>(i, 0) = dataset[i].centerPoint.x;
+			pcaData.at<float>(i, 1) = dataset[i].centerPoint.y;
 		}
 		cv::PCA pca(pcaData, cv::noArray(), CV_PCA_DATA_AS_ROW, 2);
 		cv::Mat eigenVal = pca.eigenvalues;
@@ -4758,6 +5547,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		// calculate number of iterations
 		// todo: where does the 5 come from? to have more iterations -> better accuracy
 		n = 5 * std::ceil(std::log10(1 - p) / (float) (std::log10(1 - (std::pow((1 - e), bezierDegree)))));
+//		std::cout << " eigenValQuotient=" << eigenValQuotient << "  e=" << e << "  n=" << n << std::endl;
 
 		if (dataset.size() == 3) // if there are only 3 components, don't calculate 200 identical models...
 			n = 1;
@@ -4771,13 +5561,14 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				cv::rectangle(output, cv::Rect(dataset[i].centerPoint.x, dataset[i].centerPoint.y, 1, 1), cv::Scalar(255, 255, 255), 2, 1, 0);
 				//std::cout << "p" << i << ": " << dataset[i].centerPoint.x << "|" << dataset[i].centerPoint.y << std::endl;
 			}
-			std::cout << std::endl << n << " iterations.." << std::endl;
+			std::cout << std::endl << n << " iterations..." << std::endl;
 		}
 
 		//std::vector<cv::Point> modelset(bezierDegree);
 		// todo: change to cv::Point2d
 		std::vector<cv::Point> finalModel; // 3 points describing best supported model
 		std::vector<cv::Point> finalGoodPoints; // all points of best supported model after all iterations
+		std::vector<unsigned int> finalGoodPointsIndices; // dataset indices of all points of best supported model after all iterations
 		std::vector<float> finalTs; // t's, describing position on bezier model of all final points
 
 		std::srand(time(NULL));
@@ -4785,15 +5576,10 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 
 		float highestScore = 0;
 
-		for (unsigned int i = 0; i < n; i++) // Main Loop, n = number of models that will be created
+		for (unsigned int i = 0; i < n; ++i) // Main Loop, n = number of models that will be created
 		{
-			std::vector<float> rectsArea;
-			cv::Mat output2;
-
 			std::vector<int> actualRandomSet; // which 3 points are chosen (index)
 			std::vector<cv::Point> actualRandomPointSet; // which 3 points are chosen (point)
-			std::vector<cv::Point> goodPoints; //which points support the model
-			std::vector<float> ts; // all ts, t as in C(t)
 
 			// fill actualRandomSet with random points for model
 			//for (unsigned int j = 0; j < bezierDegree; j++) // todo: this for loop has no effect
@@ -4808,24 +5594,24 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			}
 
 			// calculate maxDistance for every pointset anew, maxDistance = max. distance between point and curve so that point still supports model
+			std::vector<float> rectsArea;
 			for (unsigned int distanceParameterIndex = 0; distanceParameterIndex < actualRandomSet.size(); distanceParameterIndex++)
 				rectsArea.push_back(std::sqrt(dataset[distanceParameterIndex].boundingBox.area()));
-
 			float maxDistance = 0;
 			for (unsigned int k = 0; k < rectsArea.size(); k++)
 				maxDistance += rectsArea[k];
 			maxDistance = distanceParameter * (maxDistance / actualRandomSet.size());
 
 			// Reject Criterion #1: Reject model if letter sizes are too different (for the 3 randomly chosen letters)
-			if (std::max(rectsArea[0], rectsArea[1]) / (std::min(rectsArea[0], rectsArea[1])) > 3) // todo: (i) make this a parameter, (ii) avoid division
+			if (std::max(rectsArea[0], rectsArea[1]) > 3. * std::min(rectsArea[0], rectsArea[1])) // todo: make this a parameter
 				continue;
-			if (std::max(rectsArea[0], rectsArea[2]) / (std::min(rectsArea[0], rectsArea[2])) > 3)
+			if (std::max(rectsArea[0], rectsArea[2]) > 3. * std::min(rectsArea[0], rectsArea[2]))
 				continue;
-			if (std::max(rectsArea[1], rectsArea[2]) / (std::min(rectsArea[1], rectsArea[2])) > 3)
+			if (std::max(rectsArea[1], rectsArea[2]) > 3. * std::min(rectsArea[1], rectsArea[2]))
 				continue;
 
 			// calculate bezier curve
-			cv::Mat curve = createBezierCurve(actualRandomPointSet, debug["showBezier"]);
+			cv::Mat curve = createBezierCurve(actualRandomPointSet, true, debug["showBezier"]);
 			if (curve.rows < 1)
 			{
 				std::cout << "bezier curve wasn't drawn correctly." << std::endl;
@@ -4849,6 +5635,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			float angleDifference = (180.0 / 3.14159265) * std::abs(acos((dx1 * dx2 + dy1 * dy2) / (sqrt((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 * dy2)))));
 
 			// draw chosen points
+			cv::Mat output2;
 			if (debug["showBezier"])
 			{
 				output2 = output.clone();
@@ -4877,10 +5664,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				int t = distanceTs.second;
 				cv::Point2f normal(
 						2 * cv::Point(curve.at<float> (0, 0), curve.at<float> (1, 0)).y * t + cv::Point(curve.at<float> (0, 1), curve.at<float> (1, 1)).y,
-						-1
-								* (2 * cv::Point(curve.at<float> (0, 0), curve.at<float> (1, 0)).x * t + cv::Point(curve.at<float> (0, 1),
-										curve.at<float> (1, 1)).x));
-
+						-1 * (2 * cv::Point(curve.at<float> (0, 0), curve.at<float> (1, 0)).x * t + cv::Point(curve.at<float> (0, 1), curve.at<float> (1, 1)).x));
 				normal = normal * (float) (1 / (std::sqrt(normal.x * normal.x + normal.y * normal.y)));
 				heights.push_back(calculateRealLetterHeight(dataset[actualSetIndex].centerPoint, dataset[actualSetIndex].boundingBox, normal));
 			}
@@ -4895,12 +5679,14 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				heightVariance += (meanHeight - heights[h]) * (meanHeight - heights[h]);
 			heightVariance /= 3;
 
-			if (heightVariance > 50)
-				continue;
+//			if (heightVariance > 50)		// todo: param
+//				continue;
 
 			// calculate distance between curve and each data point
+			std::vector<cv::Point> goodPoints; //which points support the model
+			std::vector<unsigned int> goodPointsIndices; //dataset indices of which points support the model
+			std::vector<float> ts; // all ts, t as in C(t)
 			double distance = 0;
-
 			for (unsigned int datasetIndex = 0; datasetIndex < dataset.size(); datasetIndex++)
 			{
 				std::pair<float, float> distanceTs = getBezierDistance(curve, dataset[datasetIndex].centerPoint);
@@ -4910,11 +5696,11 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				{
 					distance += distanceTs.first; // count the distance of every point to evaluate model based on summed distances
 					goodPoints.push_back(dataset[datasetIndex].centerPoint);
+					goodPointsIndices.push_back(datasetIndex);
 					ts.push_back(distanceTs.second);
 					if (debug["showBezier"])
 					{
-						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 255, 0),
-								2, 1, 0);
+						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 255, 0), 2, 1, 0);
 						if (distanceTs.first < 1e-4)
 							std::cout << "distance: " << 0 << " [x]" << std::endl;
 						else
@@ -4928,8 +5714,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 				{
 					if (debug["showBezier"])
 					{
-						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 0, 255),
-								2, 1, 0);
+						cv::rectangle(output2, cv::Rect(dataset[datasetIndex].centerPoint.x, dataset[datasetIndex].centerPoint.y, 1, 1), cv::Scalar(0, 0, 255), 2, 1, 0);
 						std::cout << "distance: " << distanceTs.first << " [ ]" << std::endl;
 						cv::imshow("ransac", output2);
 						//cv::waitKey(0);
@@ -4954,6 +5739,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			if (score > highestScore && angleDifference < bendParameter && goodPoints.size() >= 3)
 			{
 				finalGoodPoints = goodPoints;
+				finalGoodPointsIndices = goodPointsIndices;
 				finalModel = actualRandomPointSet;
 				finalTs = ts;
 				highestScore = score;
@@ -4961,7 +5747,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 			}
 			if (debug["showBezier"])
 			{
-				std::cout << "Σdistance: " << distance << std::endl;
+				std::cout << "Σdistance: " << distance << "  avg distance: " << distance / (double) goodPoints.size() << "  score: " << score << std::endl;
 				std::cout << goodPoints.size() << "/" << dataset.size() << " points support model" << std::endl;
 			}
 		}
@@ -4981,7 +5767,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		if (modelNr == -1) // no good model found at all
 			return ransacSubset;
 
-		// if there only 3 points, don't calculate quadratic bezier for final model, its bending will be too strong. use normal line instead..
+		// if there are only 3 good points supporting the model, don't calculate quadratic bezier for final model, its bending will be too strong. use normal line instead.
 		if (finalGoodPoints.size() == 3)
 		{
 			finalGoodPoints[1].x = (int) (finalGoodPoints[0].x + finalGoodPoints[2].x) / 2.0;
@@ -4989,55 +5775,54 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		}
 
 		// create model with all found finalGoodPoints
-		float biggestT = 0, biggestTIndex = 0;
-		float smallestT = 1e10, smallestTIndex = 1e10;
+		double biggestT = 0; //, biggestTIndex = 0;
+		double smallestT = 1e10; //, smallestTIndex = 1e10;
 		for (unsigned int i = 0; i < finalTs.size(); i++)
 		{
 			if (biggestT < finalTs[i])
 			{
 				biggestT = finalTs[i];
-				biggestTIndex = i;
+//				biggestTIndex = i;
 			}
 			if (smallestT > finalTs[i])
 			{
 				smallestT = finalTs[i];
-				smallestTIndex = i;
+//				smallestTIndex = i;
 			}
 		}
 
 		// [smallestT, biggestT] -> [0, 1]
-		float alpha = 1 / (float) (biggestT - smallestT);
-		float beta = -smallestT / (float) (biggestT - smallestT);
+		double alpha = 1. / (double) (biggestT - smallestT);
+		double beta = -smallestT / (double) (biggestT - smallestT);
 
-		cv::Mat A(finalTs.size() * 2, 6, CV_32FC1);
-		cv::Mat X(6, 1, CV_32FC1);
-		cv::Mat C(finalTs.size() * 2, 1, CV_32FC1);
+		cv::Mat A(finalTs.size() * 2, 6, CV_64FC1);
+		cv::Mat X(6, 1, CV_64FC1);
+		cv::Mat C(finalTs.size() * 2, 1, CV_64FC1);
 
-		for (unsigned int i = 0; i < finalTs.size(); i++)
+		for (unsigned int i = 0; i < finalTs.size(); ++i)
 		{
 			// alpha * finalT + beta = t
-			float newT = alpha * finalTs[i] + beta, a, b, c;
+			double newT = alpha * finalTs[i] + beta;
+			double a = newT * newT - 2 * newT + 1;
+			double b = -2 * newT * newT + 2 * newT;
+			double c = newT * newT;
 
-			a = newT * newT - 2 * newT + 1;
-			b = -2 * newT * newT + 2 * newT;
-			c = newT * newT;
+			A.at<double> (2*i, 0) = a;
+			A.at<double> (2*i, 1) = b;
+			A.at<double> (2*i, 2) = c;
+			A.at<double> (2*i, 3) = 0;
+			A.at<double> (2*i, 4) = 0;
+			A.at<double> (2*i, 5) = 0;
 
-			A.at<float> (i, 0) = a;
-			A.at<float> (i, 1) = b;
-			A.at<float> (i, 2) = c;
-			A.at<float> (i, 3) = 0;
-			A.at<float> (i, 4) = 0;
-			A.at<float> (i, 5) = 0;
+			A.at<double> (2*i + 1, 0) = 0;
+			A.at<double> (2*i + 1, 1) = 0;
+			A.at<double> (2*i + 1, 2) = 0;
+			A.at<double> (2*i + 1, 3) = a;
+			A.at<double> (2*i + 1, 4) = b;
+			A.at<double> (2*i + 1, 5) = c;
 
-			A.at<float> (i + finalTs.size(), 0) = 0;
-			A.at<float> (i + finalTs.size(), 1) = 0;
-			A.at<float> (i + finalTs.size(), 2) = 0;
-			A.at<float> (i + finalTs.size(), 3) = a;
-			A.at<float> (i + finalTs.size(), 4) = b;
-			A.at<float> (i + finalTs.size(), 5) = c;
-
-			C.at<float> (i, 0) = finalGoodPoints[i].x;
-			C.at<float> (i + finalTs.size(), 0) = finalGoodPoints[i].y;
+			C.at<double> (2*i, 0) = finalGoodPoints[i].x;
+			C.at<double> (2*i + 1, 0) = finalGoodPoints[i].y;
 		}
 
 		//    for (unsigned int i = 0; i < 2 * finalTs.size(); i++)
@@ -5047,26 +5832,29 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 		//          << C.at<float> (i, 0) << " ]" << std::endl;
 		//    }
 
-		cv::solve(A, C, X, cv::DECOMP_SVD);
+		cv::solve(A, C, X, cv::DECOMP_QR);		//cv::DECOMP_SVD);  // todo: replace svd?
 
 		// draw final curve...
 		cv::vector<cv::Point> finalBezierCurve;
-		finalBezierCurve.push_back(cv::Point(X.at<float> (0, 0), X.at<float> (3, 0)));
-		finalBezierCurve.push_back(cv::Point(X.at<float> (1, 0), X.at<float> (4, 0)));
-		finalBezierCurve.push_back(cv::Point(X.at<float> (2, 0), X.at<float> (5, 0)));
-		cv::Mat finalCurve = createBezierCurve(finalBezierCurve, debug["showRansac"]);
+		finalBezierCurve.push_back(cv::Point(X.at<double>(0, 0), X.at<double>(3, 0)));
+		finalBezierCurve.push_back(cv::Point(X.at<double>(1, 0), X.at<double>(4, 0)));
+		finalBezierCurve.push_back(cv::Point(X.at<double>(2, 0), X.at<double>(5, 0)));
+		cv::Mat finalCurve = createBezierCurve(finalBezierCurve, false, debug["showRansac"]);
 
-		std::pair<std::vector<cv::Point>, std::vector<cv::Point> > pointsAndCurve;
-		pointsAndCurve.first = finalGoodPoints;
-		pointsAndCurve.second = finalBezierCurve;
-
-		ransacSubset.push_back(pointsAndCurve);
+//		std::pair<std::vector<cv::Point>, std::vector<cv::Point> > pointsAndCurve;
+//		pointsAndCurve.first = finalGoodPoints;
+//		pointsAndCurve.second = finalBezierCurve;
+		BezierRansacResult res;
+		res.bezierPoints = finalBezierCurve;
+		res.inlierPoints = finalGoodPoints;
+		res.bezierCurveParameters = finalCurve;
+		ransacSubset.push_back(res);
 
 		// build new sub dataset with remaining points and loop
 		std::vector<Letter> subDataset;
 		for (unsigned int i = 0; i < dataset.size(); i++)
 		{
-			if (std::find(finalGoodPoints.begin(), finalGoodPoints.end(), cv::Point(dataset[i].centerPoint.x, dataset[i].centerPoint.y)) == finalGoodPoints.end())
+			if (std::find(finalGoodPointsIndices.begin(), finalGoodPointsIndices.end(), i) == finalGoodPointsIndices.end())
 				subDataset.push_back(dataset[i]);
 		}
 		dataset = subDataset;
@@ -5075,7 +5863,7 @@ std::vector< std::pair< std::vector<cv::Point>, std::vector<cv::Point> > > Detec
 	return ransacSubset;
 }
 
-cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool showBezier)
+cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool transformToBezierPoints, bool showBezier)
 {
 	if (points.size() != 3)
 	{
@@ -5083,82 +5871,85 @@ cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool show
 		return cv::Mat();
 	}
 
-	cv::Mat output = originalImage_.clone();
-
 	cv::Mat R = (cv::Mat_<float>(2, 3) << points[0].x, points[1].x, points[2].x, points[0].y, points[1].y, points[2].y); // todo: create R not before correct order is known
 
-	// 1.) compute distances of all 3 points and position them into right order,
-	// i.e. the points with largest distance go to position 1 and 3
-	float distance12 = std::sqrt((points[0].y - points[1].y) * (points[0].y - points[1].y) + (points[0].x - points[1].x) * (points[0].x - points[1].x));
-	float distance13 = std::sqrt((points[0].y - points[2].y) * (points[0].y - points[2].y) + (points[0].x - points[2].x) * (points[0].x - points[2].x));
-	float distance23 = std::sqrt((points[1].y - points[2].y) * (points[1].y - points[2].y) + (points[1].x - points[2].x) * (points[1].x - points[2].x));
-
-	float t0 = distance12 / (float) (distance12 + distance23); // relation of distances, i.e. percentage of t at the point in the middle
-
-	if (distance12 > distance13 && distance12 > distance23)
+	// if the given points all lie on the curve, transform them to Bezier points
+	if (transformToBezierPoints==true)
 	{
-		float tempX, tempY;
-		tempX = R.at<float> (0, 1);
-		tempY = R.at<float> (1, 1);
-		R.at<float> (0, 1) = R.at<float> (0, 2);
-		R.at<float> (1, 1) = R.at<float> (1, 2);
-		R.at<float> (0, 2) = tempX;
-		R.at<float> (1, 2) = tempY;
-		t0 = distance13 / (float) (distance13 + distance23);
-		cv::Point temp = points[1];
-		points[1] = points[2];
-		points[2] = temp;
-	}
-	else if (distance23 > distance12 && distance23 > distance13)
-	{
-		float tempX, tempY;
-		tempX = R.at<float> (0, 1);
-		tempY = R.at<float> (1, 1);
-		R.at<float> (0, 1) = R.at<float> (0, 0);
-		R.at<float> (1, 1) = R.at<float> (1, 0);
-		R.at<float> (0, 0) = tempX;
-		R.at<float> (1, 0) = tempY;
-		t0 = distance12 / (float) (distance13 + distance12);
-		cv::Point temp = points[1];
-		points[1] = points[0];
-		points[0] = temp;
-	}
+		// 1.) compute distances of all 3 points and position them into right order,
+		// i.e. the points with largest distance go to position 1 and 3
+		float distance12 = std::sqrt((points[0].y - points[1].y) * (points[0].y - points[1].y) + (points[0].x - points[1].x) * (points[0].x - points[1].x));
+		float distance13 = std::sqrt((points[0].y - points[2].y) * (points[0].y - points[2].y) + (points[0].x - points[2].x) * (points[0].x - points[2].x));
+		float distance23 = std::sqrt((points[1].y - points[2].y) * (points[1].y - points[2].y) + (points[1].x - points[2].x) * (points[1].x - points[2].x));
 
-	// why? to avoid head-over as first guess!
-	if (points[0].x > points[2].x)
-	{
-		float tempX, tempY;
-		tempX = R.at<float> (0, 0);
-		tempY = R.at<float> (1, 0);
-		R.at<float> (0, 0) = R.at<float> (0, 2);
-		R.at<float> (1, 0) = R.at<float> (1, 2);
-		R.at<float> (0, 2) = tempX;
-		R.at<float> (1, 2) = tempY;
-		cv::Point temp = points[0];
-		points[0] = points[2];
-		points[2] = temp;
-		t0 = 1 - t0;
-	}
+		float t0 = distance12 / (float) (distance12 + distance23); // relation of distances, i.e. percentage of t at the point in the middle
 
-	// 2.) compute the Bezier point
-	R.at<float> (0, 1) = (R.at<float> (0, 1) + R.at<float> (0, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (0, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
-	R.at<float> (1, 1) = (R.at<float> (1, 1) + R.at<float> (1, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (1, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
+		if (distance12 > distance13 && distance12 > distance23)
+		{
+			float tempX, tempY;
+			tempX = R.at<float> (0, 1);
+			tempY = R.at<float> (1, 1);
+			R.at<float> (0, 1) = R.at<float> (0, 2);
+			R.at<float> (1, 1) = R.at<float> (1, 2);
+			R.at<float> (0, 2) = tempX;
+			R.at<float> (1, 2) = tempY;
+			t0 = distance13 / (float) (distance13 + distance23);
+			cv::Point temp = points[1];
+			points[1] = points[2];
+			points[2] = temp;
+		}
+		else if (distance23 > distance12 && distance23 > distance13)
+		{
+			float tempX, tempY;
+			tempX = R.at<float> (0, 1);
+			tempY = R.at<float> (1, 1);
+			R.at<float> (0, 1) = R.at<float> (0, 0);
+			R.at<float> (1, 1) = R.at<float> (1, 0);
+			R.at<float> (0, 0) = tempX;
+			R.at<float> (1, 0) = tempY;
+			t0 = distance12 / (float) (distance13 + distance12);
+			cv::Point temp = points[1];
+			points[1] = points[0];
+			points[0] = temp;
+		}
+
+		// why? to avoid head-over as first guess!
+		if (points[0].x > points[2].x)
+		{
+			float tempX, tempY;
+			tempX = R.at<float> (0, 0);
+			tempY = R.at<float> (1, 0);
+			R.at<float> (0, 0) = R.at<float> (0, 2);
+			R.at<float> (1, 0) = R.at<float> (1, 2);
+			R.at<float> (0, 2) = tempX;
+			R.at<float> (1, 2) = tempY;
+			cv::Point temp = points[0];
+			points[0] = points[2];
+			points[2] = temp;
+			t0 = 1 - t0;
+		}
+
+		// 2.) compute the Bezier point
+		R.at<float> (0, 1) = (R.at<float> (0, 1) + R.at<float> (0, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (0, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
+		R.at<float> (1, 1) = (R.at<float> (1, 1) + R.at<float> (1, 0) * (-1 + 2 * t0 - t0 * t0) - R.at<float> (1, 2) * t0 * t0) / (2 * t0 - 2 * t0 * t0);
+	}
 
 	// 3.) draw bezier curve
-
 	//  cv::Mat C = (cv::Mat_<float>(2, 3) << (R.at<float> (0, 0) - 2 * R.at<float> (0, 1) + R.at<float> (0, 2)), (-2 * R.at<
 	//      float> (0, 0) + 2 * R.at<float> (0, 1)), R.at<float> (0, 0), (R.at<float> (1, 0) - 2 * R.at<float> (1, 1) + R.at<
 	//      float> (1, 2)), (-2 * R.at<float> (1, 0) + 2 * R.at<float> (1, 1)), R.at<float> (1, 0));
 	cv::Mat C(2, 3, CV_32FC1);
-	C.at<float> (0, 0) = R.at<float> (0, 0) - 2 * R.at<float> (0, 1) + R.at<float> (0, 2);
-	C.at<float> (0, 1) = -2 * R.at<float> (0, 0) + 2 * R.at<float> (0, 1);
-	C.at<float> (0, 2) = R.at<float> (0, 0);
-	C.at<float> (1, 0) = R.at<float> (1, 0) - 2 * R.at<float> (1, 1) + R.at<float> (1, 2);
-	C.at<float> (1, 1) = -2 * R.at<float> (1, 0) + 2 * R.at<float> (1, 1);
-	C.at<float> (1, 2) = R.at<float> (1, 0);
+	C.at<float>(0, 0) = R.at<float>(0, 0) - 2 * R.at<float>(0, 1) + R.at<float>(0, 2);
+	C.at<float>(0, 1) = -2 * R.at<float>(0, 0) + 2 * R.at<float>(0, 1);
+	C.at<float>(0, 2) = R.at<float>(0, 0);
+	C.at<float>(1, 0) = R.at<float>(1, 0) - 2 * R.at<float>(1, 1) + R.at<float>(1, 2);
+	C.at<float>(1, 1) = -2 * R.at<float>(1, 0) + 2 * R.at<float>(1, 1);
+	C.at<float>(1, 2) = R.at<float>(1, 0);
 
 	if (showBezier)
 	{
+		cv::Mat output = originalImage_.clone();
+
 		// draw bezier point (lies not on curve)
 		cv::rectangle(output, cv::Point((int) std::floor(R.at<float> (0, 1) + 0.5), (int) std::floor(R.at<float> (1, 1) + 0.5)),
 				cv::Point((int) std::floor(R.at<float> (0, 1) + 0.5), (int) std::floor(R.at<float> (1, 1) + 0.5)), cv::Scalar(0, 255, 0), 1, 1, 0);
@@ -5166,10 +5957,8 @@ cv::Mat DetectText::createBezierCurve(std::vector<cv::Point> & points, bool show
 		// draw line as connected points
 		for (float t = 0; t < 1; t += 0.01)
 		{
-			float Cx = (R.at<float> (0, 0) - 2 * R.at<float> (0, 1) + R.at<float> (0, 2)) * t * t + (-2 * R.at<float> (0, 0) + 2 * R.at<float> (0, 1)) * t
-					+ R.at<float> (0, 0);
-			float Cy = (R.at<float> (1, 0) - 2 * R.at<float> (1, 1) + R.at<float> (1, 2)) * t * t + (-2 * R.at<float> (1, 0) + 2 * R.at<float> (1, 1)) * t
-					+ R.at<float> (1, 0);
+			float Cx = C.at<float>(0, 0) * t * t + C.at<float>(0, 1) * t + C.at<float>(0, 2);
+			float Cy = C.at<float>(1, 0) * t * t + C.at<float>(1, 1) * t + C.at<float>(1, 2);
 			cv::rectangle(output, cv::Point((int) std::floor(Cx + 0.5), (int) std::floor(Cy + 0.5)),
 					cv::Point((int) std::floor(Cx + 0.5), (int) std::floor(Cy + 0.5)), cv::Scalar(150, 200, 50), 1, 1, 0);
 		}
@@ -5749,7 +6538,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	nh.getParam("clrComponentParameter", this->clrComponentParameter);
 	nh.getParam("distanceRatioParameter", this->distanceRatioParameter);
 	nh.getParam("medianSwParameter", this->medianSwParameter);
-	nh.getParam("diagonalRatioParamter", this->diagonalRatioParamter);
+	nh.getParam("diagonalRatioParamter", this->diagonalRatioParameter_);
 	nh.getParam("grayClrParameter", this->grayClrParameter);
 	nh.getParam("clrSingleParameter", this->clrSingleParameter);
 	nh.getParam("areaParameter", this->areaParameter);
@@ -5764,19 +6553,27 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	nh.getParam("threshold_sharp", this->threshold_sharp);
 	nh.getParam("amount_sharp", this->amount_sharp);
 	nh.getParam("result_", this->result_);
-	nh.getParam("showEdge", this->debug["showEdge"]);
-	nh.getParam("showSWT", this->debug["showSWT"]);
-	nh.getParam("showLetterCandidates", this->debug["showLetterCandidates"]);
-	nh.getParam("showLetters", this->debug["showLetters"]);
-	nh.getParam("showPairs", this->debug["showPairs"]);
-	nh.getParam("showChains", this->debug["showChains"]);
-	nh.getParam("showBreakLines", this->debug["showBreakLines"]);
-	nh.getParam("showWords", this->debug["showWords"]);
-	nh.getParam("showCriterions", this->debug["showCriterions"]);
-	nh.getParam("showBezier", this->debug["showBezier"]);
-	nh.getParam("showRansac", this->debug["showRansac"]);
-	nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
-	nh.getParam("showResult", this->debug["showResult"]);
+	bool debugAllOff = false;
+	nh.getParam("debugAllOff", debugAllOff);
+	if (debugAllOff==false)
+	{
+		nh.getParam("showEdge", this->debug["showEdge"]);
+		nh.getParam("showSWT", this->debug["showSWT"]);
+		nh.getParam("showLetterCandidates", this->debug["showLetterCandidates"]);
+		nh.getParam("showLetters", this->debug["showLetters"]);
+		nh.getParam("showPairs", this->debug["showPairs"]);
+		nh.getParam("showChains", this->debug["showChains"]);
+		nh.getParam("showBreakLines", this->debug["showBreakLines"]);
+		nh.getParam("showWords", this->debug["showWords"]);
+		nh.getParam("showCriterions", this->debug["showCriterions"]);
+		nh.getParam("showBezier", this->debug["showBezier"]);
+		nh.getParam("showRansac", this->debug["showRansac"]);
+		nh.getParam("showNeighborMerging", this->debug["showNeighborMerging"]);
+		nh.getParam("showResult", this->debug["showResult"]);
+	}
+	else
+		for (std::map<std::string, bool>::iterator it=debug.begin(); it!=debug.end(); it++)
+			it->second = false;
 
 	std::cout << "processing_method:" << processing_method_ << std::endl;
 	std::cout << "smoothImage:" << smoothImage << std::endl;
@@ -5795,7 +6592,7 @@ void DetectText::setParams(ros::NodeHandle & nh)
 	std::cout << "clrComponentParameter:" << clrComponentParameter << std::endl;
 	std::cout << "distanceRatioParameter:" << distanceRatioParameter << std::endl;
 	std::cout << "medianSwParameter:" << medianSwParameter << std::endl;
-	std::cout << "diagonalRatioParamter:" << diagonalRatioParamter << std::endl;
+	std::cout << "diagonalRatioParamter:" << diagonalRatioParameter_ << std::endl;
 	std::cout << "grayClrParameter:" << grayClrParameter << std::endl;
 	std::cout << "clrSingleParameter:" << clrSingleParameter << std::endl;
 	std::cout << "areaParameter:" << areaParameter << std::endl;
@@ -5942,7 +6739,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 	// break text into separate lines without destroying letter boxes
 	cv::Mat output;
 	if (debug["showWords"])
-		output = originalImage_.clone();		// todo: make this a debug parameter
+		output = originalImage_.clone();
 
 	std::vector<TextRegion> wordRegions;
 
@@ -5953,13 +6750,16 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 		breakingWordsDisplayName = "breaking dark words";
 
 	// used later for a parametric function
-	double p = 0.75;
+	double p = 0.75; // 0.75;    // explanations below (1-p is literally a word separation probability)
 	double a1=-1/(p*p), b1=2/p, c1=0;
 	double a2=1/(-p*p+2*p-1), b2=-2*p/(-p*p+2*p-1), c2=(2*p-1)/(-p*p+2*p-1);
 
 	//For every boundingBox:
 	for (unsigned int textRegionIndex = 0; textRegionIndex < textRegions.size(); textRegionIndex++)
 	{
+		if (debug["showWords"])
+			output = originalImage_.clone();		// todo: make this a debug parameter
+
 		std::vector<Letter>& letters = textRegions[textRegionIndex].letters;
 
 		//which Letters belong to the current boundingBox, average letter size, stddev letter size
@@ -6198,6 +6998,7 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 		int numberWordRegions = wordRegions.size();
 		if (breakBox == true)
 		{
+			std::vector<TextRegion> newWordRegions;
 			for (unsigned int r = 0; r < letterDistances.size(); r++)
 			{
 				bool letter = false;
@@ -6214,8 +7015,10 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
 					word.qualityScore = textRegions[textRegionIndex].qualityScore;
+					word.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
+					word.originalChainID = textRegions[textRegionIndex].originalChainID;
 					// word.letters = ; --> see below
-					wordRegions.push_back(word);
+					newWordRegions.push_back(word);
 				}
 				// reaching the end
 				if (r == letterDistances.size() - 1)
@@ -6225,10 +7028,17 @@ void DetectText::breakLinesIntoWords(std::vector<TextRegion>& textRegions)
 					word.boundingBox = re;
 					word.lineEquation = textRegions[textRegionIndex].lineEquation;
 					word.qualityScore = textRegions[textRegionIndex].qualityScore;
+					word.originalChainBoundingBox = textRegions[textRegionIndex].originalChainBoundingBox;
+					word.originalChainID = textRegions[textRegionIndex].originalChainID;
 					// word.letters = ; --> see below
-					wordRegions.push_back(word);
+					newWordRegions.push_back(word);
 				}
 			}
+			// only separate into single word if the letter/word ratio is large enough
+			if ((letterDistances.size()+1.) < 1.5*newWordRegions.size())
+				wordRegions.push_back(textRegions[textRegionIndex]);
+			else
+				wordRegions.insert(wordRegions.end(), newWordRegions.begin(), newWordRegions.end());
 		}
 		else
 		{
