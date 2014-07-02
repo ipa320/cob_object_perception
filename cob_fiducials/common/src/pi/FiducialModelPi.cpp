@@ -287,7 +287,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
         	for(size_t i = 0; i < points.size(); i++){
         		for(size_t j = i+1; j < points.size(); j++){
 
-        			int dist =  (int)cv::sqrt((points[i].x-points[j].x)*(points[i].x-points[j].x)+(points[i].y-points[j].y)*(points[i].y-points[j].y));
+        			int dist =  (int)cv::sqrt(double((points[i].x-points[j].x)*(points[i].x-points[j].x)+(points[i].y-points[j].y)*(points[i].y-points[j].y)));
 
         			if(dist < max_distance){
         				points.erase(points.begin()+j);
