@@ -4,9 +4,9 @@
 #include <float.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <fstream>
+
 #include <cv.h>
-
-
 #include "ml.h"
 #include "highgui.h"
 
@@ -14,53 +14,77 @@ train_ml::train_ml()
 {
 }
 
-void train_ml::load_texture_database_features(std::string path, cv::Mat& feature_matrix, cv::Mat& label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void train_ml::load_texture_database_features(std::string path, cv::Mat& ground_truth_attribute_matrix, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
 {
-	// load feature vectors and corresponding labels computed on database
-	std::string database_file = path + "database_data.yml";
+	// load computed attributes, class labels and ground truth attributes
+	std::string database_file = path + "ipa_database.yml";
 	cv::FileStorage fs(database_file, cv::FileStorage::READ);
-	fs["database_data"] >> feature_matrix;
-
-	std::string database_label_file = path + "database_label.yml";
-	cv::FileStorage fsl(database_label_file, cv::FileStorage::READ);
-	fsl["database_label"] >> label_matrix;
+	fs["attribute_matrix"] >> attribute_matrix;
+	fs["class_label_matrix"] >> class_label_matrix;
+	fs["ground_truth_attribute_matrix"] >> ground_truth_attribute_matrix;
+	fs.release();
 
 	// load class-object-sample hierarchy
-	std::string database_hierarchy_file = path + "data_hierarchy.txt";
+	std::string database_hierarchy_file = path + "data_hierarchy_2fb.txt";
 	create_train_data data_object;
 	data_object.load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
+
+	std::cout << "Texture database features loaded." << std::endl;
 }
 
-void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy)
+void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
+			const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& feature_matrix_test_data, const std::vector<cv::Mat>& label_matrix_test_data)
 {
 	std::vector<int> true_predictions, false_predictions;
 	create_train_data data_object;
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
+	std::stringstream screen_output;
 
+	bool use_preselected_set_distribution = ((int)preselected_train_indices.size()==folds && (int)feature_matrix_test_data.size()==folds && (int)label_matrix_test_data.size()==folds);
+	if (use_preselected_set_distribution == true)
+	{
+		std::cout << "Using the provided pre-selected sets for training and testing." << std::endl;		screen_output << "Using the provided pre-selected sets for training and testing." << std::endl;
+	}
+	else
+	{
+		std::cout << "Computing the individual training and testing sets for each fold." << std::endl;		screen_output << "Computing the individual training and testing sets for each fold." << std::endl;
+	}
+
+	srand(0);	// random seed --> keep reproducible
 	for (int fold=0; fold<folds; ++fold)
 	{
-		std::cout << "=== fold " << fold << " ===" << std::endl;
+		std::cout << "=== fold " << fold+1 << " ===" << std::endl;		screen_output << "=== fold " << fold+1 << " ===" << std::endl;
 
 		// === distribute data into training and test set ===
-		// select one object per class for testing
-		srand(0);	// random seed --> keep reproducible
 		std::vector<int> train_indices, test_indices;
-		for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
+		if (use_preselected_set_distribution==true)
 		{
-			int object_number = data_sample_hierarchy[class_index].size();
-			int test_object = (int)(object_number * (double)rand()/((double)RAND_MAX+1.0));
-//			std::cout << "object_number=" << object_number << "   test_object=" << test_object << std::endl;
-			for (int object_index=0; object_index<object_number; ++object_index)
+			// just take the provided training indices for this fold
+			if (feature_matrix_test_data[fold].empty()==true || feature_matrix_test_data[fold].cols!=feature_matrix.cols || label_matrix_test_data[fold].empty()==true || label_matrix_test_data[fold].cols!=label_matrix.cols || feature_matrix_test_data[fold].rows!=label_matrix_test_data[fold].rows)
+				std::cout << "Error: provided pre-computed test data and label matrices are not suitable." << std::endl;
+			train_indices = preselected_train_indices[fold];
+			test_indices.resize(feature_matrix_test_data[fold].rows);
+		}
+		else
+		{
+			// select one object per class for testing
+			for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
 			{
-				if (object_index == test_object)
-					for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
-						test_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
-				else
-					for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
-						train_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
+				int object_number = data_sample_hierarchy[class_index].size();
+				int test_object = (int)(object_number * (double)rand()/((double)RAND_MAX+1.0));
+	//			std::cout << "object_number=" << object_number << "   test_object=" << test_object << std::endl;
+				for (int object_index=0; object_index<object_number; ++object_index)
+				{
+					if (object_index == test_object)
+						for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
+							test_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
+					else
+						for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
+							train_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
+				}
 			}
 		}
-		assert(test_indices.size() + train_indices.size() == feature_matrix.rows);
+		assert(test_indices.size() + train_indices.size() == (unsigned int)feature_matrix.rows);
 
 		// create training and test data matrices
 		cv::Mat training_data(train_indices.size(), feature_matrix.cols, feature_matrix.type());
@@ -73,11 +97,19 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 				training_data.at<float>(r,c) = feature_matrix.at<float>(train_indices[r],c);
 			training_labels.at<float>(r) = label_matrix.at<float>(train_indices[r]);
 		}
-		for (unsigned int r=0; r<test_indices.size(); ++r)
+		if (use_preselected_set_distribution==true)
 		{
-			for (int c=0; c<feature_matrix.cols; ++c)
-				test_data.at<float>(r,c) = feature_matrix.at<float>(test_indices[r],c);
-			test_labels.at<float>(r) = label_matrix.at<float>(test_indices[r]);
+			test_data = feature_matrix_test_data[fold];
+			test_labels = label_matrix_test_data[fold];
+		}
+		else
+		{
+			for (unsigned int r=0; r<test_indices.size(); ++r)
+			{
+				for (int c=0; c<feature_matrix.cols; ++c)
+					test_data.at<float>(r,c) = feature_matrix.at<float>(test_indices[r],c);
+				test_labels.at<float>(r) = label_matrix.at<float>(test_indices[r]);
+			}
 		}
 
 		// === train ml classifier ===
@@ -158,30 +190,26 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 
 //	End Bayes Classifier
 
-//	Neural Network
-
+		// Neural Network
 		cv::Mat input;
 		training_data.convertTo(input, CV_32F);
 		cv::Mat output=cv::Mat::zeros(training_data.rows, 57, CV_32FC1);
-
 		cv::Mat labels;
 		training_labels.convertTo(labels, CV_32F);
-
 		for(int i=0; i<training_data.rows; ++i)
 			output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
 
 		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-
-		layers.row(0) = cv::Scalar(16);
-		layers.row(1) = cv::Scalar(400);
+		layers.row(0) = cv::Scalar(training_data.cols);
+		layers.row(1) = cv::Scalar(400);	//400
 		layers.row(2) = cv::Scalar(57);
 
 		CvANN_MLP mlp;
 		CvANN_MLP_TrainParams params;
 		CvTermCriteria criteria;
 
-		criteria.max_iter = 1000;
-		criteria.epsilon  = 0.00001f;
+		criteria.max_iter = 400;
+		criteria.epsilon  = 0.0001f;
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 
 		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
@@ -189,13 +217,13 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 		params.bp_moment_scale = 0.1f;
 		params.term_crit       = criteria;
 
-		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.3,1.2);
+		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
 		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;
+		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
 		// === apply ml classifier to predict test set ===
 		int t = 0, f = 0;
-		int t2 = 0, f2 = 0;
+//		int t2 = 0, f2 = 0;
 		std::vector<int> labelres;
 
 		for(int i = 0; i < test_data.rows ; i++)
@@ -206,16 +234,16 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 			mlp.predict(sample, response);
 
 			float max = -1000000000000.0f;
-			float max2 = -1000000000000.0f;
+//			float max2 = -1000000000000.0f;
 			int cls = -1;
-			int cls2 = -1;
+//			int cls2 = -1;
 			for (int j = 0; j < 57; j++)
 			{
 				float value = response.at<float>(0, j);
 				if (value > max)
 				{
-					max2 = max;
-					cls2 = cls;
+//					max2 = max;
+//					cls2 = cls;
 					max = value;
 					cls = j;
 				}
@@ -225,34 +253,44 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 				t++;
 			else
 				f++;
+//			if (cls2 == test_labels.at<float>(i, 0))
+//				t2++;
+//			else
+//				f2++;
 
-			if (cls2 == test_labels.at<float>(i, 0))
-				t2++;
-			else
-				f2++;
-
-			std::cout << "value:" << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] <<
-					")   predicted:" << cls << " (" << texture_classes[cls] << ")" << std::endl;
+			std::cout << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << cls << " (" << texture_classes[cls] << ")" << std::endl;
+			screen_output << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << cls << " (" << texture_classes[cls] << ")" << std::endl;
 		}
 
 		true_predictions.push_back(t);
 		false_predictions.push_back(f);
-		std::cout << "true:" << t << " False:" << f << std::endl;
-		std::cout << "true2:" << t2 << " False2:" << f2 << std::endl;
 		double sum = t + f;
 		double percentage = t*(100.0 / sum);
-		std::cout << "Correct classified: " << percentage << "%" << std::endl;
+		std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
+		screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
+		//std::cout << "true2:" << t2 << " False2:" << f2 << std::endl;
+
+		// End Neural Network
 	}
-//	End Neural Network
 
 	std::cout << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
+	screen_output << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
 	int t=0, f=0;
 	for (unsigned int i=0; i<true_predictions.size(); ++i)
 	{
 		t += true_predictions[i];
 		f += false_predictions[i];
 	}
-	std::cout << "Correct classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
+	std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
+	screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
+
+	// write screen outputs to file
+	std::ofstream file("screen_output_classification.txt", std::ios::out);
+	if (file.is_open() == true)
+		file << screen_output.str();
+	else
+		std::cout << "Error: could not write screen output to file.";
+	file.close();
 }
 
 
@@ -404,7 +442,7 @@ void train_ml::run_ml(double val, std::string *path_)
 		    params.term_crit       = criteria;
 
 		    mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.3,1.2);
-		    int i = mlp.train(input,output,cv::Mat(),cv::Mat(),params);
+		    mlp.train(input,output,cv::Mat(),cv::Mat(),params);
 
 		    int t = 0, f = 0;
 		    int t2 = 0, f2 = 0;
@@ -419,7 +457,7 @@ void train_ml::run_ml(double val, std::string *path_)
 		        mlp.predict(sample,response);
 
 		        float max = -1000000000000.0f;
-		        float max2 = -1000000000000.0f;
+		        //float max2 = -1000000000000.0f;
 		        int cls = -1;
 		        int cls2 = -1;
 
@@ -429,7 +467,7 @@ void train_ml::run_ml(double val, std::string *path_)
 
 		            if(value > max)
 		            {
-		            	max2=max;
+		            	//max2=max;
 		            	cls2=cls;
 		                max = value;
 		                cls = j;

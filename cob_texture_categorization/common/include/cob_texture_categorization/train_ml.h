@@ -17,8 +17,9 @@ class train_ml
 public:
 	train_ml();
 
-	void load_texture_database_features(std::string path, cv::Mat& feature_matrix, cv::Mat& label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy);
-	void cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy);
+	void load_texture_database_features(std::string path, cv::Mat& ground_truth_attribute_matrix, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy);
+	void cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
+			const std::vector< std::vector<int> >& preselected_train_indices=std::vector< std::vector<int> >(), const std::vector<cv::Mat>& feature_matrix_test_data=std::vector<cv::Mat>(), const std::vector<cv::Mat>& label_matrix_test_data=std::vector<cv::Mat>());
 
 	void run_ml(double val, std::string *path_);
 

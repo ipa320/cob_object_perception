@@ -4,7 +4,7 @@ color_parameter::color_parameter()
 {
 }
 
-void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *results)
+void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *results, cv::Mat* raw_features)
 {
 //	computes color parameters for all images of a given folder
 //
@@ -59,7 +59,8 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 
 	int testcount = 0;
 
-	double colorfulness=0;
+	double colorfulness=0.;
+	double colorfulness_raw=0.;
 	double dom_color;
 	double dom_color2;
 
@@ -152,12 +153,13 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 			pb=0; //no peak
 			b_peak_pos=-1;
 		}
-	}else
+	}
+	else
 	{
-
-            colorfulness = 0;
-            dom_color = 0;
-            dom_color2 = 0;
+		colorfulness = 0;
+		colorfulness_raw = 0;
+		dom_color = 0;
+		dom_color2 = 0;
 	}
 
 //	colorfullness
@@ -168,6 +170,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	if(peaks.size()+pb==1)
 	{
 		colorfulness=1;
+		colorfulness_raw=1;
 		if(peaks.size()>0)
 		{
 			swap = (peaks[0][0]-1)/2;
@@ -181,6 +184,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	{
 //		bi-colored --> dominant and secondary dominant color
 		colorfulness=2;
+		colorfulness_raw=2;
 		if(peaks.size()==2)
 		{
 			if(peaks[0][0]>peaks[1][0])
@@ -205,6 +209,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 		if(hue_hist.size()>0)
 		{
 			colorfulness = ((num_non_zeros/hue_hist.size())*5)/colorful5;
+			colorfulness_raw = ((num_non_zeros/hue_hist.size())*5);
 		}
 		if(colorfulness>5)
 		{
@@ -283,6 +288,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 //  adopted measurement
 	cv::Scalar means, stds, meanv, stdv;
 	double s_mean, s_std, v_mean, v_std;
+	double s_mean_raw, s_std_raw, v_mean_raw, v_std_raw;
 	std::vector<double> s, v;
 	for(int i=0;i<hsv.rows;i++)
 	{
@@ -297,9 +303,13 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	cv::meanStdDev(s, means, stds);
 	cv::meanStdDev(v, meanv, stdv);
 	s_mean = means.val[0]*6+0.5;
+	s_mean_raw = means.val[0];
 	s_std = stds.val[0]*10+0.5;
+	s_std_raw = stds.val[0];
 	v_mean = meanv.val[0]*6+0.5;
+	v_mean_raw = meanv.val[0];
 	v_std = stdv.val[0]*12+0.5;
+	v_std_raw = stdv.val[0];
 
 	if(s_mean>1)
 	{
@@ -337,4 +347,13 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 //		(*results).dom_color = 1;
 //		(*results).dom_color2 = 2;
 
+	// raw values
+	if (raw_features != 0)
+	{
+		raw_features->at<float>(0, 0) = colorfulness_raw;
+		raw_features->at<float>(0, 1) = v_mean_raw;
+		raw_features->at<float>(0, 2) = v_std_raw;
+		raw_features->at<float>(0, 3) = s_mean_raw;
+		raw_features->at<float>(0, 4) = s_std_raw;
+	}
 }

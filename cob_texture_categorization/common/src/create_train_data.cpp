@@ -92,9 +92,15 @@ std::vector<std::string> create_train_data::get_texture_classes()
 
 void create_train_data::compute_data(std::string *path_, int status, std::string *path_save, int number_pictures)
 {
-	std::vector< std::vector< std::vector< int > > > data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entrie_index in feature data matrix
+	// load labeled ground truth attributes with relation to each image file
+	std::map<std::string, std::vector<float> > filenames_gt_attributes;
+	std::string path_filenames_gt_attributes = *path_save + "ipa_database_filename_attributes.txt";
+	load_filenames_gt_attributes(path_filenames_gt_attributes, filenames_gt_attributes);
 
-	cv::Mat train_data = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed features
+	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
+
+	cv::Mat ground_truth_attributes = cv::Mat::zeros(number_pictures, 16, CV_32FC1);	// matrix of labeled ground truth attributes
+	cv::Mat train_data = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
 	cv::Mat responses = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 
 	std::string str, name;
@@ -107,6 +113,7 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 	std::string path;
 
 	std::cout<<"BEGIN" << std::endl;
+	std::stringstream accumulated_error_string;
 	std::vector<int> errors;
 	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
 	{
@@ -124,6 +131,18 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 					str = path + "/";
 					name = entry->d_name;
 					str.append(name);
+
+					if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
+					{
+						for (unsigned int i=0; i<filenames_gt_attributes[name].size(); ++i)
+							if (i!=13)	// one attribute (3d roughness) is currently not implemented here, so just leave it out from gt
+								ground_truth_attributes.at<float>(sample_index, i) = filenames_gt_attributes[name][i];
+					}
+					else
+					{
+						std::cout << "Error: no entry for file '" << name << "' in filenames_gt_attributes." << std::endl;
+						accumulated_error_string << "Error: no entry for file '" << name << "' in filenames_gt_attributes." << std::endl;
+					}
 
 					// create data sample hierarchy
 					// determine object number
@@ -152,12 +171,13 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 					std::cout << str << ":   ";
 					cv::Mat image = cv::imread(str);
 					feature_results results;
+					cv::Mat raw_features(1, 30, CV_32FC1); // todo: check width
 					//struct color_vals color_results;
 					color_parameter color = color_parameter(); //Berechnung der Farbfeatures
-					color.get_color_parameter(image, &results);
+					color.get_color_parameter(image, &results, &raw_features);
 
 					texture_features edge = texture_features(); //Berechnung der Texturfeatures
-					edge.primitive_size(&image, &results);
+					edge.primitive_size(&image, &results, &raw_features);
 
 					responses.at<float>(sample_index, 0) = class_index;
 					train_data.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
@@ -199,62 +219,61 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 		std::cout << "Error in feature " << errors[i] << "for some sample." << std::endl;
 	}
 
+	std::cout << "Errors:\n" << accumulated_error_string.str() << std::endl;
+
 	std::cout << "Finished reading " << sample_index << " data samples." << std::endl;
 
-	////	Save data to train;
-	//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/training_data.yml", cv::FileStorage::WRITE);
-	//	fs << "Training_data" << train_data;
-	////	Save responsvalues of traindata
-	//	cv::FileStorage fsw("/home/rmb-dh/Test_dataset/train_data_respons.yml", cv::FileStorage::WRITE);
-	//	fsw << "Training_label" << responses;
-
-
-	if (status == 0)
-	{
-		//	Save data;
-		std::string data = "database_data.yml";
-		std::string path_data = *path_save + data;
-		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
-		fs << "database_data" << train_data;
-
-		//	Save response values
-		std::string label = "database_label.yml";
-		std::string path_label = *path_save + label;
-		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
-		fsw << "database_label" << responses;
-	}
-	else if (status == 1)
-	{
-		//	Save traindata;
-		std::string data = "train_data.yml";
-		std::string path_data = *path_save + data;
-		//		cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
-		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
-		fs << "train_data" << train_data;
-
-		//	Save responsvalues
-		std::string label = "train_data_label.yml";
-		std::string path_label = *path_save + label;
-		//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
-		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
-		fsw << "train_label" << responses;
-	}
+	//	Save computed attributes, class labels and ground truth attributes
+	std::string data = "ipa_database.yml";
+	if (status == 1)
+		data = "train_data.yml";
 	else if (status == 2)
-	{
-		//	Save testdata;
-		std::string data = "test_data.yml";
-		std::string path_data = *path_save + data;
-		//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
-		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
-		fs << "test_data" << train_data;
+		data = "test_data.yml";
+	std::string path_data = *path_save + data;
+	cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+	fs << "attribute_matrix" << train_data;
+	fs << "class_label_matrix" << responses;
+	fs << "ground_truth_attribute_matrix" << ground_truth_attributes;
+	fs.release();
 
-		//	Save responsvalues
-		std::string label = "test_data_label.yml";
-		std::string path_label = *path_save + label;
-		//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
-		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
-		fsw << "test_label" << responses;
-	}
+//		//	Save response values
+//		std::string label = "database_label.yml";
+//		std::string path_label = *path_save + label;
+//		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
+//		fsw << "database_label" << responses;
+//	}
+//	else if (status == 1)
+//	{
+//		//	Save traindata;
+//		std::string data = "train_data.yml";
+//		std::string path_data = *path_save + data;
+//		//		cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
+//		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+//		fs << "train_data" << train_data;
+//
+//		//	Save responsvalues
+//		std::string label = "train_data_label.yml";
+//		std::string path_label = *path_save + label;
+//		//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
+//		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
+//		fsw << "train_label" << responses;
+//	}
+//	else if (status == 2)
+//	{
+//		//	Save testdata;
+//		std::string data = "test_data.yml";
+//		std::string path_data = *path_save + data;
+//		//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
+//		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+//		fs << "test_data" << train_data;
+//
+//		//	Save responsvalues
+//		std::string label = "test_data_label.yml";
+//		std::string path_label = *path_save + label;
+//		//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
+//		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
+//		fsw << "test_label" << responses;
+//	}
 
 	// store hierarchy and check validity of hierarchical data structure
 	std::string filename = *path_save + "data_hierarchy.txt";
@@ -270,15 +289,17 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 				std::cout << "Warning: class " << texture_classes_[i] << " does not contain any objects." << std::endl;
 			for (unsigned int j=0; j<data_sample_hierarchy[i].size(); ++j)
 			{
+				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
+					if (data_sample_hierarchy[i][j][k] == -1)		// invalid entry (caused by files not numbered consecutively)
+						data_sample_hierarchy[i][j].erase(data_sample_hierarchy[i][j].begin()+k);
+
 				file << "\t" << data_sample_hierarchy[i][j].size() << std::endl;
 //				std::cout << "    O" << j+1 << ":" << std::endl;
 				if (data_sample_hierarchy[i][j].size() == 0)
 					std::cout << "Warning: class " << texture_classes_[i] << ", object " << j+1 << " does not contain any samples." << std::endl;
 				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
 				{
-					if (data_sample_hierarchy[i][j][k] == -1)		// invalid entry (caused by files not numbered consecutively)
-						data_sample_hierarchy[i][j].erase(data_sample_hierarchy[i][j].begin()+k);
-//					std::cout << "          I" << k+1 << ": " << data_sample_hierarchy[i][j][k] << std::endl;
+					std::cout << "          I" << k+1 << ": " << data_sample_hierarchy[i][j][k] << std::endl;
 					file << "\t\t" << data_sample_hierarchy[i][j][k] << std::endl;
 				}
 			}
@@ -323,5 +344,45 @@ void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyT
 			}
 		}
 	}
+	else
+		std::cout << "Error: could not open file " << filename << "." << std::endl;
+	file.close();
+}
+
+void create_train_data::load_filenames_gt_attributes(std::string filename, std::map<std::string, std::vector<float> >& filenames_gt_attributes)
+{
+	const int attribute_number = 17;
+	DataHierarchyType data_sample_hierarchy;
+	std::ifstream file(filename.c_str(), std::ios::in);
+	if (file.is_open() == true)
+	{
+		unsigned int class_number = 0;
+		file >> class_number;
+		data_sample_hierarchy.resize(class_number);
+		for (unsigned int i=0; i<class_number; ++i)
+		{
+			std::string class_name;
+			file >> class_name;
+			unsigned int object_number=0;
+			file >> object_number;
+			data_sample_hierarchy[i].resize(object_number);
+			for (unsigned int j=0; j<data_sample_hierarchy[i].size(); ++j)
+			{
+				unsigned int sample_number=0;
+				file >> sample_number;
+				data_sample_hierarchy[i][j].resize(sample_number);
+				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
+				{
+					std::string image_filename;
+					file >> image_filename;
+					filenames_gt_attributes[image_filename].resize(attribute_number);
+					for (int l=0; l<attribute_number; ++l)
+						file >> filenames_gt_attributes[image_filename][l];	// ground truth attribute vector
+				}
+			}
+		}
+	}
+	else
+		std::cout << "Error: could not open file " << filename << "." << std::endl;
 	file.close();
 }
