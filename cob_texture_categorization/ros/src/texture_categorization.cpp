@@ -75,10 +75,10 @@ node_handle_(nh)
 	//segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
 
 
-//	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
-//	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
-//	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
-	TextCategorizationNode::inputCallbackNoCam();
+	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
+	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
+	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
+//	TextCategorizationNode::inputCallbackNoCam();
 
 }
 
@@ -223,10 +223,10 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 
 /// convert depth data to cv::Mat
-//	cv::Mat depth(480, 640, CV_32F);
-//	depth_image dimage = depth_image();
-//	dimage.get_depth_image(pointcloud_msg, &depth);
-//	cv::imshow("3D",depth);
+	cv::Mat depth(480, 640, CV_32F);
+	depth_image dimage = depth_image();
+	dimage.get_depth_image(pointcloud_msg, &depth);
+	cv::imshow("3D",depth);
 //	cv::moveWindow("3D", 800,600);
 
 
@@ -275,8 +275,16 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 
 // 		Imagetransformation
-//		cv::imshow("test", color_image);
-//		std::vector<float> plane_coeff;
+		cv::imshow("test", color_image);
+		std::vector<float> plane_coeff;
+
+
+	p_transformation transform = p_transformation();
+	transform.run_pca(&color_image, &depth, pointcloud_msg, &marker, &plane_coeff);
+//			cv::imshow("segment", segmented_regions[2][0]);
+//			transform.run_pca(&segmented_regions[2][0], &depth, pointcloud_msg, &marker);
+
+
 
 //		for(int i=0;i<segmented_regions.size();i=i+10)
 //		{
@@ -369,15 +377,15 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //	}
 //	}
 //
-	cv::imshow("original", color_image);
-	splitandmerge test = splitandmerge();
-	cv::Mat pic1 = test.categorize(color_image);
+//	cv::imshow("original", color_image);
+//	splitandmerge test = splitandmerge();
+//	cv::Mat pic1 = test.categorize(color_image);
 //	cv::Mat pic2 = test.categorize(test2);
 //	cv::Mat pic3 = test.categorize(test3);
 //	cv::Mat pic4 = test.categorize(test4);
 //	cv::Mat pic5 = test.categorize(test5);
 //	cv::Mat pic6 = test.categorize(test6);
-	cv::imshow("sam1", pic1);
+//	cv::imshow("sam1", pic1);
 //	cv::moveWindow("sam1", 0,0);
 //	cv::imshow("sam2", pic2);
 //	cv::moveWindow("sam2", 1380,0);

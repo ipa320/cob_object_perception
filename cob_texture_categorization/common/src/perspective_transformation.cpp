@@ -430,7 +430,7 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 
 		cv::warpPerspective((*source), workimage, H, workimage.size());
 //		cv::warpPerspective((*depth), imageH, H, workimage.size());
-//		cv::imshow("Homogrtestt", workimage);
+		cv::imshow("Homogrtestt", workimage);
 		(*source)=workimage;
 //		(*depth)=imageH;
 				}else{
