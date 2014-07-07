@@ -1130,9 +1130,9 @@ void texture_features::compute_features(cv::Mat *image, struct feature_results *
 //	texture_features::compute_regularity_of_primitives(&contours, &numPixels, &edge_pixels, results, &centroid, &idx);
 
 //	////Value 12
-	double d = 1;
+	double d = 1, contrast_raw;
 	amadasun amadasun_fkt = amadasun();
-	amadasun_fkt.get_amadasun(*image, d, results);
+	amadasun_fkt.get_amadasun(*image, d, results, contrast_raw);
 //////Value 13
 
 //	std::vector<cv::RotatedRect> ellipse_ecc;
@@ -1169,7 +1169,7 @@ void texture_features::compute_features(cv::Mat *image, struct feature_results *
 
 }
 
-void texture_features::primitive_size(cv::Mat *img, struct feature_results *results)
+void texture_features::primitive_size(cv::Mat *img, struct feature_results *results, cv::Mat* raw_features)
 {
 //	calculate color values (value 1-7)
 //	struct color_vals color_results;
@@ -1177,6 +1177,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	color.get_color_parameter(img, results);
 
 //	Size of Primitives -- Value 8
+	double avg_primitive_size_raw1, avg_primitive_size_raw2;
 	cv::Mat image, image_gray, detected_edges;
 //	Resize input image
 //	std::cout<<(*img).size()<<"size "<<(*img).type()<<"type "<<std::endl;
@@ -1207,7 +1208,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	Sort numPixels, save old index in idx
 	std::vector<int> idx=sort_index(numPixels);
 	int size = numPixels.size();
-	double big_comp;
+	double big_comp = 0;
 	if(numPixels.size()>=3)
 	{
 		big_comp = (numPixels[size-1]+numPixels[size-2]+numPixels[size-3])/3;
@@ -1219,6 +1220,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 		}
 		if(size>0)big_comp=big_comp/size;
 	}
+	avg_primitive_size_raw1 = big_comp;
 	big_comp=0.0025*big_comp+0.9;
 //	std::cout<<std::endl<<big_comp<<"big_comp"<<std::endl;
 
@@ -1233,8 +1235,14 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	if(size-round(size*0.75)>0)
 	{
 		avg_size = avg_size/(size-round(size*0.75));
+		avg_primitive_size_raw2 = avg_size;
 		avg_size = 0.006*avg_size+0.8;
-	}else avg_size=1;
+	}
+	else
+	{
+		avg_size=1;
+		avg_primitive_size_raw2 = 1;
+	}
 //	std::cout<<avg_size<<"avsize "<<std::endl;
 	if(avg_size<1) avg_size = 1;
 	if(avg_size>5) avg_size = 5;
@@ -1254,6 +1262,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //        high: few small or large primitives
 //        low: many small primitives
 //    delete small/irrelevant contours
+	double number_primitives_raw1, number_primitives_raw2;
 	cv::Canny( small_image, edge_pixels, 100, 300, 3);
 	detected_edges = edge_pixels.clone();
 	findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
@@ -1306,11 +1315,13 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	}
 	dist_edge = (dist_edge/(L2dist.rows*L2dist.cols));
 	dist_edge = dist_edge / (small_image.rows*small_image.cols)*10000;
+	number_primitives_raw1 = dist_edge;
 	dist_edge=-0.06*dist_edge+4.4;
 	if(dist_edge<1)dist_edge = 1;
 	if(dist_edge>5)dist_edge = 5;
 
 //	//CRITERIA 2: amount of contours
+	number_primitives_raw2 = numPixels.size();
 	double amt_obj = 0.007*numPixels.size()+1.1;
 	if(amt_obj<1)amt_obj = 1;
 	if(amt_obj>5)amt_obj = 5;
@@ -1328,6 +1339,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 
 //  Strength of primitives -- Value 10
 //	Resize input image
+	double primitive_strength_raw;
 	cv::Mat image_resize;
 	resize((*img), image, cv::Size(), 0.5, 0.5, cv::INTER_CUBIC);
 	cvtColor( image, image_resize, CV_BGR2HSV );
@@ -1398,6 +1410,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 			}
 		}
 	}
+	primitive_strength_raw = std_window/edge_pixels_amount;
 	double val10= 30*std_window/edge_pixels_amount*val8/2+1;
 	val10 = pow(val10,2);
 	if(val10>5) val10=5;
@@ -1407,14 +1420,15 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	Result Value 10
 
 //  Contrast -- Value 12
+	double contrast_raw;
 	double d = 1;
 	amadasun amadasun_fkt2 = amadasun();
-	amadasun_fkt2.get_amadasun((*img), d, results);
+	amadasun_fkt2.get_amadasun((*img), d, results, contrast_raw);
 
 
 //  Regularity/Similarity of primitives
 //  downsampling to avoid fine structures
-
+	double primitive_regularity_raw1, primitive_regularity_raw2, primitive_regularity_raw3;
 	resize((*img), image, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
 	cvtColor( image, image_gray, CV_BGR2GRAY );
 //	extract edges
@@ -1505,6 +1519,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	std::cout<<std::endl<<std_val<<"area std "<<std::endl<<mean_val<<"area mean"<<std::endl;
 //	regu = (std_val/mean_val);
 	regu = (std_val/mean_val);
+	primitive_regularity_raw1 = (std_val/mean_val);
 	cv::meanStdDev(equivdiameter, mean, stddev);
 	std_val = stddev.val[0];
 //	std::cout<<std_val<<"equi std"<<std::endl;
@@ -1512,11 +1527,13 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	std::cout<<mean_val<<"equi mean"<<std::endl;
 //	regu = regu/(std_val/mean_val);
 	regu = regu + (std_val/mean_val)/2;
+	primitive_regularity_raw2 = (std_val/mean_val);
 	cv::meanStdDev(extent, mean, stddev);
 	std_val = stddev.val[0];
 //	std::cout<<std_val<<"extend std"<<std::endl;
 //	regu = regu/(std_val/50);
 	regu = regu+(std_val)*2;
+	primitive_regularity_raw3 = std_val;
 	regu = 8-regu;
 
 //	std::cout<<regu<<"regularity"<<std::endl;
@@ -1535,7 +1552,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	 --> following steps already done above at Regularity/Similarity of primitives
 //
 //	      Criteria 1: search large circles/blobs by generalized Hough Transform
-
+	double line_likeness_raw;
 	std::vector<cv::Vec3f> circles_s, circles_m, circles_l, circles_xl;
 	double threshholdmin = 50;
 	double thresholdmax = 150;
@@ -1602,11 +1619,12 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 
 	double crit1 = (circles_s.size()+circles_m.size()+circles_l.size());
 	if(crit1>6)
-		{
-			crit1 = 4-(crit1/7);
-		}
-	else{
-
+	{
+		line_likeness_raw = crit1;
+		crit1 = 4-(crit1/7);
+	}
+	else
+	{
 		cv::Mat image_gray_small, check_lines;
 		std::vector<cv::Vec2f> lines;
 		cv::Canny( image_gray, check_lines,100, 300, 3);
@@ -1616,9 +1634,21 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 		double line_num = lines.size();
 		double line_contours_num = lines_contours.size();
 		double line_value = line_num/line_contours_num;
-		if(line_value >1)crit1=5;
-		else if(line_value>0)crit1=4;
-		else crit1=1;
+		if(line_value >1)
+		{
+			crit1=5;
+			line_likeness_raw = 5;
+		}
+		else if(line_value>0)
+		{
+			crit1=4;
+			line_likeness_raw = 4;
+		}
+		else
+		{
+			crit1=1;
+			line_likeness_raw = 1;
+		}
 	}
 	if(crit1<1)crit1=1;
 	if(crit1>5)crit1=5;
@@ -1980,7 +2010,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 
 //	 Directionality -- Value 15
 //	 check if placement of few coarse primitives is on circle
-
+	crit1 = 0.;
 	if(centroid.size()<50 && centroid.size()>=3)
 	{
 //		create matrices of equation
@@ -2036,11 +2066,11 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 			err = err+dist;
 		}
 		err = err/centroid.size();
-		double crit1 = 5-0.085*err;
+		crit1 = 5-0.085*err;
 		if(crit1 >1)crit1 = 1;
 	}else
 	{
-		double crit1 = 1;
+		crit1 = 1;
 	}
 
 	std::cout<<"point"<<std::endl;
@@ -2162,6 +2192,19 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	(*results).direct_reg=val15;
 
 
+	if (raw_features != 0)
+	{
+		raw_features->at<float>(0, 5) = avg_primitive_size_raw1;
+		raw_features->at<float>(0, 6) = avg_primitive_size_raw2;
+		raw_features->at<float>(0, 7) = number_primitives_raw1;
+		raw_features->at<float>(0, 8) = number_primitives_raw2;
+		raw_features->at<float>(0, 9) = primitive_strength_raw;
+		raw_features->at<float>(0, 10) = primitive_regularity_raw1;
+		raw_features->at<float>(0, 11) = primitive_regularity_raw2;
+		raw_features->at<float>(0, 12) = primitive_regularity_raw3;
+		raw_features->at<float>(0, 13) = contrast_raw;
+		raw_features->at<float>(0, 14) = line_likeness_raw;
+	}
 
 //	struct timeval zeit8;
 //	gettimeofday(&zeit8, 0);

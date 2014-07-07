@@ -57,7 +57,7 @@ public:
 	texture_features();
 	~texture_features();
 	void compute_151617(cv::Mat *image,  struct feature_results *results, std::vector <std::vector <cv::Point> > *circle_contours, cv::Mat *edge_pixels, std::vector<double> *eccentricity, std::vector<cv::RotatedRect> *ellipse_ecc, std::vector< std::vector<double> > *centroid);
-	void primitive_size(cv::Mat *img, struct feature_results *results);
+	void primitive_size(cv::Mat *img, struct feature_results *results, cv::Mat* raw_features=0);
 	void compute_features(cv::Mat *img, struct feature_results *results);
 	void size_of_primitive(std::vector <std::vector <cv::Point> > *contours, struct feature_results *results, std::vector<int> *numPixels, double *big_comp_val);
 	void compute_contours(cv::Mat *img, int canny_op1, int canny_op2, float resize_op1, float resize_op2, bool center, std::vector<int>* numPixels, std::vector<int> *idx, cv::Mat *detected_edges, std::vector <std::vector <cv::Point> > *contours, bool sort);

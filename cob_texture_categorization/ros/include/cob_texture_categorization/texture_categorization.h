@@ -104,7 +104,8 @@ protected:
 
 	void inputCallbackNoCam();
 
-	void attributeLearningDatabaseTest();
+	void attributeLearningDatabaseTestFarhadi();
+	void attributeLearningDatabaseTestHandcrafted();
 
 };
 

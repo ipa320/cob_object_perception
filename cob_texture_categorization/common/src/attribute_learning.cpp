@@ -6,14 +6,15 @@
 #include "highgui.h"
 
 
-void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, cv::Mat& feature_matrix, cv::Mat& attribute_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, const int feature_number, const int attribute_number, cv::Mat& feature_matrix, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
 {
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
-	const int label_number = 17;			// label = attributes
-	const int feature_number = 9688;		// feature = base feature
+	//const int attribute_number = 17;			// label = attributes
+	//const int feature_number = 9688;		// feature = base feature
 	const int total_sample_number = 1281;
 	feature_matrix.create(total_sample_number, feature_number, CV_32FC1);
-	attribute_matrix.create(total_sample_number, label_number, CV_32FC1);
+	attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
+	class_label_matrix.create(total_sample_number, 1, CV_32FC1);
 	int sample_index = 0;
 	std::ifstream file(filename.c_str(), std::ios::in);
 	if (file.is_open() == true)
@@ -35,11 +36,12 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, cv
 				data_sample_hierarchy[i][j].resize(sample_number);
 				for (unsigned int k=0; k<sample_number; ++k)
 				{
-					for (int l=0; l<label_number; ++l)
-						file >> attribute_matrix.at<float>(sample_index, l);
+					for (int l=0; l<attribute_number; ++l)
+						file >> attribute_matrix.at<float>(sample_index, l);	// attribute vector
 					for (int f=0; f<feature_number; ++f)
-						file >> feature_matrix.at<float>(sample_index, f);
-					data_sample_hierarchy[i][j][k] = sample_index;
+						file >> feature_matrix.at<float>(sample_index, f);		// base feature vector
+					class_label_matrix.at<float>(sample_index, 0) = i;
+					data_sample_hierarchy[i][j][k] = sample_index;				// class label (index)
 					++sample_index;
 				}
 			}
@@ -100,14 +102,88 @@ void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string 
 	file.close();
 }
 
+void AttributeLearning::saveAttributeCrossValidationData(std::string path, const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& attribute_matrix_test_data, const std::vector<cv::Mat>& class_label_matrix_test_data)
+{
+	// convert nested vector to vector of cv::Mat
+	std::vector<cv::Mat> preselected_train_indices_mat(preselected_train_indices.size());
+	for (unsigned int i=0; i<preselected_train_indices.size(); ++i)
+	{
+		preselected_train_indices_mat[i].create(preselected_train_indices[i].size(), 1, CV_32SC1);
+		for (unsigned int j=0; j<preselected_train_indices[i].size(); ++j)
+			preselected_train_indices_mat[i].at<int>(j,0) = preselected_train_indices[i][j];
+	}
+
+	// save data;
+	std::string data = "ipa_database_attribute_cv_data.yml";
+	std::string path_data = path + data;
+	std::cout << "Saving data to file " << path_data << " ... ";
+	cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+	if (fs.isOpened() == true)
+	{
+		fs << "preselected_train_indices" << preselected_train_indices_mat;
+		fs << "attribute_matrix_test_data" << attribute_matrix_test_data;
+		fs << "class_label_matrix_test_data" << class_label_matrix_test_data;
+	}
+	else
+		std::cout << "Error: could not open file '" << path_data << "' for writing."<< std::endl;
+	fs.release();
+	std::cout << "done." << std::endl;
+}
+
+void AttributeLearning::loadAttributeCrossValidationData(std::string path, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data)
+{
+	// load data;
+	std::vector<cv::Mat> preselected_train_indices_mat;
+	std::string data = "ipa_database_attribute_cv_data.yml";
+	std::string path_data = path + data;
+	std::cout << "Loading data from file " << path_data << " ... ";
+	cv::FileStorage fs(path_data, cv::FileStorage::READ);
+	if (fs.isOpened() == true)
+	{
+		fs["preselected_train_indices"] >> preselected_train_indices_mat;
+		fs["attribute_matrix_test_data"] >> attribute_matrix_test_data;
+		fs["class_label_matrix_test_data"] >> class_label_matrix_test_data;
+	}
+	else
+		std::cout << "Error: could not open file '" << path_data << "' for reading."<< std::endl;
+	fs.release();
+
+	// convert nested vector to vector of cv::Mat
+	preselected_train_indices.resize(preselected_train_indices_mat.size());
+	for (unsigned int i=0; i<preselected_train_indices_mat.size(); ++i)
+	{
+		preselected_train_indices[i].resize(preselected_train_indices_mat[i].rows);
+		for (int j=0; j<preselected_train_indices_mat[i].rows; ++j)
+			preselected_train_indices[i][j] = preselected_train_indices_mat[i].at<int>(j,0);
+	}
+
+	std::cout << "done." << std::endl;
+}
+
 
 void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int cross_validation_mode)
+{
+	cv::Mat class_label_matrix;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data;
+	crossValidation(folds, feature_matrix, attribute_matrix, data_sample_hierarchy, cross_validation_mode, false, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+}
+
+void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int cross_validation_mode,
+		bool return_set_data, const cv::Mat& class_label_matrix, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data)
 {
 	// vectors for evaluation data, each vector entry is meant to count the statistics for one attribute
 	std::vector<double> sumAbsErrors(attribute_matrix.cols, 0.0);
 	std::vector<int> numberSamples(attribute_matrix.cols, 0);
 	std::vector<int> below05(attribute_matrix.cols, 0), below1(attribute_matrix.cols, 0);	// number of attributes estimated with less absolute error than 0.5, 1.0
 	std::stringstream screen_output;
+
+	if (return_set_data == true)
+	{
+		preselected_train_indices.resize(folds);
+		attribute_matrix_test_data.resize(folds);
+		class_label_matrix_test_data.resize(folds);
+	}
 
 	create_train_data data_object;
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
@@ -171,6 +247,8 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			std::cout << "Error: chosen cross_validation_mode is unknown." << std::endl;
 		//std::cout << std::endl;
 		screen_output << std::endl;
+		if (return_set_data==true)
+			preselected_train_indices[fold] = train_indices;
 		assert((int)(test_indices.size() + train_indices.size()) == feature_matrix.rows);
 
 		// create training and test data matrices
@@ -184,6 +262,11 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 		for (unsigned int r=0; r<test_indices.size(); ++r)
 			for (int c=0; c<feature_matrix.cols; ++c)
 				test_data.at<float>(r,c) = feature_matrix.at<float>(test_indices[r],c);
+		if (return_set_data==true)
+		{
+			attribute_matrix_test_data[fold].create(test_indices.size(), attribute_matrix.cols, attribute_matrix.type());
+			class_label_matrix_test_data[fold].create(test_indices.size(), 1, CV_32FC1);
+		}
 
 		// train and evaluate classifier for each attribute with the given training set
 		for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
@@ -198,6 +281,52 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 				test_labels.at<float>(r) = attribute_matrix.at<float>(test_indices[r], attribute_index)/feature_scaling_factor;
 
 			// === train ml classifier ===
+
+			// 1. colorfulness: (raw[0])
+			// raw: 0,1,2 --> 0,1,2
+			// raw: [2,5] --> min(a*raw+b, 5)
+
+			// 2. dominant color:
+			// raw: [0,10] --> [0,10] as is
+
+			// 3. secondary dominant color:
+			// raw: [0,10] --> [0,10] as is
+
+			// 4. value mean: (raw[1])
+			// raw: --> max(1, min(5, a*raw+b))
+
+			// 5. value stddev: (raw[2])
+			// raw: --> max(1, min(5, a*raw+b))
+
+			// 6. saturation mean: (raw[3])
+			// raw: --> max(1, min(5, a*raw+b))
+
+			// 7. saturation stddev: (raw[4])
+			// raw: --> max(1, min(5, a*raw+b))
+
+			// 8. average primitive size: (raw[5], raw[6])
+			// raw[6]: 1 --> 1
+			// raw[5],raw[6]: --> max(1, min(5, (a1*raw[5]+b1 + a2*raw[6]+b2)/2) )
+
+			// 9. number of primitives: (raw[7], raw[8])
+			// raw[7],raw[8]: --> max(1, min(5, max(a1*raw[5]+b1, a2*raw[6]+b2) ) )
+
+			// 10. primitive strength: (raw[9])
+			// raw: --> max(1, min(5, a*raw*raw + b*raw + c ) )
+
+			// 11. primitive regularity: (raw[10], raw[11], raw[12])
+			// raw: --> max(1, min(5, a*raw[10] + b*raw[11] + c*raw[12] + d ) )
+
+			// 12. contrast: (raw[13])
+			// raw: --> max(1, min(5, a*raw[13]^3 + b*raw[13]^2 + c*raw[13] + d ) )
+
+			// 13. line likeness: (raw[14])
+			// raw: [1,4,5] --> [1,4,5] as is
+			// raw: --> max(1, min(5, a*raw[14] + b ) )
+
+			// 15. directionality:
+
+
 
 //			// K-Nearest-Neighbor
 //			cv::Mat test;
@@ -267,7 +396,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 //			// End Boosting
 
 			//	Neural Network
-			cv::Mat input;
+/*			cv::Mat input;
 			training_data.convertTo(input, CV_32F);
 			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
 			cv::Mat labels;
@@ -297,20 +426,27 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
 			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
-
+*/
 			// === apply ml classifier to predict test set ===
 			double sumAbsError = 0.;
 			int numberTestSamples = 0;
 			int below05_ctr = 0, below1_ctr = 0;
-			for(int i = 0; i < test_data.rows ; ++i)
+			for (int r = 0; r < test_data.rows ; ++r)
 			{
 				cv::Mat response(1, 1, CV_32FC1);
-				cv::Mat sample = test_data.row(i);
+				cv::Mat sample = test_data.row(r);
 
-				mlp.predict(sample, response);
-				//response.at<float>(0,0) = rtree.predict(sample);
+				//mlp.predict(sample, response);		// neural network
+				//response.at<float>(0,0) = rtree.predict(sample);		// random tree
+				response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
 
-				float absdiff = fabs(std::max(0.f, response.at<float>(0,0)) - test_labels.at<float>(i, 0)) * feature_scaling_factor;
+				if (return_set_data == true)
+				{
+					attribute_matrix_test_data[fold].at<float>(r,attribute_index) = response.at<float>(0,0) * feature_scaling_factor;
+					class_label_matrix_test_data[fold].at<float>(r, 0) = class_label_matrix.at<float>(test_indices[r],0);
+				}
+
+				float absdiff = fabs(std::max(0.f, response.at<float>(0,0)) - test_labels.at<float>(r, 0)) * feature_scaling_factor;
 				sumAbsError += absdiff;
 				++numberTestSamples;
 				if (absdiff < 1.f)
@@ -320,7 +456,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 						++below05_ctr;
 				}
 
-				screen_output << "value: " << test_labels.at<float>(i, 0) << "\t predicted: " << response.at<float>(0,0) << "\t abs difference: " << absdiff << std::endl;
+				screen_output << "value: " << test_labels.at<float>(r, 0) << "\t predicted: " << response.at<float>(0,0)*feature_scaling_factor << "\t abs difference: " << absdiff << std::endl;
 			}
 
 			sumAbsErrors[attribute_index] += sumAbsError;
