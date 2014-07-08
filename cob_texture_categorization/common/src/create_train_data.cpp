@@ -102,6 +102,7 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 	cv::Mat ground_truth_attributes = cv::Mat::zeros(number_pictures, 16, CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat train_data = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
 	cv::Mat responses = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
+	cv::Mat base_feature_data = cv::Mat::zeros(number_pictures, 22, CV_32FC1); // matrix of computed base features
 
 	std::string str, name;
 	DIR *pDIR;
@@ -171,7 +172,7 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 					std::cout << str << ":   ";
 					cv::Mat image = cv::imread(str);
 					feature_results results;
-					cv::Mat raw_features(1, 30, CV_32FC1); // todo: check width
+					cv::Mat raw_features = base_feature_data.row(sample_index); // todo: check width
 					//struct color_vals color_results;
 					color_parameter color = color_parameter(); //Berechnung der Farbfeatures
 					color.get_color_parameter(image, &results, &raw_features);
@@ -315,6 +316,23 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 
 
 	std::cout << "Feature computation on database completed." << std::endl;
+}
+
+void create_train_data::load_texture_database_features(std::string path, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+{
+	// load computed attributes, class labels and ground truth attributes
+	std::string database_file = path + "ipa_database.yml";
+	cv::FileStorage fs(database_file, cv::FileStorage::READ);
+	fs["attribute_matrix"] >> computed_attribute_matrix;
+	fs["class_label_matrix"] >> class_label_matrix;
+	fs["ground_truth_attribute_matrix"] >> ground_truth_attribute_matrix;
+	fs.release();
+
+	// load class-object-sample hierarchy
+	std::string database_hierarchy_file = path + "data_hierarchy_2fb.txt";
+	load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
+
+	std::cout << "Texture database features loaded." << std::endl;
 }
 
 void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy)

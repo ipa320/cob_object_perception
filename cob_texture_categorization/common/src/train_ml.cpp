@@ -14,23 +14,6 @@ train_ml::train_ml()
 {
 }
 
-void train_ml::load_texture_database_features(std::string path, cv::Mat& ground_truth_attribute_matrix, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
-{
-	// load computed attributes, class labels and ground truth attributes
-	std::string database_file = path + "ipa_database.yml";
-	cv::FileStorage fs(database_file, cv::FileStorage::READ);
-	fs["attribute_matrix"] >> attribute_matrix;
-	fs["class_label_matrix"] >> class_label_matrix;
-	fs["ground_truth_attribute_matrix"] >> ground_truth_attribute_matrix;
-	fs.release();
-
-	// load class-object-sample hierarchy
-	std::string database_hierarchy_file = path + "data_hierarchy_2fb.txt";
-	create_train_data data_object;
-	data_object.load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
-
-	std::cout << "Texture database features loaded." << std::endl;
-}
 
 void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
 			const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& feature_matrix_test_data, const std::vector<cv::Mat>& label_matrix_test_data)

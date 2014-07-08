@@ -171,7 +171,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 		for (int c=0; c<16; ++c)
 			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 	// option 2: computed with this program
-	//ml.load_texture_database_features(feature_files_path, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	//create_train_data train_data;
+	//train_data.load_texture_database_features(feature_files_path, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 	int folds = 20;
@@ -211,10 +212,11 @@ void TextCategorizationNode::inputCallbackNoCam()
 	train_ml ml;
 	//double gam =0;																		// Trainiert anhand des Trainingsvektors, testet anhand des Testvektors und gibt Ergebnis aus
 	//ml.run_ml(gam, &path_save_location);
-	cv::Mat attribute_matrix, class_label_matrix, ground_truth_attribute_matrix;
+	cv::Mat computed_attribute_matrix, class_label_matrix, ground_truth_attribute_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
-	ml.load_texture_database_features(path_save_location, ground_truth_attribute_matrix, attribute_matrix, class_label_matrix, data_hierarchy);
-	ml.cross_validation(10, attribute_matrix, class_label_matrix, data_hierarchy);
+	create_train_data train_data;
+	train_data.load_texture_database_features(path_save_location, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	ml.cross_validation(10, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 
 
 	//Train and predict with SVM

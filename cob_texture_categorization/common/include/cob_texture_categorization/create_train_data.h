@@ -22,6 +22,8 @@ public:
 
 	void compute_data(std::string *path_data, int status, std::string *path_save, int number_pictures);
 
+	void load_texture_database_features(std::string path, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy);
+
 	void load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy);
 
 	void load_filenames_gt_attributes(std::string filename, std::map<std::string, std::vector<float> >& filenames_gt_attributes);

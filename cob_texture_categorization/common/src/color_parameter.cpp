@@ -33,7 +33,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 //	threshold for saturation to decide whether pixel is on object or part of
 //	white background: relevant if input "white_back" is true (images show
 //	an object in front of white background)
-	double threshold_white=0.25;
+//	double threshold_white=0.25;
 
 //	threshold for saturation to decide whether color (hue) of pixel is
 //	relevant/visible: should be larger or equal than "threshold_white" if
@@ -89,7 +89,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	double b_peak_pos=-1;
 	if((rel_pix.size()/hsv.rows*hsv.cols)>ratio)
 	{
-		for(int i=0;i<rel_pix.size();i++)
+		for(unsigned int i=0;i<rel_pix.size();i++)
 		{
 			double hist_val = (rel_pix[i]/0.025);
 			double bin_num;
@@ -100,12 +100,12 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 			hue_hist[bin_num]=hue_hist[bin_num]+1;
 			}
 		}
-		for(int i=0;i<hue_hist.size();i++)
+		for(unsigned int i=0;i<hue_hist.size();i++)
 		{
 			hue_hist[i]=hue_hist[i]/rel_pix.size();
 		}
 //		peaks in the middle
-		for(int i=1; i<hue_hist.size()-1;i++)
+		for(unsigned int i=1; i<hue_hist.size()-1;i++)
 		{
 			if(hue_hist[i]>hue_hist[i-1] && hue_hist[i]>hue_hist[i+1] && hue_hist[i]>threshold_color)
 			{
@@ -162,9 +162,8 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 		dom_color2 = 0;
 	}
 
-//	colorfullness
-//	plaint-colored --> dominant color
-
+	// colorfulness
+	// plain-colored --> dominant color
 	double swap=0;
 	double swap1=0;
 	if(peaks.size()+pb==1)
@@ -182,7 +181,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 		dom_color2=0;
 	}else if(peaks.size()+pb==2)
 	{
-//		bi-colored --> dominant and secondary dominant color
+		// bi-colored --> dominant and secondary dominant color
 		colorfulness=2;
 		colorfulness_raw=2;
 		if(peaks.size()==2)
@@ -200,9 +199,11 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 				dom_color2= swap1;
 			}
 		}
-	}else{
+	}
+	else
+	{
 		double num_non_zeros=0;
-		for(int i=0;i<hue_hist.size();i++)
+		for(unsigned int i=0;i<hue_hist.size();i++)
 		{
 			if(hue_hist[i]>threshold_color)num_non_zeros++;
 		}
@@ -231,7 +232,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 				dom_color2 = swap1;
 			}
 		}
-		for(int i=2;i<peaks.size();i++)
+		for(unsigned int i=2;i<peaks.size();i++)
 		{
 			if(dom_color>=0 && dom_color<peaks.size() && dom_color2>=0 && dom_color2<peaks.size())
 			{
@@ -351,9 +352,11 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	if (raw_features != 0)
 	{
 		raw_features->at<float>(0, 0) = colorfulness_raw;
-		raw_features->at<float>(0, 1) = v_mean_raw;
-		raw_features->at<float>(0, 2) = v_std_raw;
-		raw_features->at<float>(0, 3) = s_mean_raw;
-		raw_features->at<float>(0, 4) = s_std_raw;
+		raw_features->at<float>(0, 1) = (*results).dom_color;
+		raw_features->at<float>(0, 2) = (*results).dom_color2;
+		raw_features->at<float>(0, 3) = v_mean_raw;
+		raw_features->at<float>(0, 4) = v_std_raw;
+		raw_features->at<float>(0, 5) = s_mean_raw;
+		raw_features->at<float>(0, 6) = s_std_raw;
 	}
 }
