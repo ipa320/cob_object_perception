@@ -90,19 +90,19 @@ std::vector<std::string> create_train_data::get_texture_classes()
 	return texture_classes_;
 }
 
-void create_train_data::compute_data(std::string *path_, int status, std::string *path_save, int number_pictures)
+void create_train_data::compute_data(std::string path_database_images, std::string path_save, int number_pictures, int mode)
 {
 	// load labeled ground truth attributes with relation to each image file
 	std::map<std::string, std::vector<float> > filenames_gt_attributes;
-	std::string path_filenames_gt_attributes = *path_save + "ipa_database_filename_attributes.txt";
+	std::string path_filenames_gt_attributes = path_save + "ipa_database_filename_attributes.txt";
 	load_filenames_gt_attributes(path_filenames_gt_attributes, filenames_gt_attributes);
 
 	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 
-	cv::Mat ground_truth_attributes = cv::Mat::zeros(number_pictures, 16, CV_32FC1);	// matrix of labeled ground truth attributes
-	cv::Mat train_data = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
-	cv::Mat responses = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
-	cv::Mat base_feature_data = cv::Mat::zeros(number_pictures, 22, CV_32FC1); // matrix of computed base features
+	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);	// matrix of labeled ground truth attributes
+	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
+	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
+	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 22, CV_32FC1); // matrix of computed base features
 
 	std::string str, name;
 	DIR *pDIR;
@@ -118,7 +118,7 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 	std::vector<int> errors;
 	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
 	{
-		path = (*path_) + texture_classes_[class_index];
+		path = path_database_images + texture_classes_[class_index];
 		const char *p;
 		p=path.c_str();
 
@@ -137,7 +137,7 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 					{
 						for (unsigned int i=0; i<filenames_gt_attributes[name].size(); ++i)
 							if (i!=13)	// one attribute (3d roughness) is currently not implemented here, so just leave it out from gt
-								ground_truth_attributes.at<float>(sample_index, i) = filenames_gt_attributes[name][i];
+								ground_truth_attribute_matrix.at<float>(sample_index, i) = filenames_gt_attributes[name][i];
 					}
 					else
 					{
@@ -172,7 +172,7 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 					std::cout << str << ":   ";
 					cv::Mat image = cv::imread(str);
 					feature_results results;
-					cv::Mat raw_features = base_feature_data.row(sample_index); // todo: check width
+					cv::Mat raw_features = base_feature_matrix.row(sample_index); // todo: check width
 					//struct color_vals color_results;
 					color_parameter color = color_parameter(); //Berechnung der Farbfeatures
 					color.get_color_parameter(image, &results, &raw_features);
@@ -180,30 +180,30 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 					texture_features edge = texture_features(); //Berechnung der Texturfeatures
 					edge.primitive_size(&image, &results, &raw_features);
 
-					responses.at<float>(sample_index, 0) = class_index;
-					train_data.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
-					train_data.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
-					train_data.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
-					train_data.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
-					train_data.at<float>(sample_index, 4) = results.v_std; // 7: v_std
-					train_data.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
-					train_data.at<float>(sample_index, 6) = results.s_std; // 9: s_std
-					train_data.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
-					train_data.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
-					train_data.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
-					train_data.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
-					train_data.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
-					train_data.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
-					//	Nicht implementiert	    	train_data.at<float>(count,13) = results.roughness; // 16: 3D roughness
-					train_data.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-					train_data.at<float>(sample_index, 14) = results.lined; // 18: lined
-					train_data.at<float>(sample_index, 15) = results.checked; // 19: checked
+					class_label_matrix.at<float>(sample_index, 0) = class_index;
+					computed_attribute_matrix.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
+					computed_attribute_matrix.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
+					computed_attribute_matrix.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
+					computed_attribute_matrix.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
+					computed_attribute_matrix.at<float>(sample_index, 4) = results.v_std; // 7: v_std
+					computed_attribute_matrix.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
+					computed_attribute_matrix.at<float>(sample_index, 6) = results.s_std; // 9: s_std
+					computed_attribute_matrix.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
+					computed_attribute_matrix.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
+					computed_attribute_matrix.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
+					computed_attribute_matrix.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
+					computed_attribute_matrix.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
+					computed_attribute_matrix.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
+					//	not implemented	    	train_data.at<float>(count,13) = results.roughness; // 16: 3D roughness
+					computed_attribute_matrix.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
+					computed_attribute_matrix.at<float>(sample_index, 14) = results.lined; // 18: lined
+					computed_attribute_matrix.at<float>(sample_index, 15) = results.checked; // 19: checked
 					for (int i = 0; i < 16; i++)
 					{
-						if (train_data.at<float>(sample_index, i) != train_data.at<float>(sample_index, i))
+						if (computed_attribute_matrix.at<float>(sample_index, i) != computed_attribute_matrix.at<float>(sample_index, i))
 						{
 							errors.push_back(i);
-							train_data.at<float>(sample_index, i) = 0;
+							computed_attribute_matrix.at<float>(sample_index, i) = 0;
 						}
 					}
 					sample_index++;
@@ -225,59 +225,53 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 	std::cout << "Finished reading " << sample_index << " data samples." << std::endl;
 
 	//	Save computed attributes, class labels and ground truth attributes
+	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_sample_hierarchy, mode);
+
+	std::cout << "Feature computation on database completed." << std::endl;
+}
+
+void create_train_data::save_texture_database_features(std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, int mode)
+{
+	//	Save computed attributes, class labels and ground truth attributes
 	std::string data = "ipa_database.yml";
-	if (status == 1)
+	if (mode == 1)
 		data = "train_data.yml";
-	else if (status == 2)
+	else if (mode == 2)
 		data = "test_data.yml";
-	std::string path_data = *path_save + data;
+	std::string path_data = path + data;
 	cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
-	fs << "attribute_matrix" << train_data;
-	fs << "class_label_matrix" << responses;
-	fs << "ground_truth_attribute_matrix" << ground_truth_attributes;
+	fs << "base_feature_matrix" << base_feature_matrix;
+	fs << "ground_truth_attribute_matrix" << ground_truth_attribute_matrix;
+	fs << "computed_attribute_matrix" << computed_attribute_matrix;
+	fs << "class_label_matrix" << class_label_matrix;
 	fs.release();
 
-//		//	Save response values
-//		std::string label = "database_label.yml";
-//		std::string path_label = *path_save + label;
-//		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
-//		fsw << "database_label" << responses;
-//	}
-//	else if (status == 1)
-//	{
-//		//	Save traindata;
-//		std::string data = "train_data.yml";
-//		std::string path_data = *path_save + data;
-//		//		cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
-//		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
-//		fs << "train_data" << train_data;
-//
-//		//	Save responsvalues
-//		std::string label = "train_data_label.yml";
-//		std::string path_label = *path_save + label;
-//		//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
-//		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
-//		fsw << "train_label" << responses;
-//	}
-//	else if (status == 2)
-//	{
-//		//	Save testdata;
-//		std::string data = "test_data.yml";
-//		std::string path_data = *path_save + data;
-//		//	cv::FileStorage fs("/home/rmb-dh/Test_dataset/test_data.yml", cv::FileStorage::WRITE);
-//		cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
-//		fs << "test_data" << train_data;
-//
-//		//	Save responsvalues
-//		std::string label = "test_data_label.yml";
-//		std::string path_label = *path_save + label;
-//		//		cv::FileStorage fsw("/home/rmb-dh/Test_dataset/test_data_label.yml", cv::FileStorage::WRITE);
-//		cv::FileStorage fsw(path_label, cv::FileStorage::WRITE);
-//		fsw << "test_label" << responses;
-//	}
-
 	// store hierarchy and check validity of hierarchical data structure
-	std::string filename = *path_save + "data_hierarchy.txt";
+	std::string filename = path + "ipa_database_hierarchy.txt";
+	save_data_hierarchy(filename, data_sample_hierarchy, class_label_matrix.rows);
+}
+
+void create_train_data::load_texture_database_features(std::string path, cv::Mat& base_feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy)
+{
+	// load computed attributes, class labels and ground truth attributes
+	std::string database_file = path + "ipa_database.yml";
+	cv::FileStorage fs(database_file, cv::FileStorage::READ);
+	fs["base_feature_matrix"] >> base_feature_matrix;
+	fs["ground_truth_attribute_matrix"] >> ground_truth_attribute_matrix;
+	fs["computed_attribute_matrix"] >> computed_attribute_matrix;
+	fs["class_label_matrix"] >> class_label_matrix;
+	fs.release();
+
+	// load class-object-sample hierarchy
+	std::string database_hierarchy_file = path + "ipa_database_hierarchy_2fb.txt";
+	load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
+
+	std::cout << "Texture database features loaded." << std::endl;
+}
+
+void create_train_data::save_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy, int number_samples)
+{
+	// store hierarchy and check validity of hierarchical data structure
 	std::ofstream file(filename.c_str(), std::ios::out);
 	if (file.is_open() == true)
 	{
@@ -306,33 +300,16 @@ void create_train_data::compute_data(std::string *path_, int status, std::string
 			}
 		}
 	}
+	else
+		std::cout << "Error: could not open file " << filename << "." << std::endl;
 	file.close();
+
 	// check data_hierarchy for correct size
 	int count = 0;
 	for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
 		for (uint o=0; o<data_sample_hierarchy[class_index].size(); ++o)
 			count += data_sample_hierarchy[class_index][o].size();
-	assert(count == number_pictures);
-
-
-	std::cout << "Feature computation on database completed." << std::endl;
-}
-
-void create_train_data::load_texture_database_features(std::string path, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
-{
-	// load computed attributes, class labels and ground truth attributes
-	std::string database_file = path + "ipa_database.yml";
-	cv::FileStorage fs(database_file, cv::FileStorage::READ);
-	fs["attribute_matrix"] >> computed_attribute_matrix;
-	fs["class_label_matrix"] >> class_label_matrix;
-	fs["ground_truth_attribute_matrix"] >> ground_truth_attribute_matrix;
-	fs.release();
-
-	// load class-object-sample hierarchy
-	std::string database_hierarchy_file = path + "data_hierarchy_2fb.txt";
-	load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
-
-	std::cout << "Texture database features loaded." << std::endl;
+	assert(count == number_samples);
 }
 
 void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy)

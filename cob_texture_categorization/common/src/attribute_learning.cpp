@@ -6,14 +6,14 @@
 #include "highgui.h"
 
 
-void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, const int feature_number, const int attribute_number, cv::Mat& feature_matrix, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, const int feature_number, const int attribute_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
 {
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
 	//const int attribute_number = 17;			// label = attributes
 	//const int feature_number = 9688;		// feature = base feature
 	const int total_sample_number = 1281;
 	feature_matrix.create(total_sample_number, feature_number, CV_32FC1);
-	attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
+	ground_truth_attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
 	class_label_matrix.create(total_sample_number, 1, CV_32FC1);
 	int sample_index = 0;
 	std::ifstream file(filename.c_str(), std::ios::in);
@@ -37,7 +37,7 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 				for (unsigned int k=0; k<sample_number; ++k)
 				{
 					for (int l=0; l<attribute_number; ++l)
-						file >> attribute_matrix.at<float>(sample_index, l);	// attribute vector
+						file >> ground_truth_attribute_matrix.at<float>(sample_index, l);	// attribute vector
 					for (int f=0; f<feature_number; ++f)
 						file >> feature_matrix.at<float>(sample_index, f);		// base feature vector
 					class_label_matrix.at<float>(sample_index, 0) = i;
@@ -55,13 +55,13 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 }
 
 
-void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string filename, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string filename, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
 {
 	// load attribute vectors and corresponding class labels computed on database and class-object-sample hierarchy
 	const int label_number = 1;		// label = class label
 	const int attribute_number = 17;	// feature = attribute
 	const int total_sample_number = 1281;
-	attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
+	ground_truth_attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
 	class_label_matrix.create(total_sample_number, label_number, CV_32FC1);
 	int sample_index = 0;
 	std::ifstream file(filename.c_str(), std::ios::in);
@@ -86,7 +86,7 @@ void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string 
 				{
 					class_label_matrix.at<float>(sample_index, 0) = i;
 					for (int f=0; f<attribute_number; ++f)
-						file >> attribute_matrix.at<float>(sample_index, f);
+						file >> ground_truth_attribute_matrix.at<float>(sample_index, f);
 					file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		// go to next line with base features
 					file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		// skip line with base features
 					data_sample_hierarchy[i][j][k] = sample_index;
