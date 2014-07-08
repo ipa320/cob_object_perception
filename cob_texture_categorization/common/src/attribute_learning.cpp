@@ -6,14 +6,14 @@
 #include "highgui.h"
 
 
-void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, const int feature_number, const int attribute_number, cv::Mat& feature_matrix, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, const int feature_number, const int attribute_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
 {
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
 	//const int attribute_number = 17;			// label = attributes
 	//const int feature_number = 9688;		// feature = base feature
 	const int total_sample_number = 1281;
 	feature_matrix.create(total_sample_number, feature_number, CV_32FC1);
-	attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
+	ground_truth_attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
 	class_label_matrix.create(total_sample_number, 1, CV_32FC1);
 	int sample_index = 0;
 	std::ifstream file(filename.c_str(), std::ios::in);
@@ -37,7 +37,7 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 				for (unsigned int k=0; k<sample_number; ++k)
 				{
 					for (int l=0; l<attribute_number; ++l)
-						file >> attribute_matrix.at<float>(sample_index, l);	// attribute vector
+						file >> ground_truth_attribute_matrix.at<float>(sample_index, l);	// attribute vector
 					for (int f=0; f<feature_number; ++f)
 						file >> feature_matrix.at<float>(sample_index, f);		// base feature vector
 					class_label_matrix.at<float>(sample_index, 0) = i;
@@ -55,13 +55,13 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 }
 
 
-void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string filename, cv::Mat& attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string filename, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
 {
-	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
+	// load attribute vectors and corresponding class labels computed on database and class-object-sample hierarchy
 	const int label_number = 1;		// label = class label
 	const int attribute_number = 17;	// feature = attribute
 	const int total_sample_number = 1281;
-	attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
+	ground_truth_attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
 	class_label_matrix.create(total_sample_number, label_number, CV_32FC1);
 	int sample_index = 0;
 	std::ifstream file(filename.c_str(), std::ios::in);
@@ -86,7 +86,7 @@ void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string 
 				{
 					class_label_matrix.at<float>(sample_index, 0) = i;
 					for (int f=0; f<attribute_number; ++f)
-						file >> attribute_matrix.at<float>(sample_index, f);
+						file >> ground_truth_attribute_matrix.at<float>(sample_index, f);
 					file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		// go to next line with base features
 					file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		// skip line with base features
 					data_sample_hierarchy[i][j][k] = sample_index;
@@ -286,46 +286,59 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			// raw: 0,1,2 --> 0,1,2
 			// raw: [2,5] --> min(a*raw+b, 5)
 
-			// 2. dominant color:
+			// 2. dominant color: (raw[1])
 			// raw: [0,10] --> [0,10] as is
 
-			// 3. secondary dominant color:
+			// 3. secondary dominant color: (raw[2])
 			// raw: [0,10] --> [0,10] as is
 
-			// 4. value mean: (raw[1])
+			// 4. value mean: (raw[3])
 			// raw: --> max(1, min(5, a*raw+b))
 
-			// 5. value stddev: (raw[2])
+			// 5. value stddev: (raw[4])
 			// raw: --> max(1, min(5, a*raw+b))
 
-			// 6. saturation mean: (raw[3])
+			// 6. saturation mean: (raw[5])
 			// raw: --> max(1, min(5, a*raw+b))
 
-			// 7. saturation stddev: (raw[4])
+			// 7. saturation stddev: (raw[6])
 			// raw: --> max(1, min(5, a*raw+b))
 
-			// 8. average primitive size: (raw[5], raw[6])
-			// raw[6]: 1 --> 1
-			// raw[5],raw[6]: --> max(1, min(5, (a1*raw[5]+b1 + a2*raw[6]+b2)/2) )
+			// 8. average primitive size: (raw[7], raw[8])
+			// raw[8]: 1 --> 1
+			// raw[7],raw[8]: --> max(1, min(5, (a1*raw[7]+b1 + a2*raw[8]+b2)/2) )
 
-			// 9. number of primitives: (raw[7], raw[8])
-			// raw[7],raw[8]: --> max(1, min(5, max(a1*raw[5]+b1, a2*raw[6]+b2) ) )
+			// 9. number of primitives: (raw[9], raw[10])
+			// raw[9],raw[10]: --> max(1, min(5, max(a1*raw[9]+b1, a2*raw[10]+b2) ) )
 
-			// 10. primitive strength: (raw[9])
+			// 10. primitive strength: (raw[11])
 			// raw: --> max(1, min(5, a*raw*raw + b*raw + c ) )
 
-			// 11. primitive regularity: (raw[10], raw[11], raw[12])
-			// raw: --> max(1, min(5, a*raw[10] + b*raw[11] + c*raw[12] + d ) )
+			// 11. primitive regularity: (raw[12], raw[13], raw[14])
+			// raw: --> max(1, min(5, a*raw[12] + b*raw[13] + c*raw[14] + d ) )
 
-			// 12. contrast: (raw[13])
-			// raw: --> max(1, min(5, a*raw[13]^3 + b*raw[13]^2 + c*raw[13] + d ) )
+			// 12. contrast: (raw[15])
+			// raw: --> max(1, min(5, a*raw[15]^3 + b*raw[15]^2 + c*raw[15] + d ) )
 
-			// 13. line likeness: (raw[14])
+			// 13. line likeness: (raw[16])
 			// raw: [1,4,5] --> [1,4,5] as is
-			// raw: --> max(1, min(5, a*raw[14] + b ) )
+			// raw: --> max(1, min(5, a*raw[16] + b ) )
 
-			// 15. directionality:
+			// 14. 3d roughness
+			// not implemented for 2d images
 
+			// 15. directionality: (raw[17], raw[18], raw[19])
+			// raw[17]: [1] --> [1]
+			// raw[17]: --> max(1, min(5, a*raw[17]+b))
+			// raw[18]: --> max(1, min(5, a*raw[18]+b))
+			// raw[19]: --> max(1, min(5, a*raw[19]+b))
+			// directionality = max(mapped(raw[17]), mapped(raw[18]), mapped(raw[19]), lined, checked)
+
+			// 16. lined: (raw[20])
+			// raw[20]: --> max(1, min(5, a*raw[20]+b))
+
+			// 17. checked: (raw[21])
+			// raw[21]: --> max(1, min(5, a*raw[21]+b))
 
 
 //			// K-Nearest-Neighbor
@@ -396,7 +409,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 //			// End Boosting
 
 			//	Neural Network
-/*			cv::Mat input;
+			cv::Mat input;
 			training_data.convertTo(input, CV_32F);
 			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
 			cv::Mat labels;
@@ -426,7 +439,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
 			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
-*/
+
 			// === apply ml classifier to predict test set ===
 			double sumAbsError = 0.;
 			int numberTestSamples = 0;
@@ -436,9 +449,9 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 				cv::Mat response(1, 1, CV_32FC1);
 				cv::Mat sample = test_data.row(r);
 
-				//mlp.predict(sample, response);		// neural network
+				mlp.predict(sample, response);		// neural network
 				//response.at<float>(0,0) = rtree.predict(sample);		// random tree
-				response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
+				//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
 
 				if (return_set_data == true)
 				{

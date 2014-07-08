@@ -7,14 +7,7 @@ segment_trans::segment_trans()
 
 void segment_trans::transformation(cv::Mat *source, cv::Mat *dest, cv::Mat *depth)
 {
-	int a=4;
-	uint b=5;
-	if(a==b)
-		{
-
-		}
 //	Steigung x-Richtung
-
 	float ysum=0;
 	float xsum=0;
 	float y1 = (*depth).at<float>(200,319);
