@@ -1,5 +1,5 @@
-#include "amadasun.h"
-#include "texture_features.h"
+#include "cob_texture_categorization/amadasun.h"
+#include "cob_texture_categorization/texture_features.h"
 
 
 //  MATLAB function to implement the 'Normalized NGTDM' (neighborhood
@@ -34,7 +34,7 @@ amadasun::amadasun()
 }
 
 
-void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *results)
+void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *results, double& contrast_raw)
 {
 
 	std::cout<<img.size()<<"bildgröße"<<std::endl;
@@ -183,7 +183,7 @@ void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *result
 
 //	calculate normalization coefficient
 	double r=0;
-	for(int i=0;i<n.size();i++)
+	for(uint i=0;i<n.size();i++)
 	{
 		r = r+n[i];
 	}
@@ -251,9 +251,9 @@ void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *result
 //	coarseness
 //    double coars;
     int ng=0; //var of contrast
-    int sum_s;
-    double ns_sum;
-	for(int i=0;i<n.size();i++)
+    int sum_s=0;
+//    double ns_sum;
+	for(uint i=0;i<n.size();i++)
 	{
 			float n_val = n[i];
 			float s_val = s[i];
@@ -265,6 +265,7 @@ void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *result
 
 //	contrast -- Value 12
 	double contr = sum_s*nij_sum/(r*r*r)/ng/(ng-1);
+	contrast_raw = contr;
 	contr = 1.7*pow(contr,3)-4.5*pow(contr, 2)+6.9*contr+1.4;
 	std::cout<<contr<<"contrast_vorresult"<<std::endl;
 	if(contr<1)contr=1;

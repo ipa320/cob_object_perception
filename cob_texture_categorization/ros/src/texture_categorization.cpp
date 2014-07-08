@@ -2,18 +2,20 @@
 
 
 
-#include "create_lbp.h"
-#include "splitandmerge.h"
-#include "texture_features.h"
-#include "compute_textures.h"
-#include "depth_image.h"
-#include "segment_trans.h"
-#include "perspective_transformation.h"
-#include "create_train_data.h"
-#include "train_svm.h"
-#include "predict_svm.h"
-#include "color_parameter.h"
-#include "train_ml.h"
+#include "cob_texture_categorization/create_lbp.h"
+#include "cob_texture_categorization/splitandmerge.h"
+#include "cob_texture_categorization/texture_features.h"
+#include "cob_texture_categorization/compute_textures.h"
+#include "cob_texture_categorization/depth_image.h"
+#include "cob_texture_categorization/segment_trans.h"
+#include "cob_texture_categorization/perspective_transformation.h"
+#include "cob_texture_categorization/create_train_data.h"
+#include "cob_texture_categorization/train_svm.h"
+#include "cob_texture_categorization/predict_svm.h"
+#include "cob_texture_categorization/color_parameter.h"
+#include "cob_texture_categorization/train_ml.h"
+#include "cob_texture_categorization/run_meanshift_test.h"
+#include "cob_texture_categorization/attribute_learning.h"
 
 #include <iostream>
 #include <fstream>
@@ -21,8 +23,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "run_meanshift_test.h"
 
 //#include <pcl_ros/point_cloud.h>
 //#include <pcl/impl/point_types.hpp>
@@ -72,13 +72,17 @@ node_handle_(nh)
 
 //DAS ist ein test
 
-	//segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
+//	segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
 
 
-	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
-	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
-	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
-//	TextCategorizationNode::inputCallbackNoCam();
+//	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
+//	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
+//	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
+
+	// database tests
+	inputCallbackNoCam();
+//	attributeLearningDatabaseTestFarhadi();
+//	attributeLearningDatabaseTestHandcrafted();
 
 }
 
@@ -107,6 +111,81 @@ void TextCategorizationNode::init()
 
 }
 
+void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
+{
+	// === using the farhadi attributes that are learned from base features
+	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/ipa_database_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string data_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/";
+
+	// attribute learning
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	AttributeLearning al;
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, 17, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+	int folds = 20;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data;
+	al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	al.saveAttributeCrossValidationData(data_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	//al.loadAttributeCrossValidationData(data_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+//	//std::cout << "Loading labeled attribute features from file ...\n";
+//	//cv::Mat attribute_matrix, class_label_matrix;
+//	//create_train_data::DataHierarchyType data_hierarchy;
+//	//al.loadTextureDatabaseLabeledAttributeFeatures(data_file_name, attribute_matrix, class_label_matrix, data_hierarchy);
+//	//std::cout << "Loading labeled attribute features from file finished.\n";
+
+	train_ml ml;
+	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+}
+
+void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
+{
+	// === using the hand crafted attributes
+	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
+	//std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
+
+//	// compute 16 texture attributes on the ipa texture database
+//	create_train_data database_data = create_train_data();									// computes feature and label matrices of the provided database
+//	database_data.compute_data(&path_database, 0, &feature_files_path, 1281);
+
+	// attribute cross-validation
+	cv::Mat ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	train_ml ml;
+	AttributeLearning al;
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	// option 1: pre-computed in MATLAB:
+	al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+	cv::Mat temp = ground_truth_attribute_matrix.clone();
+	ground_truth_attribute_matrix.create(temp.rows, temp.cols-1, temp.type());
+	for (int r=0; r<temp.rows; ++r)
+		for (int c=0; c<16; ++c)
+			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
+	// option 2: computed with this program
+	//ml.load_texture_database_features(feature_files_path, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+	int folds = 20;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data;
+	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	//al.loadAttributeCrossValidationData(data_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+}
+
 void TextCategorizationNode::inputCallbackNoCam()
 {
 
@@ -114,28 +193,35 @@ void TextCategorizationNode::inputCallbackNoCam()
 	//Computes trainingdata for training of klassification method. uses texture database
 	//Saves data in file to hardcoded path
 
-	std::string path_data = "/home/rmb-dh/datasetTextur/Texture_database/";			//Pfad zu Trainingsdaten
-	std::string path_label = "/home/rmb-dh/datasetTextur/Test_data/";				//Pfad zu Testdaten
-	std::string path_save_location = "/home/rmb-dh/datasetTextur/yamlfiles/";		//Pfad zu Speicherort der Featurevektoren
+//	std::string path_traindata = "/media/SAMSUNG/rmb/datasetTextur/A_Klassification_Data/train_data/";			//Pfad zu Trainingsdaten
+//	std::string path_testdata = "/media/SAMSUNG/rmb/datasetTextur/A_Klassification_Data/test_data/";			//Pfad zu Testdaten
+//	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
+//	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		//Pfad zu Speicherort der Featurevektoren
 
-
-//	create_train_data traininglabel = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Testen
-//	traininglabel.compute_data(&path_label, 1,&path_save_location, 146);
+//	create_train_data testdata = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Testen
+//	testdata.compute_data(&path_testdata, 2,&path_save_location, 146);
 //
 //	create_train_data trainingdata = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Trainieren
-//	trainingdata.compute_data(&path_data, 0, &path_save_location, 1135);
+//	trainingdata.compute_data(&path_traindata, 1, &path_save_location, 1135);
+
+//	create_train_data database_data = create_train_data();									// computes feature and label matrices of the provided database
+//	database_data.compute_data(&path_database, 0, &path_save_location, 1281);
 
 
 	//Train and predict with NN
-		double gam =0;																		// Trainiert anhand des Trainingsvektors, testet anhand des Testvektors und gibt Ergebnis aus
-		train_ml kn = train_ml();
-		kn.run_ml(gam, &path_save_location);
+//	train_ml ml;
+	//double gam =0;																		// Trainiert anhand des Trainingsvektors, testet anhand des Testvektors und gibt Ergebnis aus
+	//ml.run_ml(gam, &path_save_location);
+//	cv::Mat attribute_matrix, class_label_matrix, ground_truth_attribute_matrix;
+//	create_train_data::DataHierarchyType data_hierarchy;
+//	ml.load_texture_database_features(path_save_location, ground_truth_attribute_matrix, attribute_matrix, class_label_matrix, data_hierarchy);
+//	ml.cross_validation(10, attribute_matrix, class_label_matrix, data_hierarchy);
 
 
 	//Train and predict with SVM
 																							//Einfaches Training und Auswertung mit SVM
 //			train_svm traintest = train_svm();
-//			traintest.run_training(&path_data,&path_label, gam, 0, &path_save_location);
+//			traintest.run_training(&path_traindata,&path_testdata, gam, 0, &path_save_location);
 //
 //			predict_svm prediction = predict_svm();
 //			prediction.run_prediction(&path_save_location);
@@ -151,7 +237,7 @@ void TextCategorizationNode::inputCallbackNoCam()
 //			std::string data = "/home/rmb-dh/Test_dataset/training_data.yml";
 //			std::string label = "/home/rmb-dh/Test_dataset/train_data_respons.yml";
 //			train_svm traintest = train_svm();
-//			traintest.run_training(&path_data,&path_label, gam, 0, &path_save_location);
+//			traintest.run_training(&path_traindata,&path_testdata, gam, 0, &path_save_location);
 //
 //			predict_svm prediction = predict_svm();
 //			prediction.run_prediction(&path_save_location);
@@ -223,10 +309,10 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 
 /// convert depth data to cv::Mat
-	cv::Mat depth(480, 640, CV_32F);
-	depth_image dimage = depth_image();
-	dimage.get_depth_image(pointcloud_msg, &depth);
-	cv::imshow("3D",depth);
+//	cv::Mat depth(480, 640, CV_32F);
+//	depth_image dimage = depth_image();
+//	dimage.get_depth_image(pointcloud_msg, &depth);
+//	cv::imshow("3D",depth);
 //	cv::moveWindow("3D", 800,600);
 
 
@@ -275,16 +361,8 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 
 // 		Imagetransformation
-		cv::imshow("test", color_image);
-		std::vector<float> plane_coeff;
-
-
-	p_transformation transform = p_transformation();
-	transform.run_pca(&color_image, &depth, pointcloud_msg, &marker, &plane_coeff);
-//			cv::imshow("segment", segmented_regions[2][0]);
-//			transform.run_pca(&segmented_regions[2][0], &depth, pointcloud_msg, &marker);
-
-
+//		cv::imshow("test", color_image);
+//		std::vector<float> plane_coeff;
 
 //		for(int i=0;i<segmented_regions.size();i=i+10)
 //		{
@@ -377,15 +455,15 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //	}
 //	}
 //
-//	cv::imshow("original", color_image);
-//	splitandmerge test = splitandmerge();
-//	cv::Mat pic1 = test.categorize(color_image);
+	cv::imshow("original", color_image);
+	splitandmerge test = splitandmerge();
+	cv::Mat pic1 = test.categorize(color_image);
 //	cv::Mat pic2 = test.categorize(test2);
 //	cv::Mat pic3 = test.categorize(test3);
 //	cv::Mat pic4 = test.categorize(test4);
 //	cv::Mat pic5 = test.categorize(test5);
 //	cv::Mat pic6 = test.categorize(test6);
-//	cv::imshow("sam1", pic1);
+	cv::imshow("sam1", pic1);
 //	cv::moveWindow("sam1", 0,0);
 //	cv::imshow("sam2", pic2);
 //	cv::moveWindow("sam2", 1380,0);

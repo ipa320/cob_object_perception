@@ -1,4 +1,4 @@
-#include "lbp.h"
+#include "cob_texture_categorization/lbp.h"
 #include <string>
 
 
@@ -27,15 +27,13 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 {
 
 
-
-
 	float spoints[samples_in][2];
 	if(false)//(radius_in == 1 && samples_in > 0 && mode == "")
 	{
-		int spoints[8][2] = {	{-1, -1}, {-1, 0}, {-1, 1}, {0, -1},
-								{0, 1}, {1, -1}, {1, 0}, {1, 1}};
-		int samples_in = 8;
-		int mapping = 0;
+//		int spoints[8][2] = {	{-1, -1}, {-1, 0}, {-1, 1}, {0, -1},
+//								{0, 1}, {1, -1}, {1, 0}, {1, 1}};
+//		int samples_in = 8;
+//		int mapping = 0;
 		std::string mode = "h";
 	}else if(false)//(radius_in == 1 && samples_in  <= 0)
 	{
@@ -72,8 +70,8 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 		}
 	}else//(radius_in > 1)
 	{
-		int spoints = radius_in;
-		int neighbors[spoints];
+//		int spoints = radius_in;
+//		int neighbors[spoints];
 		if(mapping == NULL)
 		{
 				mapping = 0;
@@ -394,7 +392,7 @@ void lbp::lbp_compute(cv::Mat image_in, int radius_in, int samples_in, struct ma
 			}
 		}
 	//	std::cout << resmin << "min " << resmax << "max ";
-		int spek = resmax - resmin;
+//		int spek = resmax - resmin;
 		int bin_lenght = 1;//spek / (*mapping).num;
 	//	std::cout << spek << "spek " << bin_lenght << "bin_lenght " << (*mapping).num << "mapping num ";
 		//double histogram_results[(*mapping).num];

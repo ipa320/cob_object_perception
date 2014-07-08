@@ -4,9 +4,9 @@
 #include "opencv2/imgproc/imgproc_c.h"
 
 
-#include "run_meanshift_test.h"
-#include "meanshift.h"
-#include "meanshift_3d.h"
+#include "cob_texture_categorization/run_meanshift_test.h"
+#include "cob_texture_categorization/meanshift.h"
+#include "cob_texture_categorization/meanshift_3d.h"
 
 using namespace cv;
 
@@ -22,7 +22,7 @@ void run_meanshift_test::run_test(cv::Mat* image, cv::Mat depth, std::vector < s
 IplImage *img = new IplImage(*image);
 
 cv::Mat imageO = (*image).clone();
-IplImage *imgO = new IplImage(imageO);
+//IplImage *imgO = new IplImage(imageO);
 
 
 // Mean shift

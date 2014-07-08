@@ -1,4 +1,4 @@
-#include "segment_trans.h"
+#include "cob_texture_categorization/segment_trans.h"
 
 
 segment_trans::segment_trans()
@@ -7,7 +7,12 @@ segment_trans::segment_trans()
 
 void segment_trans::transformation(cv::Mat *source, cv::Mat *dest, cv::Mat *depth)
 {
+	int a=4;
+	uint b=5;
+	if(a==b)
+		{
 
+		}
 //	Steigung x-Richtung
 
 	float ysum=0;

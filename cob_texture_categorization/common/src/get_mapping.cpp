@@ -1,4 +1,4 @@
-#include "get_mapping.h"
+#include "cob_texture_categorization/get_mapping.h"
 
 #include <cmath>
 #include <string>
@@ -41,7 +41,6 @@ get_mapping::get_mapping()
 
 void get_mapping::get_mapping_res(int samples, std::string mappingtype, struct mapping *map, int *table)
 {
-
 
 for(int i = 0; i<=pow(2,samples); i++) table[i] = -1;
 int newMax = 0;

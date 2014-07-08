@@ -1,9 +1,9 @@
-#include "compute_textures.h"
-#include "create_lbp.h"
-#include "splitandmerge.h"
-#include "texture_features.h"
-#include "write_xml.h"
-#include "color_parameter.h"
+#include "cob_texture_categorization/compute_textures.h"
+#include "cob_texture_categorization/create_lbp.h"
+#include "cob_texture_categorization/splitandmerge.h"
+#include "cob_texture_categorization/texture_features.h"
+#include "cob_texture_categorization/write_xml.h"
+#include "cob_texture_categorization/color_parameter.h"
 
 
 
@@ -27,7 +27,6 @@ void compute_textures::compute_textures_all()
 	std::string str, name;
 	DIR *pDIR;
 	struct dirent *entry;
-	unsigned x, y, width, height;
 	std::string word;
 	struct feature_results results;
 	double number_of_images = 1281;
@@ -47,7 +46,6 @@ void compute_textures::compute_textures_all()
 	    	cv::Mat image = cv::imread(str);
 	    	std::cout<<str<<":   ";
 
-	    		struct color_vals color_results;
 	    		color_parameter color = color_parameter();
 	    		color.get_color_parameter(image, &results);
 
@@ -85,7 +83,7 @@ void compute_textures::compute_textures_all()
 //	    	std::cout<<name<<"name";
 
 	    	char string[name.size()];
-	    	for(int i=0;i<name.size();i++)
+	    	for(uint i=0;i<name.size();i++)
 	    	{
 	    		string[i]=name[i];
 	    	}
@@ -125,15 +123,13 @@ void compute_textures::compute_test_data()
 	std::string str, name;
 	DIR *pDIR;
 	struct dirent *entry;
-	unsigned x, y, width, height;
 	std::string word;
 	struct feature_results results;
-	double number_of_images = 1281;
+//	double number_of_images = 1281;
 	double count=0;
 	std::vector<std::string> Label;
 
 //		struct feature_results results;
-    		struct color_vals color_results;
     		cv::Mat image;
 
 

@@ -1,4 +1,4 @@
-#include "perspective_transformation.h"
+#include "cob_texture_categorization/perspective_transformation.h"
 
 #include <pcl/filters/extract_indices.h>
 #include <pcl/common/pca.h>
@@ -11,7 +11,6 @@ p_transformation::p_transformation()
 
 void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msgs::PointCloud2ConstPtr& pointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff)
 {
-
 
 	try
 	{
@@ -40,7 +39,7 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 		std::vector<float> eigen2;
 		std::vector<float> eigen3;
 		float a,b,c,d;
-		float orig_x,orig_y,orig_z;
+//		float orig_x,orig_y,orig_z;
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud2 (new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::fromROSMsg(*pointcloud, *input_cloud2);
@@ -91,9 +90,9 @@ void p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, const sensor_msg
 				b = eigen3[1]; //eigen1[2]*eigen2[0] - eigen1[0]*eigen2[2];
 				c = eigen3[2]; //eigen1[0]*eigen2[1] - eigen1[1]*eigen2[0];
 				d = (float)meanpoint[0]*a + (float)meanpoint[1]*b + meanpoint[2]*c;
-				orig_x=(double)meanpoint[0];
-				orig_y=(double)meanpoint[1];
-				orig_z=(double)meanpoint[2];
+//				orig_x=(double)meanpoint[0];
+//				orig_y=(double)meanpoint[1];
+//				orig_z=(double)meanpoint[2];
 				(*plane_coeff).push_back(a);
 				(*plane_coeff).push_back(b);
 				(*plane_coeff).push_back(c);

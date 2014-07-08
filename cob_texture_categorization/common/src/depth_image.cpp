@@ -1,4 +1,4 @@
-#include "depth_image.h"
+#include "cob_texture_categorization/depth_image.h"
 #include <cob_texture_categorization/texture_categorization.h>
 
 #include <pcl/ModelCoefficients.h>
@@ -29,7 +29,7 @@ void depth_image::medianfilter(cv::Mat *depth_image)
 			}
 		}
 
-		int MAX_KERNEL_LENGTH = 31;
+//		int MAX_KERNEL_LENGTH = 31;
 //		for ( int i = 1; i < MAX_KERNEL_LENGTH; i = i + 2 )
 //		    { cv::medianBlur ( dst, dst, i ); }
 //		    cv::medianBlur ( dst, dst, 3 );
