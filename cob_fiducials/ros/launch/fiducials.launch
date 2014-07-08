@@ -13,14 +13,14 @@
 
   <!-- start left camera -->
   <node pkg="cob_fiducials" ns="fiducials" type="fiducials" name="fiducials" output="screen">
-<!--launch-prefix="/usr/bin/gdb"-->
-<remap from="image_color" to="$(arg rgb_topic)/image_color"/>
-<remap from="camera_info" to="$(arg rgb_topic)/camera_info"/>	
-
-<remap from="detect_fiducials" to="/fiducials/detect_fiducials"/>
-<remap from="fiducial_markers" to="/fiducials/fiducial_markers"/>
-<remap from="image" to="/fiducials/image"/>
-<remap from="get_fiducials" to="/fiducials/get_fiducials"/>
+	<!--launch-prefix="/usr/bin/gdb"-->
+	<remap from="image_color" to="$(arg rgb_topic)/image_color"/>
+	<remap from="camera_info" to="$(arg rgb_topic)/camera_info"/>	
+	
+	<remap from="detect_fiducials" to="/fiducials/detect_fiducials"/>
+	<remap from="fiducial_markers" to="/fiducials/fiducial_markers"/>
+	<remap from="image" to="/fiducials/image"/>
+	<remap from="get_fiducials" to="/fiducials/get_fiducials"/>
   </node>
 
 </launch>
