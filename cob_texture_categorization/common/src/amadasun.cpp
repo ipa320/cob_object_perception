@@ -183,7 +183,7 @@ void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *result
 
 //	calculate normalization coefficient
 	double r=0;
-	for(int i=0;i<n.size();i++)
+	for(uint i=0;i<n.size();i++)
 	{
 		r = r+n[i];
 	}
@@ -251,9 +251,9 @@ void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *result
 //	coarseness
 //    double coars;
     int ng=0; //var of contrast
-    int sum_s;
-    double ns_sum;
-	for(int i=0;i<n.size();i++)
+    int sum_s=0;
+//    double ns_sum;
+	for(uint i=0;i<n.size();i++)
 	{
 			float n_val = n[i];
 			float s_val = s[i];

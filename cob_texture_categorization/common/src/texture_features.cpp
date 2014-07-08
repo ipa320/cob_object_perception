@@ -95,7 +95,7 @@ void texture_features::size_of_primitive(std::vector <std::vector <cv::Point> > 
 	//	Sort numPixels, save old index in idx
 //		std::vector<int> idx=sort_index(*numPixels);
 		int size = (*numPixels).size();
-		double big_comp=0.;
+		double big_comp = 0.;
 		if(size>=3)
 		{
 			big_comp = ((*numPixels)[size-1]+(*numPixels)[size-2]+(*numPixels)[size-3])/3;
@@ -909,7 +909,7 @@ void texture_features::compute_151617(cv::Mat *img,  struct feature_results *res
 	//		findContours(check_y, lines_y, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
 	//		findContours(check_x, lines_x, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
 	//		std::cout<<lines_x.size()<<"lines_x "<<lines_y.size()<<"lines_y "<<std::endl;
-			double contours_factor =1;
+			double contours_factor = 1;
 			if((*circle_contours).size()<=10)contours_factor=(*circle_contours).size()/20;
 			else if((*circle_contours).size()>=60) contours_factor = pow(80,2)/pow((*circle_contours).size(),2);
 			double min_pks=peaks[0][0];
@@ -963,7 +963,7 @@ void texture_features::compute_151617(cv::Mat *img,  struct feature_results *res
 			}
 			std::vector<double>xunit;
 			std::vector<double>yunit;
-			for(unsigned int i=0;i<th.size();i++)
+			for (unsigned int i=0;i<th.size();i++)
 			{
 				xunit.push_back(R*cos(th[i])+xc);
 				yunit.push_back(R*sin(th[i])+yc);
@@ -972,7 +972,7 @@ void texture_features::compute_151617(cv::Mat *img,  struct feature_results *res
 			for (unsigned int i=0;i<(*centroid).size();i++)
 			{
 				float dist = sqrt((*edge_pixels).rows*(*edge_pixels).cols);
-				for(unsigned int j=0;j<xunit.size();j++)
+				for (unsigned int j=0;j<xunit.size();j++)
 				{
 					double sqrt_val = ((*centroid)[i][0]-xunit[j])*((*centroid)[i][0]-xunit[j])+((*centroid)[i][1]-yunit[j])*((*centroid)[i][1]-yunit[j]);
 					double dist_check = sqrt(sqrt_val);
@@ -1689,7 +1689,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 			ellipse(edge_pixels, ellipse_ecc[i], color, 2, 8);
 		}
 		// rotated rectangle
-		//	       cv::Point2f rect_points[4]; minRect[i].points( rect_points );
+//	       cv::Point2f rect_points[4]; minRect[i].points( rect_points );
 //	       for( int j = 0; j < 4; j++ )
 //	          line( edge_pixels, rect_points[j], rect_points[(j+1)%4], color, 1, 8 );
 	     }
@@ -2233,10 +2233,4 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	struct timeval zeit8;
 //	gettimeofday(&zeit8, 0);
 //	 std::cout << zeit8.tv_sec-zeit9.tv_sec  << ':' <<zeit8.tv_usec-zeit9.tv_usec <<"Old_fkt"<< std::endl;
-
-
 }
-
-
-
-

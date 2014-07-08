@@ -22,7 +22,7 @@ void run_meanshift_test::run_test(cv::Mat* image, cv::Mat depth, std::vector < s
 IplImage *img = new IplImage(*image);
 
 cv::Mat imageO = (*image).clone();
-IplImage *imgO = new IplImage(imageO);
+//IplImage *imgO = new IplImage(imageO);
 
 
 // Mean shift

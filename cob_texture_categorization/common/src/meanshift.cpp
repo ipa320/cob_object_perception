@@ -58,7 +58,7 @@ int MeanShift(const IplImage* img, int **labels, cv::Mat* depth_mat)
 	DECLARE_TIMING(timer);
 	START_TIMING(timer);
 
-	int level = 1;
+//	int level = 1;
 	double color_radius2=color_radius*color_radius;
 	int minRegion = 50;
 
