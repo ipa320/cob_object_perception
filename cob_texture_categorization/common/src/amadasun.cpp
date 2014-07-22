@@ -36,6 +36,9 @@ amadasun::amadasun()
 
 void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *results, double& contrast_raw)
 {
+
+
+
 	cv::Mat imagein1;
 	cv::Mat imagein;
 	cv::Mat imageinp1(img.rows, img.cols, CV_8UC1);
@@ -261,7 +264,7 @@ void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *result
 	double contr = sum_s*nij_sum/(r*r*r)/ng/(ng-1);
 	contrast_raw = contr;
 	contr = 1.7*pow(contr,3)-4.5*pow(contr, 2)+6.9*contr+1.4;
-//	std::cout<<contr<<"contrast_vorresult"<<std::endl;
+	//std::cout<<contr<<"contrast_vorresult"<<std::endl;
 	if(contr<1)contr=1;
 	if(contr>5)contr=5;
 

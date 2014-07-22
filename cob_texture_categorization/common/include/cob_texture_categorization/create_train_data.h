@@ -20,8 +20,12 @@ public:
 
 	std::vector<std::string> get_texture_classes();
 
-	void compute_data(std::string *path_data, int status, std::string *path_save, int number_pictures);
+	void compute_data(std::string path_database_images, std::string path_save, int number_pictures, int mode=0);
 
+	void save_texture_database_features(std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, int mode=0);
+	void load_texture_database_features(std::string path, cv::Mat& base_feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy);
+
+	void save_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy, int number_samples);
 	void load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy);
 
 	void load_filenames_gt_attributes(std::string filename, std::map<std::string, std::vector<float> >& filenames_gt_attributes);
