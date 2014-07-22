@@ -1164,6 +1164,7 @@ void texture_features::compute_features(cv::Mat *image, struct feature_results *
 void texture_features::primitive_size(cv::Mat *img, struct feature_results *results, cv::Mat* raw_features)
 {
 
+
 //	calculate color values (value 1-7)
 //	struct color_vals color_results;
 //	color_parameter color = color_parameter();
@@ -1174,7 +1175,12 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	cv::Mat image, image_gray, detected_edges;
 //	Resize input image
 //	std::cout<<(*img).size()<<"size "<<(*img).type()<<"type "<<std::endl;
-	resize((*img), image, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
+	if((*img).rows>200 && (*img).cols>200)
+	{
+		resize((*img), image, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
+	}else{
+		image = *img;
+	}
 
 //	std::cout<<img.size()<<"size "<<img.type()<<"type "<<std::endl;
 
@@ -1183,14 +1189,15 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	cv::Mat small_image = image_gray(cv::Rect(round(image_gray.cols/4), round(image_gray.rows/4),round(image_gray.cols/2), round(image_gray.rows/2)));
 
 //	Edge detection by Canny
-
 	cv::Canny( small_image, detected_edges, 30, 200, 3);  //Modify Threshold to get more or less edges
+;
 
 //	Get contours -- clone edge_pixels cause findContours changes input
 	cv::Mat edge_pixels = detected_edges.clone();
 	std::vector <std::vector <cv::Point> > contours;
 	std::vector<cv::Vec4i> hierarchy;
 	findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+
 
 //	CRITERIA 1: determine biggest component
 	std::vector<int> numPixels;
@@ -1225,7 +1232,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	{
 		avg_size = avg_size+numPixels[i];
 	}
-	if(size-round(size*0.75)>0)
+	if(size-round(size*0.75)!=0)
 	{
 		avg_size = avg_size/(size-round(size*0.75));
 		avg_primitive_size_raw2 = avg_size;
@@ -1268,7 +1275,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	clear small contours
 	for(int i=0;i<ceil(numPixels.size()*0.8);i++)
 	{
-		if(numPixels[i]<big_comp/8)
+		if(numPixels[i]<big_comp/8 &&  idx[i]<contours.size())
 		{
 			for(uint j=0;j<contours[idx[i]].size();j++)
 			{
@@ -1295,6 +1302,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 			}
 		}
 	}
+
 //  compute dist_edge
 	distanceTransform(edge_pixels, L2dist, CV_DIST_L2, 5);
 
@@ -1306,8 +1314,11 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 			dist_edge = dist_edge + dist_val;
 		}
 	}
+	if(L2dist.rows!=0 && L2dist.cols!=0 && small_image.rows*small_image.cols!=0)
+	{
 	dist_edge = (dist_edge/(L2dist.rows*L2dist.cols));
 	dist_edge = dist_edge / (small_image.rows*small_image.cols)*10000;
+	}
 	number_primitives_raw1 = dist_edge;
 	dist_edge=-0.06*dist_edge+4.4;
 	if(dist_edge<1)dist_edge = 1;
@@ -1352,13 +1363,14 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	}
 //	Sort numPixels, save old index in idx
 	idx=sort_index(numPixels);
-	for(int i=0;i<round(numPixels.size()*0.75);i++)
+	for(int i=0;i<round(numPixels.size()*0.75) && contours.size()>=numPixels.size();i++)
 	{
 			for(uint j=0;j<contours[idx[i]].size();j++)
 			{
 				edge_pixels.at<uchar>(contours[idx[i]][j].y, contours[idx[i]][j].x) = 0;
 			}
 	}
+
 //	Get number of non-zero points
 	double edge_pixels_amount=0;
 	for(int i=2;i<edge_pixels.rows-2;i++)
@@ -1377,7 +1389,8 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	double std_window=0;
 	cv::Scalar stddev;
 	cv::Scalar mean;
-	cv::Mat window = cvCreateMat(3,3,CV_32FC1);
+	cv::Mat window;// = cvCreateMat(3,3,CV_32FC1);
+	window = cv::Mat::zeros(3,3, CV_32FC1);
 	for(int i=2;i<image_resize.rows-2;i++)
 	{
 		for(int j=2;j<image_resize.cols-2;j++)
@@ -1391,7 +1404,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 				{
 					for(int o=j-1;o<=j+1;o++)
 					{
-						float swap =image_resize.at<cv::Vec3b>(l,o)[2];
+						float swap =image_resize.at<cv::Vec3b>(l,o)[2];                 // Warum nur kanal 2??????????????????????????????????
 						window.at<float>(a,b)=swap/255;
 						b++;
 					}
@@ -1403,8 +1416,13 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 			}
 		}
 	}
-	primitive_strength_raw = std_window/edge_pixels_amount;
-	double val10= 30*std_window/edge_pixels_amount*val8/2+1;
+
+	double val10;
+	if(edge_pixels_amount!=0 && val8!=0)
+	{
+		primitive_strength_raw = std_window/edge_pixels_amount;
+		val10= 30*std_window/edge_pixels_amount*val8/2+1;
+	}
 	val10 = pow(val10,2);
 	if(val10>5) val10=5;
 	if(val10<1) val10=1;
@@ -1463,7 +1481,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 
 	for(int i=0;i<ceil(numPixels.size()*0.9);i++)
 	{
-		if(numPixels[i]<big_comp/8)
+		if(numPixels[i]<big_comp/8 && idx[i]<contours.size())
 		{
 			for(uint j=0;j<contours[idx[i]].size();j++)
 			{
@@ -1488,7 +1506,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	std::vector< std::vector<double> > centroid(contours.size());
 	cv::Moments moment;
 	double extent_val;
-//	std::cout<<std::endl<<contours.size()<<"contourssize"<<std::endl;
+//	std::cout<<std::endl<<contours.size()<<"contourssize"<<std::endl;                                                  ///////////////////////----------------------------------------/////////////////////////
 	for(uint i=0;i<contours.size();i++)
 	{
 		moment = moments( contours[i], false );
@@ -1506,6 +1524,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 		extent.push_back(extent_val);
 	}
 	double regu;
+
 	cv::meanStdDev(area, mean, stddev);
 	double std_val = stddev.val[0];
 	double mean_val = mean.val[0]*3;
@@ -1656,6 +1675,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 				ellipse_ecc.push_back(fitEllipse(contours[i]));
 			}
 	}
+
 	cv::RNG rng(12345);
 	  cv::Mat drawing = cv::Mat::zeros( (*img).size(), CV_8UC3 );
 	 for( uint i = 0; i< ellipse_ecc.size(); i++ )
@@ -2065,31 +2085,37 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 		crit1 = 1;
 	}
 
-	std::cout<<"point"<<std::endl;
+//	std::cout<<"point"<<std::endl;
 
 //	check distribution of centroids over image
 	double bins_xhori=edge_pixels.cols/10;
 	double bins_yvert=edge_pixels.rows/10;
 	std::vector<double> hist_xhori(10);
 	std::vector<double> hist_yvert(10);
+	double xdivision = 0;
+	double ydivision = 0;
 //	compute hist_xhori and hist_yvert
-	for(uint i=0;i<centroid.size();i++)
+	for(int i=0;i<centroid.size();i++)
 	{
-			double xdivision = centroid[i][0]/bins_xhori;
-			double ydivision = centroid[i][1]/bins_yvert;
+		if(bins_xhori!=0 && bins_yvert!=0){
+			xdivision = centroid[i][0]/bins_xhori;
+			ydivision = centroid[i][1]/bins_yvert;
+		}
 			double xhist_val;
 			double yhist_val;
 			modf(xdivision, &xhist_val);
 			modf(ydivision, &yhist_val);
-			hist_xhori[xhist_val]=hist_xhori[xhist_val]+1;
-			hist_yvert[yhist_val]=hist_yvert[yhist_val]+1;
+			if(xhist_val<hist_xhori.size())
+				hist_xhori[xhist_val]=hist_xhori[xhist_val]+1;
+			if(yhist_val<hist_yvert.size())
+				hist_yvert[yhist_val]=hist_yvert[yhist_val]+1;
 	}
 	for(int i=0;i<10;i++)
 	{
 		hist_xhori[i]=hist_xhori[i]/centroid.size();
 		hist_yvert[i]=hist_yvert[i]/centroid.size();
 	}
-	std::cout<<"point"<<std::endl;
+//	std::cout<<"point"<<std::endl;
 //	delete first and last position of hist
 	hist_xhori.pop_back();
 	hist_yvert.pop_back();
@@ -2098,7 +2124,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	hist_xhori.pop_back();
 	hist_yvert.pop_back();
 //	compute crit2 value
-	std::cout<<"point"<<std::endl;
+//	std::cout<<"point"<<std::endl;
 	cv::meanStdDev(hist_xhori, mean, stddev);
 	crit2=stddev.val[0];
 	cv::meanStdDev(hist_yvert, mean, stddev);
@@ -2106,20 +2132,20 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	if(crit2 < 1)crit2=1;
 
 
-	std::cout<<"pointeccsize"<<ellipse_ecc.size()<<std::endl;
+//	std::cout<<"pointeccsize"<<ellipse_ecc.size()<<std::endl;
 //	check orientation of contours
 //	std::vector<double> angel(ellipse_ecc.size());
 
 	std::vector<double> hist_angle(13);
-	std::cout<<"pointangels"<<std::endl;
+//	std::cout<<"pointangels"<<std::endl;
 	int hist_point_num=0;
-	std::cout<<"point2"<<std::endl;
+//	std::cout<<"point2"<<std::endl;
 //	compute hist_angle
-	std::cout<<"eccentricity size"<<eccentricity.size()<<"  "<<eccentricity[2]<<std::endl;
-	std::cout<<"ellipse_ecc[i]"<<ellipse_ecc.size()<<"  "<<ellipse_ecc[2].angle<<std::endl;
-	std::cout<<"point3"<<std::endl;
+//	std::cout<<"eccentricity size"<<eccentricity.size()<<"  "<<eccentricity[2]<<std::endl;
+//	std::cout<<"ellipse_ecc[i]"<<ellipse_ecc.size()<<"  "<<ellipse_ecc[2].angle<<std::endl;
+//	std::cout<<"point3"<<std::endl;
 
-	for(uint i=0;i<ellipse_ecc.size();i++)
+	for(int i=0;i<ellipse_ecc.size() && i<eccentricity.size();i++)
 	{
 
 		if(eccentricity[i]>1)
@@ -2133,20 +2159,26 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 			{
 				double angle_val = ellipse_ecc[i].angle/15;
 				double bin_num;
+
+				try{
 				modf(angle_val, &bin_num);
+				}catch(...){std::cout<<"modf failure1"<<std::endl;}
 				if((6+bin_num)<13)
 				{
-					hist_angle[6+bin_num]=hist_angle[6+bin_num]+1;
+					hist_angle[6+(int)bin_num]=hist_angle[6+(int)bin_num]+1;
 				}else{
 					std::cout<<"memory failure"<<std::endl;
 				}
 			}else{
 				double angle_val = (ellipse_ecc[i].angle/15)*(-1);
 				double bin_num;
+
+				try {
 				modf(angle_val, &bin_num);
+				}catch(...){std::cout<<"modf failure1"<<std::endl;}
 				if(bin_num<13)
 				{
-				hist_angle[bin_num]=hist_angle[bin_num]+1;
+				hist_angle[(int)bin_num]=hist_angle[(int)bin_num]+1;
 				}else{
 					std::cout<<"memory failure2"<<std::endl;
 				}
@@ -2158,7 +2190,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 
 
 // 	normalize hist_angle
-	for(uint i=0;i<hist_angle.size();i++)
+	for(unsigned int i=0;i<hist_angle.size();i++)
 	{
 		if(hist_point_num>0) hist_angle[i]=hist_angle[i]/hist_point_num;
 	}
@@ -2197,6 +2229,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 		raw_features->at<float>(0, 13) = contrast_raw;
 		raw_features->at<float>(0, 14) = line_likeness_raw;
 	}
+
 
 //	struct timeval zeit8;
 //	gettimeofday(&zeit8, 0);

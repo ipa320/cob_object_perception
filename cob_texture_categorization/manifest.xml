@@ -17,6 +17,7 @@
 	<!--depend package="actionlib" />
 	<depend package="actionlib_msgs" /-->
 	<depend package="cv_bridge" />
+	<depend package="cob_surface_classification" />
 	<depend package="image_transport"/>
 	<depend package="message_filters" />
 

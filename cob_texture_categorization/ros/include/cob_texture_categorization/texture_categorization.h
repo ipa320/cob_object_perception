@@ -46,6 +46,10 @@
 #include "std_msgs/String.h"
 
 
+//#include </home/rmb-dh/git/care-o-bot/cob_object_perception/cob_surface_classification/msg_gen/cpp/include/cob_surface_classification/SegmentedPointCloud2.h>
+#include "../../../../cob_surface_classification/msg_gen/cpp/include/cob_surface_classification/Int32Array.h"
+#include "../../../../cob_surface_classification/msg_gen/cpp/include/cob_surface_classification/SegmentedPointCloud2.h"
+
 
 
 class TextCategorizationNode
@@ -66,6 +70,7 @@ public:
 	ros::Publisher pub_cloud;
 
 	void segmentationCallback(const std_msgs::String::ConstPtr& msg);
+	void segmented_pointcloud_callback(const cob_surface_classification::SegmentedPointCloud2& msg2);
 protected:
 
 

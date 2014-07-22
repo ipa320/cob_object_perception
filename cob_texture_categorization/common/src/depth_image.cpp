@@ -20,40 +20,41 @@ depth_image::depth_image()
 void depth_image::medianfilter(cv::Mat *depth_image)
 {
 		cv::Mat dst(480, 640, CV_8U);
-		for(int i=0;i<640;i++)
-		{
-			for(int j = 0; j<480;j++)
-			{
-
-				dst.at<uchar>(j,i)=round((*depth_image).at<float>(j,i)*42.5);
-			}
-		}
+//		dst=*depth_image;
+//		for(int i=0;i<640;i++)
+//		{
+//			for(int j = 0; j<480;j++)
+//			{
+//
+//				dst.at<uchar>(j,i)=round((*depth_image).at<float>(j,i)*42.5);
+//			}
+//		}
 
 //		int MAX_KERNEL_LENGTH = 31;
 //		for ( int i = 1; i < MAX_KERNEL_LENGTH; i = i + 2 )
 //		    { cv::medianBlur ( dst, dst, i ); }
 //		    cv::medianBlur ( dst, dst, 3 );
 //		    cv::medianBlur ( dst, dst, 7 );
-		    cv::medianBlur ( dst, dst, 21 );
+		    cv::medianBlur ( *depth_image, *depth_image, 21 );
 
 
 
-		for(int i=0;i<640;i++)
-		{
-			for(int j = 0; j<480;j++)
-			{
-
-				(*depth_image).at<float>(j,i)=dst.at<uchar>(j,i)/42.5;
-			}
-		}
+//		for(int i=0;i<640;i++)
+//		{
+//			for(int j = 0; j<480;j++)
+//			{
+//
+//				(*depth_image).at<float>(j,i)=dst.at<uchar>(j,i)/42.5;
+//			}
+//		}
 }
 
 void depth_image::close_operation(cv::Mat *depth_image)
 {
 		cv::Mat element = cv::getStructuringElement( cv::MORPH_RECT, cv::Size(5, 5) , cv::Point(-1,-1));
 		cv::morphologyEx(*depth_image, *depth_image, cv::MORPH_CLOSE, element );
-		element = cv::getStructuringElement( cv::MORPH_RECT, cv::Size(10, 10) , cv::Point(-1,-1));
-		cv::morphologyEx(*depth_image, *depth_image, cv::MORPH_CLOSE, element );
+//		element = cv::getStructuringElement( cv::MORPH_RECT, cv::Size(10, 10) , cv::Point(-1,-1));
+//		cv::morphologyEx(*depth_image, *depth_image, cv::MORPH_CLOSE, element );
 		//	element = cv::getStructuringElement( cv::MORPH_RECT, cv::Size(15, 15) , cv::Point(-1,-1));
 		//	cv::morphologyEx(dst, dst, cv::MORPH_CLOSE, element );
 		cv::imshow("median",*depth_image);

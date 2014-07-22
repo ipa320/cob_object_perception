@@ -16,7 +16,7 @@ class splitandmerge
 {
 public:
 	splitandmerge();
-	cv::Mat categorize(cv::Mat image_in);
+	cv::Mat categorize(cv::Mat image_in,  std::vector<cv::Mat>* segments, double mergeval);
 
 };
 #endif

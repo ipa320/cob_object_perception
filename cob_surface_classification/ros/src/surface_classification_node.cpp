@@ -66,7 +66,7 @@
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						false 	//segmentation + refinement
+#define SEG 						true 	//segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement according to curvatures (outdated)
 #define CLASSIFY 					false	//classification
@@ -275,8 +275,8 @@ public:
 			//for(int i=0; i<10; i++)
 			//{
 
-			if (key=='n')
-			{
+//			if (key=='n')
+//			{
 				tim.start();
 				one_.setInputCloud(cloud);
 				one_.setPixelSearchRadius(4,2,2);	//call before calling computeMaskManually()!!!
@@ -293,7 +293,7 @@ public:
 				++number_processed_images_;
 				std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
 							"\nruntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
-			}
+//			}
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
 
