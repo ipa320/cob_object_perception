@@ -326,106 +326,103 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 
 
 
-
 		////Reduce segment on necessary area
-		if(segment_vec.size()>1){
-		for(unsigned int i=0;i<segment_vec.size();i++)
+		if(segment_vec.size()>1)
 		{
-			std::cout<<segment_vec[i].size()<<std::endl;
-//			cv::imshow("segments", segment_vec[i]);
-//			cv::waitKey(10000);
-
-			std::vector <cv::Point> seg_points;
-			cv::Mat work_segment = segment_vec[i];
-			for(int pi=0; pi<480;pi++)
+			for(unsigned int i=0;i<segment_vec.size();i++)
 			{
-				for(int pj=0; pj<640;pj++)
+				std::vector <cv::Point> seg_points;
+				cv::Mat work_segment = segment_vec[i];
+				for(int pi=0; pi<480;pi++)
 				{
-					if(work_segment.at<cv::Vec3b>(pi,pj)[0]!=0 || work_segment.at<cv::Vec3b>(pi,pj)[1]!=0 || work_segment.at<cv::Vec3b>(pi,pj)[2]!=0)
+					for(int pj=0; pj<640;pj++)
 					{
-						seg_points.push_back(cv::Point(pj,pi));
+						if(work_segment.at<cv::Vec3b>(pi,pj)[0]!=0 || work_segment.at<cv::Vec3b>(pi,pj)[1]!=0 || work_segment.at<cv::Vec3b>(pi,pj)[2]!=0)
+						{
+							seg_points.push_back(cv::Point(pj,pi));
+						}
 					}
 				}
-			}
-//			imwrite( "/home/rmb-dh/Pictures/minArea2.jpg", work_segment );
-			cv::RotatedRect rec;
-			if(seg_points.size()>3)
-			{
-				rec =  minAreaRect(seg_points);
-			}
-			cv::Mat M, rotated, new_segment;
-			// get angle and size from the bounding box
-			float angle = rec.angle;
-			cv::Size rect_size = rec.size;
-			if (rec.angle < -45.)
-			{
-				angle += 90.0;
-				swap(rect_size.width, rect_size.height);
-			}
-			bool use_segment = true;
-			if(segment_vec[i].cols>100 && segment_vec[i].rows>100)
-			{
-				M = cv::getRotationMatrix2D(rec.center, angle, 1.0);
-				cv::warpAffine(work_segment, rotated, M, work_segment.size(), cv::INTER_CUBIC);
-;
-				if(rotated.empty())
+				cv::RotatedRect rec;
+				if(seg_points.size()>3)
 				{
-				cv::Mat test(480,640,CV_32F);
-				cvtColor(rotated, test, CV_BGR2GRAY);
-//				imwrite( "/home/rmb-dh/Pictures/reduced.jpg", rotated );
-				cv::getRectSubPix(rotated, rect_size, rec.center, new_segment);
-				}else{
-					use_segment=false;
+					rec =  minAreaRect(seg_points);
 				}
-
+				cv::Mat M, rotated, new_segment;
+				// get angle and size from the bounding box
+				float angle = rec.angle;
+				cv::Size rect_size = rec.size;
+				if (rec.angle < -45.)
+				{
+					angle += 90.0;
+					swap(rect_size.width, rect_size.height);
+				}
+				bool use_segment = false;
+				if(segment_vec[i].cols>100 && segment_vec[i].rows>100 && rec.size.width>0 && rec.size.height>0)
+				{
+					M = cv::getRotationMatrix2D(rec.center, angle, 1.0);
+					cv::warpAffine(work_segment, rotated, M, work_segment.size(), cv::INTER_CUBIC);
+					cv::getRectSubPix(rotated, rect_size, rec.center, new_segment);
+					use_segment=true;
+				}
+				if(use_segment&& !new_segment.empty())
+					segment_vec[i] = new_segment;
 			}
-			if(use_segment)
-				segment_vec[i] = new_segment;
 		}
-		}
-
-//		for(unsigned int i=0;i<segment_vec.size();i++)
-//		{
-//			cv::imshow("image", segment_vec[i]);
-//			cv::waitKey(100000);
-//		}
 
 
 
 
 		////Segment with split and merge
-		std::vector<cv::Mat> swap_vec;
-		splitandmerge seg_step_two = splitandmerge();
-//		for(unsigned int i=0; i< segment_vec.size(); i++)
-//		{
+		std::vector<cv::Mat> swap_vec, compare, newvec;
+		compare = segment_vec;
+		int size = segment_vec.size();
 
-//		for(double ik=0;ik<1;ik= ik +0.1)
-//		{
-//		seg_step_two.categorize(orig_img, &swap_vec, i);
-
+		for(unsigned int i=0; i<size; i++)
+		{
 			swap_vec.clear();
-//			if(segment_vec[i].rows >50 && segment_vec[i].cols>50)
-//			{
-
-//				seg_step_two.categorize(segment_vec[i], &swap_vec, 0);
-
-				seg_step_two.categorize(orig_img_draw, &swap_vec,0);
-//			}
-//			std::cout<<i<<" mergevalue"<<std::endl;
-
-			for(unsigned int j=0;j<swap_vec.size();j++)
+			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
 			{
-
-				cv::imshow("splitres",swap_vec[j]);
-				cv::imshow("org", orig_img);
-				cv::waitKey(100000);
-
-
+				splitandmerge seg_step_two = splitandmerge();
+				seg_step_two.categorize(segment_vec[i], &swap_vec, 0);
+				std::cout<<swap_vec.size()<<"swapvec"<<std::endl;
+				for(unsigned int j=0;j<swap_vec.size();j++)
+				{
+					cv::imshow("swap", swap_vec[j]);
+					cv::waitKey(100000);
+				}
+				if(swap_vec.size()>=2)
+				{
+					segment_vec.erase(segment_vec.begin()+i);
+					i--;
+					for(unsigned int pos=1;pos<swap_vec.size();pos++)
+					{
+						newvec.push_back(swap_vec[pos]);
+					}
+				}else
+				{
+					newvec.push_back(segment_vec[i]);
+				}
 			}
-			swap_vec.clear();
-//		}
 
-//		}
+
+
+		}
+		std::cout<<newvec.size()<<"segmentsize"<<std::endl;
+		for(unsigned int j=0;j<newvec.size();j++)
+		{
+
+			cv::imshow("splitres",newvec[j]);
+			if(compare.size()>j)
+			{
+				cv::imshow("segment", compare[j]);
+			}
+			cv::imshow("org", orig_img);
+			cv::waitKey(100000);
+
+
+		}
+
 
 
 		////Compute Features of Segments
@@ -581,7 +578,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 //		for (int c=0; c<16; ++c)
 //			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+//	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 	int folds = 20;
@@ -624,7 +621,7 @@ void TextCategorizationNode::inputCallbackNoCam()
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
 	create_train_data database_data;
-	database_data.load_texture_database_features(path_save_location, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+//	database_data.load_texture_database_features(path_save_location, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	ml.cross_validation(10, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 
 
@@ -867,13 +864,13 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //
 	cv::imshow("original", color_image);
 	splitandmerge test = splitandmerge();
-	cv::Mat pic1 = test.categorize(color_image);
+//	cv::Mat pic1 = test.categorize(color_image);
 //	cv::Mat pic2 = test.categorize(test2);
 //	cv::Mat pic3 = test.categorize(test3);
 //	cv::Mat pic4 = test.categorize(test4);
 //	cv::Mat pic5 = test.categorize(test5);
 //	cv::Mat pic6 = test.categorize(test6);
-	cv::imshow("sam1", pic1);
+//	cv::imshow("sam1", pic1);
 //	cv::moveWindow("sam1", 0,0);
 //	cv::imshow("sam2", pic2);
 //	cv::moveWindow("sam2", 1380,0);
@@ -908,7 +905,7 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 
 //	cv::imshow("gray image", gray_image);
 //	cv::imshow("dx image", dx);
-	cv::waitKey(10);
+//	cv::waitKey(10);
 
 //	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 //	pcl::fromROSMsg(*pointcloud_msg, *cloud);
