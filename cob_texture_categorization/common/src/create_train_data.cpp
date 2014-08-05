@@ -294,7 +294,7 @@ void create_train_data::save_data_hierarchy(std::string filename, DataHierarchyT
 					std::cout << "Warning: class " << texture_classes_[i] << ", object " << j+1 << " does not contain any samples." << std::endl;
 				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
 				{
-					std::cout << "          I" << k+1 << ": " << data_sample_hierarchy[i][j][k] << std::endl;
+//					std::cout << "          I" << k+1 << ": " << data_sample_hierarchy[i][j][k] << std::endl;
 					file << "\t\t" << data_sample_hierarchy[i][j][k] << std::endl;
 				}
 			}

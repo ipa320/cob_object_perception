@@ -38,7 +38,7 @@ void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *result
 {
 
 	std::cout << img.size() << std::endl;
-	int type = img.type();
+	//int type = img.type();
 	//std::cout<<type<<"mattype";
 
 
