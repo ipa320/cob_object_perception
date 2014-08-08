@@ -76,7 +76,6 @@ node_handle_(nh)
 //	colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
 //	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
-//DAS ist ein test
 
 	segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
 
@@ -243,8 +242,8 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 					{
 						if((int)contours[ci].size()>30)
 						{
-							  cv::Scalar color = cv::Scalar(30,144,255);
-							  cv::drawContours( orig_img, contours, ci, color, 1, 8, hierarchy, 0, cv::Point() );
+							  cv::Scalar color = cv::Scalar(0,0,255);
+							  cv::drawContours( orig_img, contours, ci, color, 2, 8, hierarchy, 0, cv::Point() );
 						 }
 					}
 //					for( int j = 0; j < 4; j++ )
@@ -374,119 +373,157 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 
 
 		////Segment with split and merge
-		std::vector<cv::Mat> swap_vec, compare, newvec;
-		compare = segment_vec;
-		int size = segment_vec.size();
+//		std::vector<cv::Mat> swap_vec, compare, newvec, second_swap, second_newvec;
+//		compare = segment_vec;
+//		int size = segment_vec.size();
+//
+////		for(int i=0; i<size; i++)
+////				{
+////					cv::imshow("segmen23",segment_vec[i]);
+////					cv::waitKey(10000);
+////				}
+//
+//		for(int i=0; i<size; i++)
+//		{
+//			swap_vec.clear();
+//			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
+//			{
+//				splitandmerge seg_step_two = splitandmerge();
+//				seg_step_two.categorize(segment_vec[i], &swap_vec, 1);
+//
+////				splitandmerge segtwo = splitandmerge();
+////				segtwo.categorize(segment_vec[i], &second_swap, 1);
+//
+//
+//				std::cout<<swap_vec.size()<<"swapvec"<<std::endl;
+////				for(unsigned int j=0;j<swap_vec.size();j++)
+////				{
+////					cv::imshow("swap", swap_vec[j]);
+////					cv::waitKey(100000);
+////				}
+//				if(swap_vec.size()>=2)
+//				{
+//
+//					for(unsigned int pos=1;pos<swap_vec.size();pos++)
+//					{
+//						newvec.push_back(swap_vec[pos]);
+////						second_newvec.push_back(second_swap[pos]);
+//					}
+//				}else
+//				{
+//					newvec.push_back(segment_vec[i]);
+////					second_newvec.push_back(segment_vec[i]);
+//				}
+//			}else{
+//				newvec.push_back(segment_vec[i]);
+////				second_newvec.push_back(segment_vec[i]);
+//			}
+//
+//
+//			for(unsigned int ne=0;ne<swap_vec.size();ne++)
+//			{
+//
+//				cv::imshow("splitres",swap_vec[ne]);
+//				cv::imshow("segmentcomp", compare[i]);
+//				cv::imshow("orig",orig_img);
+//				cv::waitKey(10000);
+//
+//
+//			}
+		std::vector<cv::Mat> swap_vec;
+		splitandmerge seg_step_two = splitandmerge();
+		seg_step_two.categorize(orig_img_draw, &swap_vec, 1);
 
-		for(unsigned int i=0; i<size; i++)
-		{
-			swap_vec.clear();
-			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
-			{
-				splitandmerge seg_step_two = splitandmerge();
-				seg_step_two.categorize(segment_vec[i], &swap_vec, 0);
-				std::cout<<swap_vec.size()<<"swapvec"<<std::endl;
-				for(unsigned int j=0;j<swap_vec.size();j++)
-				{
-					cv::imshow("swap", swap_vec[j]);
-					cv::waitKey(100000);
-				}
-				if(swap_vec.size()>=2)
-				{
-					segment_vec.erase(segment_vec.begin()+i);
-					i--;
-					for(unsigned int pos=1;pos<swap_vec.size();pos++)
-					{
-						newvec.push_back(swap_vec[pos]);
-					}
-				}else
-				{
-					newvec.push_back(segment_vec[i]);
-				}
-			}
+						for(unsigned int j=0;j<swap_vec.size();j++)
+						{
+							cv::imshow("swap", swap_vec[j]);
+							cv::imshow("orig", orig_img_draw);
+							cv::waitKey(100000);
+						}
+//		}
+//		std::cout<<newvec.size()<<"segmentsizenew"<<std::endl;
+//		std::cout<<compare.size()<<"segmentsizeold"<<std::endl;
+////		for(unsigned int ne=0;ne<newvec.size();ne++)
+////		{
+////
+//			cv::imshow("splitres",newvec[ne]);
+////			cv::imshow("secondsplitres",second_newvec[ne]);
+//			if(ne<compare.size())
+//			{
+//			cv::imshow("segmentcomp", compare[ne]);
+////					cv::imshow("segmentvec", segment_vec[ne]);
+//			}
+//			cv::imshow("orig",orig_img);
+//			cv::waitKey(10000);
+//
+//
+//		}
 
-
-
-		}
-		std::cout<<newvec.size()<<"segmentsize"<<std::endl;
-		for(unsigned int j=0;j<newvec.size();j++)
-		{
-
-			cv::imshow("splitres",newvec[j]);
-			if(compare.size()>j)
-			{
-				cv::imshow("segment", compare[j]);
-			}
-			cv::imshow("org", orig_img);
-			cv::waitKey(100000);
-
-
-		}
-
-
-
-		////Compute Features of Segments
-		std::vector<struct feature_results> segment_features;
-		struct feature_results results;
-		cv::Mat img_seg;
-
-		for(unsigned int i=0;i<segment_vec.size();i++)
-		{
-//			imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
-			img_seg = segment_vec[i];
-			color_parameter color = color_parameter();
-			color.get_color_parameter(img_seg, &results);
-			texture_features edge = texture_features();
-			cv::Mat dummy(480,640,CV_32F);
-			edge.primitive_size(&img_seg, &results, &dummy);
-			segment_features.push_back(results);
-		}
-
-		////Create matrix for classifikation
-		cv::Mat feature_mat;
-		feature_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
-		for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
-		{
-			results = segment_features[sample_index];
-			feature_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
-			feature_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
-			feature_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
-			feature_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
-			feature_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
-			feature_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
-			feature_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
-			feature_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
-			feature_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
-			feature_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
-			feature_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
-			feature_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
-			feature_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
-			//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
-			feature_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-			feature_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
-			feature_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
-		}
-
-//		Run classifikation with SVM
-		cv::Mat prediction_results;
-	 	CvSVM SVM;
-	    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
-	    SVM.predict(feature_mat,prediction_results);
-
-
-	    ////Write Segment type
-	    std::vector<std::string> classes;
-	    create_train_data get_classes = create_train_data();
-	    classes = get_classes.get_texture_classes();
-	    std::string s;
-	    for(int i=0;i<prediction_results.rows;i++)
-	    {
-	    	s.clear();
-	    	s = classes[prediction_results.at<float>(i,0)];
-	    	putText(orig_img, s, seg_pos_vec[i].position,
-	    						 			cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,205), 1, CV_AA);
-	    }
-
+//
+//
+//
+//		////Compute Features of Segments
+//		std::vector<struct feature_results> segment_features;
+//		struct feature_results results;
+//		cv::Mat img_seg;
+//
+//		for(unsigned int i=0;i<segment_vec.size();i++)
+//		{
+////			imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
+//			img_seg = segment_vec[i];
+//			color_parameter color = color_parameter();
+//			color.get_color_parameter(img_seg, &results);
+//			texture_features edge = texture_features();
+//			cv::Mat dummy(480,640,CV_32F);
+//			edge.primitive_size(&img_seg, &results, &dummy);
+//			segment_features.push_back(results);
+//		}
+//
+//		////Create matrix for classifikation
+//		cv::Mat feature_mat;
+//		feature_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
+//		for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
+//		{
+//			results = segment_features[sample_index];
+//			feature_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
+//			feature_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
+//			feature_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
+//			feature_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
+//			feature_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
+//			feature_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
+//			feature_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
+//			feature_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
+//			feature_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
+//			feature_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
+//			feature_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
+//			feature_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
+//			feature_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
+//			//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
+//			feature_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
+//			feature_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
+//			feature_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
+//		}
+//
+////		Run classifikation with SVM
+//		cv::Mat prediction_results;
+//	 	CvSVM SVM;
+//	    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
+//	    SVM.predict(feature_mat,prediction_results);
+//
+//
+//	    ////Write Segment type
+//	    std::vector<std::string> classes;
+//	    create_train_data get_classes = create_train_data();
+//	    classes = get_classes.get_texture_classes();
+//	    std::string s;
+//	    for(int i=0;i<prediction_results.rows;i++)
+//	    {
+//	    	s.clear();
+//	    	s = classes[prediction_results.at<float>(i,0)];
+//	    	putText(orig_img, s, seg_pos_vec[i].position,
+//	    						 			cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,205), 1, CV_AA);
+//	    }
+//
 //		cv::imshow("orig", orig_img);
 //		cv::waitKey(10);
 
@@ -597,6 +634,27 @@ void TextCategorizationNode::inputCallbackNoCam()
 {
 
 
+	//Test Split and merge
+	std::vector<cv::Mat> swap_vec;
+	cv::Mat test1 = cv::imread("/home/rmb-dh/obst.jpg"); //TEST
+
+	splitandmerge seg_step_two = splitandmerge();
+	seg_step_two.categorize(test1, &swap_vec, 0);
+
+
+	for(unsigned int ne=0;ne<swap_vec.size();ne++)
+	{
+		cv::imshow("orig",swap_vec[ne]);
+		cv::waitKey(10000);
+	}
+
+
+	//	cv::imshow("swap", swap_vec[j]);
+	//	cv::waitKey(100000);
+
+
+
+
 	//Computes trainingdata for training of klassification method. uses texture database
 	//Saves data in file to hardcoded path
 
@@ -615,14 +673,14 @@ void TextCategorizationNode::inputCallbackNoCam()
 //	database_data.compute_data(path_database, path_save_location, 1281);
 
 	//Train and predict with NN
-	train_ml ml;
+//	train_ml ml;
 	//double gam =0;																		// Trainiert anhand des Trainingsvektors, testet anhand des Testvektors und gibt Ergebnis aus
 	//ml.run_ml(gam, &path_save_location);
-	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
-	create_train_data::DataHierarchyType data_hierarchy;
-	create_train_data database_data;
+//	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
+//	create_train_data::DataHierarchyType data_hierarchy;
+//	create_train_data database_data;
 //	database_data.load_texture_database_features(path_save_location, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
-	ml.cross_validation(10, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+//	ml.cross_validation(10, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 
 
 	//Train and predict with SVM
