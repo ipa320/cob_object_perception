@@ -737,23 +737,25 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		//Get Position of Segments for naming
 		std::vector<cv::Point> segment_center;
 		segment_center.resize(retransformed_segment.size());
+		std::vector< std::vector <cv::Point> > seg_points;
+		seg_points.resize(retransformed_segment.size());
 		for(int i=0; i<retransformed_segment.size();i++)
 		{
-			std::vector <cv::Point> seg_points;
+
 			for(int n=0;n<640;n++)
 			{
 				for(int m=0;m<480;m++)
 				{
 					if(retransformed_segment[i].at<cv::Vec3b>(m,n)[0]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[1]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[2]!=0 )
 					{
-						seg_points.push_back(cv::Point(n,m));
+						seg_points[i].push_back(cv::Point(n,m));
 					}
 				}
 			}
 			cv::RotatedRect rec;
-			if(seg_points.size()>3)
+			if(seg_points[i].size()>3)
 			{
-				rec =  minAreaRect(seg_points);
+				rec =  minAreaRect(seg_points[i]);
 				if(rec.size.height>30 && rec.size.width>30)
 					segment_center[i] = cv::Point2f(rec.center.x, rec.center.y);
 			}
