@@ -96,6 +96,28 @@ struct segment_position{
 };
 void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_classification::SegmentedPointCloud2& msg2)
 {
+		std::cout<<"Begin"<<std::endl;
+		timeval start, end;
+		gettimeofday(&start, NULL);
+		cv::Mat test=cv::Mat::zeros(480,640,CV_8UC3);
+
+		cv::Mat segmented_image = cv::Mat::zeros(480,640,CV_8UC3);
+
+		for(unsigned int i=0; i<msg2.clusters.size();i++)
+		{
+			int r = rand() % 50;
+			int g = rand() % 256;
+			int b = rand() % 256;
+			for(unsigned int j=0; j<msg2.clusters[i].array.size();j++)
+			{
+				int x = (msg2.clusters[i].array[j])%640;
+				int y = (int)floor((msg2.clusters[i].array[j])/641);
+				segmented_image.at<cv::Vec3b>(y,x)[0]=b;
+				segmented_image.at<cv::Vec3b>(y,x)[1]=g;
+				segmented_image.at<cv::Vec3b>(y,x)[2]=r;
+			}
+		}
+
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr pixel_cloud (new pcl::PointCloud<pcl::PointXYZ>);
@@ -133,7 +155,10 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		cv::Mat orig_img_draw = orig_img.clone();
 		int count = 1;
 		std::vector<cv::Point2f> schwerepunkt;
+		std::cout<<"Transform"<<std::endl;
 		////Transform Segments of Depthsegmentation if possible
+		std::vector<cv::Mat> segment_img_vec;
+		std::vector<cv::Mat> H_vec;
 		for(unsigned int i=0; i<msg2.clusters.size();i++)
 		{
 			schwerepunkt.clear();
@@ -181,6 +206,10 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 				cv::dilate( binary_img, binary_img, element );
 
 				////Create new image out of dilated binary image
+				int r1 = rand() % 50;
+				int g1 = rand() % 256;
+				int b1 = rand() % 256;
+
 				for(int iy=0;iy<480;iy++)
 				{
 					for(int ix=0;ix<640;ix++)
@@ -191,9 +220,26 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 							segment_img.at<cv::Vec3b>(iy,ix)[1]=orig_img_draw.at<cv::Vec3b>(iy,ix)[1];
 							segment_img.at<cv::Vec3b>(iy,ix)[2]=orig_img_draw.at<cv::Vec3b>(iy,ix)[2];
 							schwerepunkt.push_back(cv::Point(ix,iy));
+
+							if(orig_img_draw.at<cv::Vec3b>(iy,ix)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix)[2]!=0 &&((
+								orig_img_draw.at<cv::Vec3b>(iy,ix-1)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix-1)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix-1)[2]!=0 &&
+								orig_img_draw.at<cv::Vec3b>(iy,ix+1)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix+1)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix+1)[2]!=0) ||(
+								orig_img_draw.at<cv::Vec3b>(iy-1,ix)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy-1,ix)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy-1,ix)[2]!=0 &&
+								orig_img_draw.at<cv::Vec3b>(iy+1,ix)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy+1,ix)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy+1,ix)[2]!=0)||
+								(orig_img_draw.at<cv::Vec3b>(iy,ix-2)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix-2)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix-2)[2]!=0 &&
+								orig_img_draw.at<cv::Vec3b>(iy,ix+2)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix+2)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix+2)[2]!=0) ||(
+								orig_img_draw.at<cv::Vec3b>(iy-2,ix)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy-2,ix)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy-2,ix)[2]!=0 &&
+								orig_img_draw.at<cv::Vec3b>(iy+2,ix)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy+2,ix)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy+2,ix)[2]!=0)
+										))
+							{
+								test.at<cv::Vec3b>(iy,ix)[0]=b1;
+								test.at<cv::Vec3b>(iy,ix)[1]=g1;
+								test.at<cv::Vec3b>(iy,ix)[2]=r1;
+							}
 						}
 					}
 				}
+				segment_img_vec.push_back(segment_img.clone());
 				cv::Mat edges = cv::Mat::zeros(480,640, CV_8UC1);
 				////Create data for visualistation
 				binary_img.convertTo(binary_img,CV_8U,255.0/(255));
@@ -242,7 +288,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 					{
 						if((int)contours[ci].size()>30)
 						{
-							  cv::Scalar color = cv::Scalar(0,0,255);
+							  cv::Scalar color = cv::Scalar(0,0,200);
 							  cv::drawContours( orig_img, contours, ci, color, 2, 8, hierarchy, 0, cv::Point() );
 						 }
 					}
@@ -281,10 +327,14 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 				{
 				////Compute Transformation and save transformed image in segment_vec
 				p_transformation transform_segment = p_transformation();
-				transform_segment.run_pca(&segment_img, &depth, pixel_cloud, metric_cloud, &marker, &plane_coeff);
+				cv::Mat H;
+
+				transform_segment.run_pca(&segment_img, &depth, pixel_cloud, metric_cloud, &marker, &plane_coeff, &H);
 
 				cv::Mat newimg = segment_img.clone();
 				segment_vec.push_back(newimg);
+				cv::Mat H_new = H.clone();
+				H_vec.push_back(H_new);
 
 
 				}else{
@@ -317,15 +367,24 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		{
 
 			segment_vec.push_back(undefined_cluster);
+			cv::Mat zero;
+			H_vec.push_back(zero);
 			struct segment_position pos;
 			pos.position = cv::Point2f(10,10);
 			pos.segment = count;
 			seg_pos_vec.push_back(pos);
 		}
 
+		std::vector<cv::Mat> segment_copy = segment_vec;
 
-
+		std::cout<<"Segment reduction"<<std::endl;
 		////Reduce segment on necessary area
+		std::vector<bool> optimized, swap_vec_bool;
+		std::vector<cv::RotatedRect> rect_saved;
+		std::vector<double> angle_saved;
+		rect_saved.resize(segment_vec.size());
+		angle_saved.resize(segment_vec.size());
+		swap_vec_bool.resize(segment_vec.size());
 		if(segment_vec.size()>1)
 		{
 			for(unsigned int i=0;i<segment_vec.size();i++)
@@ -355,177 +414,439 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 				{
 					angle += 90.0;
 					swap(rect_size.width, rect_size.height);
+					swap_vec_bool[i]=true;
+				}else{
+					swap_vec_bool[i]=false;
 				}
 				bool use_segment = false;
 				if(segment_vec[i].cols>100 && segment_vec[i].rows>100 && rec.size.width>0 && rec.size.height>0)
 				{
 					M = cv::getRotationMatrix2D(rec.center, angle, 1.0);
+					rect_saved[i]=rec;
 					cv::warpAffine(work_segment, rotated, M, work_segment.size(), cv::INTER_CUBIC);
 					cv::getRectSubPix(rotated, rect_size, rec.center, new_segment);
 					use_segment=true;
 				}
 				if(use_segment&& !new_segment.empty())
+				{
 					segment_vec[i] = new_segment;
+					angle_saved[i] = angle;
+					optimized.push_back(true);
+				}else{
+					optimized.push_back(false);
+				}
 			}
 		}
 
 
 
 
-		////Segment with split and merge
-//		std::vector<cv::Mat> swap_vec, compare, newvec, second_swap, second_newvec;
-//		compare = segment_vec;
 //		int size = segment_vec.size();
-//
-////		for(int i=0; i<size; i++)
-////				{
-////					cv::imshow("segmen23",segment_vec[i]);
-////					cv::waitKey(10000);
-////				}
-//
 //		for(int i=0; i<size; i++)
 //		{
-//			swap_vec.clear();
-//			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
+//
+//			if(swap_vec_bool[i])
 //			{
-//				splitandmerge seg_step_two = splitandmerge();
-//				seg_step_two.categorize(segment_vec[i], &swap_vec, 1);
+//				double swap_val= rect_saved2[i].size.width;
+//				rect_saved2[i].size.width = rect_saved[i].size.height;
+//				rect_saved2[i].size.height = swap_val;
+//				rect_saved2[i].angle -= 90.0;
+//				std::cout<<"swap x/y"<<std::endl;
+////				swap_val = rect_saved[i].center.x;
+////				rect_saved[i].center.x= rect_saved[i].center.y;
+////				rect_saved[i].center.y= swap_val;
+//			}
 //
-////				splitandmerge segtwo = splitandmerge();
-////				segtwo.categorize(segment_vec[i], &second_swap, 1);
+//			if(optimized[i])
+//			{
+//				cv::Mat rotated, M;
+//				cv::Mat new_segment = cv::Mat::zeros(480,640,CV_8UC3);
 //
 //
-//				std::cout<<swap_vec.size()<<"swapvec"<<std::endl;
-////				for(unsigned int j=0;j<swap_vec.size();j++)
-////				{
-////					cv::imshow("swap", swap_vec[j]);
-////					cv::waitKey(100000);
-////				}
+//						M = cv::getRotationMatrix2D(cv::Point2f(rect_saved2[i].size.width/2,rect_saved2[i].size.height/2), -angle_saved[i], 1.0);
+//						cv::warpAffine(segment_vec[i], new_segment, M, orig_img.size(), cv::INTER_CUBIC);
+//
+//						cv::imshow("first",segment_vec[i]);
+//						cv::imshow("second",new_segment);
+//
+//						int x_off=0,y_off=0;
+//						x_off= round(rect_saved2[i].center.x-(rect_saved2[i].size.width/2));
+//						y_off = round(rect_saved2[i].center.y-(rect_saved2[i].size.height/2));
+////						if(swap_vec_bool[i]){
+////							int swap_val = x_off;
+////							x_off = y_off;
+////							y_off = swap_val;
+////						}
+//
+//						cv::Mat offset_new_segment = cv::Mat::zeros(480,640,CV_8UC3);
+//						std::cout<<rect_saved[i].center<<"centercoo  "<<rect_saved[i].size<<"size"<<std::endl;
+//
+//						for(int n=0;n<640;n++)
+//						{
+//							for(int m=0;m<480;m++)
+//							{
+//								if(m+y_off<480 && n+x_off<640 && m+y_off>=0 && n+x_off>=0 ){
+//									offset_new_segment.at<cv::Vec3b>(m+y_off,n+x_off)[0]=new_segment.at<cv::Vec3b>(m,n)[0];
+//									offset_new_segment.at<cv::Vec3b>(m+y_off,n+x_off)[1]=new_segment.at<cv::Vec3b>(m,n)[1];
+//									offset_new_segment.at<cv::Vec3b>(m+y_off,n+x_off)[2]=new_segment.at<cv::Vec3b>(m,n)[2];
+//								}
+//							}
+//						}
+//						std::cout<<"debug2"<<std::endl;
+//						cv::imshow("new",offset_new_segment);
+//						cv::imshow("after trans", segment_copy[i]);
+//						std::cout<<"debug3"<<std::endl;
+//						cv::Mat testmat = cv::Mat::zeros(480,640,CV_8UC3);
+//						std::cout<<H_vec[i]<<std::endl;
+//						if(H_vec[i].rows==3 && H_vec[i].cols==3){
+//							cv::warpPerspective(offset_new_segment, testmat, H_vec[i], testmat.size());
+//						}else{
+//							testmat = offset_new_segment;
+//						}
+//
+//						std::cout<<"debug4"<<std::endl;
+//						cv::imshow("transformed",testmat);
+//						cv::waitKey(1000000);
+//						for(int n=0;n<640;n++)
+//						{
+//							for(int m=0;m<480;m++)
+//							{
+//								if(testmat.at<cv::Vec3b>(m,n)[0]!=0 && testmat.at<cv::Vec3b>(m,n)[1]!=0 && testmat.at<cv::Vec3b>(m,n)[2]!=0 ){
+//									orig_img.at<cv::Vec3b>(m,n)[0]=testmat.at<cv::Vec3b>(m,n)[0];
+//									orig_img.at<cv::Vec3b>(m,n)[1]=testmat.at<cv::Vec3b>(m,n)[1];
+//									orig_img.at<cv::Vec3b>(m,n)[2]=testmat.at<cv::Vec3b>(m,n)[2]+100;
+//								}
+//							}
+//						}
+//						}else{
+//							cv::Mat testmat = cv::Mat::zeros(480,640,CV_8UC3);
+//							cv::warpPerspective(segment_vec[i], testmat, H_vec[i], testmat.size());
+//							for(int n=0;n<640;n++)
+//												{
+//													for(int m=0;m<480;m++)
+//													{
+//														if(testmat.at<cv::Vec3b>(m,n)[0]!=0 && testmat.at<cv::Vec3b>(m,n)[1]!=0 && testmat.at<cv::Vec3b>(m,n)[2]!=0 ){
+//															orig_img.at<cv::Vec3b>(m,n)[0]=testmat.at<cv::Vec3b>(m,n)[0];
+//															orig_img.at<cv::Vec3b>(m,n)[1]=testmat.at<cv::Vec3b>(m,n)[1];
+//															orig_img.at<cv::Vec3b>(m,n)[2]=testmat.at<cv::Vec3b>(m,n)[2]+100;
+//														}
+//													}
+//												}
+//						}
+//			cv::imshow("orig", orig_img);
+//			cv::waitKey(10000);
+//
+//		}
+
+		int countsegment=0;
+
+		std::cout<<"Split and Merge"<<std::endl;
+		////Segment with split and merge
+		std::vector<cv::Mat> swap_vec, newvec, newvectest, retransformed_segment;
+		for(int i=0; i<segment_vec.size(); i++)
+		{
+			swap_vec.clear();
+			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
+			{
+				splitandmerge seg_step_two = splitandmerge();
+				seg_step_two.categorize(segment_vec[i], &swap_vec, 1);
+			}else{
+				swap_vec.push_back(segment_vec[i]);
+			}
+			countsegment += swap_vec.size();
+
 //				if(swap_vec.size()>=2)
 //				{
-//
-//					for(unsigned int pos=1;pos<swap_vec.size();pos++)
-//					{
-//						newvec.push_back(swap_vec[pos]);
-////						second_newvec.push_back(second_swap[pos]);
-//					}
+					if(swap_vec_bool[i])
+					{
+						double swap_val= rect_saved[i].size.width;
+						rect_saved[i].size.width = rect_saved[i].size.height;
+						rect_saved[i].size.height = swap_val;
+						rect_saved[i].angle -= 90.0;
+					}
+
+					for(unsigned int pos=0;pos<swap_vec.size();pos++)
+					{
+						if(optimized[i])
+						{
+							cv::Mat rotated, M;
+							cv::Mat new_segment = cv::Mat::zeros(480,640,CV_8UC3);
+							M = cv::getRotationMatrix2D(cv::Point2f(rect_saved[i].size.width/2,rect_saved[i].size.height/2), -angle_saved[i], 1.0);
+							cv::warpAffine(swap_vec[pos], new_segment, M, orig_img.size(), cv::INTER_CUBIC);
+
+							int x_off=0,y_off=0;
+							x_off= round(rect_saved[i].center.x-(rect_saved[i].size.width/2));
+							y_off = round(rect_saved[i].center.y-(rect_saved[i].size.height/2));
+
+							cv::Mat offset_new_segment = cv::Mat::zeros(480,640,CV_8UC3);
+							for(int n=0;n<640;n++)
+							{
+								for(int m=0;m<480;m++)
+								{
+									if(m+y_off<480 && n+x_off<640 && m+y_off>=0 && n+x_off>=0 ){
+										offset_new_segment.at<cv::Vec3b>(m+y_off,n+x_off)[0]=new_segment.at<cv::Vec3b>(m,n)[0];
+										offset_new_segment.at<cv::Vec3b>(m+y_off,n+x_off)[1]=new_segment.at<cv::Vec3b>(m,n)[1];
+										offset_new_segment.at<cv::Vec3b>(m+y_off,n+x_off)[2]=new_segment.at<cv::Vec3b>(m,n)[2];
+									}
+								}
+							}
+
+							cv::Mat original_image_plane = cv::Mat::zeros(480,640,CV_8UC3);
+							if(H_vec[i].rows==3 && H_vec[i].cols==3){
+								cv::warpPerspective(offset_new_segment, original_image_plane, H_vec[i], original_image_plane.size());
+							}else{
+								original_image_plane = offset_new_segment;
+							}
+
+
+											std::vector <cv::Point> seg_points;
+											cv::Mat work_segment = swap_vec[pos];
+											for(int pi=0; pi<swap_vec[pos].rows;pi++)
+											{
+												for(int pj=0; pj<swap_vec[pos].cols;pj++)
+												{
+													if(work_segment.at<cv::Vec3b>(pi,pj)[0]!=0 || work_segment.at<cv::Vec3b>(pi,pj)[1]!=0 || work_segment.at<cv::Vec3b>(pi,pj)[2]!=0)
+													{
+														seg_points.push_back(cv::Point(pj,pi));
+													}
+												}
+											}
+											cv::RotatedRect rec;
+											if(seg_points.size()>3)
+											{
+												rec =  minAreaRect(seg_points);
+											}
+											// get angle and size from the bounding box
+											float angle = rec.angle;
+											cv::Size rect_size = rec.size;
+											if (rec.angle < -45.)
+											{
+												angle += 90.0;
+												swap(rect_size.width, rect_size.height);
+											}
+											if(segment_vec[i].cols>100 && segment_vec[i].rows>100 && rec.size.width>0 && rec.size.height>0)
+											{
+												M = cv::getRotationMatrix2D(rec.center, angle, 1.0);
+												cv::warpAffine(work_segment, rotated, M, work_segment.size(), cv::INTER_CUBIC);
+												cv::getRectSubPix(rotated, rect_size, rec.center, new_segment);
+												newvectest.push_back(new_segment);
+
+											}else{
+												newvectest.push_back(swap_vec[pos]);
+											}
+
+
+
+
+							newvec.push_back(swap_vec[pos]);
+							retransformed_segment.push_back(original_image_plane);
+
+						}else{
+							cv::Mat transform = cv::Mat::zeros(480,640,CV_8UC3);
+							if(H_vec[i].rows==3 && H_vec[i].cols==3)
+							{
+								cv::warpPerspective(swap_vec[i], transform, H_vec[i], transform.size());
+								retransformed_segment.push_back(transform);
+							}else{
+								retransformed_segment.push_back(swap_vec[pos]);
+							}
+							newvec.push_back(swap_vec[pos]);
+
+						}
+					}
 //				}else
 //				{
 //					newvec.push_back(segment_vec[i]);
-////					second_newvec.push_back(segment_vec[i]);
+//					if(optimized[i])
+//					{
+//						cv::Mat transform;
+//						if(H_vec[i].rows==3 && H_vec[i].cols==3)
+//						{
+//							cv::warpPerspective(segment_vec[i], transform, H_vec[i], orig_img.size());
+//							retransformed_segment.push_back(transform);
+//						}
+//					}else
+//					{
+//						retransformed_segment.push_back(segment_vec[i]);
+//					}
+//
+//					std::cout<<"not transformed 1"<<std::endl;
 //				}
 //			}else{
 //				newvec.push_back(segment_vec[i]);
-////				second_newvec.push_back(segment_vec[i]);
+//				if(optimized[i])
+//				{
+//					cv::Mat transform;
+//					if(H_vec[i].rows==3 && H_vec[i].cols==3)
+//					{
+//						cv::warpPerspective(segment_vec[i], transform, H_vec[i], orig_img.size());
+//						retransformed_segment.push_back(transform);
+//					}
+//				}else
+//				{
+//					retransformed_segment.push_back(segment_vec[i]);
+//				}
+//				std::cout<<"not transformed 2"<<std::endl;
 //			}
-//
-//
-//			for(unsigned int ne=0;ne<swap_vec.size();ne++)
-//			{
-//
-//				cv::imshow("splitres",swap_vec[ne]);
-//				cv::imshow("segmentcomp", compare[i]);
-//				cv::imshow("orig",orig_img);
-//				cv::waitKey(10000);
-//
-//
-//			}
-		std::vector<cv::Mat> swap_vec;
-		splitandmerge seg_step_two = splitandmerge();
-		seg_step_two.categorize(orig_img_draw, &swap_vec, 1);
+		}
 
-						for(unsigned int j=0;j<swap_vec.size();j++)
-						{
-							cv::imshow("swap", swap_vec[j]);
-							cv::imshow("orig", orig_img_draw);
-							cv::waitKey(100000);
-						}
-//		}
-//		std::cout<<newvec.size()<<"segmentsizenew"<<std::endl;
-//		std::cout<<compare.size()<<"segmentsizeold"<<std::endl;
-////		for(unsigned int ne=0;ne<newvec.size();ne++)
-////		{
-////
-//			cv::imshow("splitres",newvec[ne]);
-////			cv::imshow("secondsplitres",second_newvec[ne]);
-//			if(ne<compare.size())
-//			{
-//			cv::imshow("segmentcomp", compare[ne]);
-////					cv::imshow("segmentvec", segment_vec[ne]);
-//			}
-//			cv::imshow("orig",orig_img);
-//			cv::waitKey(10000);
-//
-//
-//		}
 
-//
-//
-//
-//		////Compute Features of Segments
-//		std::vector<struct feature_results> segment_features;
-//		struct feature_results results;
-//		cv::Mat img_seg;
-//
-//		for(unsigned int i=0;i<segment_vec.size();i++)
-//		{
-////			imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
-//			img_seg = segment_vec[i];
-//			color_parameter color = color_parameter();
-//			color.get_color_parameter(img_seg, &results);
-//			texture_features edge = texture_features();
-//			cv::Mat dummy(480,640,CV_32F);
-//			edge.primitive_size(&img_seg, &results, &dummy);
-//			segment_features.push_back(results);
-//		}
-//
-//		////Create matrix for classifikation
-//		cv::Mat feature_mat;
-//		feature_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
-//		for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
-//		{
-//			results = segment_features[sample_index];
-//			feature_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
-//			feature_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
-//			feature_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
-//			feature_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
-//			feature_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
-//			feature_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
-//			feature_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
-//			feature_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
-//			feature_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
-//			feature_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
-//			feature_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
-//			feature_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
-//			feature_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
-//			//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
-//			feature_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-//			feature_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
-//			feature_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
-//		}
-//
-////		Run classifikation with SVM
-//		cv::Mat prediction_results;
-//	 	CvSVM SVM;
-//	    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
-//	    SVM.predict(feature_mat,prediction_results);
-//
-//
-//	    ////Write Segment type
-//	    std::vector<std::string> classes;
-//	    create_train_data get_classes = create_train_data();
-//	    classes = get_classes.get_texture_classes();
-//	    std::string s;
-//	    for(int i=0;i<prediction_results.rows;i++)
-//	    {
-//	    	s.clear();
-//	    	s = classes[prediction_results.at<float>(i,0)];
-//	    	putText(orig_img, s, seg_pos_vec[i].position,
-//	    						 			cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,205), 1, CV_AA);
-//	    }
-//
-//		cv::imshow("orig", orig_img);
-//		cv::waitKey(10);
+
+
+
+		std::cout<<countsegment<<"countsegemtn "<<retransformed_segment.size()<<"retransseg "<<newvec.size()<<"newsize"<<segment_vec.size()<<"segment_vec size"<<std::endl;
+
+		//Visualisation of Segmentation
+		for(int i=0;i<retransformed_segment.size();i++)
+		{
+			int r=0,b=0,g=0;
+			if(i%3==0)
+				r = rand() % 100 + 50;
+			if(i%3==1)
+				g = rand() % 100 + 50;
+			if(i%3==2)
+				b = rand() % 100 + 50;
+			for(int n=0;n<640;n++)
+			{
+				for(int m=0;m<480;m++)
+				{
+					if(retransformed_segment[i].at<cv::Vec3b>(m,n)[0]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[1]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[2]!=0 ){
+						orig_img_draw.at<cv::Vec3b>(m,n)[0]=retransformed_segment[i].at<cv::Vec3b>(m,n)[0]+b;
+						orig_img_draw.at<cv::Vec3b>(m,n)[1]=retransformed_segment[i].at<cv::Vec3b>(m,n)[1]+g;
+						orig_img_draw.at<cv::Vec3b>(m,n)[2]=retransformed_segment[i].at<cv::Vec3b>(m,n)[2]+r;
+					}
+				}
+			}
+			cv::imshow("Segments",orig_img_draw);
+			if(newvec.size()>i)
+			{
+				imshow("newvec", newvec[i]);
+			}
+			if(newvectest.size()>i)
+			{
+				imshow("newvectest", newvectest[i]);
+			}
+			if(segment_vec.size()>i)
+			{
+				imshow("segment_vec", segment_vec[i]);
+			}
+			cv::waitKey(100000);
+		}
+
+
+		//Get Position of Segments for naming
+		std::vector<cv::Point> segment_center;
+		segment_center.resize(retransformed_segment.size());
+		for(int i=0; i<retransformed_segment.size();i++)
+		{
+			std::vector <cv::Point> seg_points;
+			for(int n=0;n<640;n++)
+			{
+				for(int m=0;m<480;m++)
+				{
+					if(retransformed_segment[i].at<cv::Vec3b>(m,n)[0]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[1]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[2]!=0 )
+					{
+						seg_points.push_back(cv::Point(n,m));
+					}
+				}
+			}
+			cv::RotatedRect rec;
+			if(seg_points.size()>3)
+			{
+				rec =  minAreaRect(seg_points);
+				if(rec.size.height>30 && rec.size.width>30)
+					segment_center[i] = cv::Point2f(rec.center.x, rec.center.y);
+			}
+		}
+
+
+
+
+
+		std::cout<<"Compute features"<<std::endl;
+		////Compute Features of Segments
+		std::vector<struct feature_results> segment_features;
+		struct feature_results results;
+		cv::Mat img_seg;
+
+		for(unsigned int i=0;i<segment_vec.size();i++)
+		{
+//			imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
+			img_seg = segment_vec[i];
+			color_parameter color = color_parameter();
+			color.get_color_parameter(img_seg, &results);
+			texture_features edge = texture_features();
+			cv::Mat dummy(480,640,CV_32F);
+			edge.primitive_size(&img_seg, &results, &dummy);
+			segment_features.push_back(results);
+		}
+
+		////Create matrix for classifikation
+		cv::Mat feature_mat;
+		feature_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
+		for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
+		{
+			results = segment_features[sample_index];
+			feature_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
+			feature_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
+			feature_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
+			feature_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
+			feature_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
+			feature_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
+			feature_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
+			feature_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
+			feature_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
+			feature_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
+			feature_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
+			feature_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
+			feature_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
+			//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
+			feature_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
+			feature_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
+			feature_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
+		}
+		std::cout<<"Run classifikation"<<std::endl;
+//		Run classifikation with SVM
+		cv::Mat prediction_results;
+	 	CvSVM SVM;
+	    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
+	    SVM.predict(feature_mat,prediction_results);
+
+
+	    ////Write Segment type
+	    std::vector<std::string> classes;
+	    create_train_data get_classes = create_train_data();
+	    classes = get_classes.get_texture_classes();
+	    std::string s;
+	    for(int i=0;i<prediction_results.rows;i++)
+	    {
+	    	s.clear();
+	    	s = classes[prediction_results.at<float>(i,0)];
+	    	if(segment_center[i].x!=0 && segment_center[i].y!=0)
+	    	{
+				putText(orig_img_draw, s, segment_center[i],
+												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+				putText(orig_img, s, segment_center[i],
+												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+				putText(segmented_image, s, segment_center[i],
+												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+				putText(test,s, segment_center[i],
+												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+	    	}
+
+	    }
+	    cv::imshow("orig no lines", orig_img_draw);
+		cv::imshow("orig", orig_img);
+		cv::imshow("seg", segmented_image);
+		cv::imshow("seg2", test);
+
+	    double seconds = end.tv_sec - start.tv_sec;
+	    double useconds = end.tv_usec - start.tv_usec;
+		cv::waitKey(1000);
+
+
+
+	    std::cout<<seconds<<"used time "<<useconds<<"u used time"<<std::endl;
 
 }
 
