@@ -1,7 +1,4 @@
 #!/usr/bin/python
-import roslib
-roslib.load_manifest('cob_object_detection_fake')
-
 import rospy
 import random
 

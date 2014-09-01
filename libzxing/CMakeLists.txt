@@ -1,33 +1,40 @@
 cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+project(libzxing)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+find_package(catkin REQUIRED)
 
-rosbuild_init()
+add_custom_target(
+	build_zxing ALL
+	COMMAND cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.tarball)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-#uncomment if you have defined messages
-#rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
 
-#common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
-#rosbuild_add_executable(example examples/example.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
+add_custom_target(
+	copy_zxing ALL
+	COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
+)
 
-#rosbuild_download_data(http://zxing.googlecode.com/files/ZXing-2.1.zip build/ZXing.zip 2926e06bb9a67b4a90ede7937596ebea)
+message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}/libzxing.a")
 
+	
+catkin_package(
+	DEPENDS 
+	CATKIN_DEPENDS 
+	INCLUDE_DIRS common/include 
+	LIBRARIES zxing
+)
+
+include_directories(${catkin_INCLUDE_DIRS})
+add_library(zxing STATIC)
+set_target_properties(zxing PROPERTIES LINKER_LANGUAGE CXX)
+
+add_dependencies(zxing copy_zxing)
+add_dependencies(copy_zxing build_zxing)
+
+install(PROGRAMS common/lib/libzxing.a #
+	DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+install(DIRECTORY common/include/
+	DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+)
