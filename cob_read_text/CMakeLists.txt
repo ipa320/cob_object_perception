@@ -48,6 +48,7 @@ catkin_package(
 INCLUDE_DIRS
 	common/include
 LIBRARIES
+	read_text
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
@@ -93,15 +94,15 @@ add_dependencies(read_text ${catkin_EXPORTED_TARGETS})
 ## Declare a cpp executable
 ####################################
 
-## run_detect
-add_executable(run_detect
+## read_text_run_detect
+add_executable(read_text_run_detect
 	common/src/run_detection.cpp common/src/text_detect.cpp
 )
-target_link_libraries(run_detect 
+target_link_libraries(read_text_run_detect 
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(run_detect ${catkin_EXPORTED_TARGETS})
+add_dependencies(read_text_run_detect ${catkin_EXPORTED_TARGETS})
 
 ## cob_read_text 
 add_executable(cob_read_text 
@@ -113,90 +114,91 @@ target_link_libraries(cob_read_text
 )
 add_dependencies(cob_read_text ${catkin_EXPORTED_TARGETS})
 
-## read_evaluation 
-add_executable(read_evaluation 
+## read_text_read_evaluation 
+add_executable(read_text_read_evaluation 
 	ros/src/read_evaluation.cpp
 )
-target_link_libraries(read_evaluation 
+target_link_libraries(read_text_read_evaluation 
 	read_text
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
-add_dependencies(read_evaluation ${catkin_EXPORTED_TARGETS})
+add_dependencies(read_text_read_evaluation ${catkin_EXPORTED_TARGETS})
 
-## letter_evaluation
-#add_executable(letter_evaluation
+## read_text_letter_evaluation
+#add_executable(read_text_letter_evaluation
 #	ros/src/letter_evaluation.cpp
 #)
-#target_link_libraries(letter_evaluation
+#target_link_libraries(read_text_letter_evaluation
 #	${catkin_LIBRARIES}
 #)
-#add_dependencies(letter_evaluation  ${catkin_EXPORTED_TARGETS})
+#add_dependencies(read_text_letter_evaluation  ${catkin_EXPORTED_TARGETS})
 
-## labelBox 
-add_executable(labelBox 
+## read_text_labelBox 
+add_executable(read_text_labelBox 
 	ros/src/labelBox.cpp
 )
-target_link_libraries(labelBox
+target_link_libraries(read_text_labelBox
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
-add_dependencies(labelBox  ${catkin_EXPORTED_TARGETS})
+add_dependencies(read_text_labelBox  ${catkin_EXPORTED_TARGETS})
 
-## create_correlation
-add_executable(create_correlation 
+## read_text_create_correlation
+add_executable(read_text_create_correlation 
 	common/src/createCorrelation.cpp
 )
-target_link_libraries(create_correlation 
+target_link_libraries(read_text_create_correlation 
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
-add_dependencies(create_correlation  ${catkin_EXPORTED_TARGETS})
+add_dependencies(read_text_create_correlation  ${catkin_EXPORTED_TARGETS})
 
-## record_kinect_prosilica
-add_executable(record_kinect_prosilica
+## read_text_record_kinect_prosilica
+add_executable(read_text_record_kinect_prosilica
 	ros/src/recordKinPro.cpp
 )
-target_link_libraries(record_kinect_prosilica
+target_link_libraries(read_text_record_kinect_prosilica
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
-add_dependencies(record_kinect_prosilica  ${catkin_EXPORTED_TARGETS})
+add_dependencies(read_text_record_kinect_prosilica  ${catkin_EXPORTED_TARGETS})
 
-## script_for_imglist 
-add_executable(script_for_imglist 
+## read_text_script_for_imglist 
+add_executable(read_text_script_for_imglist 
 	common/src/convertXML.cpp
 )
-target_link_libraries(script_for_imglist 
+target_link_libraries(read_text_script_for_imglist 
 	${catkin_LIBRARIES}
 )
-add_dependencies(script_for_imglist  ${catkin_EXPORTED_TARGETS})
+add_dependencies(read_text_script_for_imglist  ${catkin_EXPORTED_TARGETS})
 
-## showPCD
-add_executable(showPCD 
+## read_text_showPCD
+add_executable(read_text_showPCD 
 	common/src/showPCD.cpp
 )
-target_link_libraries(showPCD 
+target_link_libraries(read_text_showPCD 
 	${catkin_LIBRARIES}
 	${VTK_LIBRARIES}
 	${Boost_LIBRARIES}
 )
-add_dependencies(showPCD ${catkin_EXPORTED_TARGETS})
+add_dependencies(read_text_showPCD ${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
 install(TARGETS 
-		read_text		
-		run_detect
 		cob_read_text 
-		read_evaluation  
-#		letter_evaluation 
-		labelBox 
-		record_kinect_prosilica 
-		script_for_imglist 
-		showPCD 
+		read_text
+		read_text_create_correlation		
+		read_text_run_detect
+		read_text_read_evaluation  
+#		read_text_letter_evaluation 
+		read_text_labelBox 
+		read_text_record_kinect_prosilica 
+		read_text_script_for_imglist 
+		read_text_showPCD 
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

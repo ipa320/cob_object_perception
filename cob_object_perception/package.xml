@@ -15,4 +15,8 @@
 	<run_depend>cob_object_recording</run_depend>
 	<run_depend>cob_read_text</run_depend>
 	<run_depend>libzxing</run_depend>
+
+	<export>
+		<metapackage />
+	</export>
 </package>
