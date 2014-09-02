@@ -1,0 +1,22 @@
+<launch>
+	<arg name="bagfile" default="bagfile.bag"/>
+
+	<node name="rosbag" pkg="rosbag" type="play" output="screen" 
+		args="$(arg bagfile) -r 1" respawn="false" />
+
+	<!--node name="image_proc" pkg="image_proc" type="image_proc"
+		ns="prosilica" /-->
+
+	<!--node name="image_view_color" pkg="image_view" type="image_view">
+		<remap from="image" to="prosilica/image_rect_color"/>
+	</node-->
+
+	<node name="image_view_detect" pkg="image_view" type="image_view">
+		<remap from="image" to="prosilica/text_detect"/>
+	</node>
+
+	<node name="cob_read_text" pkg="cob_read_text" type="cob_read_text" 
+		args="$(find read_text)/fonts/correlation.txt 
+		$(find read_text)/dictionary/full-dictionary" />
+
+</launch>

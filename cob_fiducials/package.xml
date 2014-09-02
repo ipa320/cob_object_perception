@@ -33,10 +33,6 @@
         <run_depend>cob_object_detection_msgs</run_depend>
         <run_depend>std_srvs</run_depend>
 
-        <export>
-         <!--  cflags="-I${prefix}/ros/include -I${prefix}/common/include" lflags="-Wl,-rpath,${prefix}/common/lib -L${prefix}/common/lib -lcob_fiducials"/-->
-        <!-- <nodelet plugin="${prefix}/nodelet_plugins.xml" /> -->
-        </export>
 </package>
 
 
