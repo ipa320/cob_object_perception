@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 project(cob_object_categorization)
 
-set(catkin_PACKAGES 
+set(catkin_RUN_PACKAGES 
 	pcl_ros # Should automatically pull in all PCL dependecies
 	roscpp
 	cv_bridge
@@ -16,6 +16,12 @@ set(catkin_PACKAGES
 	actionlib_msgs
 )
 
+set(catkin_BUILD_PACKAGES 
+	${catkin_RUN_PACKAGES}
+	cmake_modules
+)
+
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -23,12 +29,12 @@ set(catkin_PACKAGES
 ## e.g. catkin_INCLUDE_DIRS
 
 find_package(catkin REQUIRED COMPONENTS
-	${catkin_PACKAGES}
+	${catkin_BUILD_PACKAGES}
 )
 
 find_package(OpenCV REQUIRED)
-find_package(PCL REQUIRED)
-find_package(eigen REQUIRED)
+#find_package(PCL REQUIRED)
+find_package(Eigen REQUIRED)
 find_package(VTK REQUIRED)
 
 ###################################
@@ -45,11 +51,11 @@ INCLUDE_DIRS
 	common/include
 LIBRARIES
 CATKIN_DEPENDS
-	${catkin_PACKAGES}
+	${catkin_RUN_PACKAGES}
 DEPENDS
 	OpenCV 
-	eigen
-	PCL
+	Eigen
+#	PCL
 	VTK
 )
 
@@ -64,8 +70,8 @@ include_directories(
 	ros/include
 	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
-	${PCL_INCLUDE_DIRS}
-	${eigen_INCLUDE_DIRS}
+#	${PCL_INCLUDE_DIRS}
+	${Eigen_INCLUDE_DIRS}
 	${VTK_INCLUDE_DIRS}
 )
 
@@ -102,16 +108,16 @@ add_executable(object_segmentation
 target_link_libraries(object_categorization
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
-	${PCL_LIBRARIES}
-	${eigen_LIBRARIES}
+#	${PCL_LIBRARIES}
+	${Eigen_LIBRARIES}
 	${VTK_LIBRARIES}
 )
 
 target_link_libraries(object_segmentation
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
-	${PCL_LIBRARIES}
-	${eigen_LIBRARIES}
+#	${PCL_LIBRARIES}
+	${Eigen_LIBRARIES}
 )
 
 set_target_properties(object_categorization PROPERTIES COMPILE_FLAGS "-D__LINUX__")

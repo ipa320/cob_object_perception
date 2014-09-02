@@ -3,7 +3,7 @@
   <version>0.1.0</version>
   <description>
 
-     cob_object_detection_fake
+	fake implementation for detecting objects, in order to test other system components
 
   </description>
   <author>Joshua Hampp</author>

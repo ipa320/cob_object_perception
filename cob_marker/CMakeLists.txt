@@ -70,7 +70,6 @@ DEPENDS
 
 include_directories(
 	common/include
-	ros/include
 #	/usr/include/ImageMagick
 	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}

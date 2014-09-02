@@ -3,7 +3,7 @@
   <version>0.1.0</version>
   <description>
 
-     cob_object_categorization
+     Image processing tool for the categorization differnt images objects
 
   </description>
   <author>Richard Bormann</author>
@@ -14,6 +14,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>pcl_ros</build_depend>
+  <build_depend>cmake_modules</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>cv_bridge</build_depend>
   <build_depend>sensor_msgs</build_depend>

@@ -26,8 +26,6 @@
   <build_depend>actionlib</build_depend>
   <build_depend>image_transport</build_depend>
   <build_depend>libzxing</build_depend>
-  <build_depend>dmtx</build_depend>
-  <build_depend>imagemagicks</build_depend>
 
   <run_depend>cmake_modules</run_depend>
   <run_depend>roscpp</run_depend>
@@ -42,9 +40,5 @@
   <run_depend>actionlib</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>libzxing</run_depend>
-
-  <run_depend>dmtx</run_depend>
-  <run_depend>imagemagicks</run_depend>
-
 
 </package>

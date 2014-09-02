@@ -14,12 +14,12 @@ add_custom_target(
 	COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
 )
 
-message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}/libzxing.a")
+message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}")
 
 	
 catkin_package(
 	DEPENDS 
-	CATKIN_DEPENDS 
+	CATKIN_DEPENDS
 	INCLUDE_DIRS common/include 
 	LIBRARIES zxing
 )
@@ -31,8 +31,8 @@ set_target_properties(zxing PROPERTIES LINKER_LANGUAGE CXX)
 add_dependencies(zxing copy_zxing)
 add_dependencies(copy_zxing build_zxing)
 
-install(PROGRAMS common/lib/libzxing.a #
-	DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+install(TARGETS zxing
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
 install(DIRECTORY common/include/

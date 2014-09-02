@@ -34,13 +34,11 @@ LIBRARIES
 CATKIN_DEPENDS
 	${catkin_PACKAGES}
 DEPENDS
-	gazebo
 )
 
 #############
 ## Install ##
 #############
-
-install(PROGRAMS ros/src/object_detection_fake
+catkin_install_python(PROGRAMS ros/scripts/object_detection_fake
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
