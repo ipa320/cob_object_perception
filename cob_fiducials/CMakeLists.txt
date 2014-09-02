@@ -115,6 +115,9 @@ target_link_libraries(fiducials
 #	${PCL_LIBRARIES}
 )
 
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
+add_dependencies(fiducials ${catkin_EXPORTED_TARGETS})
+
 # set build flags for targets
 set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")
 set_target_properties(fiducials PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")

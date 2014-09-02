@@ -120,6 +120,9 @@ target_link_libraries(object_segmentation
 	${Eigen_LIBRARIES}
 )
 
+add_dependencies(object_categorization ${catkin_EXPORTED_TARGETS})
+add_dependencies(object_segmentation ${catkin_EXPORTED_TARGETS})
+
 set_target_properties(object_categorization PROPERTIES COMPILE_FLAGS "-D__LINUX__")
 set_target_properties(object_segmentation PROPERTIES COMPILE_FLAGS "-D__LINUX__")
 

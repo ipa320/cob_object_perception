@@ -75,7 +75,11 @@ include_directories(
 )
 
 
-## Declare libraries
+####################################
+## Declare a cpp libraries
+####################################
+
+## read_text
 add_library(read_text
 	common/src/text_detect.cpp
 )
@@ -83,8 +87,13 @@ target_link_libraries(read_text
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 )
+add_dependencies(read_text ${catkin_EXPORTED_TARGETS})
 
+####################################
 ## Declare a cpp executable
+####################################
+
+## run_detect
 add_executable(run_detect
 	common/src/run_detection.cpp common/src/text_detect.cpp
 )
@@ -92,7 +101,9 @@ target_link_libraries(run_detect
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 )
+add_dependencies(run_detect ${catkin_EXPORTED_TARGETS})
 
+## cob_read_text 
 add_executable(cob_read_text 
 	ros/src/cob_read_text.cpp
 )
@@ -100,7 +111,9 @@ target_link_libraries(cob_read_text
 	read_text
 	${catkin_LIBRARIES}
 )
+add_dependencies(cob_read_text ${catkin_EXPORTED_TARGETS})
 
+## read_evaluation 
 add_executable(read_evaluation 
 	ros/src/read_evaluation.cpp
 )
@@ -109,14 +122,18 @@ target_link_libraries(read_evaluation
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
+add_dependencies(read_evaluation ${catkin_EXPORTED_TARGETS})
 
+## letter_evaluation
 #add_executable(letter_evaluation
 #	ros/src/letter_evaluation.cpp
 #)
 #target_link_libraries(letter_evaluation
 #	${catkin_LIBRARIES}
 #)
+#add_dependencies(letter_evaluation  ${catkin_EXPORTED_TARGETS})
 
+## labelBox 
 add_executable(labelBox 
 	ros/src/labelBox.cpp
 )
@@ -124,7 +141,9 @@ target_link_libraries(labelBox
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
+add_dependencies(labelBox  ${catkin_EXPORTED_TARGETS})
 
+## create_correlation
 add_executable(create_correlation 
 	common/src/createCorrelation.cpp
 )
@@ -132,7 +151,9 @@ target_link_libraries(create_correlation
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
+add_dependencies(create_correlation  ${catkin_EXPORTED_TARGETS})
 
+## record_kinect_prosilica
 add_executable(record_kinect_prosilica
 	ros/src/recordKinPro.cpp
 )
@@ -140,14 +161,18 @@ target_link_libraries(record_kinect_prosilica
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 )
+add_dependencies(record_kinect_prosilica  ${catkin_EXPORTED_TARGETS})
 
+## script_for_imglist 
 add_executable(script_for_imglist 
 	common/src/convertXML.cpp
 )
 target_link_libraries(script_for_imglist 
 	${catkin_LIBRARIES}
 )
+add_dependencies(script_for_imglist  ${catkin_EXPORTED_TARGETS})
 
+## showPCD
 add_executable(showPCD 
 	common/src/showPCD.cpp
 )
@@ -156,7 +181,7 @@ target_link_libraries(showPCD
 	${VTK_LIBRARIES}
 	${Boost_LIBRARIES}
 )
-
+add_dependencies(showPCD ${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##

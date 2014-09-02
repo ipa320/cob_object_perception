@@ -84,29 +84,11 @@ set(project_CPP_FILES
 	common/src/MagickBitmapSource.cpp
 )
 
-## Declare a cpp library
-#add_library(${PROJECT_NAME}
-#	${project_CPP_FILES}
-#)
-
-
-
 ## Declare a cpp executable
 add_executable(marker
 	ros/src/marker_action.cpp
 	${project_CPP_FILES}
 )
-
-## Specify libraries to link a library or executable target against
-#target_link_libraries(${PROJECT_NAME}
-#	${catkin_LIBRARIES}
-#	${OpenCV_LIBRARIES}
-#	${Boost_LIBRARIES}
-#	${DMTX_LIBRARIES}
-#	${ImageMagick_LIBRARIES}
-#	${PCL_LIBRARIES}
-#)
-
 
 target_link_libraries(marker
 	${catkin_LIBRARIES}
@@ -116,6 +98,8 @@ target_link_libraries(marker
 	${DMTX_LIBRARIES}
 #	${PCL_LIBRARIES}
 )
+
+add_dependencies(marker ${catkin_EXPORTED_TARGETS})
 
 # set build flags for targets
 #set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")

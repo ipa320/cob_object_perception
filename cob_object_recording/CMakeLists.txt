@@ -64,7 +64,11 @@ include_directories(
 	${catkin_INCLUDE_DIRS}
 )
 
+##############################
 ## Declare a cpp executable
+##############################
+
+## object_recording 
 add_executable(object_recording 
 	ros/src/object_recording.cpp
 )
@@ -72,7 +76,9 @@ target_link_libraries(object_recording
 	${catkin_LIBRARIES}
 	${PCL_LIBRARIES}
 )
+add_dependencies(object_recording ${catkin_EXPORTED_TARGETS})
 
+## object_recording_client 
 add_executable(object_recording_client 
 	ros/src/object_recording_client.cpp
 )
@@ -80,10 +86,8 @@ target_link_libraries(object_recording_client
 	${catkin_LIBRARIES}
 	${PCL_LIBRARIES}
 )
+add_dependencies(object_recording_client ${catkin_EXPORTED_TARGETS})
 
-# make sure configure headers are built before any node using them
-add_dependencies(object_recording ${${PROJECT_NAME}_EXPORTED_TARGETS})
-add_dependencies(object_recording_client ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 #############
 ## Install ##
