@@ -1,0 +1,220 @@
+Panels:
+  - Class: rviz/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Status1
+        - /TF1/Frames1
+      Splitter Ratio: 0.5
+    Tree Height: 78
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Expanded:
+      - /2D Pose Estimate1
+      - /2D Nav Goal1
+      - /Publish Point1
+    Name: Tool Properties
+    Splitter Ratio: 0.588679
+  - Class: rviz/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: last recorded color image
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 10
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.01
+      Style: Points
+      Topic: /camera/depth/points_xyzrgb
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 150
+      Frames:
+        /cam3d_depth_frame:
+          Value: false
+        /cam3d_depth_optical_frame:
+          Value: false
+        /cam3d_link:
+          Value: false
+        /cam3d_rgb_frame:
+          Value: false
+        /cam3d_rgb_optical_frame:
+          Value: true
+        /marker:
+          Value: true
+        All Enabled: false
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        /cam3d_link:
+          /cam3d_depth_frame:
+            /cam3d_depth_optical_frame:
+              {}
+          /cam3d_rgb_frame:
+            /cam3d_rgb_optical_frame:
+              /marker:
+                {}
+      Update Interval: 0
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /fiducials/fiducial_marker_array
+      Name: MarkerArray
+      Namespaces:
+        fiducials: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /object_recording/recording_pose_marker_array
+      Name: MarkerArray
+      Namespaces:
+        object_recording: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /object_recording/display_image
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: recording image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /object_recording/recorded_color_image
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: last recorded color image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /object_recording/recorded_depth_image
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: last recorded depth image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: /marker
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+    - Class: rviz/SetInitialPose
+      Topic: /initialpose
+    - Class: rviz/SetGoal
+      Topic: /move_base_simple/goal
+    - Class: rviz/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 2.35935
+      Focal Point:
+        X: -0.00971321
+        Y: 0.0630054
+        Z: 0.070522
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.794796
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 4.95814
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 876
+  Hide Left Dock: false
+  Hide Right Dock: true
+  QMainWindow State: 000000ff00000000fd0000000400000000000002260000019ffc020000000cfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006400fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000015e000000dd000000dd00fffffffb0000001e007200650063006f007200640069006e006700200069006d006100670065010000016e0000019f0000001600fffffffb0000000a0049006d006100670065010000018f000000670000000000000000fb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d00610067006501000001fc000000280000000000000000fb0000000a0049006d00610067006501000001a6000000d70000000000000000000000010000010f000002e2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730000000028000002e2000000b000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b2000000000000000000000002000005ff00000140fc0100000003fb00000032006c0061007300740020007200650063006f007200640065006400200063006f006c006f007200200069006d0061006700650100000000000002f1000000dd00fffffffb00000032006c0061007300740020007200650063006f007200640065006400200064006500700074006800200069006d00610067006501000002f700000308000000e300fffffffb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005ff0000003bfc0100000002fb0000000800540069006d00650100000000000005ff000002f600fffffffb0000000800540069006d00650100000000000004500000000000000000000003d30000019f00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: true
+  Width: 1535
+  X: 56
+  Y: 24
+  last recorded color image:
+    collapsed: false
+  last recorded depth image:
+    collapsed: false
+  recording image:
+    collapsed: false
