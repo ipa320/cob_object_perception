@@ -42,3 +42,7 @@ DEPENDS
 catkin_install_python(PROGRAMS ros/scripts/object_detection_fake
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+install(DIRECTORY ros/launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
+	PATTERN ".svn" EXCLUDE
+)
