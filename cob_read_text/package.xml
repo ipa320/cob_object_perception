@@ -28,6 +28,11 @@ Text localisation and OCR occur separately and can be evaluated using precision,
   <build_depend>cob_tesseract_data</build_depend>
   <build_depend>image_view</build_depend>
 
+  <build_depend>boost</build_depend>
+  <build_depend>libpcl-all-dev</build_depend>
+  <build_depend>eigen</build_depend>
+  <build_depend>libvtk</build_depend>
+
   <run_depend>roscpp</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>cv_bridge</run_depend>
@@ -39,6 +44,11 @@ Text localisation and OCR occur separately and can be evaluated using precision,
   <run_depend>cob_read_text_data</run_depend>
   <run_depend>cob_tesseract_data</run_depend>
   <run_depend>image_view</run_depend>
+
+  <run_depend>boost</run_depend>
+  <run_depend>libpcl-all-dev</run_depend>
+  <run_depend>eigen</run_depend>
+  <run_depend>libvtk</run_depend>
   
 </package>
 

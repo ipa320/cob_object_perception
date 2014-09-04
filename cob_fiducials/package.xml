@@ -23,6 +23,10 @@
         <build_depend>cob_object_detection_msgs</build_depend>
         <build_depend>std_srvs</build_depend>
 
+        <build_depend>tinyxml</build_depend>
+        <build_depend>boost</build_depend>
+        <build_depend>libpcl-all-dev</build_depend>
+
         <run_depend>roscpp</run_depend>
         <run_depend>sensor_msgs</run_depend>
         <run_depend>tf</run_depend>
@@ -32,6 +36,10 @@
         <run_depend>cob_vision_utils</run_depend>
         <run_depend>cob_object_detection_msgs</run_depend>
         <run_depend>std_srvs</run_depend>
+        
+	<run_depend>tinyxml</run_depend>
+	<run_depend>boost</run_depend>
+	<run_depend>libpcl-all</run_depend>
 
 </package>
 

@@ -12,7 +12,7 @@ from numpy.linalg import inv
 
 import tf
 
-roslib.load_manifest('cob_script_server')
+#roslib.load_manifest('cob_script_server')
 from simple_script_server import *
 
 tf_listener = tf.TransformListener()
