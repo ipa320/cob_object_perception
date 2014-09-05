@@ -20,7 +20,7 @@ installed: $(SOURCE_DIR)/unpacked
 	cp -r $(SOURCE_DIR)/cpp/build/core/src/zxing common/include
 	#mkdir tmp
 	#cd $(SOURCE_DIR)/cpp/build/core/src && find -name '*.h'
-	cd common/include && rm `find -type f -not -name '*.h'`
+	cd common/include && rm `find -type f -not -name '*.h' -not -name 'README'`
 
 clean:
 	rm -rf common $(SOURCE_DIR) $(TARBALL)
