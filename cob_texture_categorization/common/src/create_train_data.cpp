@@ -262,9 +262,6 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 				}
 			}
 		}
-
-		image_filenames.resize(60); //hack
-
 		// compute and store GMM
 		ifv.constructGenerativeModel(image_filenames, image_resize_factor, 1000, number_gaussian_centers);
 		ifv.saveGenerativeModel(gmm_filename);
@@ -287,10 +284,6 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	std::stringstream accumulated_error_string;
 	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
 	{
-		if (sample_index > 59)	// hack
-			break;
-
-
 		std::string path = path_database_images + texture_classes_[class_index];
 		const char *p;
 		p=path.c_str();
@@ -301,9 +294,6 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 		{
 			while ((entry = readdir(pDIR)))
 			{
-				if (sample_index > 59)	//hack
-					break;
-
 				//if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 )
 				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
 				{

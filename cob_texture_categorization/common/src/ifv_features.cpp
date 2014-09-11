@@ -91,30 +91,53 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 
 void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& features)
 {
-	std::vector<int> spatial_bin_sizes; // side length of spatial bins in pixels for each scale, order ascendingly!
-	spatial_bin_sizes.push_back(4);
-	spatial_bin_sizes.push_back(6);
-	spatial_bin_sizes.push_back(8);
-	spatial_bin_sizes.push_back(10);
-	spatial_bin_sizes.push_back(12);
-	spatial_bin_sizes.push_back(14);
-	spatial_bin_sizes.push_back(16);	// last element has to be the maximum element!
-	double magnification_factor = 6.0;
 	const double contrast_threshold = 0.005;
-
 	int number_contrast_below_threshold = 0;
-	for (size_t scale_index=0; scale_index<spatial_bin_sizes.size(); ++scale_index)
-	{
-		// smooth image according to scale
-		double sigma = (double)spatial_bin_sizes[scale_index] / magnification_factor;
-		cv::Mat img;
-		image.convertTo(img, CV_32F, 1./255., 0);
-		float* image_ptr = (float*)img.ptr();
-		cv::Mat smoothed_image = cv::Mat::zeros(img.rows, img.cols, CV_32FC1);
-		float* smoothed_image_ptr = (float*)smoothed_image.ptr();
-		vl_imsmooth_f(smoothed_image_ptr, smoothed_image.cols, image_ptr, img.cols, img.rows, img.cols, sigma, sigma);
 
-//		cv::imshow("gray", image);
+	//	std::vector<int> spatial_bin_sizes; // side length of spatial bins in pixels for each scale, order ascendingly!
+//	spatial_bin_sizes.push_back(4);
+//	spatial_bin_sizes.push_back(6);
+//	spatial_bin_sizes.push_back(8);
+//	spatial_bin_sizes.push_back(10);
+//	spatial_bin_sizes.push_back(12);
+//	spatial_bin_sizes.push_back(14);
+//	spatial_bin_sizes.push_back(16);	// last element has to be the maximum element!
+//	double magnification_factor = 6.0;
+//	for (size_t scale_index=0; scale_index<spatial_bin_sizes.size(); ++scale_index)
+//	{
+//		// smooth image according to scale
+//		double sigma = (double)spatial_bin_sizes[scale_index] / magnification_factor;
+//		cv::Mat img;
+//		image.convertTo(img, CV_32F, 1./255., 0);
+//		float* image_ptr = (float*)img.ptr();
+//		cv::Mat smoothed_image = cv::Mat::zeros(img.rows, img.cols, CV_32FC1);
+//		float* smoothed_image_ptr = (float*)smoothed_image.ptr();
+//		vl_imsmooth_f(smoothed_image_ptr, smoothed_image.cols, image_ptr, img.cols, img.rows, img.cols, sigma, sigma);
+
+	const int images_per_octave = 3;
+	cv::Mat image_float, octave_base_image;
+	image.convertTo(image_float, CV_32F, 1./255., 0);
+	octave_base_image = image_float;
+	for (int scale=-1; scale<9; ++scale)
+	{
+		// smooth and resize image according to scale
+		cv::Mat smoothed_image;
+		if (scale != -1)
+		{
+			double sigma = pow(2., (double)((((scale-1)%images_per_octave) + 1.)/(double)images_per_octave));
+			cv::GaussianBlur(octave_base_image, smoothed_image, cv::Size(0,0), sigma, sigma);
+			if (scale % images_per_octave == 0 && scale > 0)
+			{
+				cv::Mat temp = smoothed_image;
+				cv::resize(temp, smoothed_image, cv::Size(0,0), 0.5, 0.5, cv::INTER_AREA);
+				octave_base_image = smoothed_image;
+			}
+		}
+		else
+			smoothed_image = image_float;
+		float* smoothed_image_ptr = (float*)smoothed_image.ptr();
+
+//		cv::imshow("gray", image_float);
 //		cv::imshow("smoothed", smoothed_image);
 //		cv::waitKey();
 
@@ -129,17 +152,18 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 		//%
 		//% In pracrice, the offset must be integer ('bounds'), so the
 		//% alignment works properly only if all OPTS.SZES are even or odd.
-		int offset = floor(1. + 3./2. * (spatial_bin_sizes[spatial_bin_sizes.size()-1] - spatial_bin_sizes[scale_index]));
-		VlDsiftFilter* dsift = vl_dsift_new(img.cols, img.rows);
+		//int offset = floor(1. + 3./2. * (spatial_bin_sizes[spatial_bin_sizes.size()-1] - spatial_bin_sizes[scale_index]));
+		VlDsiftFilter* dsift = vl_dsift_new(smoothed_image.cols, smoothed_image.rows);
 		vl_dsift_set_steps(dsift, 2, 2);
 		VlDsiftDescriptorGeometry dsift_geometry;
 		dsift_geometry.numBinT = 8; // number of orientation bins
 		dsift_geometry.numBinX = 4;	// number of bins along X
 		dsift_geometry.numBinY = 4;	// number of bins along Y
-		dsift_geometry.binSizeX = spatial_bin_sizes[scale_index];	// size of bins along X
-		dsift_geometry.binSizeY = spatial_bin_sizes[scale_index];	// size of bins along Y
+		dsift_geometry.binSizeX = 6;	//spatial_bin_sizes[scale_index];	// size of bins along X
+		dsift_geometry.binSizeY = 6;	//spatial_bin_sizes[scale_index];	// size of bins along Y
 		vl_dsift_set_geometry(dsift, &dsift_geometry);
-		vl_dsift_set_bounds(dsift, offset, offset, img.cols, img.rows);
+		//vl_dsift_set_bounds(dsift, offset, offset, smoothed_image.cols, smoothed_image.rows);
+		vl_dsift_set_bounds(dsift, 0, 0, smoothed_image.cols, smoothed_image.rows);
 		vl_dsift_set_flat_window(dsift, true);
 		vl_dsift_set_window_size(dsift, 1.5);
 		vl_dsift_process(dsift, smoothed_image_ptr);
