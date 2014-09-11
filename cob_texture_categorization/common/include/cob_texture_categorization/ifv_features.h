@@ -5,6 +5,7 @@ extern "C"
 	#include <vl/kmeans.h>
 	#include <vl/dsift.h>
 	#include <vl/imopv.h>
+	#include <vl/fisher.h>
 }
 
 #include <vector>
@@ -20,6 +21,8 @@ public:
 
 	IfvFeatures();
 	~IfvFeatures();
+
+	void computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding);
 
 	void constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor=1.0, const int feature_samples_per_image=1000, const int number_clusters = 256);
 

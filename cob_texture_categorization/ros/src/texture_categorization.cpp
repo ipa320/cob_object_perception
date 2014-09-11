@@ -607,7 +607,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 
 	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-	database_data.compute_data_cimpoi(path_database, feature_files_path, 1281);
+	database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, false);
 	return;
 
 	// attribute cross-validation

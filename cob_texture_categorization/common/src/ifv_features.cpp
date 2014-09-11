@@ -15,6 +15,30 @@ IfvFeatures::~IfvFeatures()
 }
 
 
+void IfvFeatures::computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding)
+{
+	// load and prepare image
+	cv::Mat original_image = cv::imread(image_filename);
+	cv::Mat image, temp;
+	cv::cvtColor(original_image, temp, CV_BGR2GRAY);
+	if (image_resize_factor != 1.0)
+		cv::resize(temp, image, cv::Size(), image_resize_factor, image_resize_factor, cv::INTER_AREA);
+	else
+		image = temp;
+
+	// compute dense SIFT features at multiple scales
+	cv::Mat dsift_features;
+	computeDenseSIFTMultiscale(image, dsift_features);
+
+	// conduct PCA on data to remove correlation (GMM is only employing diagonal covariance matrices)
+	cv::Mat dsift_feature_pc_subspace;
+	projectToPrincipalComponents(dsift_features, dsift_feature_pc_subspace);
+
+	// compute Improved Fisher Vector
+	vl_fisher_encode((void*)fisher_vector_encoding.ptr(), VL_TYPE_FLOAT, vl_gmm_get_means(gmm_), dsift_features.cols, number_clusters, vl_gmm_get_covariances(gmm_), vl_gmm_get_priors(gmm_), (void*)dsift_feature_pc_subspace.ptr(), dsift_feature_pc_subspace.rows, VL_FISHER_FLAG_IMPROVED);
+}
+
+
 void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters)
 {
 	cv::Mat feature_subset(image_filenames.size()*feature_samples_per_image, descriptor_dimension_, CV_32FC1);
@@ -141,7 +165,7 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 		vl_dsift_delete(dsift);
 	}
 
-	std::cout << "Times contrast below threshold: " << number_contrast_below_threshold << " out of " << features.rows << " feature descriptors." << std::endl;
+	std::cout << "Contrast below threshold at " << number_contrast_below_threshold << " out of " << features.rows << " feature descriptors." << std::endl;
 }
 
 
@@ -200,7 +224,7 @@ void IfvFeatures::saveGenerativeModel(const std::string& filename)
 	int data_dimension = vl_gmm_get_dimension(gmm_);
 	cv::Mat gmm_means(number_clusters, data_dimension, CV_32FC1, (float*)vl_gmm_get_means(gmm_));		// number_clusters * data_dimension
 	cv::Mat gmm_covariances(number_clusters, data_dimension, CV_32FC1, (float*)vl_gmm_get_covariances(gmm_));		// number_clusters * data_dimension
-	cv::Mat gmm_priors(number_clusters, data_dimension, CV_32FC1, (float*)vl_gmm_get_priors(gmm_));		// number_clusters
+	cv::Mat gmm_priors(number_clusters, 1, CV_32FC1, (float*)vl_gmm_get_priors(gmm_));		// number_clusters
 
 	//	Save PCA and GMM models
 	cv::FileStorage fs(filename, cv::FileStorage::WRITE);
@@ -211,19 +235,35 @@ void IfvFeatures::saveGenerativeModel(const std::string& filename)
 	fs << "gmm_covariances" << gmm_covariances;
 	fs << "gmm_priors" << gmm_priors;
 	fs.release();
+
+	std::cout << "Generative model (PCA, GMM) stored on disc." << std::endl;
 }
 
 
 void IfvFeatures::loadGenerativeModel(const std::string& filename)
 {
-	//vl_gmm_set_means;
-	//vl_gmm_set_covariances;
-	//vl_gmm_set_priors
+	// load computed attributes, class labels and ground truth attributes
+	cv::Mat gmm_means, gmm_covariances, gmm_priors;
+	cv::FileStorage fs(filename, cv::FileStorage::READ);
+	fs["pca_eigenvalues"] >> pca_.eigenvalues;
+	fs["pca_eigenvectors"] >> pca_.eigenvectors;
+	fs["pca_mean"] >> pca_.mean;
+	fs["gmm_means"] >> gmm_means;
+	fs["gmm_covariances"] >> gmm_covariances;
+	fs["gmm_priors"] >> gmm_priors;
+	fs.release();
+	int number_clusters = gmm_means.rows;
+	int data_dimension = gmm_means.cols;
 
-//	// create a new instance of a GMM object for float data
-//	if (gmm_ != 0)
-//		vl_gmm_delete(gmm_);
-//	gmm_ = vl_gmm_new(VL_TYPE_FLOAT, data_dimension, number_clusters);
-//	// set the initialization to kmeans selection
-//	vl_gmm_set_initialization(gmm_, VlGMMCustom);
+	// create a new instance of a GMM object for float data
+	if (gmm_ != 0)
+		vl_gmm_delete(gmm_);
+	gmm_ = vl_gmm_new(VL_TYPE_FLOAT, data_dimension, number_clusters);
+	// set the initialization to custom selection
+	vl_gmm_set_initialization(gmm_, VlGMMCustom);
+	vl_gmm_set_means(gmm_, (void*)gmm_means.ptr());
+	vl_gmm_set_covariances(gmm_, (void*)gmm_covariances.ptr());
+	vl_gmm_set_priors(gmm_, (void*)gmm_priors.ptr());
+
+	std::cout << "Generative model (PCA, GMM) loaded from disc." << std::endl;
 }

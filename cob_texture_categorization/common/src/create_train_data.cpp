@@ -229,40 +229,48 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 }
 
 
-void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, int number_pictures, int mode)
+void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, int number_pictures, int mode, bool generateGMM)
 {
-	// generate a list of all available database image filenames
-	std::vector<std::string> image_filenames;
-	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
+	// compute or load GMM
+	const int number_gaussian_centers = 256;
+	const double image_resize_factor = 0.25;
+	IfvFeatures ifv;
+	std::string gmm_filename = path_save + "gmm_model.yml";
+	if (generateGMM == true)
 	{
-		std::string path = path_database_images + texture_classes_[class_index];
-		const char *p;
-		p=path.c_str();
-
-		DIR *pDIR;
-		struct dirent *entry;
-		if ((pDIR = opendir(p)))
+		// generate a list of all available database image filenames
+		std::vector<std::string> image_filenames;
+		for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
 		{
-			while ((entry = readdir(pDIR)))
+			std::string path = path_database_images + texture_classes_[class_index];
+			const char *p;
+			p=path.c_str();
+
+			DIR *pDIR;
+			struct dirent *entry;
+			if ((pDIR = opendir(p)))
 			{
-				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
+				while ((entry = readdir(pDIR)))
 				{
-					std::string str = path + "/";
-					std::string name = entry->d_name;
-					str.append(name);
-					image_filenames.push_back(str);
+					if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
+					{
+						std::string str = path + "/";
+						std::string name = entry->d_name;
+						str.append(name);
+						image_filenames.push_back(str);
+					}
 				}
 			}
 		}
-	}
 
-	image_filenames.resize(5);
-	IfvFeatures ifv;
-	const int number_gaussian_centers = 256;
-	ifv.constructGenerativeModel(image_filenames, 0.25, 1000, number_gaussian_centers);
-	std::string gmm_filename = path_save + "gmm_model.yml";
-	ifv.saveGenerativeModel(gmm_filename);
-	return;
+		image_filenames.resize(60); //hack
+
+		// compute and store GMM
+		ifv.constructGenerativeModel(image_filenames, image_resize_factor, 1000, number_gaussian_centers);
+		ifv.saveGenerativeModel(gmm_filename);
+	}
+	else
+		ifv.loadGenerativeModel(gmm_filename);
 
 	// load labeled ground truth attributes with relation to each image file
 	std::map<std::string, std::vector<float> > filenames_gt_attributes;
@@ -270,9 +278,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	load_filenames_gt_attributes(path_filenames_gt_attributes, filenames_gt_attributes);
 
 	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
-
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
-//	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 2*128*number_gaussian_centers, CV_32FC1); // matrix of computed base features
 
@@ -281,6 +287,10 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	std::stringstream accumulated_error_string;
 	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
 	{
+		if (sample_index > 59)	// hack
+			break;
+
+
 		std::string path = path_database_images + texture_classes_[class_index];
 		const char *p;
 		p=path.c_str();
@@ -291,6 +301,9 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 		{
 			while ((entry = readdir(pDIR)))
 			{
+				if (sample_index > 59)	//hack
+					break;
+
 				//if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 )
 				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
 				{
@@ -338,17 +351,13 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 
 					// compute IFV base features
 					std::cout << str << ":   ";
-					cv::Mat image = cv::imread(str);
-					cv::Mat temp;		// hack: downsizing image
-					cv::resize(image, temp, cv::Size(), 0.25, 0.25, cv::INTER_AREA);
-					image = temp;
 					cv::Mat base_features = base_feature_matrix.row(sample_index);
+					ifv.computeImprovedFisherVector(str, image_resize_factor, number_gaussian_centers, base_features);
 
 					class_label_matrix.at<float>(sample_index, 0) = class_index;
 
 					sample_index++;
 					std::cout << "Feature computation completed: " << (sample_index / number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
-
 				}
 			}
 			closedir(pDIR);
