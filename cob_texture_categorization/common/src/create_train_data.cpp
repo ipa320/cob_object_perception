@@ -231,11 +231,37 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 
 void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, int number_pictures, int mode)
 {
+	// generate a list of all available database image filenames
 	std::vector<std::string> image_filenames;
+	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
+	{
+		std::string path = path_database_images + texture_classes_[class_index];
+		const char *p;
+		p=path.c_str();
 
+		DIR *pDIR;
+		struct dirent *entry;
+		if ((pDIR = opendir(p)))
+		{
+			while ((entry = readdir(pDIR)))
+			{
+				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
+				{
+					std::string str = path + "/";
+					std::string name = entry->d_name;
+					str.append(name);
+					image_filenames.push_back(str);
+				}
+			}
+		}
+	}
+
+	image_filenames.resize(5);
 	IfvFeatures ifv;
-	ifv.constructGenerativeModel(image_filenames, 10, 0.25);
-	ifv.saveGenerativeModel("filename");
+	const int number_gaussian_centers = 256;
+	ifv.constructGenerativeModel(image_filenames, 0.25, 1000, number_gaussian_centers);
+	std::string gmm_filename = path_save + "gmm_model.yml";
+	ifv.saveGenerativeModel(gmm_filename);
 	return;
 
 	// load labeled ground truth attributes with relation to each image file
@@ -245,7 +271,6 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 
 	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 
-	const int number_gaussian_centers = 256;
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
 //	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes

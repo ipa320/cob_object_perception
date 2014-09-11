@@ -4,6 +4,7 @@ extern "C"
 	#include <vl/gmm.h>
 	#include <vl/kmeans.h>
 	#include <vl/dsift.h>
+	#include <vl/imopv.h>
 }
 
 #include <vector>
@@ -20,7 +21,7 @@ public:
 	IfvFeatures();
 	~IfvFeatures();
 
-	void constructGenerativeModel(const std::vector<std::string>& image_filenames, const int feature_samples_per_image=1000, const double image_resize_factor=1.0);
+	void constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor=1.0, const int feature_samples_per_image=1000, const int number_clusters = 256);
 
 	// computes dense SIFT features at multiple scales
 	// features = matrix with one feature per row
@@ -33,7 +34,7 @@ public:
 	void projectToPrincipalComponents(const cv::Mat& data, cv::Mat& mapping);
 
 	// trains a GMM model on the provided data
-	void generateGMM(const cv::Mat& feature_set);
+	void generateGMM(const cv::Mat& feature_set, const int number_clusters = 256);
 
 	// save/load model parameters
 	void saveGenerativeModel(const std::string& filename);
@@ -49,4 +50,6 @@ private:
 	VlGMM* gmm_;
 
 	cv::PCA pca_;
+
+	const int descriptor_dimension_;
 };
