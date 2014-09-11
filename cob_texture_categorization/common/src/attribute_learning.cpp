@@ -426,8 +426,8 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			CvANN_MLP mlp;
 			CvANN_MLP_TrainParams params;
 			CvTermCriteria criteria;
-			criteria.max_iter = 100;
-			criteria.epsilon  = 0.0001f;
+			criteria.max_iter = 100;//100;
+			criteria.epsilon  = 0.0001f; // farhadi:0.0001f, handcrafted:0.00001f;
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 
 			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
@@ -436,7 +436,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			params.term_crit       = criteria;
 
 			double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
-			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
+			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha/*0.6*/, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
 			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
@@ -459,7 +459,15 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 					class_label_matrix_test_data[fold].at<float>(r, 0) = class_label_matrix.at<float>(test_indices[r],0);
 				}
 
-				float absdiff = fabs(std::max(0.f, response.at<float>(0,0)) - test_labels.at<float>(r, 0)) * feature_scaling_factor;
+				float resp = std::max(0.f, response.at<float>(0,0));
+				float lab = test_labels.at<float>(r, 0);
+				float absdiff = fabs(resp - lab) * feature_scaling_factor;
+				if (attribute_index == 1 || attribute_index == 2)
+				{
+					float absdiff2 = fabs(std::min(resp, lab)+9 - std::max(resp, lab)) * feature_scaling_factor;
+					absdiff = std::min(absdiff, absdiff2);
+					absdiff *= 4./9.;
+				}
 				sumAbsError += absdiff;
 				++numberTestSamples;
 				if (absdiff < 1.f)

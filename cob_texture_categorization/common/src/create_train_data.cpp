@@ -1,5 +1,4 @@
 #include "cob_texture_categorization/create_train_data.h"
-#include <cob_texture_categorization/texture_categorization.h>
 
 #include "cob_texture_categorization/compute_textures.h"
 #include "cob_texture_categorization/create_lbp.h"
@@ -7,20 +6,19 @@
 #include "cob_texture_categorization/texture_features.h"
 #include "cob_texture_categorization/write_xml.h"
 #include "cob_texture_categorization/color_parameter.h"
-#include <cv.h>
+#include "cob_texture_categorization/ifv_features.h"
+
 #include <highgui.h>
 
 
 #include <iostream>
 #include <fstream>
 #include <dirent.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <sys/time.h>
 
-#include <vector>
 #include <fstream>
 
 
@@ -90,7 +88,7 @@ std::vector<std::string> create_train_data::get_texture_classes()
 	return texture_classes_;
 }
 
-void create_train_data::compute_data(std::string path_database_images, std::string path_save, int number_pictures, int mode)
+void create_train_data::compute_data_handcrafted(std::string path_database_images, std::string path_save, int number_pictures, int mode)
 {
 	// load labeled ground truth attributes with relation to each image file
 	std::map<std::string, std::vector<float> > filenames_gt_attributes;
@@ -104,24 +102,18 @@ void create_train_data::compute_data(std::string path_database_images, std::stri
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 22, CV_32FC1); // matrix of computed base features
 
-	std::string str, name;
-	DIR *pDIR;
-	struct dirent *entry;
-	std::string word;
-
-	double number_of_images = number_pictures;
-	double sample_index=0;
-	std::string path;
-
 	std::cout<<"BEGIN" << std::endl;
+	double sample_index=0;
 	std::stringstream accumulated_error_string;
 	std::vector<int> errors;
 	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
 	{
-		path = path_database_images + texture_classes_[class_index];
+		std::string path = path_database_images + texture_classes_[class_index];
 		const char *p;
 		p=path.c_str();
 
+		DIR *pDIR;
+		struct dirent *entry;
 		if ((pDIR = opendir(p)))
 		{
 			while ((entry = readdir(pDIR)))
@@ -129,15 +121,18 @@ void create_train_data::compute_data(std::string path_database_images, std::stri
 				//if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 )
 				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
 				{
-					str = path + "/";
-					name = entry->d_name;
+					std::string str = path + "/";
+					std::string name = entry->d_name;
 					str.append(name);
 
 					if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
 					{
-						for (unsigned int i=0; i<filenames_gt_attributes[name].size(); ++i)
+						for (unsigned int i=0, j=0; i<filenames_gt_attributes[name].size(); ++i)
 							if (i!=13)	// one attribute (3d roughness) is currently not implemented here, so just leave it out from gt
-								ground_truth_attribute_matrix.at<float>(sample_index, i) = filenames_gt_attributes[name][i];
+							{
+								ground_truth_attribute_matrix.at<float>(sample_index, j) = filenames_gt_attributes[name][i];
+								++j;
+							}
 					}
 					else
 					{
@@ -171,6 +166,9 @@ void create_train_data::compute_data(std::string path_database_images, std::stri
 
 					std::cout << str << ":   ";
 					cv::Mat image = cv::imread(str);
+//					cv::Mat temp;		// hack: downsizing image
+//					cv::resize(image, temp, cv::Size(), 0.25, 0.25, cv::INTER_AREA);
+//					image = temp;
 					feature_results results;
 					cv::Mat raw_features = base_feature_matrix.row(sample_index); // todo: check width
 					//struct color_vals color_results;
@@ -207,7 +205,7 @@ void create_train_data::compute_data(std::string path_database_images, std::stri
 						}
 					}
 					sample_index++;
-					std::cout << "Feature computation completed: " << (sample_index / number_of_images) * 100 << "%   Picnum " << sample_index << std::endl;
+					std::cout << "Feature computation completed: " << (sample_index / number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
 
 				}
 			}
@@ -229,6 +227,119 @@ void create_train_data::compute_data(std::string path_database_images, std::stri
 
 	std::cout << "Feature computation on database completed." << std::endl;
 }
+
+
+void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, int number_pictures, int mode)
+{
+	std::vector<std::string> image_filenames;
+
+	IfvFeatures ifv;
+	ifv.constructGenerativeModel(image_filenames, 10, 0.25);
+	ifv.saveGenerativeModel("filename");
+	return;
+
+	// load labeled ground truth attributes with relation to each image file
+	std::map<std::string, std::vector<float> > filenames_gt_attributes;
+	std::string path_filenames_gt_attributes = path_save + "ipa_database_filename_attributes.txt";
+	load_filenames_gt_attributes(path_filenames_gt_attributes, filenames_gt_attributes);
+
+	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
+
+	const int number_gaussian_centers = 256;
+	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
+//	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
+	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
+	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 2*128*number_gaussian_centers, CV_32FC1); // matrix of computed base features
+
+	std::cout<<"BEGIN" << std::endl;
+	double sample_index=0;
+	std::stringstream accumulated_error_string;
+	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
+	{
+		std::string path = path_database_images + texture_classes_[class_index];
+		const char *p;
+		p=path.c_str();
+
+		DIR *pDIR;
+		struct dirent *entry;
+		if ((pDIR = opendir(p)))
+		{
+			while ((entry = readdir(pDIR)))
+			{
+				//if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 )
+				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
+				{
+					std::string str = path + "/";
+					std::string name = entry->d_name;
+					str.append(name);
+
+					// read out ground truth attributes
+					if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
+					{
+						for (unsigned int i=0, j=0; i<filenames_gt_attributes[name].size(); ++i, ++j)
+						{
+							ground_truth_attribute_matrix.at<float>(sample_index, j) = filenames_gt_attributes[name][i];
+						}
+					}
+					else
+					{
+						std::cout << "Error: no entry for file '" << name << "' in filenames_gt_attributes." << std::endl;
+						accumulated_error_string << "Error: no entry for file '" << name << "' in filenames_gt_attributes." << std::endl;
+					}
+
+					// create data sample hierarchy
+					// determine object number
+					int start_pos = name.find("_")+1;
+					int end_pos = name.find("_", start_pos);
+					std::stringstream object_number_ss;
+					object_number_ss << name.substr(start_pos, end_pos-start_pos);
+					unsigned int object_number = 0;
+					object_number_ss >> object_number;
+//					std::cout << "Object number ss: " << object_number_ss.str() << ",  " << object_number << std::endl;
+					// determine sample number
+					start_pos = end_pos+1;
+					end_pos = name.find(".", start_pos);
+					std::stringstream sample_number_ss;
+					sample_number_ss << name.substr(start_pos, end_pos-start_pos);
+					unsigned int sample_number = 0;
+					sample_number_ss >> sample_number;
+//					std::cout << "Sample number ss: " << sample_number_ss.str() << ",  " << sample_number << std::endl;
+					// create entry in hierarchy
+					if (data_sample_hierarchy[class_index].size() < object_number)
+						data_sample_hierarchy[class_index].resize(object_number);
+					if (data_sample_hierarchy[class_index][object_number-1].size() < sample_number)
+						data_sample_hierarchy[class_index][object_number-1].resize(sample_number, -1);
+					data_sample_hierarchy[class_index][object_number-1][sample_number-1] = sample_index;
+
+					// compute IFV base features
+					std::cout << str << ":   ";
+					cv::Mat image = cv::imread(str);
+					cv::Mat temp;		// hack: downsizing image
+					cv::resize(image, temp, cv::Size(), 0.25, 0.25, cv::INTER_AREA);
+					image = temp;
+					cv::Mat base_features = base_feature_matrix.row(sample_index);
+
+					class_label_matrix.at<float>(sample_index, 0) = class_index;
+
+					sample_index++;
+					std::cout << "Feature computation completed: " << (sample_index / number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
+
+				}
+			}
+			closedir(pDIR);
+		}
+	}
+
+	std::cout << "Errors:\n" << accumulated_error_string.str() << std::endl;
+
+	std::cout << "Finished reading " << sample_index << " data samples." << std::endl;
+
+	//	Save computed attributes, class labels and ground truth attributes
+	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, cv::Mat(), class_label_matrix, data_sample_hierarchy, mode);
+
+	std::cout << "Feature computation on database completed." << std::endl;
+}
+
 
 void create_train_data::save_texture_database_features(std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, int mode)
 {

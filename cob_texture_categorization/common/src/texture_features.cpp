@@ -1273,7 +1273,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	clear small contours
 	for(int i=0;i<ceil(numPixels.size()*0.8);i++)
 	{
-		if(numPixels[i]<big_comp/8 &&  idx[i]<contours.size())
+		if(numPixels[i]<big_comp/8 &&  (unsigned int)idx[i]<contours.size())
 		{
 			for (unsigned int j=0;j<contours[idx[i]].size();j++)
 			{
@@ -1340,7 +1340,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 
 //  Strength of primitives -- Value 10
 //	Resize input image
-	double primitive_strength_raw;
+	double primitive_strength_raw=0.;
 	cv::Mat image_resize;
 	resize((*img), image, cv::Size(), 0.5, 0.5, cv::INTER_CUBIC);
 	cvtColor( image, image_resize, CV_BGR2HSV );
@@ -1413,7 +1413,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 		}
 	}
 
-	double val10;
+	double val10=0.;
 	if(edge_pixels_amount!=0 && val8!=0)
 	{
 		primitive_strength_raw = std_window/edge_pixels_amount;
@@ -1477,7 +1477,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 
 	for(int i=0;i<ceil(numPixels.size()*0.9);i++)
 	{
-		if(numPixels[i]<big_comp/8 && idx[i]<contours.size())
+		if(numPixels[i]<big_comp/8 && (unsigned int)idx[i]<contours.size())
 		{
 			for (unsigned int j=0;j<contours[idx[i]].size();j++)
 			{

@@ -111,6 +111,7 @@ protected:
 
 	void attributeLearningDatabaseTestFarhadi();
 	void attributeLearningDatabaseTestHandcrafted();
+	void attributeLearningDatabaseTestCimpoi();
 
 };
 

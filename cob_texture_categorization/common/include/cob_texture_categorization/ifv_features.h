@@ -1,0 +1,52 @@
+extern "C"
+{
+	#include <vl/generic.h>
+	#include <vl/gmm.h>
+	#include <vl/kmeans.h>
+	#include <vl/dsift.h>
+}
+
+#include <vector>
+#include <set>
+#include <string>
+
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
+class IfvFeatures
+{
+public:
+
+	IfvFeatures();
+	~IfvFeatures();
+
+	void constructGenerativeModel(const std::vector<std::string>& image_filenames, const int feature_samples_per_image=1000, const double image_resize_factor=1.0);
+
+	// computes dense SIFT features at multiple scales
+	// features = matrix with one feature per row
+	void computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& features);
+
+	// computes a pca on the data
+	void generatePCA(const cv::Mat& data);
+
+	// maps data to the principal components
+	void projectToPrincipalComponents(const cv::Mat& data, cv::Mat& mapping);
+
+	// trains a GMM model on the provided data
+	void generateGMM(const cv::Mat& feature_set);
+
+	// save/load model parameters
+	void saveGenerativeModel(const std::string& filename);
+	void loadGenerativeModel(const std::string& filename);
+
+	// get pointer to GMM
+	VlGMM* getGMMModelPtr()
+	{
+		return gmm_;
+	}
+
+private:
+	VlGMM* gmm_;
+
+	cv::PCA pca_;
+};
