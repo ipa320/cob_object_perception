@@ -607,8 +607,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 
 	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-	database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, false);
-	return;
+	//database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, false);
+	//return;
 
 	// attribute cross-validation
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
@@ -623,8 +623,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	int folds = 20;
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data;
-	//al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
-	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	//al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
 	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes

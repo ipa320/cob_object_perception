@@ -174,6 +174,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 {
 	// vectors for evaluation data, each vector entry is meant to count the statistics for one attribute
 	std::vector<double> sumAbsErrors(attribute_matrix.cols, 0.0);
+	std::vector< std::vector<double> > absErrors(attribute_matrix.cols);	// first index = attribute index
 	std::vector<int> numberSamples(attribute_matrix.cols, 0);
 	std::vector<int> below05(attribute_matrix.cols, 0), below1(attribute_matrix.cols, 0);	// number of attributes estimated with less absolute error than 0.5, 1.0
 	std::stringstream screen_output;
@@ -408,7 +409,16 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 //			boost.train(training_data, CV_ROW_SAMPLE, training_labels, cv::Mat(), cv::Mat(), var_type, cv::Mat(), boost_params, false);
 //			// End Boosting
 
-			//	Neural Network
+			// SVM
+			CvSVM svm;
+			CvTermCriteria criteria;
+			criteria.max_iter = 1000;//
+			criteria.epsilon  = FLT_EPSILON; //
+			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0., 0., 1.0, 0.1, 0., 0, criteria);
+			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
+
+/*			//	Neural Network
 			cv::Mat input;
 			training_data.convertTo(input, CV_32F);
 			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
@@ -436,10 +446,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			params.term_crit       = criteria;
 
 			double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
-			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha/*0.6*/, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
+			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha/*0.6/, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
 			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
-
+*/
 			// === apply ml classifier to predict test set ===
 			double sumAbsError = 0.;
 			int numberTestSamples = 0;
@@ -449,9 +459,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 				cv::Mat response(1, 1, CV_32FC1);
 				cv::Mat sample = test_data.row(r);
 
-				mlp.predict(sample, response);		// neural network
+				//mlp.predict(sample, response);		// neural network
 				//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 				//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
+				response.at<float>(0,0) = svm.predict(sample);	// SVM
 
 				if (return_set_data == true)
 				{
@@ -468,6 +479,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 					absdiff = std::min(absdiff, absdiff2);
 					absdiff *= 4./9.;
 				}
+				absErrors[attribute_index].push_back(absdiff);
 				sumAbsError += absdiff;
 				++numberTestSamples;
 				if (absdiff < 1.f)
@@ -494,8 +506,16 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
 	{
 		double n = numberSamples[attribute_index];
-		std::cout << "Attribute " << attribute_index+1 << ":\tmean abs error: " << sumAbsErrors[attribute_index]/n << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
-		screen_output << "Attribute " << attribute_index+1 << ":\tmean abs error: " << sumAbsErrors[attribute_index]/n << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
+		double mean = sumAbsErrors[attribute_index]/n;
+		if (numberSamples[attribute_index] != absErrors[attribute_index].size())
+			std::cout << "Warning: (numberSamples[attribute_index] == absErrors[attribute_index].size()) does not hold for (attribute_index+1): " << attribute_index+1 << std::endl;
+		double stddev = 0.0;
+		for (size_t j=0; j<absErrors[attribute_index].size(); ++j)
+			stddev += (absErrors[attribute_index][j] - mean) * (absErrors[attribute_index][j] - mean);
+		stddev /= (double)(absErrors[attribute_index].size() - 1.);
+		stddev = sqrt(stddev);
+		std::cout << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
+		screen_output << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
 	}
 
 	// write screen outputs to file
