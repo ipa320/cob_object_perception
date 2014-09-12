@@ -541,10 +541,10 @@ public:
                 }
 
                 detection_array.detections.push_back(fiducial_instance);
-                if (debug_verbosity_ == 1)
-                    ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
-                             fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
-                             vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
+               // if (debug_verbosity_ == 1)
+                   // ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
+                            // fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
+                             //vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
             }
         }
         else
