@@ -412,10 +412,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			// SVM
 			CvSVM svm;
 			CvTermCriteria criteria;
-			criteria.max_iter = 1000;//
-			criteria.epsilon  = FLT_EPSILON; //
+			criteria.max_iter = 1000;	// 1000
+			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0., 0., 1.0, 0.1, 0., 0, criteria);
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF/*LINEAR*/, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
 /*			//	Neural Network

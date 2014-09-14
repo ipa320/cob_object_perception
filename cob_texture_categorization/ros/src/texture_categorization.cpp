@@ -86,8 +86,8 @@ node_handle_(nh)
 
 	// database tests
 //	inputCallbackNoCam();
-//	attributeLearningDatabaseTestFarhadi();
-	attributeLearningDatabaseTestCimpoi();
+	attributeLearningDatabaseTestFarhadi();
+//	attributeLearningDatabaseTestCimpoi();
 //	attributeLearningDatabaseTestHandcrafted();
 
 }
