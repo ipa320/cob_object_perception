@@ -415,7 +415,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			criteria.max_iter = 1000;	// 1000
 			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF/*LINEAR*/, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
 /*			//	Neural Network
@@ -437,7 +437,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			CvANN_MLP_TrainParams params;
 			CvTermCriteria criteria;
 			criteria.max_iter = 100;//100;
-			criteria.epsilon  = 0.0001f; // farhadi:0.0001f, handcrafted:0.00001f;
+			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 
 			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
@@ -446,7 +446,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			params.term_crit       = criteria;
 
 			double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
-			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha/*0.6/, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
+			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha/0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
 			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 */
@@ -503,11 +503,13 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	}
 
 	std::cout << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;		screen_output << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
+	double total_mean = 0., total_below05 = 0., total_below1 = 0.;
 	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
 	{
 		double n = numberSamples[attribute_index];
 		double mean = sumAbsErrors[attribute_index]/n;
-		if (numberSamples[attribute_index] != absErrors[attribute_index].size())
+		total_mean += mean;
+		if ((size_t)numberSamples[attribute_index] != absErrors[attribute_index].size())
 			std::cout << "Warning: (numberSamples[attribute_index] == absErrors[attribute_index].size()) does not hold for (attribute_index+1): " << attribute_index+1 << std::endl;
 		double stddev = 0.0;
 		for (size_t j=0; j<absErrors[attribute_index].size(); ++j)
@@ -516,7 +518,11 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 		stddev = sqrt(stddev);
 		std::cout << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
 		screen_output << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
+		total_below05 += 100*below05[attribute_index]/n;
+		total_below1 += 100*below1[attribute_index]/n;
 	}
+	std::cout << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%" << std::endl;
+	screen_output << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%" << std::endl;
 
 	// write screen outputs to file
 	std::ofstream file("screen_output_attribute_learning.txt", std::ios::out);

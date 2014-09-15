@@ -86,8 +86,8 @@ node_handle_(nh)
 
 	// database tests
 //	inputCallbackNoCam();
-	attributeLearningDatabaseTestFarhadi();
-//	attributeLearningDatabaseTestCimpoi();
+//	attributeLearningDatabaseTestFarhadi();
+	attributeLearningDatabaseTestCimpoi();
 //	attributeLearningDatabaseTestHandcrafted();
 
 }
@@ -581,11 +581,11 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
-	int folds = 20;
+	int folds = 57;
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data;
 	//al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
-	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, 0, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, 1, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
 	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
@@ -600,15 +600,13 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
 //	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
 //	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
-	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014/"; // path to save data
-//	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/"; // path to save data
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
 
 	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-	//database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, false);
-	//return;
+	database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, true, IfvFeatures::RGB_PATCHES);
+	return;
 
 	// attribute cross-validation
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;

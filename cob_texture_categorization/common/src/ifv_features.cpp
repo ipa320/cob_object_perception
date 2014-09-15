@@ -2,7 +2,6 @@
 #include <iostream>
 
 IfvFeatures::IfvFeatures()
-: descriptor_dimension_(128)
 {
 	gmm_ = 0;
 }
@@ -15,48 +14,70 @@ IfvFeatures::~IfvFeatures()
 }
 
 
-void IfvFeatures::computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding)
+void IfvFeatures::computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type)
 {
 	// load and prepare image
 	cv::Mat original_image = cv::imread(image_filename);
-	cv::Mat image, temp;
-	cv::cvtColor(original_image, temp, CV_BGR2GRAY);
+	cv::Mat image;
 	if (image_resize_factor != 1.0)
-		cv::resize(temp, image, cv::Size(), image_resize_factor, image_resize_factor, cv::INTER_AREA);
+		cv::resize(original_image, image, cv::Size(), image_resize_factor, image_resize_factor, cv::INTER_AREA);
 	else
-		image = temp;
+		image = original_image;
 
-	// compute dense SIFT features at multiple scales
-	cv::Mat dsift_features;
-	computeDenseSIFTMultiscale(image, dsift_features);
+	// compute dense features
+	cv::Mat dense_features;
+	if (feature_type == DENSE_MULTISCALE_SIFT)
+	{
+		cv::Mat temp;
+		cv::cvtColor(image, temp, CV_BGR2GRAY);
+		computeDenseSIFTMultiscale(temp, dense_features);
+	}
+	else if (feature_type == RGB_PATCHES)
+		computeDenseRGBPatches(image, dense_features);
+	else
+	{
+		std::cout << "Error: IfvFeatures::computeImprovedFisherVector: specified feature type is unknown." << std::endl;
+		return;
+	}
 
 	// conduct PCA on data to remove correlation (GMM is only employing diagonal covariance matrices)
-	cv::Mat dsift_feature_pc_subspace;
-	projectToPrincipalComponents(dsift_features, dsift_feature_pc_subspace);
+	cv::Mat dense_features_pc_subspace;
+	projectToPrincipalComponents(dense_features, dense_features_pc_subspace);
 
 	// compute Improved Fisher Vector
-	vl_fisher_encode((void*)fisher_vector_encoding.ptr(), VL_TYPE_FLOAT, vl_gmm_get_means(gmm_), dsift_features.cols, number_clusters, vl_gmm_get_covariances(gmm_), vl_gmm_get_priors(gmm_), (void*)dsift_feature_pc_subspace.ptr(), dsift_feature_pc_subspace.rows, VL_FISHER_FLAG_IMPROVED);
+	vl_fisher_encode((void*)fisher_vector_encoding.ptr(), VL_TYPE_FLOAT, vl_gmm_get_means(gmm_), dense_features.cols, number_clusters, vl_gmm_get_covariances(gmm_), vl_gmm_get_priors(gmm_), (void*)dense_features_pc_subspace.ptr(), dense_features_pc_subspace.rows, VL_FISHER_FLAG_IMPROVED);
 }
 
 
-void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters)
+void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters, FeatureType feature_type)
 {
-	cv::Mat feature_subset(image_filenames.size()*feature_samples_per_image, descriptor_dimension_, CV_32FC1);
+	cv::Mat feature_subset(image_filenames.size()*feature_samples_per_image, getFeatureDimension(feature_type), CV_32FC1);
 	for (size_t i=0; i<image_filenames.size(); ++i)
 	{
 		// load image
 		std::cout << image_filenames[i] << std::endl;
 		cv::Mat original_image = cv::imread(image_filenames[i]);
-		cv::Mat image, temp;
-		cv::cvtColor(original_image, temp, CV_BGR2GRAY);
+		cv::Mat image;
 		if (image_resize_factor != 1.0)
-			cv::resize(temp, image, cv::Size(), image_resize_factor, image_resize_factor, cv::INTER_AREA);
+			cv::resize(original_image, image, cv::Size(), image_resize_factor, image_resize_factor, cv::INTER_AREA);
 		else
-			image = temp;
+			image = original_image;
 
-		// compute dense SIFT features at multiple scales
+		// compute dense features
 		cv::Mat features;
-		computeDenseSIFTMultiscale(image, features);
+		if (feature_type == DENSE_MULTISCALE_SIFT)
+		{
+			cv::Mat temp;
+			cv::cvtColor(image, temp, CV_BGR2GRAY);
+			computeDenseSIFTMultiscale(temp, features);
+		}
+		else if (feature_type == RGB_PATCHES)
+			computeDenseRGBPatches(image, features);
+		else
+		{
+			std::cout << "Error: IfvFeatures::constructGenerativeModel: specified feature type is unknown." << std::endl;
+			return;
+		}
 		//std::cout << "features size: " << features.rows << ", " << features.cols << std::endl;
 
 		// sample a subset of features used for constructing the GMM
@@ -190,6 +211,27 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 	}
 
 	std::cout << "Contrast below threshold at " << number_contrast_below_threshold << " out of " << features.rows << " feature descriptors." << std::endl;
+}
+
+
+void IfvFeatures::computeDenseRGBPatches(const cv::Mat& image, cv::Mat& features)
+{
+	const int patch_size = 3;	// side length of an NxN kernel
+
+	const int number_feature_vectors = (image.rows-patch_size+1) * (image.cols-patch_size+1);
+	features.create(number_feature_vectors, 3*patch_size*patch_size, CV_32FC1);	// each row contains one feature
+	int sample_index = 0;
+	for (int r=0; r<=image.rows-patch_size; ++r)
+	{
+		for (int c=0; c<=image.cols-patch_size; ++c, ++sample_index)
+		{
+			int feature_index = 0;
+			for (int dr=0; dr<patch_size; ++dr)
+				for (int dc=0; dc<patch_size; ++dc)
+					for (int channel=0; channel<3; ++channel, ++feature_index)
+						features.at<float>(sample_index,feature_index) = image.at<cv::Vec3b>(r+dr, c+dc).val[channel];
+		}
+	}
 }
 
 

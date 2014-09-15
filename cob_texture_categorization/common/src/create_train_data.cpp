@@ -6,7 +6,6 @@
 #include "cob_texture_categorization/texture_features.h"
 #include "cob_texture_categorization/write_xml.h"
 #include "cob_texture_categorization/color_parameter.h"
-#include "cob_texture_categorization/ifv_features.h"
 
 #include <highgui.h>
 
@@ -229,7 +228,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 }
 
 
-void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, int number_pictures, int mode, bool generateGMM)
+void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, int number_pictures, int mode, bool generateGMM, IfvFeatures::FeatureType feature_type)
 {
 	// compute or load GMM
 	const int number_gaussian_centers = 256;
@@ -263,7 +262,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 			}
 		}
 		// compute and store GMM
-		ifv.constructGenerativeModel(image_filenames, image_resize_factor, 1000, number_gaussian_centers);
+		ifv.constructGenerativeModel(image_filenames, image_resize_factor, 1000, number_gaussian_centers, feature_type);
 		ifv.saveGenerativeModel(gmm_filename);
 	}
 	else
@@ -277,7 +276,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
-	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 2*128*number_gaussian_centers, CV_32FC1); // matrix of computed base features
+	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 2*ifv.getFeatureDimension(feature_type)*number_gaussian_centers, CV_32FC1); // matrix of computed base features
 
 	std::cout<<"BEGIN" << std::endl;
 	double sample_index=0;
@@ -342,7 +341,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 					// compute IFV base features
 					std::cout << str << ":   ";
 					cv::Mat base_features = base_feature_matrix.row(sample_index);
-					ifv.computeImprovedFisherVector(str, image_resize_factor, number_gaussian_centers, base_features);
+					ifv.computeImprovedFisherVector(str, image_resize_factor, number_gaussian_centers, base_features, feature_type);
 
 					class_label_matrix.at<float>(sample_index, 0) = class_index;
 
