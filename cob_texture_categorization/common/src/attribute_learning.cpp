@@ -174,6 +174,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 {
 	// vectors for evaluation data, each vector entry is meant to count the statistics for one attribute
 	std::vector<double> sumAbsErrors(attribute_matrix.cols, 0.0);
+	std::vector< std::vector<double> > absErrors(attribute_matrix.cols);	// first index = attribute index
 	std::vector<int> numberSamples(attribute_matrix.cols, 0);
 	std::vector<int> below05(attribute_matrix.cols, 0), below1(attribute_matrix.cols, 0);	// number of attributes estimated with less absolute error than 0.5, 1.0
 	std::stringstream screen_output;
@@ -408,7 +409,16 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 //			boost.train(training_data, CV_ROW_SAMPLE, training_labels, cv::Mat(), cv::Mat(), var_type, cv::Mat(), boost_params, false);
 //			// End Boosting
 
-			//	Neural Network
+			// SVM
+			CvSVM svm;
+			CvTermCriteria criteria;
+			criteria.max_iter = 1000;	// 1000
+			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
+			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
+
+/*			//	Neural Network
 			cv::Mat input;
 			training_data.convertTo(input, CV_32F);
 			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
@@ -426,8 +436,8 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			CvANN_MLP mlp;
 			CvANN_MLP_TrainParams params;
 			CvTermCriteria criteria;
-			criteria.max_iter = 100;
-			criteria.epsilon  = 0.0001f;
+			criteria.max_iter = 100;//100;
+			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 
 			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
@@ -436,10 +446,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			params.term_crit       = criteria;
 
 			double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
-			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, alpha, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
+			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha/0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
 			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
-
+*/
 			// === apply ml classifier to predict test set ===
 			double sumAbsError = 0.;
 			int numberTestSamples = 0;
@@ -449,9 +459,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 				cv::Mat response(1, 1, CV_32FC1);
 				cv::Mat sample = test_data.row(r);
 
-				mlp.predict(sample, response);		// neural network
+				//mlp.predict(sample, response);		// neural network
 				//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 				//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
+				response.at<float>(0,0) = svm.predict(sample);	// SVM
 
 				if (return_set_data == true)
 				{
@@ -459,7 +470,16 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 					class_label_matrix_test_data[fold].at<float>(r, 0) = class_label_matrix.at<float>(test_indices[r],0);
 				}
 
-				float absdiff = fabs(std::max(0.f, response.at<float>(0,0)) - test_labels.at<float>(r, 0)) * feature_scaling_factor;
+				float resp = std::max(0.f, response.at<float>(0,0));
+				float lab = test_labels.at<float>(r, 0);
+				float absdiff = fabs(resp - lab) * feature_scaling_factor;
+				if (attribute_index == 1 || attribute_index == 2)
+				{
+					float absdiff2 = fabs(std::min(resp, lab)+9 - std::max(resp, lab)) * feature_scaling_factor;
+					absdiff = std::min(absdiff, absdiff2);
+					absdiff *= 4./9.;
+				}
+				absErrors[attribute_index].push_back(absdiff);
 				sumAbsError += absdiff;
 				++numberTestSamples;
 				if (absdiff < 1.f)
@@ -483,12 +503,26 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	}
 
 	std::cout << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;		screen_output << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
+	double total_mean = 0., total_below05 = 0., total_below1 = 0.;
 	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
 	{
 		double n = numberSamples[attribute_index];
-		std::cout << "Attribute " << attribute_index+1 << ":\tmean abs error: " << sumAbsErrors[attribute_index]/n << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
-		screen_output << "Attribute " << attribute_index+1 << ":\tmean abs error: " << sumAbsErrors[attribute_index]/n << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
+		double mean = sumAbsErrors[attribute_index]/n;
+		total_mean += mean;
+		if ((size_t)numberSamples[attribute_index] != absErrors[attribute_index].size())
+			std::cout << "Warning: (numberSamples[attribute_index] == absErrors[attribute_index].size()) does not hold for (attribute_index+1): " << attribute_index+1 << std::endl;
+		double stddev = 0.0;
+		for (size_t j=0; j<absErrors[attribute_index].size(); ++j)
+			stddev += (absErrors[attribute_index][j] - mean) * (absErrors[attribute_index][j] - mean);
+		stddev /= (double)(absErrors[attribute_index].size() - 1.);
+		stddev = sqrt(stddev);
+		std::cout << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
+		screen_output << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
+		total_below05 += 100*below05[attribute_index]/n;
+		total_below1 += 100*below1[attribute_index]/n;
 	}
+	std::cout << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%" << std::endl;
+	screen_output << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%" << std::endl;
 
 	// write screen outputs to file
 	std::ofstream file("screen_output_attribute_learning.txt", std::ios::out);
