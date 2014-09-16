@@ -652,7 +652,7 @@ region split(cv::Mat image, cv::Rect roi, double *lbp, int id) {
    //chisquare test
 //   bool val = lbp_check_chi(lbp_values1, lbp_values2,lbp_values3,lbp_values4, (rows_r+rows)*(cols_r+cols));
 //   	 double val = lbp_check_chi_four(lbp_values1, lbp_values4, lbp_values2, lbp_values3,(rows_r+rows)*(cols_r+cols));
-   	 double val = lbp_check_chi(lbp_values, (rows_r+rows)*(cols_r+cols), false);
+//   	 double val = lbp_check_chi(lbp_values, (rows_r+rows)*(cols_r+cols), false);
    	 cv::Mat color_dev1,color_dev2, color_dev3, color_dev4;
    	cv::Mat color_mean1,color_mean2, color_mean3, color_mean4;
    	cv::meanStdDev(image1,  color_mean1, color_dev1);
@@ -673,17 +673,17 @@ region split(cv::Mat image, cv::Rect roi, double *lbp, int id) {
 //   	std::cout<<meandevr<<"r"<<std::endl;
 //   	std::cout<<meandevg<<"g"<<std::endl;
 //   	std::cout<<meandevb<<"b"<<std::endl;
-   	 bool split_now=true;
+//   	 bool split_now=true;
 //if(val==val2)std::cout << "!!!";
 //else std::cout<<val<<"_"<<val2<< "err";
-   	 if(val <= splitval)//split_now=false;   // 5.1 good value
+//   	 if(val <= splitval)//split_now=false;   // 5.1 good value
 //	if(meandevr <60 || meandevg <60 || meandevb <60)
-	{
+//	{
 //		if(val <= 5.1)split_now=false;
-		split_now=false;
-	}else{
-		if(val <= 3.1)split_now=false;
-	}
+//		split_now=false;
+//	}else{
+//		if(val <= 3.1)split_now=false;
+//	}
 //   	 if(val < 6 && val >4.5)split_now = hsv_test(roi_1, roi_2, roi_3, roi_4, image);
 //   	 if(val < 6 && val >4.5)split_now = varianz(image);
 
@@ -740,7 +740,7 @@ void neighbor_graph(region rs, std::vector<int> N, std::vector<int> E, std::vect
 //			std::cout<<"firsttt"<<std::endl;
 
 
-			for(int i=0;i<swap.size();i++)
+			for(size_t i=0;i<swap.size();i++)
 				{
 //				std::cout<<"seconddd"<<std::endl;
 						std::vector<int> idN;
@@ -775,7 +775,7 @@ void neighbor_graph(region rs, std::vector<int> N, std::vector<int> E, std::vect
 							if(splitpos == 4 && num==1)
 								neighbor_ = n1.N;
 
-							for(int j=0;j<neighbor_.size(); j++)
+							for(size_t j=0;j<neighbor_.size(); j++)
 							{
 								if(neighbor_[j]== (id-(id%10))/10)
 								{
@@ -1295,13 +1295,13 @@ void init_neighbour(region &center)
 				region &n2 = *n2s;
 				if(n1.childs.size()>1)
 				{
-					int uebergabe;
+					int uebergabe=0;
 					convert_id(uebergabe, test);
 //					center.neighbors.push_back(uebergabe);
 				}
 				if(n2.childs.size()>1)
 				{
-					int uebergabe;
+					int uebergabe=0;
 					convert_id(uebergabe, test2);
 //					center.neighbors.push_back(uebergabe);
 				}
@@ -1676,7 +1676,7 @@ bool group_region(region& r1, region& r2, std::vector<region_values> &region_val
 	   double dom_color_m = 0;
 	   double dom_color_2_m = 0;
 
-	   for(int i=0;i<region_val[r1.class_num].feat_res.size();i++)
+	   for(size_t i=0;i<region_val[r1.class_num].feat_res.size();i++)
 	   {
 		   s_mean_m = s_mean_m + region_val[r1.class_num].feat_res[i].s_mean;
 		   s_std_m = s_std_m + region_val[r1.class_num].feat_res[i].s_std;
@@ -1699,10 +1699,10 @@ bool group_region(region& r1, region& r2, std::vector<region_values> &region_val
 	   double v_mean = abs(v_mean_m - results2.v_mean);
 	   double v_std = abs(v_std_m - results2.v_std);
 	   double colorfullness = abs(colorfulness_m - results2.colorfulness);
-	   double dom_color_1 = abs(dom_color_m - results2.dom_color);
-	   double dom_color_2 = abs(dom_color_2_m - results2.dom_color2);
-	   double dom_color_3 = abs(dom_color_m - results2.dom_color2);
-	   double dom_color_4 = abs(dom_color_2_m - results2.dom_color);
+//	   double dom_color_1 = abs(dom_color_m - results2.dom_color);
+//	   double dom_color_2 = abs(dom_color_2_m - results2.dom_color2);
+//	   double dom_color_3 = abs(dom_color_m - results2.dom_color2);
+//	   double dom_color_4 = abs(dom_color_2_m - results2.dom_color);
 
 	   double color_diff = s_mean*1 + s_std*1 + v_mean*1 + v_std*1 + colorfullness*1;
 //	   std::cout<<color_diff<<"color_diff"<<std::endl;
@@ -1836,9 +1836,9 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 
 	cv::Mat test = cv::Mat::zeros(525,700,CV_8UC3);
 	//Get neighbor regions
-	for(int a=0;a<region_class.size();a++)
+	for(size_t a=0;a<region_class.size();a++)
 	{
-		for(int i=0;i<region_class[a].members.size();i++)
+		for(size_t i=0;i<region_class[a].members.size();i++)
 		{
 			std::vector<int> id;
 			convert_id(region_class[a].members[i], id);
@@ -1879,7 +1879,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 
 
 
-			for(int j=0;j<reg.neighbors.size();j++)
+			for(size_t j=0;j<reg.neighbors.size();j++)
 			{
 				std::vector<int> idn;
 				convert_id(reg.neighbors[j], idn);
@@ -1901,7 +1901,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 //				std::cout<< reg.class_num <<"reg "<< regn.class_num << "reg2 "<<avoid_double<<"status"<<std::endl;
 				if(regn.class_num != reg.class_num)
 				{
-					for(int ii=0; ii<region_neighbor[a].size();ii++)
+					for(size_t ii=0; ii<region_neighbor[a].size();ii++)
 					{
 						if(region_neighbor[a][ii] == regn.class_num)
 						{
@@ -1957,11 +1957,11 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 	cv::Mat segment;
 	std::vector <cv::Point> seg_points;
 	std::vector< cv::Mat> segment_vec;
-	for(int a=0;a<region_class.size();a++)
+	for(size_t a=0;a<region_class.size();a++)
 	{
 		double sizeofregion=0;
 		segment = cv::Mat::zeros(image.rows,image.cols, CV_8UC3);
-		for(int i=0;i<region_class[a].members.size();i++)
+		for(size_t i=0;i<region_class[a].members.size();i++)
 		{
 			std::vector<int> id;
 			convert_id(region_class[a].members[i], id);
@@ -2013,16 +2013,16 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 //		std::cout<<"end of rotated rect"<<std::endl;
 		seg_points.clear();
 	}
-	int count1 =0;
+//	int count1 =0;
 	//Get feature values of merged and optimized region image
 	std::vector < std::vector<double> > hist_mean_feat;
 	hist_mean_feat.resize(region_class.size());
-	int not_usable_num =0;
-	bool not_usable = false;
+//	int not_usable_num =0;
+//	bool not_usable = false;
 
-	for(int a=0;a<used_class.size();a++)
+	for(size_t a=0;a<used_class.size();a++)
 	{
-		bool not_usable = false;
+//		bool not_usable = false;
 		hist_mean_feat[a].resize(9);
 		std::vector<struct feature_results> segment_features;
 		struct feature_results results;
@@ -2128,7 +2128,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 //	std::cout<<used_class.size()<<"used_class"<<std::endl;
 //	for(int a=0;a<used_class.size();a++)
 //	{
-		for(int a=0;a<used_class.size();a++)
+		for(size_t a=0;a<used_class.size();a++)
 		{
 		if(region_class[used_class[a]].merged_second)
 		{
@@ -2137,13 +2137,13 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 			std::vector < std::vector <double> > check_hist;
 			double best_result_val = results;
 			int best_result_pos = 0;
-			int used_position=0;
+//			int used_position=0;
 //			std::cout<<region_neighbor[a].size()<<"size of neighbors"<<std::endl;
-			for(int j=0;j<region_neighbor[a].size();j++)
+			for(size_t j=0;j<region_neighbor[a].size();j++)
 			{
 				int position = 0;
 				bool position_found = false;
-				for(int i=0;i<used_class.size();i++)
+				for(size_t i=0;i<used_class.size();i++)
 				{
 					if(used_class[i] == region_neighbor[a][j])
 					{
@@ -2159,7 +2159,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 
 					double cvval=0;
 
-						for(int cv = 0; cv<hist_mean_feat[a].size();cv++)
+						for(size_t cv = 0; cv<hist_mean_feat[a].size();cv++)
 						{
 //							std::cout<<"debug21"<<std::endl;
 //							std::cout<<hist_mean_feat[a][cv]<<" "<<hist_mean_feat[position][cv]<<std::endl;
@@ -2191,11 +2191,11 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 							if(region_class[used_class[a]].merged_pos == -1 && region_class[best_result_pos].merged_pos == -1)
 							{
 								region_merged.resize(region_merged.size()+1);
-								for(int m = 0;m<region_class[best_result_pos].members.size();m++)
+								for(size_t m = 0;m<region_class[best_result_pos].members.size();m++)
 								{
 									region_merged[region_merged.size()-1].members.push_back(region_class[best_result_pos].members[m]);
 								}
-								for(int m = 0;m<region_class[used_class[a]].members.size();m++)
+								for(size_t m = 0;m<region_class[used_class[a]].members.size();m++)
 								{
 									region_merged[region_merged.size()-1].members.push_back(region_class[used_class[a]].members[m]);
 								}
@@ -2205,7 +2205,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 								region_class[best_result_pos].merged_pos=region_merged.size()-1;
 							}else if(region_class[used_class[a]].merged_pos != -1 && region_class[best_result_pos].merged_pos == -1)// && region_class[used_class[a]].merged_second==true && region_class[best_result_pos].merged_second==false)
 							{
-								for(int m = 0;m<region_class[best_result_pos].members.size();m++)
+								for(size_t m = 0;m<region_class[best_result_pos].members.size();m++)
 								{
 									region_merged[region_class[used_class[a]].merged_pos].members.push_back(region_class[best_result_pos].members[m]);
 								}
@@ -2214,7 +2214,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 								region_class[used_class[a]].merged_second=false;
 							}else if(region_class[used_class[a]].merged_pos == -1 && region_class[best_result_pos].merged_pos != -1)// && region_class[used_class[a]].merged_second==false && region_class[best_result_pos].merged_second==true)
 							{
-								for(int m = 0;m<region_class[used_class[a]].members.size();m++)
+								for(size_t m = 0;m<region_class[used_class[a]].members.size();m++)
 								{
 									region_merged[region_class[best_result_pos].merged_pos].members.push_back(region_class[used_class[a]].members[m]);
 								}
@@ -2230,7 +2230,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 								{
 									region_merged[region_class[used_class[a]].merged_pos].members.push_back(region_merged[region_class[best_result_pos].merged_pos].members[m]);
 								}
-								for(int m=0;m<region_merged[region_class[best_result_pos].merged_pos].members.size();m++)
+								for(size_t m=0;m<region_merged[region_class[best_result_pos].merged_pos].members.size();m++)
 								{
 									region_merged[region_class[best_result_pos].merged_pos].members.pop_back();
 								}
@@ -2273,12 +2273,12 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 
 	}
 
-	for(int i=0;i<region_class.size();i++)
+	for(size_t i=0;i<region_class.size();i++)
 	{
 
 				if(region_class[i].merged_second){
 					region_merged.resize(region_merged.size()+1);
-					for(int m = 0;m<region_class[i].members.size();m++)
+					for(size_t m = 0;m<region_class[i].members.size();m++)
 					{
 						region_merged[region_merged.size()-1].members.push_back(region_class[i].members[m]);
 					}
@@ -2322,7 +2322,7 @@ void set_region_lbp_mean(region reg, std::vector<region_values> &reg_val)
 		for(int j=0; j<size_member;j++)
 		{
 			convert_id(reg_val[i].members[j], id);
-			region *reg2 = get_region(id, reg);
+//			region *reg2 = get_region(id, reg);
 
 //			for(int k=0;k<10;k++)
 //			{
@@ -2423,7 +2423,7 @@ void draw_region_class(cv::Mat img, region reg, std::vector<region_values> regio
 //		swap = cv::Mat::zeros(img.rows, img.cols, CV_8UC3);
 		double region_surface=1;
 		std::vector<cv::Point> segment_points;
-		for(int mem=0;mem<region_class[l].members.size();mem++)
+		for(size_t mem=0;mem<region_class[l].members.size();mem++)
 		{
 
 			std::vector<int> id;
@@ -2562,13 +2562,13 @@ void get_num_lbp(region &t, int &lbp, int &notlbp)
 
 void set_neighbor(std::vector<int> ids)
 {
-	for(int i=0; i<ids.size();i++)
+	for(size_t i=0; i<ids.size();i++)
 	{
 		std::vector<int> id;
 		convert_id(ids[i], id);
 		region *n1s = get_region(id, r);
 		region &n1 = *n1s;
-		for(int j=0;j<ids.size();j++)
+		for(size_t j=0;j<ids.size();j++)
 		{
 			if(j!=i)
 			{
@@ -2590,25 +2590,25 @@ void set_old_neighbors(region &n)
 	if(n.childs.size()<1)
 	{
 
-		for(int i=0;i<n.N.size();i++){
+		for(size_t i=0;i<n.N.size();i++){
 			if(validity[n.N[i]])
 				n.neighbors.push_back(n.N[i]);
 //			std::cout<<n.N[i]<<" ";
 		}
 
-		for(int i=0;i<n.E.size();i++){
+		for(size_t i=0;i<n.E.size();i++){
 			if(validity[n.E[i]])
 				n.neighbors.push_back(n.E[i]);
 //			std::cout<<n.E[i]<<" ";
 		}
 
-		for(int i=0;i<n.S.size();i++){
+		for(size_t i=0;i<n.S.size();i++){
 			if(validity[n.S[i]])
 				n.neighbors.push_back(n.S[i]);
 //				std::cout<<n.S[i]<<" ";
 		}
 
-		for(int i=0;i<n.W.size();i++){
+		for(size_t i=0;i<n.W.size();i++){
 			if(validity[n.W[i]])
 				n.neighbors.push_back(n.W[i]);
 //				std::cout<<n.W[i]<<" ";
@@ -2637,7 +2637,7 @@ cv::Mat splitandmerge::categorize(cv::Mat image_in, std::vector<cv::Mat>* segmen
 		original_image= image_in.clone();
 		std::vector<region_values > region_class;
 		std::vector<region_values > region_class_copy;
-		std::vector<cv::Mat>* segments_copy;
+//		std::vector<cv::Mat>* segments_copy;
 		double init[10];
 	    cv::Mat img = image_in.clone();
 	    std::vector<int> N, E, S, W;
@@ -2647,8 +2647,8 @@ cv::Mat splitandmerge::categorize(cv::Mat image_in, std::vector<cv::Mat>* segmen
 	    std::cout<<"split"<<std::endl;
 //	    r = split(img, cv::Rect(0,0,img.cols,img.rows), init, 0, N, E, S, W, 0);
 	    r = split(img, cv::Rect(0,0,img.cols,img.rows), init, 0);
-	    int a=0;
-	    int b=0;
+//	    int a=0;
+//	    int b=0;
 
 
 	    timeval start, end;

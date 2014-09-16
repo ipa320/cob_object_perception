@@ -363,7 +363,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		//Add unsegmented areas as one image to vector of segmented images
 		cv::Mat work_segment;
 		cvtColor( undefined_cluster, work_segment, CV_BGR2GRAY );
-		int nonZeros = cv::countNonZero(work_segment);
+//		int nonZeros = cv::countNonZero(work_segment);
 		if(true)//(nonZeros)/(640*480)>0.2)
 		{
 
@@ -376,7 +376,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 			seg_pos_vec.push_back(pos);
 		}
 
-		for(int i=0;i<segment_vec.size();i++)
+		for(size_t i=0;i<segment_vec.size();i++)
 			{
 				cv::imshow("Ausgabe tiefenbild", segment_vec[i]);
 				cv::waitKey(10000);
@@ -446,7 +446,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		}
 
 
-		for(int i=0;i<segment_vec.size();i++)
+		for(size_t i=0;i<segment_vec.size();i++)
 		{
 			std::ostringstream outStream;
 			outStream << i;
@@ -575,7 +575,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		std::cout<<"Split and Merge"<<std::endl;
 		////Segment with split and merge
 		std::vector<cv::Mat> swap_vec, newvec, newvectest, retransformed_segment;
-		for(int i=0; i<segment_vec.size(); i++)
+		for(size_t i=0; i<segment_vec.size(); i++)
 		{
 			swap_vec.clear();
 			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
@@ -733,7 +733,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		std::cout<<countsegment<<"countsegemtn "<<retransformed_segment.size()<<"retransseg "<<newvec.size()<<"newsize"<<segment_vec.size()<<"segment_vec size"<<std::endl;
 
 		//Visualisation of Segmentation
-		for(int i=0;i<retransformed_segment.size();i++)
+		for(size_t i=0;i<retransformed_segment.size();i++)
 		{
 			int r=0,b=0,g=0;
 			if(i%3==0)
@@ -1317,8 +1317,8 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //	}
 //	}
 //
-	cv::imshow("original", color_image);
-	splitandmerge test = splitandmerge();
+//	cv::imshow("original", color_image);
+//	splitandmerge test = splitandmerge();
 //	cv::Mat pic1 = test.categorize(color_image);
 //	cv::Mat pic2 = test.categorize(test2);
 //	cv::Mat pic3 = test.categorize(test3);
