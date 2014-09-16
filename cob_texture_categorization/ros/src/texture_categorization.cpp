@@ -77,7 +77,7 @@ node_handle_(nh)
 //	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
 
-	segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
+//	segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
 
 
 //	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
@@ -88,6 +88,7 @@ node_handle_(nh)
 //	inputCallbackNoCam();
 //	attributeLearningDatabaseTestFarhadi();
 //	attributeLearningDatabaseTestHandcrafted();
+	attributeLearningDatabaseTestAutomatedClass();
 
 }
 struct segment_position{
@@ -162,7 +163,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		for(unsigned int i=0; i<msg2.clusters.size();i++)
 		{
 			schwerepunkt.clear();
-			if(msg2.clusters[i].array.size()>2000)
+			if(msg2.clusters[i].array.size()>1500)//750
 			{
 
 				segment_img = cv::Mat::zeros(480,640, CV_8UC3);
@@ -221,7 +222,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 							segment_img.at<cv::Vec3b>(iy,ix)[2]=orig_img_draw.at<cv::Vec3b>(iy,ix)[2];
 							schwerepunkt.push_back(cv::Point(ix,iy));
 
-							if(orig_img_draw.at<cv::Vec3b>(iy,ix)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix)[2]!=0 &&((
+							if(orig_img_draw.at<cv::Vec3b>(iy,ix)[0]!=0 || orig_img_draw.at<cv::Vec3b>(iy,ix)[1]!=0 || orig_img_draw.at<cv::Vec3b>(iy,ix)[2]!=0 ||((
 								orig_img_draw.at<cv::Vec3b>(iy,ix-1)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix-1)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix-1)[2]!=0 &&
 								orig_img_draw.at<cv::Vec3b>(iy,ix+1)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix+1)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy,ix+1)[2]!=0) ||(
 								orig_img_draw.at<cv::Vec3b>(iy-1,ix)[0]!=0 && orig_img_draw.at<cv::Vec3b>(iy-1,ix)[1]!=0 && orig_img_draw.at<cv::Vec3b>(iy-1,ix)[2]!=0 &&
@@ -363,7 +364,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		cv::Mat work_segment;
 		cvtColor( undefined_cluster, work_segment, CV_BGR2GRAY );
 		int nonZeros = cv::countNonZero(work_segment);
-		if((nonZeros)/(640*480)>0.2)
+		if(true)//(nonZeros)/(640*480)>0.2)
 		{
 
 			segment_vec.push_back(undefined_cluster);
@@ -374,6 +375,12 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 			pos.segment = count;
 			seg_pos_vec.push_back(pos);
 		}
+
+		for(int i=0;i<segment_vec.size();i++)
+			{
+				cv::imshow("Ausgabe tiefenbild", segment_vec[i]);
+				cv::waitKey(10000);
+			}
 
 		std::vector<cv::Mat> segment_copy = segment_vec;
 
@@ -387,7 +394,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		swap_vec_bool.resize(segment_vec.size());
 		if(segment_vec.size()>1)
 		{
-			for(unsigned int i=0;i<segment_vec.size();i++)
+			for(unsigned int i=0;i<segment_vec.size()-1;i++)
 			{
 				std::vector <cv::Point> seg_points;
 				cv::Mat work_segment = segment_vec[i];
@@ -438,6 +445,17 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 			}
 		}
 
+
+		for(int i=0;i<segment_vec.size();i++)
+		{
+			std::ostringstream outStream;
+			outStream << i;
+			std::string num;
+			num  = outStream.str();
+//
+			std::string filename = "/home/rmb-dh/evaluation/segments" +num+".jpg";
+			 cv::imwrite(filename, segment_vec[i] );
+		}
 
 
 
@@ -538,6 +556,20 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 //
 //		}
 
+
+//		//split and merge orig img
+//		std::vector<cv::Mat> retransformed_segment;
+//		splitandmerge seg_step_two = splitandmerge();
+//		cv::Mat splitwork = orig_img_draw.clone();
+//		seg_step_two.categorize(splitwork, &retransformed_segment, 1);
+//
+//		for(int i=0;i<segment_vec.size();i++)
+//		{
+//			cv::imshow("sm", segment_vec[i]);
+//			cv::waitKey(10000);
+//		}
+
+
 		int countsegment=0;
 
 		std::cout<<"Split and Merge"<<std::endl;
@@ -549,7 +581,13 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
 			{
 				splitandmerge seg_step_two = splitandmerge();
-				seg_step_two.categorize(segment_vec[i], &swap_vec, 1);
+				if(i != (segment_vec.size()-1))
+				{
+					seg_step_two.categorize(segment_vec[i], &swap_vec, 1);
+				}else{
+					seg_step_two.categorize(segment_vec[i], &swap_vec, 2);
+				}
+
 			}else{
 				swap_vec.push_back(segment_vec[i]);
 			}
@@ -692,8 +730,6 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 
 
 
-
-
 		std::cout<<countsegment<<"countsegemtn "<<retransformed_segment.size()<<"retransseg "<<newvec.size()<<"newsize"<<segment_vec.size()<<"segment_vec size"<<std::endl;
 
 		//Visualisation of Segmentation
@@ -701,150 +737,165 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		{
 			int r=0,b=0,g=0;
 			if(i%3==0)
-				r = rand() % 100 + 50;
+				r = rand() % 50 + 100;
+
 			if(i%3==1)
-				g = rand() % 100 + 50;
+
+				b = rand() % 50 +  100;
+
 			if(i%3==2)
-				b = rand() % 100 + 50;
+
+				g = rand() % 50+  100;
 			for(int n=0;n<640;n++)
 			{
 				for(int m=0;m<480;m++)
 				{
-					if(retransformed_segment[i].at<cv::Vec3b>(m,n)[0]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[1]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[2]!=0 ){
-						orig_img_draw.at<cv::Vec3b>(m,n)[0]=retransformed_segment[i].at<cv::Vec3b>(m,n)[0]+b;
-						orig_img_draw.at<cv::Vec3b>(m,n)[1]=retransformed_segment[i].at<cv::Vec3b>(m,n)[1]+g;
-						orig_img_draw.at<cv::Vec3b>(m,n)[2]=retransformed_segment[i].at<cv::Vec3b>(m,n)[2]+r;
+					if(retransformed_segment[i].at<cv::Vec3b>(m,n)[0]!=0 || retransformed_segment[i].at<cv::Vec3b>(m,n)[1]!=0 || retransformed_segment[i].at<cv::Vec3b>(m,n)[2]!=0 ){
+						orig_img_draw.at<cv::Vec3b>(m,n)[0]= retransformed_segment[i].at<cv::Vec3b>(m,n)[0]+r;
+						orig_img_draw.at<cv::Vec3b>(m,n)[1]= retransformed_segment[i].at<cv::Vec3b>(m,n)[1]+g;
+						orig_img_draw.at<cv::Vec3b>(m,n)[2]= retransformed_segment[i].at<cv::Vec3b>(m,n)[2]+b;
 					}
 				}
 			}
 			cv::imshow("Segments",orig_img_draw);
-			if(newvec.size()>i)
-			{
-				imshow("newvec", newvec[i]);
-			}
-			if(newvectest.size()>i)
-			{
-				imshow("newvectest", newvectest[i]);
-			}
-			if(segment_vec.size()>i)
-			{
-				imshow("segment_vec", segment_vec[i]);
-			}
+//			if(newvec.size()>i)
+//			{
+//				imshow("newvec", newvec[i]);
+//			}
+//			if(newvectest.size()>i)
+//			{
+//				imshow("newvectest", newvectest[i]);
+//			}
+//			if(segment_vec.size()>i)
+//			{
+				imshow("segment_vec", retransformed_segment[i]);
+				std::ostringstream outStream;
+				outStream << i;
+				std::string num;
+				num  = outStream.str();
+//
+				std::string filename = "/home/rmb-dh/evaluation/transformed" +num+".jpg";
+				 cv::imwrite(filename, retransformed_segment[i] );
+//			}
 			cv::waitKey(100000);
 		}
-
-
-		//Get Position of Segments for naming
-		std::vector<cv::Point> segment_center;
-		segment_center.resize(retransformed_segment.size());
-		std::vector< std::vector <cv::Point> > seg_points;
-		seg_points.resize(retransformed_segment.size());
-		for(int i=0; i<retransformed_segment.size();i++)
-		{
-
-			for(int n=0;n<640;n++)
-			{
-				for(int m=0;m<480;m++)
-				{
-					if(retransformed_segment[i].at<cv::Vec3b>(m,n)[0]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[1]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[2]!=0 )
-					{
-						seg_points[i].push_back(cv::Point(n,m));
-					}
-				}
-			}
-			cv::RotatedRect rec;
-			if(seg_points[i].size()>3)
-			{
-				rec =  minAreaRect(seg_points[i]);
-				if(rec.size.height>30 && rec.size.width>30)
-					segment_center[i] = cv::Point2f(rec.center.x, rec.center.y);
-			}
-		}
+		std::cout<<"Segmentation done"<<std::endl;
+		 cv::imwrite("/home/rmb-dh/evaluation/Segmented.jpg", orig_img_draw );
 
 
 
 
-
-		std::cout<<"Compute features"<<std::endl;
-		////Compute Features of Segments
-		std::vector<struct feature_results> segment_features;
-		struct feature_results results;
-		cv::Mat img_seg;
-
-		for(unsigned int i=0;i<segment_vec.size();i++)
-		{
-//			imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
-			img_seg = segment_vec[i];
-			color_parameter color = color_parameter();
-			color.get_color_parameter(img_seg, &results);
-			texture_features edge = texture_features();
-			cv::Mat dummy(480,640,CV_32F);
-			edge.primitive_size(&img_seg, &results, &dummy);
-			segment_features.push_back(results);
-		}
-
-		////Create matrix for classifikation
-		cv::Mat feature_mat;
-		feature_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
-		for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
-		{
-			results = segment_features[sample_index];
-			feature_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
-			feature_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
-			feature_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
-			feature_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
-			feature_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
-			feature_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
-			feature_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
-			feature_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
-			feature_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
-			feature_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
-			feature_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
-			feature_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
-			feature_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
-			//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
-			feature_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-			feature_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
-			feature_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
-		}
-		std::cout<<"Run classifikation"<<std::endl;
-//		Run classifikation with SVM
-		cv::Mat prediction_results;
-	 	CvSVM SVM;
-	    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
-	    SVM.predict(feature_mat,prediction_results);
-
-
-	    ////Write Segment type
-	    std::vector<std::string> classes;
-	    create_train_data get_classes = create_train_data();
-	    classes = get_classes.get_texture_classes();
-	    std::string s;
-	    for(int i=0;i<prediction_results.rows;i++)
-	    {
-	    	s.clear();
-	    	s = classes[prediction_results.at<float>(i,0)];
-	    	if(segment_center[i].x!=0 && segment_center[i].y!=0)
-	    	{
-				putText(orig_img_draw, s, segment_center[i],
-												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
-				putText(orig_img, s, segment_center[i],
-												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
-				putText(segmented_image, s, segment_center[i],
-												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
-				putText(test,s, segment_center[i],
-												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
-	    	}
-
-	    }
-	    cv::imshow("orig no lines", orig_img_draw);
-		cv::imshow("orig", orig_img);
-		cv::imshow("seg", segmented_image);
-		cv::imshow("seg2", test);
+//		//Get Position of Segments for naming
+//		std::vector<cv::Point> segment_center;
+//		segment_center.resize(retransformed_segment.size());
+//		std::vector< std::vector <cv::Point> > seg_points;
+//		seg_points.resize(retransformed_segment.size());
+//		for(int i=0; i<retransformed_segment.size();i++)
+//		{
+//
+//			for(int n=0;n<640;n++)
+//			{
+//				for(int m=0;m<480;m++)
+//				{
+//					if(retransformed_segment[i].at<cv::Vec3b>(m,n)[0]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[1]!=0 && retransformed_segment[i].at<cv::Vec3b>(m,n)[2]!=0 )
+//					{
+//						seg_points[i].push_back(cv::Point(n,m));
+//					}
+//				}
+//			}
+//			cv::RotatedRect rec;
+//			if(seg_points[i].size()>3)
+//			{
+//				rec =  minAreaRect(seg_points[i]);
+//				if(rec.size.height>30 && rec.size.width>30)
+//					segment_center[i] = cv::Point2f(rec.center.x, rec.center.y);
+//			}
+//		}
+//
+//
+//
+//
+//
+//		std::cout<<"Compute features"<<std::endl;
+//		////Compute Features of Segments
+//		std::vector<struct feature_results> segment_features;
+//		struct feature_results results;
+//		cv::Mat img_seg;
+//
+//		for(unsigned int i=0;i<segment_vec.size();i++)
+//		{
+////			imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
+//			img_seg = segment_vec[i];
+//			color_parameter color = color_parameter();
+//			color.get_color_parameter(img_seg, &results);
+//			texture_features edge = texture_features();
+//			cv::Mat dummy(480,640,CV_32F);
+//			edge.primitive_size(&img_seg, &results, &dummy);
+//			segment_features.push_back(results);
+//		}
+//
+//		////Create matrix for classifikation
+//		cv::Mat feature_mat;
+//		feature_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
+//		for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
+//		{
+//			results = segment_features[sample_index];
+//			feature_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
+//			feature_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
+//			feature_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
+//			feature_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
+//			feature_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
+//			feature_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
+//			feature_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
+//			feature_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
+//			feature_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
+//			feature_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
+//			feature_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
+//			feature_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
+//			feature_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
+//			//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
+//			feature_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
+//			feature_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
+//			feature_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
+//		}
+//		std::cout<<"Run classifikation"<<std::endl;
+////		Run classifikation with SVM
+//		cv::Mat prediction_results;
+//	 	CvSVM SVM;
+//	    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
+//	    SVM.predict(feature_mat,prediction_results);
+//
+//
+//	    ////Write Segment type
+//	    std::vector<std::string> classes;
+//	    create_train_data get_classes = create_train_data();
+//	    classes = get_classes.get_texture_classes();
+//	    std::string s;
+//	    for(int i=0;i<prediction_results.rows;i++)
+//	    {
+//	    	s.clear();
+//	    	s = classes[prediction_results.at<float>(i,0)];
+//	    	if(segment_center[i].x!=0 && segment_center[i].y!=0)
+//	    	{
+//				putText(orig_img_draw, s, segment_center[i],
+//												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+//				putText(orig_img, s, segment_center[i],
+//												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+//				putText(segmented_image, s, segment_center[i],
+//												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+//				putText(test,s, segment_center[i],
+//												cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+//	    	}
+//
+//	    }
+//	    cv::imshow("orig no lines", orig_img_draw);
+//		cv::imshow("orig", orig_img);
+//		cv::imshow("seg", segmented_image);
+//		cv::imshow("seg2", test);
 
 	    double seconds = end.tv_sec - start.tv_sec;
 	    double useconds = end.tv_usec - start.tv_usec;
-		cv::waitKey(1000);
+		cv::waitKey(1000000);
 
 
 
@@ -917,7 +968,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 //	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
 	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
+	std::string feature_files_path = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
 
 //	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
@@ -931,14 +982,14 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 	AttributeLearning al;
 	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
 	// option 1: pre-computed in MATLAB:
-//	al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+	al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
 //	cv::Mat temp = ground_truth_attribute_matrix.clone();
 //	ground_truth_attribute_matrix.create(temp.rows, temp.cols-1, temp.type());
 //	for (int r=0; r<temp.rows; ++r)
 //		for (int c=0; c<16; ++c)
 //			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 	// option 2: computed with this program
-//	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 	int folds = 20;
@@ -951,6 +1002,29 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
 	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+}
+
+void TextCategorizationNode::attributeLearningDatabaseTestAutomatedClass()
+{
+	AttributeLearning al;
+	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb_tomato.txt";
+	std::string data_file_name_orig = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, orig;
+	create_train_data::DataHierarchyType data_hierarchy;
+	int a=16, b=17;
+	al.loadTextureDatabaseBaseFeatures(data_file_name_orig,a,b, orig, ground_truth_attribute_matrix,  class_label_matrix, data_hierarchy);
+	al.loadTextureDatabaseBaseFeatures(data_file_name,a,b, computed_attribute_matrix, ground_truth_attribute_matrix,  class_label_matrix, data_hierarchy);
+
+	train_ml classtest;
+//		std::cout<<computed_attribute_matrix<<std::endl;
+	classtest.newClassTest(computed_attribute_matrix, class_label_matrix, orig);
+
+
+//	std::cout<<computed_attribute_matrix<<std::endl;
+	std::cout<<computed_attribute_matrix.cols<<" "<<computed_attribute_matrix.rows<<std::endl;
+
+//	compute_textures test;
+//	test.compute_textures_all();
 }
 
 void TextCategorizationNode::inputCallbackNoCam()

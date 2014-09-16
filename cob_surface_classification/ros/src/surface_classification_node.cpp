@@ -132,7 +132,7 @@
 //evaluation
 #include "Evaluation.h"
 
-
+int global_imagecount;
 
 class SurfaceClassificationNode
 {
@@ -191,6 +191,9 @@ public:
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
 
+
+
+
 		//ROS_INFO("Input Callback");
 
 		// convert color image to cv::Mat
@@ -206,8 +209,76 @@ public:
 			cloud->width = 640;
 		}
 
+
+		//SAVE Pointcloud
+		bool savepointcloud=false;
+		if(savepointcloud)
+		{
+			 pcl::io::savePCDFileASCII ("/home/rmb-dh/evaluation/test_pcd.pcd", *cloud);
+			 std::cout<<"cloud saved"<<std::endl;
+			 cv::imwrite("/home/rmb-dh/evaluation/pointcloud_img.jpg", color_image );
+			 cv::imshow("Saved Image", color_image);
+			 cv::waitKey(100000);
+			 std::cout<<"Get new Image"<<std::endl;
+		}
+
+		//Load Pointcloud for Evaluation
+		bool loadpointcloud = true;
+		sensor_msgs::PointCloud2 cloud_blob;
+
+
+		std::ostringstream outStream;
+		outStream << global_imagecount;
+		std::string num;
+		num  = outStream.str();
+
+
+		std::ostringstream outStream2;
+		if(global_imagecount==1)
+		{
+			outStream2 << global_imagecount;
+		}else{
+			outStream2 << global_imagecount-1;
+		}
+		std::string num2;
+		num2  = outStream2.str();
+//		std::string num = "34";
+//		std::string num2 = "34";
+
+
+		std::string pcd = "/home/rmb-dh/evaluation/Final2/ev"+ num + ".pcd";
+		std::string jpg = "/home/rmb-dh/evaluation/Final2/ev"+ num +".jpg";
+//		std::string pcd = "/home/rmb-dh/evaluation/test.pcd";
+//		std::string jpg = "/home/rmb-dh/evaluation/test.jpg";
+		std::string segmented = "/home/rmb-dh/evaluation/Segmented/Segmented"+ num2 +".jpg";
+		std::cout<< pcd <<" Used PCD File   "<<jpg<<" Used JPG File"<<std::endl;
+
+		global_imagecount++;
+		if(global_imagecount==4)
+			global_imagecount=2;
+
+//		cv::imshow("imagebevore", cv::imread(segmented,1));
+
+
+		if(loadpointcloud)
+		{
+			  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcd, *cloud) == -1) //* load the file
+			  {
+			    PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
+			  }
+			  io::loadPCDFile (pcd, cloud_blob);
+			  color_image = cv::imread(jpg, 1);
+			  std::cout << "Loaded "
+			            << cloud->width * cloud->height
+			            << " data points from test_pcd.pcd with the following fields: "
+			            << std::endl;
+		}
+
+
+
 		int key = 0;
 		cv::imshow("image", color_image);
+		cv::waitKey(100000);
 //		if(!EVALUATION_ONLINE_MODE)
 //			cv::waitKey(10);
 //		if(EVALUATION_ONLINE_MODE)
@@ -407,7 +478,13 @@ public:
 			if (PUBLISH_SEGMENTATION)
 			{
 				cob_surface_classification::SegmentedPointCloud2 msg;
-				msg.pointcloud = *pointcloud_msg;
+				if(!loadpointcloud)
+				{
+					msg.pointcloud = *pointcloud_msg;
+				}else
+				{
+					msg.pointcloud = cloud_blob;
+				}
 				for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
 				{
 					cob_surface_classification::Int32Array point_indices;
@@ -469,6 +546,7 @@ public:
 //			eval_.compareClassification(gt_filename);
 //		}
 
+
 	}//inputCallback()
 
 
@@ -513,6 +591,7 @@ private:
 
 int main (int argc, char** argv)
 {
+	global_imagecount=2;
 	// Initialize ROS, specify name of node
 	ros::init(argc, argv, "cob_surface_classification");
 

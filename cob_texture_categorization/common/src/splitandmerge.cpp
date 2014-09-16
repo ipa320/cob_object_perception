@@ -6,6 +6,9 @@
 
 #include <sys/time.h>
 
+int mergefirstval = 2;
+int mergesecondval = 150;
+double splitval = 5.1;
 
 //Struct represents regions/nodes in tree
 //struct region {
@@ -673,7 +676,7 @@ region split(cv::Mat image, cv::Rect roi, double *lbp, int id) {
    	 bool split_now=true;
 //if(val==val2)std::cout << "!!!";
 //else std::cout<<val<<"_"<<val2<< "err";
-   	 if(val <= 4.1)//split_now=false;   // 5.1 good value
+   	 if(val <= splitval)//split_now=false;   // 5.1 good value
 //	if(meandevr <60 || meandevg <60 || meandevb <60)
 	{
 //		if(val <= 5.1)split_now=false;
@@ -684,7 +687,7 @@ region split(cv::Mat image, cv::Rect roi, double *lbp, int id) {
 //   	 if(val < 6 && val >4.5)split_now = hsv_test(roi_1, roi_2, roi_3, roi_4, image);
 //   	 if(val < 6 && val >4.5)split_now = varianz(image);
 
-    if(split_now)
+    if(roi.height>8 && roi.width>8)//(split_now)//
     {
     	rs.lbp_set = false;
         region r1 = split(image1, cv::Rect(roi.x, roi.y, cols,rows), lbp_values1, (rs.id*10)+1);
@@ -1741,7 +1744,7 @@ bool group_region(region& r1, region& r2, std::vector<region_values> &region_val
 //	   	std::cout<<meandevb<<"b"<<std::endl;
 //	if( merge_lbp_chi(r1, r2, region, image))//lbp && r2.validity && r1.lbp_set && r2.lbp_set &&)
 //	if(meandevr < 30 && meandevg <30 && meandevb<30)
-	if(color_diff <=0)
+	if(color_diff <= mergefirstval)//2
 	{
 		r2.class_num = r1.class_num;
 		region_val[r1.class_num].merged_pos = -1;
@@ -1979,7 +1982,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 
 //		used_class.push_back(a);
 //		std::cout<<"begin of rotated rect"<<std::endl;
-		if(sizeofregion>100)
+		if(sizeofregion>100)//40
 		{
 					cv::RotatedRect rec;
 					if(seg_points.size()>3)
@@ -2180,7 +2183,7 @@ void merge_lbp_second(region& center, int class_num, std::vector<region_values>&
 //						if(region_class[best_result_pos].merged_second)
 //						{
 				}}
-						if(best_result_val <=30)// && region_class[best_result_pos].merged_second)
+						if(best_result_val <= mergesecondval)// 70 // && region_class[best_result_pos].merged_second)
 						{
 
 
@@ -2403,7 +2406,7 @@ void draw_region(cv::Mat img, region reg, std::vector<region_values> region) {
 		}
 	}
 }
-void draw_region_class(cv::Mat img, region reg, std::vector<region_values> region_class, std::vector<cv::Mat>* segments) {
+void draw_region_class(cv::Mat img, region reg, std::vector<region_values> region_class, std::vector<cv::Mat>* segments, int mergeval) {
 	int size = region_class.size();
 
 //	std::cout<<size<<"Anzahl der Klassenregionen"<<std::endl;
@@ -2459,13 +2462,16 @@ void draw_region_class(cv::Mat img, region reg, std::vector<region_values> regio
 		}
 		region_surface = region_surface + rec.size.width*rec.size.height;
 
-		if(region_surface >=2500)
+		if(region_surface >=2000)
 		{
+			double fuellgrad = 0.25;
+			if(mergeval == 2)
+				fuellgrad = 0.35;
 			cv::Mat binary_img;// = swap.clone();
 //			binary_img.convertTo(binary_img,CV_8U,255.0/(255));
 			cv::cvtColor( swap, binary_img, CV_BGR2GRAY );
 			int non = countNonZero(binary_img);
-			if(non/region_surface >0.3){
+			if(non/region_surface >=fuellgrad){
 //				std::cout<<"insert image"<<std::endl;
 				cv::Mat test2 = swap.clone();
 				(*segments).push_back(test2);
@@ -2735,7 +2741,7 @@ cv::Mat splitandmerge::categorize(cv::Mat image_in, std::vector<cv::Mat>* segmen
 	    {
 			cv::Mat drawnregion = img.clone();
 //			draw_rect(img, r);
-			draw_region_class(img, r, region_class, segments);
+			draw_region_class(img, r, region_class, segments, mergeval);
 	    }
 	    else
 	    {
