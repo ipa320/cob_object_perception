@@ -9,7 +9,7 @@ p_transformation::p_transformation()
 {
 }
 
-bool p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud< pcl::PointXYZ >::Ptr pixelpointcloud, pcl::PointCloud< pcl::PointXYZ >::Ptr metricpointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff)
+bool p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud< pcl::PointXYZ >::Ptr pixelpointcloud, pcl::PointCloud< pcl::PointXYZ >::Ptr metricpointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff, cv::Mat *H_)
 {
 //const sensor_msgs::PointCloud2ConstPtr& pcl::PointCloud< pcl::PointXYZ >::Ptr
 	try
@@ -404,7 +404,7 @@ bool p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud<
 //		std::cout<<point<<"point1"<<std::endl;
 //		point = (*input_cloud2)[100*(source->cols)+104];
 //		std::cout<<point<<"point1"<<std::endl;
-
+		cv::Mat imgbevore = (*source).clone();
 
 	//	Homography H
 		float birdEyeResolution = 300;
@@ -422,6 +422,15 @@ bool p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud<
 		cv::Mat imageH = cv::Mat::zeros(480,640,CV_8UC3);
 //		std::cout<<H<<"homohradph"<<std::endl;
 		cv::warpPerspective((*source), (*source), H, workimage.size());
+		*H_ = H.inv(cv::DECOMP_LU);
+
+//		cv::Mat inverse = H.inv(cv::DECOMP_LU);
+//		cv::Mat testt = cv::Mat::zeros(workimage.rows, workimage.cols, CV_8UC3);
+//		cv::warpPerspective((*source), testt, inverse, workimage.size());
+//		cv::imshow("TEST", *source);
+//		cv::imshow("imgtest", testt);
+//		cv::imshow("imgtest2", imgbevore);
+//		cv::waitKey(10000);
 		return true;
 				}else{
 //					std::cout<<"No transformation found:"<<std::endl;

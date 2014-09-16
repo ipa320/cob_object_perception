@@ -1,5 +1,6 @@
 #include "cob_texture_categorization/color_parameter.h"
 
+
 color_parameter::color_parameter()
 {
 }
@@ -162,109 +163,153 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 		dom_color2 = 0;
 	}
 
+	for(int i=0;i<hue_hist.size();i++)
+	{
+		std::cout<<hue_hist[i]<<"  ";
+	}
+	std::cout<<std::endl;
+	//colorfulness
+	int amount_of_color=0;
+
+	//dom_color & dom_color2
+	cv::Mat hue(1,21,CV_32F);
+	for(int i=0;i<hue_hist.size();i++)
+	{
+		hue.at<float>(0,i)=hue_hist[i];
+//		if(hue_hist[i]>threshold-0.1)amount_of_color++;
+	}
+	cv::Point min_loc, max_loc, max_loc2;
+	double min1, max1;
+	cv::minMaxLoc(hue, &min1, &max1, &min_loc, &max_loc);
+	hue.at<float>(max_loc)=0;
+	cv::minMaxLoc(hue, &min1, &max1, &min_loc, &max_loc2);
+
+	for(int i=0;i<hue_hist.size();i++)
+	{
+		if((hue_hist[max_loc.x])*0.25 < hue_hist[i]) amount_of_color++;
+	}
+
+//	std::cout<<std::endl<<max_loc<<"  "<<max_loc2<<std::endl;
+//	std::cout<<max_loc.x<<"--"<<(double)max_loc.x/2<<"  "<<max_loc2.x<<"--"<<(double)max_loc2.x/2<<"  ";
+	dom_color = ((double)max_loc.x+1)/2;
+	dom_color2 = ((double)max_loc2.x+1)/2;
+	if(dom_color<1)dom_color=1;
+	if(dom_color>10)dom_color=10;
+	if(dom_color2<1)dom_color2=1;
+	if(dom_color2>10)dom_color2=10;
+	if(dom_color==1 && dom_color2==1) dom_color2=1.5;
+	std::cout<<dom_color<<" "<<dom_color2<<std::endl;
+
+
+	colorfulness = amount_of_color;
+	if(colorfulness <1) colorfulness=1;
+	if(colorfulness>5) colorfulness=5;
+
+	if(colorfulness==1) dom_color2=0;
+
 	// colorfulness
 	// plain-colored --> dominant color
-	double swap=0;
-	double swap1=0;
-	if(peaks.size()+pb==1)
-	{
-		colorfulness=1;
-		colorfulness_raw=1;
-		if(peaks.size()>0)
-		{
-			swap = (peaks[0][0]-1)/2;
-			dom_color = swap;
-		}else{
-			swap = (b_peak_pos-1)/2;
-			dom_color = swap;
-		}
-		dom_color2=0;
-	}else if(peaks.size()+pb==2)
-	{
-		// bi-colored --> dominant and secondary dominant color
-		colorfulness=2;
-		colorfulness_raw=2;
-		if(peaks.size()==2)
-		{
-			if(peaks[0][0]>peaks[1][0])
-			{
-				swap = (peaks[0][0]-1)/2;
-				swap1 = (peaks[1][0]-1)/2;
-				dom_color = swap;
-				dom_color2= swap1;
-			}else{
-				swap = (peaks[1][0]-1)/2;
-				swap1 = (peaks[0][0]-1)/2;
-				dom_color = swap;
-				dom_color2= swap1;
-			}
-		}
-	}
-	else
-	{
-		double num_non_zeros=0;
-		for(unsigned int i=0;i<hue_hist.size();i++)
-		{
-			if(hue_hist[i]>threshold_color)num_non_zeros++;
-		}
-		if(hue_hist.size()>0)
-		{
-			colorfulness = ((num_non_zeros/hue_hist.size())*5)/colorful5;
-			colorfulness_raw = ((num_non_zeros/hue_hist.size())*5);
-		}
-		if(colorfulness>5)
-		{
-			colorfulness = 5;
-		}
-
-		if(peaks.size()>2)
-		{
-			if(peaks[0][1]>peaks[1][1])
-			{
-				swap = (peaks[0][0])/1;
-				swap1 = (peaks[1][0])/1;
-				dom_color = swap;
-				dom_color2 = swap1;
-			}else{
-				swap = (peaks[1][0])/1;
-				swap1 = (peaks[0][0])/1;
-				dom_color = swap;
-				dom_color2 = swap1;
-			}
-		}
-		for(unsigned int i=2;i<peaks.size();i++)
-		{
-			if(dom_color>=0 && dom_color<peaks.size() && dom_color2>=0 && dom_color2<peaks.size())
-			{
-				if(round(dom_color2)<peaks.size() && round(dom_color2)>=0)
-				{
-					if(peaks[i][1]>peaks[round(dom_color2)][1])
-					{
-						if(peaks[i][1]>peaks[round(dom_color)][1])
-						{
-							dom_color2=dom_color;
-							dom_color = i;
-						}else{
-							dom_color2=i;
-						}
-					}
-				}
-			}
-		}
-		if(b_peak_pos>=0 && b_peak_pos<peaks.size())
-		{
-			if(dom_color>=0&&dom_color<peaks.size())
-			{
-				if(peaks[round(b_peak_pos)][0]>peaks[round(dom_color)][0])
-				{
-					dom_color2=dom_color;
-					dom_color = b_peak_pos;
-				}else{
-					dom_color2=b_peak_pos;
-				}
-			}
-		}
-	}
+//	double swap=0;
+//	double swap1=0;
+//	if(peaks.size()+pb==1)
+//	{
+//		colorfulness=1;
+//		colorfulness_raw=1;
+//		if(peaks.size()>0)
+//		{
+//			swap = (peaks[0][0]-1)/2;
+//			dom_color = swap;
+//		}else{
+//			swap = (b_peak_pos-1)/2;
+//			dom_color = swap;
+//		}
+//		dom_color2=0;
+//	}else if(peaks.size()+pb==2)
+//	{
+//		// bi-colored --> dominant and secondary dominant color
+//		colorfulness=2;
+//		colorfulness_raw=2;
+//		if(peaks.size()==2)
+//		{
+//			if(peaks[0][0]>peaks[1][0])
+//			{
+//				swap = (peaks[0][0]-1)/2;
+//				swap1 = (peaks[1][0]-1)/2;
+//				dom_color = swap;
+//				dom_color2= swap1;
+//			}else{
+//				swap = (peaks[1][0]-1)/2;
+//				swap1 = (peaks[0][0]-1)/2;
+//				dom_color = swap;
+//				dom_color2= swap1;
+//			}
+//		}
+//	}
+//	else
+//	{
+//		double num_non_zeros=0;
+//		for(unsigned int i=0;i<hue_hist.size();i++)
+//		{
+//			if(hue_hist[i]>threshold_color)num_non_zeros++;
+//		}
+//		if(hue_hist.size()>0)
+//		{
+//			colorfulness = ((num_non_zeros/hue_hist.size())*5)/colorful5;
+//			colorfulness_raw = ((num_non_zeros/hue_hist.size())*5);
+//		}
+//		if(colorfulness>5)
+//		{
+//			colorfulness = 5;
+//		}
+//
+//		if(peaks.size()>2)
+//		{
+//			if(peaks[0][1]>peaks[1][1])
+//			{
+//				swap = (peaks[0][0])/1;
+//				swap1 = (peaks[1][0])/1;
+//				dom_color = swap;
+//				dom_color2 = swap1;
+//			}else{
+//				swap = (peaks[1][0])/1;
+//				swap1 = (peaks[0][0])/1;
+//				dom_color = swap;
+//				dom_color2 = swap1;
+//			}
+//		}
+//		for(unsigned int i=2;i<peaks.size();i++)
+//		{
+//			if(dom_color>=0 && dom_color<peaks.size() && dom_color2>=0 && dom_color2<peaks.size())
+//			{
+//				if(round(dom_color2)<peaks.size() && round(dom_color2)>=0)
+//				{
+//					if(peaks[i][1]>peaks[round(dom_color2)][1])
+//					{
+//						if(peaks[i][1]>peaks[round(dom_color)][1])
+//						{
+//							dom_color2=dom_color;
+//							dom_color = i;
+//						}else{
+//							dom_color2=i;
+//						}
+//					}
+//				}
+//			}
+//		}
+//		if(b_peak_pos>=0 && b_peak_pos<peaks.size())
+//		{
+//			if(dom_color>=0&&dom_color<peaks.size())
+//			{
+//				if(peaks[round(b_peak_pos)][0]>peaks[round(dom_color)][0])
+//				{
+//					dom_color2=dom_color;
+//					dom_color = b_peak_pos;
+//				}else{
+//					dom_color2=b_peak_pos;
+//				}
+//			}
+//		}
+//	}
 
 //	rescale for yellow and green
 	if(dom_color==1.5){
@@ -279,6 +324,12 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	{
 		dom_color2 = dom_color2 + 1;
 	}
+
+//	if(dom_color<1) dom_color=1;
+//	if(dom_color>10)dom_color=10;
+//	if(dom_color2<1) dom_color2=1;
+//	if(dom_color2>10)dom_color2=10;
+
 	if(dom_color!=dom_color)dom_color=0;
 	if(dom_color2!=dom_color2)dom_color2=0;
 
@@ -336,6 +387,13 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	}else{
 		v_std=1;
 	}
+	//no color in Image
+	if(s_mean < 1.2 && s_std <1.2)
+	{
+		colorfulness = 0;
+		dom_color 	 = 0;
+		dom_color2	 = 0;
+	}
 
 //	Submit results
 	(*results).s_mean = s_mean;
@@ -343,8 +401,8 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	(*results).v_mean = v_mean;
 	(*results).v_std = v_std;
 	(*results).colorfulness = colorfulness;
-	(*results).dom_color = dom_color/2;
-	(*results).dom_color2 = dom_color2/2;
+	(*results).dom_color = dom_color;
+	(*results).dom_color2 = dom_color2;
 //		(*results).dom_color = 1;
 //		(*results).dom_color2 = 2;
 

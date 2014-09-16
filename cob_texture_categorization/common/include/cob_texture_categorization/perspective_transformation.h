@@ -18,7 +18,7 @@ class p_transformation
 {
 public:
 	p_transformation();
-	bool run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud< pcl::PointXYZ >::Ptr pixelpointcloud, pcl::PointCloud< pcl::PointXYZ >::Ptr metricpointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff);
+	bool run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud< pcl::PointXYZ >::Ptr pixelpointcloud, pcl::PointCloud< pcl::PointXYZ >::Ptr metricpointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff, cv::Mat *H_);
 //	const sensor_msgs::PointCloud2ConstPtr&
 //	pcl::PointCloud< pcl::PointXYZ >::Ptr
 };
