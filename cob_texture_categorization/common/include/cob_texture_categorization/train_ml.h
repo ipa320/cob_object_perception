@@ -28,6 +28,9 @@ public:
 			const cv::Mat& generated_attributes_matrix, const cv::Mat& generated_attributes_class_label_matrix, const create_train_data::DataHierarchyType generated_attributes_data_sample_hierarchy);
 
 
+	void save_computed_attribute_matrices(std::string path, const std::vector<cv::Mat>& computed_attribute_matrices);
+	void load_computed_attribute_matrices(std::string path, std::vector<cv::Mat>& computed_attribute_matrices);
+
 	void newClassTest(const cv::Mat& feature_matrix, const cv::Mat& label_matrix,const cv::Mat& orig);
 	void run_ml(double val, std::string *path_);
 

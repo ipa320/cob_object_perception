@@ -286,7 +286,7 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 	std::stringstream screen_output;
 
 	srand(0);	// random seed --> keep reproducible
-	for (int fold=0; fold<folds; ++fold)
+	for (size_t fold=0; fold<(size_t)folds; ++fold)
 	{
 		std::cout << "=== fold " << fold+1 << " ===" << std::endl;		screen_output << "=== fold " << fold+1 << " ===" << std::endl;
 		const cv::Mat& computed_attribute_matrix = computed_attribute_matrices[fold];
@@ -826,6 +826,43 @@ void train_ml::newClassTest(const cv::Mat& input, const cv::Mat& output,const cv
 //	else
 //		std::cout << "Error: could not write screen output to file.";
 //	file.close();
+}
+
+
+void train_ml::save_computed_attribute_matrices(std::string path, const std::vector<cv::Mat>& computed_attribute_matrices)
+{
+	// save data
+	std::string data = "ipa_database_computed_attributes_cv_data.yml";
+	std::string path_data = path + data;
+	std::cout << "Saving data to file " << path_data << " ... ";
+	cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+	if (fs.isOpened() == true)
+	{
+		fs << "computed_attribute_matrices" << computed_attribute_matrices;
+	}
+	else
+		std::cout << "Error: could not open file '" << path_data << "' for writing."<< std::endl;
+	fs.release();
+	std::cout << "done." << std::endl;
+}
+
+
+void train_ml::load_computed_attribute_matrices(std::string path, std::vector<cv::Mat>& computed_attribute_matrices)
+{
+	// load data
+	std::string data = "ipa_database_computed_attributes_cv_data.yml";
+	std::string path_data = path + data;
+	std::cout << "Loading data from file " << path_data << " ... ";
+	cv::FileStorage fs(path_data, cv::FileStorage::READ);
+	if (fs.isOpened() == true)
+	{
+		fs["computed_attribute_matrices"] >> computed_attribute_matrices;
+	}
+	else
+		std::cout << "Error: could not open file '" << path_data << "' for reading."<< std::endl;
+	fs.release();
+
+	std::cout << "done." << std::endl;
 }
 
 

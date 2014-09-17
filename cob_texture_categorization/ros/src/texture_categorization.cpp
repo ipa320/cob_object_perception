@@ -364,7 +364,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		//Add unsegmented areas as one image to vector of segmented images
 		cv::Mat work_segment;
 		cvtColor( undefined_cluster, work_segment, CV_BGR2GRAY );
-		int nonZeros = cv::countNonZero(work_segment);
+		//int nonZeros = cv::countNonZero(work_segment);
 		if(true)//(nonZeros)/(640*480)>0.2)
 		{
 
@@ -377,7 +377,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 			seg_pos_vec.push_back(pos);
 		}
 
-		for(int i=0;i<segment_vec.size();i++)
+		for(size_t i=0;i<segment_vec.size();i++)
 			{
 				cv::imshow("Ausgabe tiefenbild", segment_vec[i]);
 				cv::waitKey(10000);
@@ -447,7 +447,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		}
 
 
-		for(int i=0;i<segment_vec.size();i++)
+		for(size_t i=0;i<segment_vec.size();i++)
 		{
 			std::ostringstream outStream;
 			outStream << i;
@@ -576,7 +576,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		std::cout<<"Split and Merge"<<std::endl;
 		////Segment with split and merge
 		std::vector<cv::Mat> swap_vec, newvec, newvectest, retransformed_segment;
-		for(int i=0; i<segment_vec.size(); i++)
+		for(size_t i=0; i<segment_vec.size(); i++)
 		{
 			swap_vec.clear();
 			if(segment_vec[i].rows >100 && segment_vec[i].cols>100)
@@ -734,7 +734,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		std::cout<<countsegment<<"countsegemtn "<<retransformed_segment.size()<<"retransseg "<<newvec.size()<<"newsize"<<segment_vec.size()<<"segment_vec size"<<std::endl;
 
 		//Visualisation of Segmentation
-		for(int i=0;i<retransformed_segment.size();i++)
+		for(size_t i=0;i<retransformed_segment.size();i++)
 		{
 			int r=0,b=0,g=0;
 			if(i%3==0)
@@ -1088,7 +1088,10 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	// compute the attribute predictions for all cross validation cycles (i.e. train attribute classifiers leaving out the class of interest each time)
 	const int folds = 57;
 	std::vector<cv::Mat> computed_attribute_matrices;
-	al.crossValidation(folds, base_feature_matrix /*computed_attribute_matrix*/, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, computed_attribute_matrices);
+	if (method == HANDCRAFTED_LEARNED || method == HANDCRAFTED_RAW)
+		al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, computed_attribute_matrices);
+	else
+		al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, computed_attribute_matrices);
 
 	// do the cross validation on class prediction (train the texture category classifier with computed attributes or labeled attributes and
 	// use the artificially generated samples for training the class of interest (test data is the computed or labeled attributes on the real image data)
@@ -1099,10 +1102,14 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
 	// do the cross validation
 	train_ml ml;
+	for (size_t i=1; i<computed_attribute_matrices.size(); ++i)
+		std::cout << i << ": " << sum(computed_attribute_matrices[0] != computed_attribute_matrices[i]).val[0]/255. << std::endl;
+	ml.save_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
+	//ml.load_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
 	if (method == HANDCRAFTED_LEARNED || method == HANDCRAFTED_RAW)
-		ml.cross_validation_with_generated_attributes(57, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_16, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+		ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_16, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
 	else
-		ml.cross_validation_with_generated_attributes(57, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+		ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
 }
 
 
@@ -1421,7 +1428,7 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //	}
 //
 	cv::imshow("original", color_image);
-	splitandmerge test = splitandmerge();
+	//splitandmerge test = splitandmerge();
 //	cv::Mat pic1 = test.categorize(color_image);
 //	cv::Mat pic2 = test.categorize(test2);
 //	cv::Mat pic3 = test.categorize(test3);

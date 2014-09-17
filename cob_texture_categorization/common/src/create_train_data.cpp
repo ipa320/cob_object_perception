@@ -163,6 +163,66 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 						data_sample_hierarchy[class_index][object_number-1].resize(sample_number, -1);
 					data_sample_hierarchy[class_index][object_number-1][sample_number-1] = sample_index;
 
+					// definition of raw features:
+
+					// 1. colorfulness: (raw[0])
+					// raw: 0,1,2 --> 0,1,2
+					// raw: [2,5] --> min(a*raw+b, 5)
+
+					// 2. dominant color: (raw[1])
+					// raw: [0,10] --> [0,10] as is
+
+					// 3. secondary dominant color: (raw[2])
+					// raw: [0,10] --> [0,10] as is
+
+					// 4. value mean: (raw[3])
+					// raw: --> max(1, min(5, a*raw+b))
+
+					// 5. value stddev: (raw[4])
+					// raw: --> max(1, min(5, a*raw+b))
+
+					// 6. saturation mean: (raw[5])
+					// raw: --> max(1, min(5, a*raw+b))
+
+					// 7. saturation stddev: (raw[6])
+					// raw: --> max(1, min(5, a*raw+b))
+
+					// 8. average primitive size: (raw[7], raw[8])
+					// raw[8]: 1 --> 1
+					// raw[7],raw[8]: --> max(1, min(5, (a1*raw[7]+b1 + a2*raw[8]+b2)/2) )
+
+					// 9. number of primitives: (raw[9], raw[10])
+					// raw[9],raw[10]: --> max(1, min(5, max(a1*raw[9]+b1, a2*raw[10]+b2) ) )
+
+					// 10. primitive strength: (raw[11])
+					// raw: --> max(1, min(5, a*raw*raw + b*raw + c ) )
+
+					// 11. primitive regularity: (raw[12], raw[13], raw[14])
+					// raw: --> max(1, min(5, a*raw[12] + b*raw[13] + c*raw[14] + d ) )
+
+					// 12. contrast: (raw[15])
+					// raw: --> max(1, min(5, a*raw[15]^3 + b*raw[15]^2 + c*raw[15] + d ) )
+
+					// 13. line likeness: (raw[16])
+					// raw: [1,4,5] --> [1,4,5] as is
+					// raw: --> max(1, min(5, a*raw[16] + b ) )
+
+					// 14. 3d roughness
+					// not implemented for 2d images
+
+					// 15. directionality: (raw[17], raw[18], raw[19])
+					// raw[17]: [1] --> [1]
+					// raw[17]: --> max(1, min(5, a*raw[17]+b))
+					// raw[18]: --> max(1, min(5, a*raw[18]+b))
+					// raw[19]: --> max(1, min(5, a*raw[19]+b))
+					// directionality = max(mapped(raw[17]), mapped(raw[18]), mapped(raw[19]), lined, checked)
+
+					// 16. lined: (raw[20])
+					// raw[20]: --> max(1, min(5, a*raw[20]+b))
+
+					// 17. checked: (raw[21])
+					// raw[21]: --> max(1, min(5, a*raw[21]+b))
+
 					std::cout << str << ":   ";
 					cv::Mat image = cv::imread(str);
 //					cv::Mat temp;		// hack: downsizing image

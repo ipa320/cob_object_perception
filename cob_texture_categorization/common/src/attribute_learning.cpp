@@ -197,7 +197,11 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	}
 
 	if (return_computed_attribute_matrices == true)
-		computed_attribute_matrices.resize(folds, cv::Mat::zeros(attribute_matrix.rows, attribute_matrix.cols, attribute_matrix.type()));
+	{
+		computed_attribute_matrices.resize(folds);
+		for (size_t i=0; i<computed_attribute_matrices.size(); ++i)
+			computed_attribute_matrices[i].create(attribute_matrix.rows, attribute_matrix.cols, attribute_matrix.type());
+	}
 
 	create_train_data data_object;
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
@@ -294,66 +298,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			for (unsigned int r=0; r<test_indices.size(); ++r)
 				test_labels.at<float>(r) = attribute_matrix.at<float>(test_indices[r], attribute_index)/feature_scaling_factor;
 
-			// === train ml classifier ===
-
-			// 1. colorfulness: (raw[0])
-			// raw: 0,1,2 --> 0,1,2
-			// raw: [2,5] --> min(a*raw+b, 5)
-
-			// 2. dominant color: (raw[1])
-			// raw: [0,10] --> [0,10] as is
-
-			// 3. secondary dominant color: (raw[2])
-			// raw: [0,10] --> [0,10] as is
-
-			// 4. value mean: (raw[3])
-			// raw: --> max(1, min(5, a*raw+b))
-
-			// 5. value stddev: (raw[4])
-			// raw: --> max(1, min(5, a*raw+b))
-
-			// 6. saturation mean: (raw[5])
-			// raw: --> max(1, min(5, a*raw+b))
-
-			// 7. saturation stddev: (raw[6])
-			// raw: --> max(1, min(5, a*raw+b))
-
-			// 8. average primitive size: (raw[7], raw[8])
-			// raw[8]: 1 --> 1
-			// raw[7],raw[8]: --> max(1, min(5, (a1*raw[7]+b1 + a2*raw[8]+b2)/2) )
-
-			// 9. number of primitives: (raw[9], raw[10])
-			// raw[9],raw[10]: --> max(1, min(5, max(a1*raw[9]+b1, a2*raw[10]+b2) ) )
-
-			// 10. primitive strength: (raw[11])
-			// raw: --> max(1, min(5, a*raw*raw + b*raw + c ) )
-
-			// 11. primitive regularity: (raw[12], raw[13], raw[14])
-			// raw: --> max(1, min(5, a*raw[12] + b*raw[13] + c*raw[14] + d ) )
-
-			// 12. contrast: (raw[15])
-			// raw: --> max(1, min(5, a*raw[15]^3 + b*raw[15]^2 + c*raw[15] + d ) )
-
-			// 13. line likeness: (raw[16])
-			// raw: [1,4,5] --> [1,4,5] as is
-			// raw: --> max(1, min(5, a*raw[16] + b ) )
-
-			// 14. 3d roughness
-			// not implemented for 2d images
-
-			// 15. directionality: (raw[17], raw[18], raw[19])
-			// raw[17]: [1] --> [1]
-			// raw[17]: --> max(1, min(5, a*raw[17]+b))
-			// raw[18]: --> max(1, min(5, a*raw[18]+b))
-			// raw[19]: --> max(1, min(5, a*raw[19]+b))
-			// directionality = max(mapped(raw[17]), mapped(raw[18]), mapped(raw[19]), lined, checked)
-
-			// 16. lined: (raw[20])
-			// raw[20]: --> max(1, min(5, a*raw[20]+b))
-
-			// 17. checked: (raw[21])
-			// raw[21]: --> max(1, min(5, a*raw[21]+b))
-
+			// === train classifier ===
 
 //			// K-Nearest-Neighbor
 //			cv::Mat test;
@@ -422,46 +367,46 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 //			boost.train(training_data, CV_ROW_SAMPLE, training_labels, cv::Mat(), cv::Mat(), var_type, cv::Mat(), boost_params, false);
 //			// End Boosting
 
-			// SVM
-			CvSVM svm;
-			CvTermCriteria criteria;
-			criteria.max_iter = 1000;	// 1000
-			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
-			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
-			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
-
-//			//	Neural Network
-//			cv::Mat input;
-//			training_data.convertTo(input, CV_32F);
-//			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
-//			cv::Mat labels;
-//			training_labels.convertTo(labels, CV_32F);
-//			for(int i=0; i<training_data.rows; ++i)
-//				output.at<float>(i,0) = labels.at<float>(i,0);
-//
-//			cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-//
-//			layers.row(0) = cv::Scalar(training_data.cols);
-//			layers.row(1) = cv::Scalar(10);
-//			layers.row(2) = cv::Scalar(1);
-//
-//			CvANN_MLP mlp;
-//			CvANN_MLP_TrainParams params;
+//			// SVM
+//			CvSVM svm;
 //			CvTermCriteria criteria;
-//			criteria.max_iter = 100;//100;
-//			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
+//			criteria.max_iter = 1000;//1000;	// 1000
+//			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 //			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-//
-//			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
-//			params.bp_dw_scale     = 0.1f;
-//			params.bp_moment_scale = 0.1f;
-//			params.term_crit       = criteria;
-//
-//			double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
-//			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha*/ 0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
-//			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-//			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+//			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+//			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
+
+			//	Neural Network
+			cv::Mat input;
+			training_data.convertTo(input, CV_32F);
+			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
+			cv::Mat labels;
+			training_labels.convertTo(labels, CV_32F);
+			for(int i=0; i<training_data.rows; ++i)
+				output.at<float>(i,0) = labels.at<float>(i,0);
+
+			cv::Mat layers = cv::Mat(3,1,CV_32SC1);
+
+			layers.row(0) = cv::Scalar(training_data.cols);
+			layers.row(1) = cv::Scalar(10);
+			layers.row(2) = cv::Scalar(1);
+
+			CvANN_MLP mlp;
+			CvANN_MLP_TrainParams params;
+			CvTermCriteria criteria;
+			criteria.max_iter = 100;//100;
+			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
+			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+
+			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
+			params.bp_dw_scale     = 0.1f;
+			params.bp_moment_scale = 0.1f;
+			params.term_crit       = criteria;
+
+			//double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
+			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha*/ 0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
+			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
+			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
 			// === apply ml classifier to predict test set ===
 			double sumAbsError = 0.;
@@ -471,11 +416,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			{
 				cv::Mat response(1, 1, CV_32FC1);
 				cv::Mat sample = test_data.row(r);
-
-				//mlp.predict(sample, response);		// neural network
+				mlp.predict(sample, response);		// neural network
 				//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 				//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
-				response.at<float>(0,0) = svm.predict(sample);	// SVM
+				//response.at<float>(0,0) = svm.predict(sample);	// SVM
 
 				if (return_set_data == true)
 				{
@@ -519,10 +463,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 				{
 					cv::Mat response(1, 1, attribute_matrix.type());
 					cv::Mat sample = feature_matrix.row(sample_index);
-					//mlp.predict(sample, response);		// neural network
+					mlp.predict(sample, response);		// neural network
 					//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 					//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
-					response.at<float>(0,0) = svm.predict(sample);	// SVM
+					//response.at<float>(0,0) = svm.predict(sample);	// SVM
 					computed_attribute_matrices[fold].at<float>(sample_index, attribute_index) = response.at<float>(0,0)*feature_scaling_factor;
 				}
 			}
