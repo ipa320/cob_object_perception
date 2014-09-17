@@ -161,16 +161,26 @@ void AttributeLearning::loadAttributeCrossValidationData(std::string path, std::
 }
 
 
-void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int cross_validation_mode)
+void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, CrossValidationMode cross_validation_mode)
 {
 	cv::Mat class_label_matrix;
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data;
-	crossValidation(folds, feature_matrix, attribute_matrix, data_sample_hierarchy, cross_validation_mode, false, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data);
+	std::vector<cv::Mat> computed_attribute_matrices;
+	crossValidation(folds, feature_matrix, attribute_matrix, data_sample_hierarchy, cross_validation_mode, false, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
 }
 
-void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int cross_validation_mode,
-		bool return_set_data, const cv::Mat& class_label_matrix, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data)
+void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, CrossValidationMode cross_validation_mode, std::vector<cv::Mat>& computed_attribute_matrices)
+{
+	cv::Mat class_label_matrix;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data;
+	crossValidation(folds, feature_matrix, attribute_matrix, data_sample_hierarchy, cross_validation_mode, false, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+}
+
+void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, CrossValidationMode cross_validation_mode,
+		bool return_set_data, const cv::Mat& class_label_matrix, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data,
+		bool return_computed_attribute_matrices, std::vector<cv::Mat>& computed_attribute_matrices)
 {
 	// vectors for evaluation data, each vector entry is meant to count the statistics for one attribute
 	std::vector<double> sumAbsErrors(attribute_matrix.cols, 0.0);
@@ -186,6 +196,9 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 		class_label_matrix_test_data.resize(folds);
 	}
 
+	if (return_computed_attribute_matrices == true)
+		computed_attribute_matrices.resize(folds, cv::Mat::zeros(attribute_matrix.rows, attribute_matrix.cols, attribute_matrix.type()));
+
 	create_train_data data_object;
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
 
@@ -196,7 +209,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 
 		// === distribute data into training and test set ===
 		std::vector<int> train_indices, test_indices;
-		if (cross_validation_mode == 0)
+		if (cross_validation_mode == LEAVE_OUT_ONE_OBJECT_PER_CLASS)
 		{
 			// select one object per class for testing
 			for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
@@ -219,7 +232,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 				}
 			}
 		}
-		else if (cross_validation_mode == 1)
+		else if (cross_validation_mode == LEAVE_OUT_ONE_CLASS)
 		{
 			// select one class for testing and train attribute classifiers with remaining classes
 			for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
@@ -418,38 +431,38 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
-/*			//	Neural Network
-			cv::Mat input;
-			training_data.convertTo(input, CV_32F);
-			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
-			cv::Mat labels;
-			training_labels.convertTo(labels, CV_32F);
-			for(int i=0; i<training_data.rows; ++i)
-				output.at<float>(i,0) = labels.at<float>(i,0);
+//			//	Neural Network
+//			cv::Mat input;
+//			training_data.convertTo(input, CV_32F);
+//			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
+//			cv::Mat labels;
+//			training_labels.convertTo(labels, CV_32F);
+//			for(int i=0; i<training_data.rows; ++i)
+//				output.at<float>(i,0) = labels.at<float>(i,0);
+//
+//			cv::Mat layers = cv::Mat(3,1,CV_32SC1);
+//
+//			layers.row(0) = cv::Scalar(training_data.cols);
+//			layers.row(1) = cv::Scalar(10);
+//			layers.row(2) = cv::Scalar(1);
+//
+//			CvANN_MLP mlp;
+//			CvANN_MLP_TrainParams params;
+//			CvTermCriteria criteria;
+//			criteria.max_iter = 100;//100;
+//			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
+//			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+//
+//			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
+//			params.bp_dw_scale     = 0.1f;
+//			params.bp_moment_scale = 0.1f;
+//			params.term_crit       = criteria;
+//
+//			double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
+//			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha*/ 0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
+//			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
+//			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
-			cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-
-			layers.row(0) = cv::Scalar(training_data.cols);
-			layers.row(1) = cv::Scalar(10);
-			layers.row(2) = cv::Scalar(1);
-
-			CvANN_MLP mlp;
-			CvANN_MLP_TrainParams params;
-			CvTermCriteria criteria;
-			criteria.max_iter = 100;//100;
-			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
-			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-
-			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
-			params.bp_dw_scale     = 0.1f;
-			params.bp_moment_scale = 0.1f;
-			params.term_crit       = criteria;
-
-			double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
-			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha/0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
-			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
-*/
 			// === apply ml classifier to predict test set ===
 			double sumAbsError = 0.;
 			int numberTestSamples = 0;
@@ -498,6 +511,21 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			below1[attribute_index] += below1_ctr;
 			std::cout << "mean abs error: " << sumAbsError/(double)numberTestSamples << "\t\t<0.5: " << 100*below05_ctr/(double)numberTestSamples << "%\t\t<1.0: " << 100*below1_ctr/(double)numberTestSamples << "%" << std::endl;
 			screen_output << "mean abs error: " << sumAbsError/(double)numberTestSamples << "\t\t<0.5: " << 100*below05_ctr/(double)numberTestSamples << "%\t\t<1.0: " << 100*below1_ctr/(double)numberTestSamples << "%" << std::endl;
+
+			if (return_computed_attribute_matrices == true)
+			{
+				// compute predicted attribute value for each sample from feature_matrix
+				for (int sample_index=0; sample_index<feature_matrix.rows; ++sample_index)
+				{
+					cv::Mat response(1, 1, attribute_matrix.type());
+					cv::Mat sample = feature_matrix.row(sample_index);
+					//mlp.predict(sample, response);		// neural network
+					//response.at<float>(0,0) = rtree.predict(sample);		// random tree
+					//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
+					response.at<float>(0,0) = svm.predict(sample);	// SVM
+					computed_attribute_matrices[fold].at<float>(sample_index, attribute_index) = response.at<float>(0,0)*feature_scaling_factor;
+				}
+			}
 		}
 		// End Neural Network
 	}

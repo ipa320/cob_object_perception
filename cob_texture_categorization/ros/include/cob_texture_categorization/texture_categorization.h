@@ -114,6 +114,8 @@ protected:
 	void attributeLearningDatabaseTestCimpoi();
 	void attributeLearningDatabaseTestAutomatedClass();
 
+	void crossValidationVerbalClassDescription();
+
 };
 
 
