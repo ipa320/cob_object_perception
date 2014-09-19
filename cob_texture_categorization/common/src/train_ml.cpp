@@ -16,14 +16,15 @@ train_ml::train_ml()
 
 
 void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
-			const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& feature_matrix_test_data, const std::vector<cv::Mat>& label_matrix_test_data)
+			const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& feature_matrix_test_data, const std::vector<cv::Mat>& label_matrix_test_data,
+			const std::vector<cv::Mat>& feature_matrices)
 {
 	std::vector<int> true_predictions, false_predictions;
 	create_train_data data_object;
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
 	std::stringstream screen_output;
 
-	bool use_preselected_set_distribution = ((int)preselected_train_indices.size()==folds && (int)feature_matrix_test_data.size()==folds && (int)label_matrix_test_data.size()==folds);
+	bool use_preselected_set_distribution = (preselected_train_indices.size()==(size_t)folds && feature_matrix_test_data.size()==(size_t)folds && label_matrix_test_data.size()==(size_t)folds && feature_matrices.size()==(size_t)folds);
 	if (use_preselected_set_distribution == true)
 	{
 		std::cout << "Using the provided pre-selected sets for training and testing." << std::endl;		screen_output << "Using the provided pre-selected sets for training and testing." << std::endl;
@@ -40,10 +41,12 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 
 		// === distribute data into training and test set ===
 		std::vector<int> train_indices, test_indices;
+		cv::Mat feature_matrix_reference = feature_matrix;
 		if (use_preselected_set_distribution==true)
 		{
 			// just take the provided training indices for this fold
-			if (feature_matrix_test_data[fold].empty()==true || feature_matrix_test_data[fold].cols!=feature_matrix.cols || label_matrix_test_data[fold].empty()==true || label_matrix_test_data[fold].cols!=label_matrix.cols || feature_matrix_test_data[fold].rows!=label_matrix_test_data[fold].rows)
+			feature_matrix_reference = feature_matrices[fold];
+			if (feature_matrix_test_data[fold].empty()==true || feature_matrix_test_data[fold].cols!=feature_matrix_reference.cols || label_matrix_test_data[fold].empty()==true || label_matrix_test_data[fold].cols!=label_matrix.cols || feature_matrix_test_data[fold].rows!=label_matrix_test_data[fold].rows)
 				std::cout << "Error: provided pre-computed test data and label matrices are not suitable." << std::endl;
 			train_indices = preselected_train_indices[fold];
 			test_indices.resize(feature_matrix_test_data[fold].rows);
@@ -67,17 +70,17 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 				}
 			}
 		}
-		assert(test_indices.size() + train_indices.size() == (unsigned int)feature_matrix.rows);
+		assert(test_indices.size() + train_indices.size() == (unsigned int)feature_matrix_reference.rows);
 
 		// create training and test data matrices
-		cv::Mat training_data(train_indices.size(), feature_matrix.cols, feature_matrix.type());
+		cv::Mat training_data(train_indices.size(), feature_matrix_reference.cols, feature_matrix_reference.type());
 		cv::Mat training_labels(train_indices.size(), 1, label_matrix.type());
-		cv::Mat test_data(test_indices.size(), feature_matrix.cols, feature_matrix.type());
+		cv::Mat test_data(test_indices.size(), feature_matrix_reference.cols, feature_matrix_reference.type());
 		cv::Mat test_labels(test_indices.size(), 1, label_matrix.type());
 		for (unsigned int r=0; r<train_indices.size(); ++r)
 		{
-			for (int c=0; c<feature_matrix.cols; ++c)
-				training_data.at<float>(r,c) = feature_matrix.at<float>(train_indices[r],c);
+			for (int c=0; c<feature_matrix_reference.cols; ++c)
+				training_data.at<float>(r,c) = feature_matrix_reference.at<float>(train_indices[r],c);
 			training_labels.at<float>(r) = label_matrix.at<float>(train_indices[r]);
 		}
 		if (use_preselected_set_distribution==true)
@@ -89,8 +92,8 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 		{
 			for (unsigned int r=0; r<test_indices.size(); ++r)
 			{
-				for (int c=0; c<feature_matrix.cols; ++c)
-					test_data.at<float>(r,c) = feature_matrix.at<float>(test_indices[r],c);
+				for (int c=0; c<feature_matrix_reference.cols; ++c)
+					test_data.at<float>(r,c) = feature_matrix_reference.at<float>(test_indices[r],c);
 				test_labels.at<float>(r) = label_matrix.at<float>(test_indices[r]);
 			}
 		}
@@ -204,6 +207,16 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
+//		// SVM
+//		CvSVM svm;
+//		CvTermCriteria criteria;
+//		criteria.max_iter = 1000;//1000;	// 1000
+//		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
+//		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+//		CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::POLY, 2., 1.0, 1., 1.0, 0.0, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+//		svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
+
+
 		// === apply ml classifier to predict test set ===
 		int t = 0, f = 0;
 //		int t2 = 0, f2 = 0;
@@ -215,7 +228,6 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 			cv::Mat sample = test_data.row(i);
 
 			mlp.predict(sample, response);
-
 			float max = -1000000000000.0f;
 //			float max2 = -1000000000000.0f;
 			int cls = -1;
@@ -231,6 +243,7 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 					cls = j;
 				}
 			}
+//			int cls = svm.predict(sample);	// SVM
 
 			if (cls == test_labels.at<float>(i, 0))
 				t++;
@@ -425,36 +438,46 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 
 //	End Bayes Classifier
 
-		// Neural Network
-		cv::Mat input;
-		training_data.convertTo(input, CV_32F);
-		cv::Mat output=cv::Mat::zeros(training_data.rows, 57, CV_32FC1);
-		cv::Mat labels;
-		training_labels.convertTo(labels, CV_32F);
-		for(int i=0; i<training_data.rows; ++i)
-			output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
+//		// Neural Network
+//		cv::Mat input;
+//		training_data.convertTo(input, CV_32F);
+//		cv::Mat output=cv::Mat::zeros(training_data.rows, 57, CV_32FC1);
+//		cv::Mat labels;
+//		training_labels.convertTo(labels, CV_32F);
+//		for(int i=0; i<training_data.rows; ++i)
+//			output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
+//
+//		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
+//		layers.row(0) = cv::Scalar(training_data.cols);
+//		layers.row(1) = cv::Scalar(400);	//400
+//		layers.row(2) = cv::Scalar(57);
+//
+//		CvANN_MLP mlp;
+//		CvANN_MLP_TrainParams params;
+//		CvTermCriteria criteria;
+//
+//		criteria.max_iter = 400;
+//		criteria.epsilon  = 0.0001f;
+//		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+//
+//		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
+//		params.bp_dw_scale     = 0.1f;
+//		params.bp_moment_scale = 0.1f;
+//		params.term_crit       = criteria;
+//
+//		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
+//		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
+//		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
-		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-		layers.row(0) = cv::Scalar(training_data.cols);
-		layers.row(1) = cv::Scalar(400);	//400
-		layers.row(2) = cv::Scalar(57);
-
-		CvANN_MLP mlp;
-		CvANN_MLP_TrainParams params;
+		// SVM
+		CvSVM svm;
 		CvTermCriteria criteria;
-
-		criteria.max_iter = 400;
-		criteria.epsilon  = 0.0001f;
+		criteria.max_iter = 1000;//1000;	// 1000
+		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+		CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::RBF, 0., 1.0, 0., 1.0, 0.0, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+		svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
-		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
-		params.bp_dw_scale     = 0.1f;
-		params.bp_moment_scale = 0.1f;
-		params.term_crit       = criteria;
-
-		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
-		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
 		// === apply ml classifier to predict test set ===
 		int t = 0, f = 0;
@@ -466,23 +489,24 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 			cv::Mat response(1, 57, CV_32FC1);
 			cv::Mat sample = test_data.row(i);
 
-			mlp.predict(sample, response);
+//			mlp.predict(sample, response);
+//			float max = -1000000000000.0f;
+////			float max2 = -1000000000000.0f;
+//			int cls = -1;
+////			int cls2 = -1;
+//			for (int j = 0; j < 57; j++)
+//			{
+//				float value = response.at<float>(0, j);
+//				if (value > max)
+//				{
+////					max2 = max;
+////					cls2 = cls;
+//					max = value;
+//					cls = j;
+//				}
+//			}
+			int cls = svm.predict(sample);	// SVM
 
-			float max = -1000000000000.0f;
-//			float max2 = -1000000000000.0f;
-			int cls = -1;
-//			int cls2 = -1;
-			for (int j = 0; j < 57; j++)
-			{
-				float value = response.at<float>(0, j);
-				if (value > max)
-				{
-//					max2 = max;
-//					cls2 = cls;
-					max = value;
-					cls = j;
-				}
-			}
 
 			if (cls == test_labels.at<float>(i, 0))
 				t++;
@@ -852,7 +876,7 @@ void train_ml::load_computed_attribute_matrices(std::string path, std::vector<cv
 	// load data
 	std::string data = "ipa_database_computed_attributes_cv_data.yml";
 	std::string path_data = path + data;
-	std::cout << "Loading data from file " << path_data << " ... ";
+	std::cout << "Loading data from file " << path_data << " ... " << std::flush;
 	cv::FileStorage fs(path_data, cv::FileStorage::READ);
 	if (fs.isOpened() == true)
 	{

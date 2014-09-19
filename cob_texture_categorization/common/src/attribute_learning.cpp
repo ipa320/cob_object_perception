@@ -11,10 +11,10 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
 	//const int attribute_number = 17;			// label = attributes
 	//const int feature_number = 9688;		// feature = base feature
-	const int total_sample_number = 1281;
-	feature_matrix.create(total_sample_number, feature_number, CV_32FC1);
-	ground_truth_attribute_matrix.create(total_sample_number, attribute_number, CV_32FC1);
-	class_label_matrix.create(total_sample_number, 1, CV_32FC1);
+	//const int total_sample_number = 1281;
+	feature_matrix = cv::Mat();		//create(total_sample_number, feature_number, CV_32FC1);
+	ground_truth_attribute_matrix = cv::Mat();		//.create(total_sample_number, attribute_number, CV_32FC1);
+	class_label_matrix = cv::Mat();		//.create(total_sample_number, 1, CV_32FC1);
 	int sample_index = 0;
 	std::ifstream file(filename.c_str(), std::ios::in);
 	if (file.is_open() == true)
@@ -34,14 +34,20 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 				unsigned int sample_number=0;
 				file >> sample_number;
 				data_sample_hierarchy[i][j].resize(sample_number);
+				cv::Mat feature_matrix_row(1, feature_number, CV_32FC1);
+				cv::Mat ground_truth_attribute_matrix_row(1, attribute_number, CV_32FC1);
+				cv::Mat class_label_matrix_row(1, 1, CV_32FC1);
 				for (unsigned int k=0; k<sample_number; ++k)
 				{
 					for (int l=0; l<attribute_number; ++l)
-						file >> ground_truth_attribute_matrix.at<float>(sample_index, l);	// attribute vector
+						file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// attribute vector
 					for (int f=0; f<feature_number; ++f)
-						file >> feature_matrix.at<float>(sample_index, f);		// base feature vector
-					class_label_matrix.at<float>(sample_index, 0) = i;
+						file >> feature_matrix_row.at<float>(0, f);		// base feature vector
+					class_label_matrix_row.at<float>(0, 0) = (float)i;
 					data_sample_hierarchy[i][j][k] = sample_index;				// class label (index)
+					feature_matrix.push_back(feature_matrix_row);
+					ground_truth_attribute_matrix.push_back(ground_truth_attribute_matrix_row);
+					class_label_matrix.push_back(class_label_matrix_row);
 					++sample_index;
 				}
 			}
@@ -51,6 +57,9 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 	{
 		std::cout << "Error: could not open file " << filename << std::endl;
 	}
+
+	std::cout << "feature_matrix: " << feature_matrix.rows << ", " << feature_matrix.cols << "\tground_truth_attribute_matrix: " << ground_truth_attribute_matrix.rows << ", " << ground_truth_attribute_matrix.cols << "\tclass_label_matrix: " << class_label_matrix.rows << ", " << class_label_matrix.cols << std::endl;
+
 	file.close();
 }
 
@@ -367,46 +376,46 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 //			boost.train(training_data, CV_ROW_SAMPLE, training_labels, cv::Mat(), cv::Mat(), var_type, cv::Mat(), boost_params, false);
 //			// End Boosting
 
-//			// SVM
-//			CvSVM svm;
-//			CvTermCriteria criteria;
-//			criteria.max_iter = 1000;//1000;	// 1000
-//			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
-//			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-//			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
-//			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
-
-			//	Neural Network
-			cv::Mat input;
-			training_data.convertTo(input, CV_32F);
-			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
-			cv::Mat labels;
-			training_labels.convertTo(labels, CV_32F);
-			for(int i=0; i<training_data.rows; ++i)
-				output.at<float>(i,0) = labels.at<float>(i,0);
-
-			cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-
-			layers.row(0) = cv::Scalar(training_data.cols);
-			layers.row(1) = cv::Scalar(10);
-			layers.row(2) = cv::Scalar(1);
-
-			CvANN_MLP mlp;
-			CvANN_MLP_TrainParams params;
+			// SVM
+			CvSVM svm;
 			CvTermCriteria criteria;
-			criteria.max_iter = 100;//100;
-			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
+			criteria.max_iter = 1000;//1000;	// 1000
+			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
-			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
-			params.bp_dw_scale     = 0.1f;
-			params.bp_moment_scale = 0.1f;
-			params.term_crit       = criteria;
-
-			//double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
-			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha*/ 0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
-			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+//			//	Neural Network
+//			cv::Mat input;
+//			training_data.convertTo(input, CV_32F);
+//			cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
+//			cv::Mat labels;
+//			training_labels.convertTo(labels, CV_32F);
+//			for(int i=0; i<training_data.rows; ++i)
+//				output.at<float>(i,0) = labels.at<float>(i,0);
+//
+//			cv::Mat layers = cv::Mat(3,1,CV_32SC1);
+//
+//			layers.row(0) = cv::Scalar(training_data.cols);
+//			layers.row(1) = cv::Scalar(10);
+//			layers.row(2) = cv::Scalar(1);
+//
+//			CvANN_MLP mlp;
+//			CvANN_MLP_TrainParams params;
+//			CvTermCriteria criteria;
+//			criteria.max_iter = 100;//100;
+//			criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
+//			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+//
+//			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
+//			params.bp_dw_scale     = 0.1f;
+//			params.bp_moment_scale = 0.1f;
+//			params.term_crit       = criteria;
+//
+//			//double alpha = (attribute_index==1 || attribute_index==2) ? 0.2 : 0.4;
+//			mlp.create(layers,CvANN_MLP::SIGMOID_SYM, /*alpha*/ 0.6, 1.0);			// 0.4, except for dominant/sec. dom. color: 0.2
+//			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
+//			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
 			// === apply ml classifier to predict test set ===
 			double sumAbsError = 0.;
@@ -416,10 +425,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			{
 				cv::Mat response(1, 1, CV_32FC1);
 				cv::Mat sample = test_data.row(r);
-				mlp.predict(sample, response);		// neural network
+				//mlp.predict(sample, response);		// neural network
 				//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 				//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
-				//response.at<float>(0,0) = svm.predict(sample);	// SVM
+				response.at<float>(0,0) = svm.predict(sample);	// SVM
 
 				if (return_set_data == true)
 				{
@@ -463,10 +472,10 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 				{
 					cv::Mat response(1, 1, attribute_matrix.type());
 					cv::Mat sample = feature_matrix.row(sample_index);
-					mlp.predict(sample, response);		// neural network
+					//mlp.predict(sample, response);		// neural network
 					//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 					//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
-					//response.at<float>(0,0) = svm.predict(sample);	// SVM
+					response.at<float>(0,0) = svm.predict(sample);	// SVM
 					computed_attribute_matrices[fold].at<float>(sample_index, attribute_index) = response.at<float>(0,0)*feature_scaling_factor;
 				}
 			}

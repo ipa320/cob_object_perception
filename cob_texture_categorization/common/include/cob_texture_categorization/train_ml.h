@@ -19,7 +19,8 @@ public:
 
 	// do a leave out one object per class cross validation on class prediction
 	void cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
-			const std::vector< std::vector<int> >& preselected_train_indices=std::vector< std::vector<int> >(), const std::vector<cv::Mat>& feature_matrix_test_data=std::vector<cv::Mat>(), const std::vector<cv::Mat>& label_matrix_test_data=std::vector<cv::Mat>());
+			const std::vector< std::vector<int> >& preselected_train_indices=std::vector< std::vector<int> >(), const std::vector<cv::Mat>& feature_matrix_test_data=std::vector<cv::Mat>(),
+			const std::vector<cv::Mat>& label_matrix_test_data=std::vector<cv::Mat>(), const std::vector<cv::Mat>& feature_matrices=std::vector<cv::Mat>());
 
 	// do a leave out one class cross validation by training that left out class with generated features only and testing the performance with the respective real data of this class
 	// the remaining classes are trained each cycle with their real data but not tested
