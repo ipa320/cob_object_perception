@@ -111,7 +111,7 @@ void AttributeLearning::loadTextureDatabaseLabeledAttributeFeatures(std::string 
 	file.close();
 }
 
-void AttributeLearning::saveAttributeCrossValidationData(std::string path, const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& attribute_matrix_test_data, const std::vector<cv::Mat>& class_label_matrix_test_data)
+void AttributeLearning::saveAttributeCrossValidationData(std::string path, const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& attribute_matrix_test_data, const std::vector<cv::Mat>& class_label_matrix_test_data, const std::vector<cv::Mat>& computed_attribute_matrices)
 {
 	// convert nested vector to vector of cv::Mat
 	std::vector<cv::Mat> preselected_train_indices_mat(preselected_train_indices.size());
@@ -132,6 +132,7 @@ void AttributeLearning::saveAttributeCrossValidationData(std::string path, const
 		fs << "preselected_train_indices" << preselected_train_indices_mat;
 		fs << "attribute_matrix_test_data" << attribute_matrix_test_data;
 		fs << "class_label_matrix_test_data" << class_label_matrix_test_data;
+		fs << "computed_attribute_matrices" << computed_attribute_matrices;
 	}
 	else
 		std::cout << "Error: could not open file '" << path_data << "' for writing."<< std::endl;
@@ -139,7 +140,7 @@ void AttributeLearning::saveAttributeCrossValidationData(std::string path, const
 	std::cout << "done." << std::endl;
 }
 
-void AttributeLearning::loadAttributeCrossValidationData(std::string path, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data)
+void AttributeLearning::loadAttributeCrossValidationData(std::string path, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data, std::vector<cv::Mat>& computed_attribute_matrices)
 {
 	// load data;
 	std::vector<cv::Mat> preselected_train_indices_mat;
@@ -152,6 +153,7 @@ void AttributeLearning::loadAttributeCrossValidationData(std::string path, std::
 		fs["preselected_train_indices"] >> preselected_train_indices_mat;
 		fs["attribute_matrix_test_data"] >> attribute_matrix_test_data;
 		fs["class_label_matrix_test_data"] >> class_label_matrix_test_data;
+		fs["computed_attribute_matrices"] >> computed_attribute_matrices;
 	}
 	else
 		std::cout << "Error: could not open file '" << path_data << "' for reading."<< std::endl;
