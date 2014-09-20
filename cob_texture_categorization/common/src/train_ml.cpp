@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <fstream>
+#include <map>
 
 #include <cv.h>
 #include "ml.h"
@@ -19,7 +20,8 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 			const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& feature_matrix_test_data, const std::vector<cv::Mat>& label_matrix_test_data,
 			const std::vector<cv::Mat>& feature_matrices)
 {
-	std::vector<int> true_predictions, false_predictions;
+	const int number_classes = 57;
+	std::vector<int> true_predictions, false_predictions, true_predictions_rank(number_classes, 0);
 	create_train_data data_object;
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
 	std::stringstream screen_output;
@@ -179,7 +181,7 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 		// Neural Network
 		cv::Mat input;
 		training_data.convertTo(input, CV_32F);
-		cv::Mat output=cv::Mat::zeros(training_data.rows, 57, CV_32FC1);
+		cv::Mat output=cv::Mat::zeros(training_data.rows, number_classes, CV_32FC1);
 		cv::Mat labels;
 		training_labels.convertTo(labels, CV_32F);
 		for(int i=0; i<training_data.rows; ++i)
@@ -188,7 +190,7 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
 		layers.row(0) = cv::Scalar(training_data.cols);
 		layers.row(1) = cv::Scalar(400);	//400
-		layers.row(2) = cv::Scalar(57);
+		layers.row(2) = cv::Scalar(number_classes);
 
 		CvANN_MLP mlp;
 		CvANN_MLP_TrainParams params;
@@ -214,49 +216,47 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 //		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 //		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 //		CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::POLY, 2., 1.0, 1., 1.0, 0.0, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+//		//CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::RBF, 0., 0.2, 1., 1.0, 0.0, 0., 0, criteria);
 //		svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
 
 		// === apply ml classifier to predict test set ===
 		int t = 0, f = 0;
-//		int t2 = 0, f2 = 0;
-		std::vector<int> labelres;
-
+		std::vector<int> true_predictions_rank_fold(true_predictions_rank.size(), 0);
 		for(int i = 0; i < test_data.rows ; i++)
 		{
-			cv::Mat response(1, 57, CV_32FC1);
+			cv::Mat response(1, number_classes, CV_32FC1);
 			cv::Mat sample = test_data.row(i);
 
 			mlp.predict(sample, response);
-			float max = -1000000000000.0f;
-//			float max2 = -1000000000000.0f;
-			int cls = -1;
-//			int cls2 = -1;
-			for (int j = 0; j < 57; j++)
-			{
-				float value = response.at<float>(0, j);
-				if (value > max)
-				{
-//					max2 = max;
-//					cls2 = cls;
-					max = value;
-					cls = j;
-				}
-			}
-//			int cls = svm.predict(sample);	// SVM
+			std::multimap<float, int, std::greater<float> > prediction_order;
+			for (int j = 0; j < number_classes; j++)
+				prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), j));
+			int correct_prediction_at_rank = 0;
+			for (std::multimap<float, int, std::greater<float> >::iterator it=prediction_order.begin(); it!=prediction_order.end(); ++it, ++correct_prediction_at_rank)
+				if (it->second == test_labels.at<float>(i, 0))
+					break;
+			true_predictions_rank_fold[correct_prediction_at_rank]++;
 
-			if (cls == test_labels.at<float>(i, 0))
+//			int predicted_class = svm.predict(sample);	// SVM
+			int predicted_class = prediction_order.begin()->second;	// Neural Network
+
+			if (predicted_class == test_labels.at<float>(i, 0))
 				t++;
 			else
 				f++;
-//			if (cls2 == test_labels.at<float>(i, 0))
-//				t2++;
-//			else
-//				f2++;
 
-			std::cout << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << cls << " (" << texture_classes[cls] << ")" << std::endl;
-			screen_output << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << cls << " (" << texture_classes[cls] << ")" << std::endl;
+			std::cout << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
+			screen_output << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
 		}
+
+		std::cout << "Ranking distribution of correct predictions:" << std::endl;	screen_output << "Ranking distribution of correct predictions:" << std::endl;
+		for (size_t i=0; i<true_predictions_rank.size(); ++i)
+		{
+			true_predictions_rank[i] += true_predictions_rank_fold[i];
+			std::cout << true_predictions_rank_fold[i] << "\t";	screen_output << true_predictions_rank_fold[i] << "\t";
+		}
+		std::cout << std::endl;		screen_output << std::endl;
 
 		true_predictions.push_back(t);
 		false_predictions.push_back(f);
@@ -264,13 +264,35 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 		double percentage = t*(100.0 / sum);
 		std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
 		screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
-		//std::cout << "true2:" << t2 << " False2:" << f2 << std::endl;
 
 		// End Neural Network
 	}
 
 	std::cout << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
 	screen_output << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
+
+	std::cout << "Ranking distribution of correct predictions:" << std::endl << "numbers:\t";	screen_output << "Ranking distribution of correct predictions:" << std::endl << "numbers:\t";
+	double total_number_samples = 0;
+	for (size_t i=0; i<true_predictions_rank.size(); ++i)
+		total_number_samples += true_predictions_rank[i];
+	for (size_t i=0; i<true_predictions_rank.size(); ++i)
+	{
+		std::cout << true_predictions_rank[i] << "\t";	screen_output << true_predictions_rank[i] << "\t";
+	}
+	std::cout << std::endl << "percentages:\t";		screen_output << std::endl << "percentages:\t";
+	for (size_t i=0; i<true_predictions_rank.size(); ++i)
+	{
+		std::cout << 100*(double)true_predictions_rank[i]/total_number_samples << "\t";	screen_output << 100*(double)true_predictions_rank[i]/total_number_samples << "\t";
+	}
+	std::cout << std::endl << "accumulated %:\t";		screen_output << std::endl << "accumulated %:\t";
+	double sum = 0.;
+	for (size_t i=0; i<true_predictions_rank.size(); ++i)
+	{
+		sum += (double)true_predictions_rank[i];
+		std::cout << 100*sum/total_number_samples << "\t";	screen_output << 100*sum/total_number_samples << "\t";
+	}
+	std::cout << std::endl;		screen_output << std::endl;
+
 	int t=0, f=0;
 	for (unsigned int i=0; i<true_predictions.size(); ++i)
 	{
@@ -438,45 +460,45 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 
 //	End Bayes Classifier
 
-//		// Neural Network
-//		cv::Mat input;
-//		training_data.convertTo(input, CV_32F);
-//		cv::Mat output=cv::Mat::zeros(training_data.rows, 57, CV_32FC1);
-//		cv::Mat labels;
-//		training_labels.convertTo(labels, CV_32F);
-//		for(int i=0; i<training_data.rows; ++i)
-//			output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
-//
-//		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-//		layers.row(0) = cv::Scalar(training_data.cols);
-//		layers.row(1) = cv::Scalar(400);	//400
-//		layers.row(2) = cv::Scalar(57);
-//
-//		CvANN_MLP mlp;
-//		CvANN_MLP_TrainParams params;
-//		CvTermCriteria criteria;
-//
-//		criteria.max_iter = 400;
-//		criteria.epsilon  = 0.0001f;
-//		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-//
-//		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
-//		params.bp_dw_scale     = 0.1f;
-//		params.bp_moment_scale = 0.1f;
-//		params.term_crit       = criteria;
-//
-//		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
-//		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-//		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+		// Neural Network
+		cv::Mat input;
+		training_data.convertTo(input, CV_32F);
+		cv::Mat output=cv::Mat::zeros(training_data.rows, 57, CV_32FC1);
+		cv::Mat labels;
+		training_labels.convertTo(labels, CV_32F);
+		for(int i=0; i<training_data.rows; ++i)
+			output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
 
-		// SVM
-		CvSVM svm;
+		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
+		layers.row(0) = cv::Scalar(training_data.cols);
+		layers.row(1) = cv::Scalar(400);	//400
+		layers.row(2) = cv::Scalar(57);
+
+		CvANN_MLP mlp;
+		CvANN_MLP_TrainParams params;
 		CvTermCriteria criteria;
-		criteria.max_iter = 1000;//1000;	// 1000
-		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
+
+		criteria.max_iter = 400;
+		criteria.epsilon  = 0.0001f;
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-		CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::RBF, 0., 1.0, 0., 1.0, 0.0, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
-		svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
+
+		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
+		params.bp_dw_scale     = 0.1f;
+		params.bp_moment_scale = 0.1f;
+		params.term_crit       = criteria;
+
+		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
+		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
+		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+
+//		// SVM
+//		CvSVM svm;
+//		CvTermCriteria criteria;
+//		criteria.max_iter = 1000;//1000;	// 1000
+//		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
+//		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+//		CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::RBF, 0., 1.0, 0., 1.0, 0.0, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+//		svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
 
 		// === apply ml classifier to predict test set ===
@@ -489,23 +511,23 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 			cv::Mat response(1, 57, CV_32FC1);
 			cv::Mat sample = test_data.row(i);
 
-//			mlp.predict(sample, response);
-//			float max = -1000000000000.0f;
-////			float max2 = -1000000000000.0f;
-//			int cls = -1;
-////			int cls2 = -1;
-//			for (int j = 0; j < 57; j++)
-//			{
-//				float value = response.at<float>(0, j);
-//				if (value > max)
-//				{
-////					max2 = max;
-////					cls2 = cls;
-//					max = value;
-//					cls = j;
-//				}
-//			}
-			int cls = svm.predict(sample);	// SVM
+			mlp.predict(sample, response);
+			float max = -1000000000000.0f;
+//			float max2 = -1000000000000.0f;
+			int cls = -1;
+//			int cls2 = -1;
+			for (int j = 0; j < 57; j++)
+			{
+				float value = response.at<float>(0, j);
+				if (value > max)
+				{
+//					max2 = max;
+//					cls2 = cls;
+					max = value;
+					cls = j;
+				}
+			}
+//			int cls = svm.predict(sample);	// SVM
 
 
 			if (cls == test_labels.at<float>(i, 0))

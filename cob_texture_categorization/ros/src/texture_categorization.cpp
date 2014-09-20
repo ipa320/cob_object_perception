@@ -88,9 +88,9 @@ node_handle_(nh)
 	attributeLearningDatabaseTestFarhadi();
 //	attributeLearningDatabaseTestCimpoi();
 //	attributeLearningDatabaseTestHandcrafted();
-//	attributeLearningDatabaseTestAutomatedClass();
 //	crossValidationVerbalClassDescription();
 
+//	attributeLearningDatabaseTestAutomatedClass();
 }
 struct segment_position{
 	int segment;
@@ -946,9 +946,9 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 	int folds = 20;
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-	al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-	//al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	//al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+	//al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 //	//std::cout << "Loading labeled attribute features from file ...\n";
@@ -1013,7 +1013,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
 //	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
 //	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/"; // path to save data
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_sift/"; // path to save data
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
 
 	// compute 16 texture attributes on the ipa texture database
@@ -1031,16 +1031,16 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
-	int folds = 57;
+	int folds = 20;
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-	al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+//	al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
 	//al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
-	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
-//	al.loadAttributeCrossValidationData(data_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
 }
 
@@ -1102,7 +1102,7 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
 	// do the cross validation
 	train_ml ml;
-	//ml.save_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
+	// todo: change file name to not overwrite 20fold data ml.save_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
 	ml.load_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
 	if (method == HANDCRAFTED_LEARNED || method == HANDCRAFTED_RAW)
 		ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_16, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
