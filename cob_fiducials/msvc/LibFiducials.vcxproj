@@ -19,21 +19,46 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\common\src\aruco\arucofidmarkers.cpp" />
-    <ClCompile Include="..\common\src\aruco\board.cpp" />
-    <ClCompile Include="..\common\src\aruco\boarddetector.cpp" />
-    <ClCompile Include="..\common\src\aruco\cameraparameters.cpp" />
-    <ClCompile Include="..\common\src\aruco\cvdrawingutils.cpp" />
-    <ClCompile Include="..\common\src\aruco\FiducialModelAruco.cpp" />
-    <ClCompile Include="..\common\src\aruco\marker.cpp" />
-    <ClCompile Include="..\common\src\aruco\markerdetector.cpp" />
-    <ClCompile Include="..\common\src\FiducialTestingEnvironment.cpp">
-      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
+    <ClCompile Include="..\common\src\aruco\arucofidmarkers.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="..\common\src\pi\FiducialModelPi.cpp" />
+    <ClCompile Include="..\common\src\aruco\board.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\boarddetector.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\cameraparameters.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\cvdrawingutils.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\FiducialModelAruco.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\marker.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\aruco\markerdetector.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\FiducialTestingEnvironment.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="..\common\src\pi\FiducialModelPi.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\include\cob_fiducials\AbstractFiducialModel.h" />
@@ -157,20 +182,21 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalOptions>/wd4996 /wd4181 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/wd4996 /wd4181 /Zm233 %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>__LIBFIDUCIALS_EXPORT__;_WIN64;_WIN32;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ObjectFileName>$(IntDir)</ObjectFileName>
-      <PrecompiledHeaderOutputFile>
-      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
+      <OpenMPSupport>true</OpenMPSupport>
+      <DisableSpecificWarnings>4290</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>LibTinyXmlD.lib;PreCompiledHeadersD.lib;LibVisionUtilsD.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -186,12 +212,10 @@
 copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName)D.lib"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>
-      </Command>
+      <Command>xcopy /D /Y "$(SolutionDir)PreCompiledHeaders$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Message>
-      </Message>
+      <Message>Copying program databas file from PreCompiledHeaders.vcxproj project</Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -222,22 +246,26 @@ copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\wi
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalOptions>/wd4996 /wd4181 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/wd4996 /wd4181 /Zm233 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>__LIBFIDUCIALS_EXPORT__;_WIN32;_WIN64;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <Optimization>Full</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>
-      </PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <OmitFramePointers>true</OmitFramePointers>
+      <OpenMPSupport>true</OpenMPSupport>
+      <DisableSpecificWarnings>4290</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>LibTinyXml.lib;PreCompiledHeaders.lib;LibVisionUtils.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -246,18 +274,18 @@ copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\wi
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
+      <Profile>false</Profile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(OutDir)$(ProjectName).dll" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName).dll"
 copy "$(OutDir)$(ProjectName).lib" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName).lib"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>
-      </Command>
+      <Command>xcopy /D /Y "$(SolutionDir)PreCompiledHeaders$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Message>
-      </Message>
+      <Message>Copying program databas file from PreCompiledHeaders.vcxproj project</Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

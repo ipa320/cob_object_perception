@@ -1,7 +1,7 @@
 #ifndef __IPA_ABSTRACT_FIDUCIAL_MODEL_H__
 #define __IPA_ABSTRACT_FIDUCIAL_MODEL_H__
 
-//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+
 #ifdef __LINUX__
 	#include "cob_vision_utils/VisionUtils.h"
 	#include "cob_fiducials/FiducialDefines.h"
@@ -17,9 +17,8 @@
 #endif
 
 #include <boost/shared_ptr.hpp>
-#include <opencv/cv.h>
+#include <opencv2/core/core.hpp>
 // todo: remove after debugging
-#include <opencv/highgui.h>
 
 #include <map>
 #include <fstream>
