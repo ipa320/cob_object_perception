@@ -1,76 +1,228 @@
 cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+project(cob_read_text)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+set(catkin_RUN_PACKAGES 
+  roscpp
+  sensor_msgs
+  cv_bridge
+  std_msgs
+  image_transport
+  pcl_ros 
+  geometry_msgs
+  sensor_msgs
+  cob_read_text_data
+  cob_tesseract_data
+  image_view
+)
 
-rosbuild_init()
+set(catkin_BUILD_PACKAGES 
+	${catkin_RUN_PACKAGES}
+	cmake_modules
+)
+## Find catkin macros and libraries
+## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
+## is used, also find other catkin packages
+## Creates a bunch of environment variables that may be used later in the script
+## e.g. catkin_INCLUDE_DIRS
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+find_package(catkin REQUIRED COMPONENTS
+	${catkin_BUILD_PACKAGES}
+)
 
-# add include search paths
-INCLUDE_DIRECTORIES(	${PROJECT_SOURCE_DIR}/ros/include
-			${PROJECT_SOURCE_DIR}/common/include)
-
+find_package(Boost REQUIRED COMPONENTS thread filesystem system)
+find_package(OpenCV REQUIRED)
+#find_package(PCL REQUIRED)
 find_package(Eigen REQUIRED)
-include_directories(${EIGEN_INCLUDE_DIRS})
-add_definitions(${EIGEN_DEFINITIONS})
-
 find_package(VTK REQUIRED)
-include_directories(${VTK_INCLUDE_DIRS})
 
-# external pcl
-#find_package(PCL 1.4 REQUIRED)
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
+###################################
+## catkin specific configuration ##
+###################################
+## The catkin_package macro generates cmake config files for your package
+## Declare things to be passed to dependent projects
+## INCLUDE_DIRS: uncomment this if you package contains header files
+## LIBRARIES: libraries you create in this project that dependent projects also need
+## CATKIN_DEPENDS: catkin_packages dependent projects also need
+## DEPENDS: system dependencies of this project that dependent projects also need
+catkin_package(
+INCLUDE_DIRS
+	common/include
+LIBRARIES
+	read_text
+CATKIN_DEPENDS
+	${catkin_RUN_PACKAGES}
+DEPENDS
+	OpenCV 
+	Eigen
+#	PCL
+	VTK
+)
 
-#uncomment if you have defined messages
-#rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
+###########
+## Build ##
+###########
+## Specify additional locations of header files
+## Your package locations should be listed before other locations
 
-#common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
+include_directories(
+	common/include
+	ros/include
+	${catkin_INCLUDE_DIRS}
+	${OpenCV_INCLUDE_DIRS}
+#	${PCL_INCLUDE_DIRS}
+	${Eigen_INCLUDE_DIRS}
+	${VTK_INCLUDE_DIRS}
+	${Boost_INCLUDE_DIRS}
+)
 
-rosbuild_add_boost_directories()
 
-rosbuild_add_library(read_text	common/src/text_detect.cpp)
+####################################
+## Declare a cpp libraries
+####################################
 
-rosbuild_add_executable(run_detect	common/src/run_detection.cpp common/src/text_detect.cpp)
+## read_text
+add_library(read_text
+	common/src/text_detect.cpp
+)
+target_link_libraries(read_text
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(read_text ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_executable(cob_read_text ros/src/cob_read_text.cpp)
-target_link_libraries(cob_read_text read_text)
-rosbuild_link_boost(cob_read_text thread)
+####################################
+## Declare a cpp executable
+####################################
 
-rosbuild_add_executable(read_evaluation ros/src/read_evaluation.cpp)
+## read_text_run_detect
+add_executable(read_text_run_detect
+	common/src/run_detection.cpp common/src/text_detect.cpp
+)
+target_link_libraries(read_text_run_detect 
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(read_text_run_detect ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_executable(letter_evaluation ros/src/letter_evaluation.cpp)
+## cob_read_text 
+add_executable(cob_read_text 
+	ros/src/cob_read_text.cpp
+)
+target_link_libraries(cob_read_text 
+	read_text
+	${catkin_LIBRARIES}
+)
+add_dependencies(cob_read_text ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_executable(labelBox ros/src/labelBox.cpp)
-rosbuild_link_boost(labelBox filesystem system)
+## read_text_read_evaluation 
+add_executable(read_text_read_evaluation 
+	ros/src/read_evaluation.cpp
+)
+target_link_libraries(read_text_read_evaluation 
+	read_text
+	${catkin_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(read_text_read_evaluation ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_executable(create_correlation common/src/createCorrelation.cpp)
-rosbuild_link_boost(create_correlation filesystem system)
+## read_text_letter_evaluation
+#add_executable(read_text_letter_evaluation
+#	ros/src/letter_evaluation.cpp
+#)
+#target_link_libraries(read_text_letter_evaluation
+#	${catkin_LIBRARIES}
+#)
+#add_dependencies(read_text_letter_evaluation  ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_executable(record_kinect_prosilica ros/src/recordKinPro.cpp)
-rosbuild_link_boost(record_kinect_prosilica filesystem system thread)
+## read_text_labelBox 
+add_executable(read_text_labelBox 
+	ros/src/labelBox.cpp
+)
+target_link_libraries(read_text_labelBox
+	${catkin_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(read_text_labelBox  ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_executable(script_for_imglist common/src/convertXML.cpp)
+## read_text_create_correlation
+add_executable(read_text_create_correlation 
+	common/src/createCorrelation.cpp
+)
+target_link_libraries(read_text_create_correlation 
+	${catkin_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(read_text_create_correlation  ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_executable(showPCD common/src/showPCD.cpp)
-target_link_libraries(showPCD ${PCL_LIBRARIES} vtkCommon vtkFiltering)
-rosbuild_link_boost(showPCD thread)
+## read_text_record_kinect_prosilica
+add_executable(read_text_record_kinect_prosilica
+	ros/src/recordKinPro.cpp
+)
+target_link_libraries(read_text_record_kinect_prosilica
+	${catkin_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(read_text_record_kinect_prosilica  ${catkin_EXPORTED_TARGETS})
 
-rosbuild_add_roslaunch_check(launch)
+## read_text_script_for_imglist 
+add_executable(read_text_script_for_imglist 
+	common/src/convertXML.cpp
+)
+target_link_libraries(read_text_script_for_imglist 
+	${catkin_LIBRARIES}
+)
+add_dependencies(read_text_script_for_imglist  ${catkin_EXPORTED_TARGETS})
+
+## read_text_showPCD
+## cmake --help-policy CMP0003
+if(COMMAND cmake_policy)
+	cmake_policy(SET CMP0003 NEW)
+endif(COMMAND cmake_policy)
+add_executable(read_text_showPCD 
+	common/src/showPCD.cpp
+)
+target_link_libraries(read_text_showPCD 
+	${catkin_LIBRARIES}
+	${VTK_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(read_text_showPCD ${catkin_EXPORTED_TARGETS})
+
+#############
+## Install ##
+#############
+## Mark executables and/or libraries for installation
+install(TARGETS 
+		cob_read_text 
+		read_text
+		read_text_create_correlation		
+		read_text_run_detect
+		read_text_read_evaluation  
+#		read_text_letter_evaluation 
+		read_text_labelBox 
+		read_text_record_kinect_prosilica 
+		read_text_script_for_imglist 
+		read_text_showPCD 
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY 
+		common/include/${PROJECT_NAME}/
+#		ros/include/${PROJECT_NAME}/
+	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+	FILES_MATCHING PATTERN "*.h"
+	PATTERN ".svn" EXCLUDE
+)
+
+install(DIRECTORY launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+	PATTERN ".svn" EXCLUDE
+)
+
+install(DIRECTORY common/files
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/common
+	PATTERN ".svn" EXCLUDE
+)
+

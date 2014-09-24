@@ -18,6 +18,8 @@
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/conversions.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #ifdef PCL_VERSION_COMPARE //fuerte
 	#define pcl_search pcl::search::KdTree
@@ -60,9 +62,14 @@ protected:
 		{
 			ROS_INFO("Segmenting data...");
 
+			pcl::PCLPointCloud2 pcl_pc;
+			pcl_conversions::toPCL(*input_pointcloud_msg, pcl_pc);
+			
 			typedef pcl::PointXYZRGB PointType;
 			pcl::PointCloud<PointType> input_pointcloud;//, temp;
-			pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
+
+			pcl::fromPCLPointCloud2(pcl_pc, input_pointcloud);
+//			pcl_conversions::toPCL(*input_pointcloud_msg, input_pointcloud);
 //			pcl::fromROSMsg(*input_pointcloud_msg, temp);
 //			// only keep points inside a defined volume
 //			for (unsigned int v=0; v<temp.height; v++)
@@ -184,8 +191,8 @@ protected:
 				if ((fabs(avgPoint.x) < cloud_cluster->points.size()*/*0.15*/0.3) && (fabs(avgPoint.y) < /*0.30*/0.4*cloud_cluster->points.size()) && (fabs(avgPoint.z) < 1.2*cloud_cluster->points.size()))
 				{
 					std::cout << "found a cluster in the center" << std::endl;
-					cloud_cluster->header.stamp = input_pointcloud_msg->header.stamp;
-					cloud_cluster->header.frame_id = input_pointcloud_msg->header.frame_id;
+					
+					cloud_cluster->header = pcl_conversions::toPCL(input_pointcloud_msg->header);
 					sensor_msgs::PointCloud2 output_pointcloud_msg;
 					pcl::toROSMsg(*cloud_cluster, output_pointcloud_msg);
 //					std::string filename = ros::package::getPath("cob_object_categorization") + "/test.pcd";

@@ -67,7 +67,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <actionlib/server/simple_action_server.h>
-#include <pcl/ros/conversions.h>
+#include <pcl/conversions.h>
 #include <pcl/common/pca.h>
 #include <tf/transform_broadcaster.h>
 

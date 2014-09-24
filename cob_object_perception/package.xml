@@ -1,0 +1,22 @@
+<package>
+	<name>cob_object_perception</name>
+	<version>0.1.0</version>
+	<description>This meta-package includes open source software for object recognition. Objects may be marker patterns or written text</description>
+	<license>LGPL</license>
+	<url type="website">http://ros.org/wiki/cob_object_perception</url>
+	<!-- <url type="bugtracker"></url> -->
+	<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
+	<buildtool_depend>catkin</buildtool_depend>
+
+	<run_depend>cob_fiducials</run_depend>
+	<run_depend>cob_marker</run_depend>
+	<run_depend>cob_object_categorization</run_depend>
+	<run_depend>cob_object_detection_fake</run_depend>
+	<run_depend>cob_object_recording</run_depend>
+	<run_depend>cob_read_text</run_depend>
+	<run_depend>libzxing</run_depend>
+
+	<export>
+		<metapackage />
+	</export>
+</package>

@@ -9051,7 +9051,7 @@ int ObjectClassifier::HermesMatchPointClouds(pcl::PointCloud<pcl::PointXYZRGB>::
 	// icp
 	std::cout << "Starting ICP" << std::endl;
 	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
-	icp.setInputCloud(alignedCapturedCloud);
+	icp.setInputSource(alignedCapturedCloud);
 	icp.setInputTarget(alignedReferenceCloud);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr fusedCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 	icp.align(*fusedCloud);

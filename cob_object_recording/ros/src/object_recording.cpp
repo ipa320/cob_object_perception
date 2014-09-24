@@ -1,6 +1,8 @@
 #include <cob_object_recording/object_recording.h>
 #include <boost/filesystem.hpp>
 #include <fstream>
+#include <pcl/conversions.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 namespace fs = boost::filesystem;
 
@@ -268,7 +270,11 @@ void ObjectRecording::inputCallback(const cob_object_detection_msgs::DetectionAr
 	// convert point cloud 2 message to pointcloud
 	typedef pcl::PointXYZRGB PointType;
 	pcl::PointCloud<PointType> input_pointcloud;
-	pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
+
+	pcl::PCLPointCloud2 pcl_pc;
+	pcl_conversions::toPCL(*input_pointcloud_msg, pcl_pc);
+	pcl::fromPCLPointCloud2(pcl_pc, input_pointcloud);
+//	pcl::fromROSMsg(*input_pointcloud_msg, input_pointcloud);
 
 	// compute mean coordinate system if multiple markers detected
 	tf::Transform fiducial_pose = computeMarkerPose(input_marker_detections_msg);

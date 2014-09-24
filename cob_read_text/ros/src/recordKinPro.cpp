@@ -21,13 +21,14 @@
 #include <boost/thread/condition.hpp>
 
 #define VTK_EXCLUDE_STRSTREAM_HEADERS //removes deprecated headers warning
-#include <pcl/ros/conversions.h>
+#include <pcl/conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 // DEFAULT TOPICS
 #define DEFAULT_KINECT_IMAGE_TOPIC "/cam3d/rgb/image_color"     // Care-O-Bot: "/camera/rgb/image_color"
@@ -66,7 +67,10 @@ public:
   }
   void DepthCb(sensor_msgs::PointCloud2::ConstPtr recent_image)
   {
-    pcl::fromROSMsg(*recent_image, *cloud);
+    pcl::PCLPointCloud2 pcl_pc;
+    pcl_conversions::toPCL(*recent_image, pcl_pc);
+    pcl::fromPCLPointCloud2(pcl_pc, *cloud);
+//    pcl::fromROSMsg(*recent_image, *cloud);
   }
   void ProsilicaLCb(const sensor_msgs::ImageConstPtr& msg)
   {

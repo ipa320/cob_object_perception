@@ -1,50 +1,115 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.6)
+project(cob_object_recording)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+set(catkin_RUN_PACKAGES 
+  pcl_ros # Pulls in PCL variabels for CMake automatically
+  roscpp
+  roslib
+  dynamic_reconfigure
+  cv_bridge
+  std_msgs
+  std_srvs
+  sensor_msgs
+  message_filters
+  image_transport
+  visualization_msgs
+  cob_object_detection_msgs
+)
 
-rosbuild_init()
-
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-#uncomment if you have defined messages
-#rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
-
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ros/include
-		    ${PROJECT_SOURCE_DIR}/common/include)
-
-#add dynamic reconfigure api
-rosbuild_find_ros_package(dynamic_reconfigure)
-include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
-gencfg()
-
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
-
-rosbuild_add_executable(object_recording ros/src/object_recording.cpp)
-#target_link_libraries(object_recording sfml-audio)
-
-rosbuild_add_executable(object_recording_client ros/src/object_recording_client.cpp)
+set(catkin_BUILD_PACKAGES 
+	${catkin_RUN_PACKAGES}
+	cmake_modules
+)
 
 
+## Find catkin macros and libraries
+## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
+## is used, also find other catkin packages
+## Creates a bunch of environment variables that may be used later in the script
+## e.g. catkin_INCLUDE_DIRS
+
+find_package(catkin REQUIRED COMPONENTS
+	${catkin_BUILD_PACKAGES}
+)
+
+# Dynamic reconfigure
+generate_dynamic_reconfigure_options(cfg/ObjectRecording.cfg)
+
+###################################
+## catkin specific configuration ##
+###################################
+## The catkin_package macro generates cmake config files for your package
+## Declare things to be passed to dependent projects
+## INCLUDE_DIRS: uncomment this if you package contains header files
+## LIBRARIES: libraries you create in this project that dependent projects also need
+## CATKIN_DEPENDS: catkin_packages dependent projects also need
+## DEPENDS: system dependencies of this project that dependent projects also need
+catkin_package(
+INCLUDE_DIRS
+	ros/include
+LIBRARIES
+CATKIN_DEPENDS
+	${catkin_RUN_PACKAGES}
+DEPENDS
+)
+
+###########
+## Build ##
+###########
+## Specify additional locations of header files
+## Your package locations should be listed before other locations
+
+include_directories(
+	ros/include
+	${catkin_INCLUDE_DIRS}
+)
+
+##############################
+## Declare a cpp executable
+##############################
+
+## object_recording 
+add_executable(object_recording 
+	ros/src/object_recording.cpp
+)
+target_link_libraries(object_recording 
+	${catkin_LIBRARIES}
+	${PCL_LIBRARIES}
+)
+add_dependencies(object_recording ${catkin_EXPORTED_TARGETS})
+
+## object_recording_client 
+add_executable(object_recording_client 
+	ros/src/object_recording_client.cpp
+)
+target_link_libraries(object_recording_client
+	${catkin_LIBRARIES}
+	${PCL_LIBRARIES}
+)
+add_dependencies(object_recording_client ${catkin_EXPORTED_TARGETS})
 
 
-#common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
-#rosbuild_add_executable(example examples/example.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
+#############
+## Install ##
+#############
+## Mark executables and/or libraries for installation
+install(TARGETS 
+		object_recording 
+		object_recording_client 
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY 
+		ros/include/${PROJECT_NAME}
+	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+	FILES_MATCHING PATTERN "*.h"
+	PATTERN ".svn" EXCLUDE
+)
+
+install(DIRECTORY ros/launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
+	PATTERN ".svn" EXCLUDE
+)
+
