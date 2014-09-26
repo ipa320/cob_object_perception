@@ -85,13 +85,254 @@ node_handle_(nh)
 
 	// database tests
 //	inputCallbackNoCam();
-	attributeLearningDatabaseTestFarhadi();
+//	attributeLearningDatabaseTestFarhadi();
 //	attributeLearningDatabaseTestCimpoi();
 //	attributeLearningDatabaseTestHandcrafted();
-//	crossValidationVerbalClassDescription();
+	crossValidationVerbalClassDescription();
 
 //	attributeLearningDatabaseTestAutomatedClass();
 }
+
+void TextCategorizationNode::segmentationCallback(const std_msgs::String::ConstPtr& msg)
+{
+	std::cout<<"TEST OK!!!!!!!!!!!!!!!!!!"<<std::endl;
+}
+
+
+
+TextCategorizationNode::~TextCategorizationNode()
+{
+	if (it_ != 0)
+		delete it_;
+	if (sync_input_ != 0)
+		delete sync_input_;
+}
+
+void TextCategorizationNode::init()
+{
+//		Display normals of transforamtion
+//   	coordinatesystem = node_handle_.advertise<visualization_msgs::MarkerArray>("markertest", 1 );
+////    cloudpub = node_handle_.advertise<PointCloud> ("points2", 1);
+//    pub_cloud = node_handle_.advertise<sensor_msgs::PointCloud2> ("cloud", 1);
+
+}
+
+void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
+{
+	// === using the farhadi attributes that are learned from base features
+	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/ipa_database_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/";
+
+	// attribute learning
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	AttributeLearning al;
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, 17, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+	int folds = 20;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
+	//al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+	//al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+//	//std::cout << "Loading labeled attribute features from file ...\n";
+//	//al.loadTextureDatabaseLabeledAttributeFeatures(data_file_name, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+//	//std::cout << "Loading labeled attribute features from file finished.\n";
+
+	train_ml ml;
+	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	ml.cross_validation(folds, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+}
+
+void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
+{
+	// === using the hand crafted attributes
+	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
+//	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
+//	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
+//	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+//	std::string feature_files_path = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
+
+	// compute 16 texture attributes on the ipa texture database
+	create_train_data database_data;									// computes feature and label matrices of the provided database
+	//database_data.compute_data_handcrafted(path_database, feature_files_path, 1281);
+	//return;
+
+	// attribute cross-validation
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	train_ml ml;
+	AttributeLearning al;
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	// option 1: pre-computed in MATLAB:
+//	al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+//	cv::Mat temp = ground_truth_attribute_matrix.clone();
+//	ground_truth_attribute_matrix.create(temp.rows, temp.cols-1, temp.type());
+//	for (int r=0; r<temp.rows; ++r)
+//		for (int c=0; c<16; ++c)
+//			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
+	// option 2: computed with this program
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+//	std::string generated_attributes_file_name = feature_files_path + "ipa_database_generated_class_attributes.txt";
+//	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
+//	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
+//	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+//	ml.cross_validation(20, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+
+
+	int folds = 20;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
+	////al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
+//	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+//	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	ml.cross_validation(folds, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+}
+
+
+void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
+{
+	// === using the hand crafted attributes
+	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
+//	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
+//	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_sift/"; // path to save data
+//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
+
+	// compute 16 texture attributes on the ipa texture database
+	create_train_data database_data;									// computes feature and label matrices of the provided database
+	//database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, true, IfvFeatures::RGB_PATCHES);
+	//return;
+
+	// attribute cross-validation
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	train_ml ml;
+	AttributeLearning al;
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	// option 2: computed with this program
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+	int folds = 20;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
+//	al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+	//al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
+//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+}
+
+
+void TextCategorizationNode::crossValidationVerbalClassDescription()
+{
+	enum Method {HANDCRAFTED_RAW, HANDCRAFTED_LEARNED, FARHADI, CIMPOI};
+	Method method = FARHADI;
+
+	std::string feature_files_path = "";	// path to save data
+	if (method == HANDCRAFTED_RAW || method == HANDCRAFTED_LEARNED)
+		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/";
+	else if (method == FARHADI)
+		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/";
+	else if (method == CIMPOI)
+		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_sift/";
+	else
+		return;
+
+	// load base features and attribute labels
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	AttributeLearning al;
+	create_train_data database_data;
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	if (method == FARHADI)
+	{
+		std::string data_file_name = feature_files_path + "ipa_database_2fb.txt";
+		al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, 17, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+	}
+	else
+	{
+		// option 1: pre-computed in MATLAB:
+//		al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+//		cv::Mat temp = ground_truth_attribute_matrix.clone();
+//		ground_truth_attribute_matrix.create(temp.rows, temp.cols-1, temp.type());
+//		for (int r=0; r<temp.rows; ++r)
+//			for (int c=0; c<16; ++c)
+//				ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
+		// option 2: computed with this program
+		database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	}
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+	// compute the attribute predictions for all cross validation cycles (i.e. train attribute classifiers leaving out the class of interest each time)
+	const int folds = 57;
+	std::vector<cv::Mat> computed_attribute_matrices;
+//	if (method == HANDCRAFTED_LEARNED || method == HANDCRAFTED_RAW)
+//		al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, computed_attribute_matrices);
+//	else
+//		al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, computed_attribute_matrices);
+
+	// do the cross validation on class prediction (train the texture category classifier with computed attributes or labeled attributes and
+	// use the artificially generated samples for training the class of interest (test data is the computed or labeled attributes on the real image data)
+	// load the generated attributes for all classes from file (generated from human verbal description)
+	std::string generated_attributes_file_name = feature_files_path + "ipa_database_generated_class_attributes.txt";
+	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
+	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
+	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+	// do the cross validation
+	train_ml ml;
+	// todo: change file name to not overwrite 20fold data ml.save_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
+	//ml.save_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
+	ml.load_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
+	if (method == HANDCRAFTED_LEARNED || method == HANDCRAFTED_RAW)
+		ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_16, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+	else
+		ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+		//ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+}
+
+
+void TextCategorizationNode::attributeLearningDatabaseTestAutomatedClass()
+{
+	AttributeLearning al;
+	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb_tomato.txt";
+	std::string data_file_name_orig = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, orig;
+	create_train_data::DataHierarchyType data_hierarchy;
+	int a=16, b=17;
+	al.loadTextureDatabaseBaseFeatures(data_file_name_orig,a,b, orig, ground_truth_attribute_matrix,  class_label_matrix, data_hierarchy);
+	al.loadTextureDatabaseBaseFeatures(data_file_name,a,b, computed_attribute_matrix, ground_truth_attribute_matrix,  class_label_matrix, data_hierarchy);
+
+	train_ml classtest;
+//		std::cout<<computed_attribute_matrix<<std::endl;
+	classtest.newClassTest(computed_attribute_matrix, class_label_matrix, orig);
+
+
+//	std::cout<<computed_attribute_matrix<<std::endl;
+	std::cout<<computed_attribute_matrix.cols<<" "<<computed_attribute_matrix.rows<<std::endl;
+
+//	compute_textures test;
+//	test.compute_textures_all();
+}
+
+
 struct segment_position{
 	int segment;
 	cv::Point2f position;
@@ -902,236 +1143,6 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 
 	    std::cout<<seconds<<"used time "<<useconds<<"u used time"<<std::endl;
 
-}
-
-void TextCategorizationNode::segmentationCallback(const std_msgs::String::ConstPtr& msg)
-{
-	std::cout<<"TEST OK!!!!!!!!!!!!!!!!!!"<<std::endl;
-}
-
-
-
-TextCategorizationNode::~TextCategorizationNode()
-{
-	if (it_ != 0)
-		delete it_;
-	if (sync_input_ != 0)
-		delete sync_input_;
-}
-
-void TextCategorizationNode::init()
-{
-//		Display normals of transforamtion
-//   	coordinatesystem = node_handle_.advertise<visualization_msgs::MarkerArray>("markertest", 1 );
-////    cloudpub = node_handle_.advertise<PointCloud> ("points2", 1);
-//    pub_cloud = node_handle_.advertise<sensor_msgs::PointCloud2> ("cloud", 1);
-
-}
-
-void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
-{
-	// === using the farhadi attributes that are learned from base features
-	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
-	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/ipa_database_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/";
-
-	// attribute learning
-	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
-	AttributeLearning al;
-	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix;
-	create_train_data::DataHierarchyType data_hierarchy;
-	al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, 17, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
-	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
-
-	int folds = 20;
-	std::vector< std::vector<int> > preselected_train_indices;
-	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-	//al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-	//al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-
-	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
-//	//std::cout << "Loading labeled attribute features from file ...\n";
-//	//al.loadTextureDatabaseLabeledAttributeFeatures(data_file_name, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
-//	//std::cout << "Loading labeled attribute features from file finished.\n";
-
-	train_ml ml;
-	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
-	ml.cross_validation(folds, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
-}
-
-void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
-{
-	// === using the hand crafted attributes
-	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
-//	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
-//	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
-	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
-//	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-//	std::string feature_files_path = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
-
-	// compute 16 texture attributes on the ipa texture database
-	create_train_data database_data;									// computes feature and label matrices of the provided database
-	//database_data.compute_data_handcrafted(path_database, feature_files_path, 1281);
-	//return;
-
-	// attribute cross-validation
-	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
-	create_train_data::DataHierarchyType data_hierarchy;
-	train_ml ml;
-	AttributeLearning al;
-	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
-	// option 1: pre-computed in MATLAB:
-//	al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
-//	cv::Mat temp = ground_truth_attribute_matrix.clone();
-//	ground_truth_attribute_matrix.create(temp.rows, temp.cols-1, temp.type());
-//	for (int r=0; r<temp.rows; ++r)
-//		for (int c=0; c<16; ++c)
-//			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
-	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
-	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
-
-	int folds = 20;
-	std::vector< std::vector<int> > preselected_train_indices;
-	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-	////al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
-	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-
-	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
-//	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-//	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
-	ml.cross_validation(folds, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
-}
-
-
-void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
-{
-	// === using the hand crafted attributes
-	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
-//	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
-//	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_sift/"; // path to save data
-//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
-
-	// compute 16 texture attributes on the ipa texture database
-	create_train_data database_data;									// computes feature and label matrices of the provided database
-	//database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, true, IfvFeatures::RGB_PATCHES);
-	//return;
-
-	// attribute cross-validation
-	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
-	create_train_data::DataHierarchyType data_hierarchy;
-	train_ml ml;
-	AttributeLearning al;
-	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
-	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
-	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
-
-	int folds = 20;
-	std::vector< std::vector<int> > preselected_train_indices;
-	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-//	al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-	//al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
-//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-
-	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
-	//ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
-	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
-}
-
-
-void TextCategorizationNode::crossValidationVerbalClassDescription()
-{
-	enum Method {HANDCRAFTED_RAW, HANDCRAFTED_LEARNED, FARHADI, CIMPOI};
-	Method method = HANDCRAFTED_LEARNED;
-
-	std::string feature_files_path = "";	// path to save data
-	if (method == HANDCRAFTED_RAW || HANDCRAFTED_LEARNED)
-		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/";
-	else if (method == FARHADI)
-		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/";
-	else if (method == CIMPOI)
-		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/";
-	else
-		return;
-
-	// load base features and attribute labels
-	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
-	AttributeLearning al;
-	create_train_data database_data;
-	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
-	create_train_data::DataHierarchyType data_hierarchy;
-	if (method == FARHADI)
-	{
-		std::string data_file_name = feature_files_path + "ipa_database_2fb.txt";
-		al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, 17, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
-	}
-	else
-	{
-		// option 1: pre-computed in MATLAB:
-//		al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
-//		cv::Mat temp = ground_truth_attribute_matrix.clone();
-//		ground_truth_attribute_matrix.create(temp.rows, temp.cols-1, temp.type());
-//		for (int r=0; r<temp.rows; ++r)
-//			for (int c=0; c<16; ++c)
-//				ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
-		// option 2: computed with this program
-		database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
-	}
-	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
-
-	// compute the attribute predictions for all cross validation cycles (i.e. train attribute classifiers leaving out the class of interest each time)
-	const int folds = 57;
-	std::vector<cv::Mat> computed_attribute_matrices;
-//	if (method == HANDCRAFTED_LEARNED || method == HANDCRAFTED_RAW)
-//		al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, computed_attribute_matrices);
-//	else
-//		al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_CLASS, computed_attribute_matrices);
-
-	// do the cross validation on class prediction (train the texture category classifier with computed attributes or labeled attributes and
-	// use the artificially generated samples for training the class of interest (test data is the computed or labeled attributes on the real image data)
-	// load the generated attributes for all classes from file (generated from human verbal description)
-	std::string generated_attributes_file_name = feature_files_path + "ipa_database_generated_class_attributes.txt";
-	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
-	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
-	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
-	// do the cross validation
-	train_ml ml;
-	// todo: change file name to not overwrite 20fold data ml.save_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
-	ml.load_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
-	if (method == HANDCRAFTED_LEARNED || method == HANDCRAFTED_RAW)
-		ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_16, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
-	else
-		ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
-}
-
-
-void TextCategorizationNode::attributeLearningDatabaseTestAutomatedClass()
-{
-	AttributeLearning al;
-	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb_tomato.txt";
-	std::string data_file_name_orig = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";
-	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, orig;
-	create_train_data::DataHierarchyType data_hierarchy;
-	int a=16, b=17;
-	al.loadTextureDatabaseBaseFeatures(data_file_name_orig,a,b, orig, ground_truth_attribute_matrix,  class_label_matrix, data_hierarchy);
-	al.loadTextureDatabaseBaseFeatures(data_file_name,a,b, computed_attribute_matrix, ground_truth_attribute_matrix,  class_label_matrix, data_hierarchy);
-
-	train_ml classtest;
-//		std::cout<<computed_attribute_matrix<<std::endl;
-	classtest.newClassTest(computed_attribute_matrix, class_label_matrix, orig);
-
-
-//	std::cout<<computed_attribute_matrix<<std::endl;
-	std::cout<<computed_attribute_matrix.cols<<" "<<computed_attribute_matrix.rows<<std::endl;
-
-//	compute_textures test;
-//	test.compute_textures_all();
 }
 
 

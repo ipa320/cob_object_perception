@@ -25,11 +25,11 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 //	Value 7: secondary dominant color
 //
 //	color details
-	std::vector<double> centers;
-	for(int i=0;i<21;i++)
-	{
-		centers.push_back(i*0.05);
-	}
+//	std::vector<double> centers;
+//	for(int i=0;i<21;i++)
+//	{
+//		centers.push_back(i*0.05);
+//	}
 
 //	threshold for saturation to decide whether pixel is on object or part of
 //	white background: relevant if input "white_back" is true (images show
@@ -47,18 +47,18 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 
 //	min hue value in normalized histogram to detect peaks and value to accept
 //	color as represented in the image (for determination of colorfulness)
-	double threshold_color=0.03;
+//	double threshold_color=0.03;
 
 //	ratio of colors that have to be represented in the image that can be
 //	characterized as maximum colorful (colorfulness = 5)
-	double colorful5=0.38;
+//	double colorful5=0.38;
 //	colorful5=0.28;
 
 //	transform into HSV color space
 	cv::Mat hsv;
 	cv::cvtColor(img, hsv, CV_BGR2HSV);
 
-	int testcount = 0;
+//	int testcount = 0;
 
 	double colorfulness=0.;
 	double colorfulness_raw=0.;
@@ -77,7 +77,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 			{
 				double h_val = (hsv.at<cv::Vec3b>(i,j)[0]);
 				rel_pix.push_back(h_val/180);
-				testcount++;
+//				testcount++;
 			}
 		}
 	}
@@ -85,75 +85,75 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 //  check if ratio of image pixels having a visible color is
 //  sufficient (>ratio)
 	std::vector<double> hue_hist(21);
-	std::vector<std::vector <double> > peaks;
-	double pb=0;
-	double b_peak_pos=-1;
-	if((rel_pix.size()/hsv.rows*hsv.cols)>ratio)
+//	std::vector<std::vector <double> > peaks;
+//	double pb=0;
+//	double b_peak_pos=-1;
+	if(rel_pix.size() > hsv.rows*hsv.cols * ratio)
 	{
 		for(unsigned int i=0;i<rel_pix.size();i++)
 		{
-			double hist_val = (rel_pix[i]/0.025);
+			double hist_val = (rel_pix[i]*40.0);	// rel_pix[i]/0.025);
 			double bin_num;
 			modf(hist_val, &bin_num);
 			bin_num= ceil(bin_num/2);
 			if(bin_num<hue_hist.size())
 			{
-			hue_hist[bin_num]=hue_hist[bin_num]+1;
+				hue_hist[bin_num]++;
 			}
 		}
 		for(unsigned int i=0;i<hue_hist.size();i++)
 		{
-			hue_hist[i]=hue_hist[i]/rel_pix.size();
+			hue_hist[i]/=(double)rel_pix.size();
 		}
-//		peaks in the middle
-		for(unsigned int i=1; i<hue_hist.size()-1;i++)
-		{
-			if(hue_hist[i]>hue_hist[i-1] && hue_hist[i]>hue_hist[i+1] && hue_hist[i]>threshold_color)
-			{
-				peaks.resize(peaks.size()+1);
-				peaks[peaks.size()-1].push_back(i);
-				peaks[peaks.size()-1].push_back(hue_hist[i]);
-			}
-		}
-//		boundary value
-//		check left bound
-		double lb_peak=0;
-		double rb_peak=0;
-		if(hue_hist[0]-hue_hist[hue_hist.size()-1]>threshold_color && hue_hist[0]-hue_hist[1]>threshold_color)
-		{
-			lb_peak = hue_hist[0];
-		}
-//		check right bound
-		if(hue_hist[hue_hist.size()-1]-hue_hist[hue_hist.size()-2]>threshold_color && hue_hist[hue_hist.size()-1]-hue_hist[0]>threshold_color)
-		{
-			rb_peak = hue_hist[hue_hist.size()-1];
-		}
-		if(lb_peak>0 && rb_peak<=0)
-		{
-//			peak on left
-			pb=1;
-			b_peak_pos = hue_hist.size()-1;
-		}else if(lb_peak<=0 && rb_peak>0)
-		{
-//			peak on right
-			pb=1;
-			b_peak_pos = hue_hist.size()-1;
-		}else if(lb_peak>0 && rb_peak>0)
-		{
-//			one peak --->take max
-			pb=1;
-			if(hue_hist[0]>hue_hist[hue_hist.size()-1])
-			{
-				b_peak_pos=0;
-			}else
-			{
-				b_peak_pos=hue_hist.size()-1;
-			}
-		}else
-		{
-			pb=0; //no peak
-			b_peak_pos=-1;
-		}
+////		peaks in the middle
+//		for(unsigned int i=1; i<hue_hist.size()-1;i++)
+//		{
+//			if(hue_hist[i]>hue_hist[i-1] && hue_hist[i]>hue_hist[i+1] && hue_hist[i]>threshold_color)
+//			{
+//				peaks.resize(peaks.size()+1);
+//				peaks[peaks.size()-1].push_back(i);
+//				peaks[peaks.size()-1].push_back(hue_hist[i]);
+//			}
+//		}
+////		boundary value
+////		check left bound
+//		double lb_peak=0;
+//		double rb_peak=0;
+//		if(hue_hist[0]-hue_hist[hue_hist.size()-1]>threshold_color && hue_hist[0]-hue_hist[1]>threshold_color)
+//		{
+//			lb_peak = hue_hist[0];
+//		}
+////		check right bound
+//		if(hue_hist[hue_hist.size()-1]-hue_hist[hue_hist.size()-2]>threshold_color && hue_hist[hue_hist.size()-1]-hue_hist[0]>threshold_color)
+//		{
+//			rb_peak = hue_hist[hue_hist.size()-1];
+//		}
+//		if(lb_peak>0 && rb_peak<=0)
+//		{
+////			peak on left
+//			pb=1;
+//			b_peak_pos = hue_hist.size()-1;
+//		}else if(lb_peak<=0 && rb_peak>0)
+//		{
+////			peak on right
+//			pb=1;
+//			b_peak_pos = hue_hist.size()-1;
+//		}else if(lb_peak>0 && rb_peak>0)
+//		{
+////			one peak --->take max
+//			pb=1;
+//			if(hue_hist[0]>hue_hist[hue_hist.size()-1])
+//			{
+//				b_peak_pos=0;
+//			}else
+//			{
+//				b_peak_pos=hue_hist.size()-1;
+//			}
+//		}else
+//		{
+//			pb=0; //no peak
+//			b_peak_pos=-1;
+//		}
 	}
 	else
 	{
@@ -163,17 +163,17 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 		dom_color2 = 0;
 	}
 
-	for(int i=0;i<hue_hist.size();i++)
-	{
+	std::cout << "hue histogram:  ";
+	for(size_t i=0;i<hue_hist.size();i++)
 		std::cout<<hue_hist[i]<<"  ";
-	}
-	std::cout<<std::endl;
+	std::cout << std::endl;
+
 	//colorfulness
 	int amount_of_color=0;
 
 	//dom_color & dom_color2
-	cv::Mat hue(1,21,CV_32F);
-	for(int i=0;i<hue_hist.size();i++)
+	cv::Mat hue(1,hue_hist.size(),CV_32F);
+	for(size_t i=0;i<hue_hist.size();i++)
 	{
 		hue.at<float>(0,i)=hue_hist[i];
 //		if(hue_hist[i]>threshold-0.1)amount_of_color++;
@@ -184,15 +184,15 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	hue.at<float>(max_loc)=0;
 	cv::minMaxLoc(hue, &min1, &max1, &min_loc, &max_loc2);
 
-	for(int i=0;i<hue_hist.size();i++)
+	for(size_t i=0;i<hue_hist.size();i++)
 	{
 		if((hue_hist[max_loc.x])*0.25 < hue_hist[i]) amount_of_color++;
 	}
 
 //	std::cout<<std::endl<<max_loc<<"  "<<max_loc2<<std::endl;
 //	std::cout<<max_loc.x<<"--"<<(double)max_loc.x/2<<"  "<<max_loc2.x<<"--"<<(double)max_loc2.x/2<<"  ";
-	dom_color = ((double)max_loc.x+1)/2;
-	dom_color2 = ((double)max_loc2.x+1)/2;
+	dom_color = ((double)max_loc.x+1.)/2.;
+	dom_color2 = ((double)max_loc2.x+1.)/2.;
 	if(dom_color<1)dom_color=1;
 	if(dom_color>10)dom_color=10;
 	if(dom_color2<1)dom_color2=1;
@@ -312,18 +312,14 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 //	}
 
 //	rescale for yellow and green
-	if(dom_color==1.5){
+	if(dom_color>=1.5 && dom_color<2)
 		dom_color=dom_color+0.5;
-	}else if(dom_color>=2 && dom_color<=2.5)
-	{
+	else if(dom_color>=2 && dom_color<=2.5)
 		dom_color = dom_color+1;
-	}
-	if(dom_color2==1.5){
+	if(dom_color2>=1.5 && dom_color<2)
 		dom_color2=dom_color2 + 0.5;
-	}else if(dom_color2>=2 && dom_color2<=2.5)
-	{
+	else if(dom_color2>=2 && dom_color2<=2.5)
 		dom_color2 = dom_color2 + 1;
-	}
 
 //	if(dom_color<1) dom_color=1;
 //	if(dom_color>10)dom_color=10;

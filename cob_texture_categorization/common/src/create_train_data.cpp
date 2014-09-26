@@ -449,6 +449,7 @@ void create_train_data::load_texture_database_features(std::string path, cv::Mat
 {
 	// load computed attributes, class labels and ground truth attributes
 	std::string database_file = path + "ipa_database.yml";
+	std::cout << "Reading file " << database_file << std::endl;
 	cv::FileStorage fs(database_file, cv::FileStorage::READ);
 	fs["base_feature_matrix"] >> base_feature_matrix;
 	fs["ground_truth_attribute_matrix"] >> ground_truth_attribute_matrix;
