@@ -96,7 +96,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 
 	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 
-	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);	// matrix of labeled ground truth attributes
+	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 22, CV_32FC1); // matrix of computed base features
@@ -127,11 +127,11 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
 					{
 						for (unsigned int i=0, j=0; i<filenames_gt_attributes[name].size(); ++i)
-							if (i!=13)	// one attribute (3d roughness) is currently not implemented here, so just leave it out from gt
-							{
+							//if (i!=13)	// one attribute (3d roughness) is currently not implemented here, so just leave it out from gt
+						{
 								ground_truth_attribute_matrix.at<float>(sample_index, j) = filenames_gt_attributes[name][i];
 								++j;
-							}
+						}
 					}
 					else
 					{

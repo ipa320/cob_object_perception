@@ -5,6 +5,115 @@ color_parameter::color_parameter()
 {
 }
 
+void color_parameter::get_color_parameter_new(cv::Mat img, struct feature_results *results, cv::Mat* raw_features)
+{
+	// computes color parameters for the given image
+	// 1. colorfulness
+	//    1 = one major color, 2 = two main colors, 3 - 5 = 3-5 colors
+	// 2. dominant color / 3. secondary dominant color
+	//    0 = no dominant color (e.g. too colorful or transparent)
+	//    1 = brown (ocher): h in [20, 70], s > 0.15, 0.2 < v < 0.7
+	//    2 = red: h in [0, 20] & [345, 360], s > 0.2, v > 0.3
+	//    3 = orange: h in [20, 50], s > 0.2, v > 0.3
+	//    4 = yellow: h in [50, 70], s > 0.2, v > 0.3
+	//    5 = green: h in [70, 160], s > 0.2, v > 0.3
+	//    6 = cyan (turquoise): h in [160, 180], s > 0.2, v > 0.3
+	//    7 = blue: h in [180, 250], s > 0.2, v > 0.2
+	//    8 = purple: h in [250, 295], s > 0.2, v > 0.3
+	//    9 = pink (rose): h in [295, 345], s > 0.2, v > 0.3
+	//   10 = white: s < 0.2, v >= 0.75
+	//   11 = gray (silver/metallic): s < 0.2, 0.2 < v < 0.75 or s>0.2, 0.2<v<0.3
+	//   12 = black: v <= 0.2
+	// 4. value/brightness / 5. variety of value/brightness
+	// 6. saturation/color strength / 7. variety of saturation/color strength
+
+	// threshold for saturation to decide whether color (hue) of pixel is defined (relevant/visible)
+	double saturation_color_threshold=0.25;
+
+	// transform into HSV color space  (h [0, 360], s,v [0, 1])
+	cv::Mat hsv;
+	cv::cvtColor(img, hsv, CV_BGR2HSV);
+
+	// COLOR
+	double colorfulness=0.;
+	double colorfulness_raw=0.;
+	double dom_color;
+	double dom_color2;
+	std::vector<double> color_histogram;
+//	for(int i=0;i<hsv.rows;i++)
+//	{
+//		for(int j=0;j<hsv.cols;j++)
+//		{
+//			const cv::Vec3b& value = hsv.at<cv::Vec3b>(i,j);
+//			if(comp_val>threshold*255)
+//			{
+//				double h_val = (hsv.at<cv::Vec3b>(i,j)[0]);
+//				rel_pix.push_back(h_val/180);
+//			}
+//		}
+//	}
+	// SATURATION AND VALUE
+	// calculate mean and standard deviation of saturation and value for all relevant pixels
+	cv::Scalar means, stds, meanv, stdv;
+	double s_mean, s_std, v_mean, v_std;
+	double s_mean_raw, s_std_raw, v_mean_raw, v_std_raw;
+	std::vector<double> s, v;
+	for(int i=0;i<hsv.rows;i++)
+	{
+		for(int j=0;j<hsv.cols;j++)
+		{
+			double val_s = hsv.at<cv::Vec3b>(i,j)[1];
+			double val_v = hsv.at<cv::Vec3b>(i,j)[2];
+			s.push_back(val_s/255.);
+			v.push_back(val_v/255.);
+		}
+	}
+	cv::meanStdDev(s, means, stds);
+	cv::meanStdDev(v, meanv, stdv);
+	s_mean = means.val[0]*6+0.5;
+	s_mean_raw = means.val[0];
+	s_std = stds.val[0]*10+0.5;
+	s_std_raw = stds.val[0];
+	v_mean = meanv.val[0]*6+0.5;
+	v_mean_raw = meanv.val[0];
+	v_std = stdv.val[0]*12+0.5;
+	v_std_raw = stdv.val[0];
+
+	s_mean = std::max(1., std::min(5., s_mean));
+	s_std = std::max(1., std::min(5., s_std));
+	v_mean = std::max(1., std::min(5., v_mean));
+	v_std = std::max(1., std::min(5., v_std));
+//	//no color in Image
+//	if(s_mean < 1.2 && s_std <1.2)
+//	{
+//		colorfulness = 0;
+//		dom_color 	 = 0;
+//		dom_color2	 = 0;
+//	}
+
+	// Submit results
+	(*results).colorfulness = colorfulness;
+	(*results).dom_color = dom_color;
+	(*results).dom_color2 = dom_color2;
+	(*results).s_mean = s_mean;
+	(*results).s_std = s_std;
+	(*results).v_mean = v_mean;
+	(*results).v_std = v_std;
+
+	// raw values
+	if (raw_features != 0)
+	{
+		raw_features->at<float>(0, 0) = colorfulness_raw;
+		raw_features->at<float>(0, 1) = (*results).dom_color;
+		raw_features->at<float>(0, 2) = (*results).dom_color2;
+		raw_features->at<float>(0, 3) = v_mean_raw;
+		raw_features->at<float>(0, 4) = v_std_raw;
+		raw_features->at<float>(0, 5) = s_mean_raw;
+		raw_features->at<float>(0, 6) = s_std_raw;
+	}
+}
+
+
 void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *results, cv::Mat* raw_features)
 {
 //	computes color parameters for all images of a given folder
@@ -163,7 +272,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 		dom_color2 = 0;
 	}
 
-	std::cout << "hue histogram:  ";
+	std::cout << "\nhue histogram:  ";
 	for(size_t i=0;i<hue_hist.size();i++)
 		std::cout<<hue_hist[i]<<"  ";
 	std::cout << std::endl;
@@ -198,7 +307,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	if(dom_color2<1)dom_color2=1;
 	if(dom_color2>10)dom_color2=10;
 	if(dom_color==1 && dom_color2==1) dom_color2=1.5;
-	std::cout<<dom_color<<" "<<dom_color2<<std::endl;
+	std::cout<< "dominant colors: " << dom_color<<", "<<dom_color2<<std::endl;
 
 
 	colorfulness = amount_of_color;

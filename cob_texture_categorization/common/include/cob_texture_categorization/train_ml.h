@@ -11,6 +11,8 @@
 #include "cob_texture_categorization/texture_categorization.h"
 #include "cob_texture_categorization/create_train_data.h"
 
+#include <ml.h>
+
 
 class train_ml
 {
@@ -28,12 +30,16 @@ public:
 	void cross_validation_with_generated_attributes(int folds, const std::vector<cv::Mat>& computed_attribute_matrices, const cv::Mat& class_label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
 			const cv::Mat& generated_attributes_matrix, const cv::Mat& generated_attributes_class_label_matrix, const create_train_data::DataHierarchyType generated_attributes_data_sample_hierarchy);
 
+	void train(const cv::Mat& training_data, const cv::Mat& training_labels);
+	void predict(const cv::Mat& test_data, const cv::Mat& test_labels);
 
 	void save_computed_attribute_matrices(std::string path, const std::vector<cv::Mat>& computed_attribute_matrices);
 	void load_computed_attribute_matrices(std::string path, std::vector<cv::Mat>& computed_attribute_matrices);
 
-	void newClassTest(const cv::Mat& feature_matrix, const cv::Mat& label_matrix,const cv::Mat& orig);
-	void run_ml(double val, std::string *path_);
+//	void newClassTest(const cv::Mat& feature_matrix, const cv::Mat& label_matrix,const cv::Mat& orig);
+//	void run_ml(double val, std::string *path_);
 
+private:
+	CvANN_MLP mlp_;
 };
 #endif /* TRAIN_ML_H_ */

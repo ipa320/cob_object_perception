@@ -384,7 +384,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			criteria.max_iter = 1000;//1000;	// 1000
 			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.6, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
 //			//	Neural Network
@@ -446,6 +446,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 					float absdiff2 = fabs(std::min(resp, lab)+9 - std::max(resp, lab)) * feature_scaling_factor;
 					absdiff = std::min(absdiff, absdiff2);
 					absdiff *= 4./9.;
+					absdiff = std::min(absdiff, 1.01f);
 				}
 				absErrors[attribute_index].push_back(absdiff);
 				sumAbsError += absdiff;

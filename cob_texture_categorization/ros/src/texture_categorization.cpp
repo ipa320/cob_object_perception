@@ -87,8 +87,8 @@ node_handle_(nh)
 //	inputCallbackNoCam();
 //	attributeLearningDatabaseTestFarhadi();
 //	attributeLearningDatabaseTestCimpoi();
-//	attributeLearningDatabaseTestHandcrafted();
-	crossValidationVerbalClassDescription();
+	attributeLearningDatabaseTestHandcrafted();
+//	crossValidationVerbalClassDescription();
 
 //	attributeLearningDatabaseTestAutomatedClass();
 }
@@ -162,8 +162,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 
 	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-	//database_data.compute_data_handcrafted(path_database, feature_files_path, 1281);
-	//return;
+//	database_data.compute_data_handcrafted(path_database, feature_files_path, 1281);
+//	return;
 
 	// attribute cross-validation
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
@@ -182,22 +182,29 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
-//	std::string generated_attributes_file_name = feature_files_path + "ipa_database_generated_class_attributes.txt";
-//	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
-//	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
-//	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
-//	ml.cross_validation(20, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
-
+	std::string generated_attributes_file_name = feature_files_path + "ipa_database_generated_class_attributes.txt";
+	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
+	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
+	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+	//ml.cross_validation(20, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	srand(0);
+	cv::Mat mat_rand = generated_attributes_16.clone();
+	for (int r=0; r<mat_rand.rows; ++r)
+		for (int c=0; c<mat_rand.cols; ++c)
+			mat_rand.at<float>(r,c) += 0.5*(1. - 2.*((double)rand()/(double)RAND_MAX));
+	ml.train(mat_rand, generated_attributes_class_label_matrix);
+	ml.predict(computed_attribute_matrix, class_label_matrix);
+	return;
 
 	int folds = 20;
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
 	////al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
-//	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
-	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+//	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 //	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
 	ml.cross_validation(folds, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
 }
@@ -322,7 +329,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestAutomatedClass()
 
 	train_ml classtest;
 //		std::cout<<computed_attribute_matrix<<std::endl;
-	classtest.newClassTest(computed_attribute_matrix, class_label_matrix, orig);
+	//classtest.newClassTest(computed_attribute_matrix, class_label_matrix, orig);
 
 
 //	std::cout<<computed_attribute_matrix<<std::endl;
