@@ -34,6 +34,12 @@ void IfvFeatures::computeImprovedFisherVector(const std::string& image_filename,
 	}
 	else if (feature_type == RGB_PATCHES)
 		computeDenseRGBPatches(image, dense_features);
+	else if (feature_type == HSV_PATCHES)
+	{
+		cv::Mat hsv_image;
+		cv::cvtColor(image, hsv_image, CV_BGR2HSV);
+		computeDenseRGBPatches(hsv_image, dense_features);
+	}
 	else
 	{
 		std::cout << "Error: IfvFeatures::computeImprovedFisherVector: specified feature type is unknown." << std::endl;
@@ -73,6 +79,12 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 		}
 		else if (feature_type == RGB_PATCHES)
 			computeDenseRGBPatches(image, features);
+		else if (feature_type == HSV_PATCHES)
+		{
+			cv::Mat hsv_image;
+			cv::cvtColor(image, hsv_image, CV_BGR2HSV);
+			computeDenseRGBPatches(hsv_image, features);
+		}
 		else
 		{
 			std::cout << "Error: IfvFeatures::constructGenerativeModel: specified feature type is unknown." << std::endl;

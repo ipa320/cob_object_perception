@@ -384,7 +384,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			criteria.max_iter = 1000;//1000;	// 1000
 			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.6, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
 //			//	Neural Network
@@ -515,4 +515,88 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	else
 		std::cout << "Error: could not write screen output to file.";
 	file.close();
+}
+
+
+void AttributeLearning::displayAttributes(const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int display_class, bool update, bool store_on_disk)
+{
+	// prepare display
+	create_train_data ctd;
+	std::vector<std::string> texture_classes = ctd.get_texture_classes();
+	// scale at: height 50 - 250 -> 10 - 0
+	const int column_spacing = 60;
+	if (update == false)
+	{
+		attribute_display_mat_plot_counter_ = 0;
+		attribute_display_mat_ = cv::Mat(320, (attribute_matrix.cols+2)*column_spacing, CV_8UC3);
+		attribute_display_mat_.setTo(cv::Scalar(255,255,255));
+		for (int a=1; a<=attribute_matrix.cols; ++a)
+		{
+			std::stringstream ss;
+			ss << a;
+			cv::putText(attribute_display_mat_, ss.str(), cv::Point(a*column_spacing-10, 300), cv::FONT_HERSHEY_SIMPLEX, 1., CV_RGB(0,0,0), 1);
+		}
+		for (int i=0; i<=10; ++i)
+			cv::line(attribute_display_mat_, cv::Point(column_spacing/2+20, 250-20*i), cv::Point(attribute_display_mat_.cols-column_spacing/2, 250-20*i), CV_RGB(0,0,0), (i==1 || i==5 || i==10)? 2 : 1);
+		cv::putText(attribute_display_mat_, "0", cv::Point(2, 250+10), cv::FONT_HERSHEY_SIMPLEX, 1., CV_RGB(0,0,0), 1);
+		cv::putText(attribute_display_mat_, "5", cv::Point(2, 250+10-5*20), cv::FONT_HERSHEY_SIMPLEX, 1., CV_RGB(0,0,0), 1);
+		cv::putText(attribute_display_mat_, "10", cv::Point(2, 250+10-10*20), cv::FONT_HERSHEY_SIMPLEX, 1., CV_RGB(0,0,0), 1);
+		std::stringstream ss;
+		ss << "class " << texture_classes[display_class];
+		cv::putText(attribute_display_mat_, ss.str(), cv::Point(attribute_display_mat_.cols/2-50, 30), cv::FONT_HERSHEY_SIMPLEX, 1., CV_RGB(0,0,0), 1);
+	}
+	else
+		++attribute_display_mat_plot_counter_;
+	cv::Scalar data_point_color;
+	if (attribute_display_mat_plot_counter_ == 0)
+		data_point_color = CV_RGB(0,-1,-1);
+	else if (attribute_display_mat_plot_counter_ == 1)
+		data_point_color = CV_RGB(-1,0,-1);
+	else if (attribute_display_mat_plot_counter_ == 2)
+		data_point_color = CV_RGB(-1,-1,0);
+	else
+		data_point_color = CV_RGB(255*rand()/(double)RAND_MAX, 255*rand()/(double)RAND_MAX, 255*rand()/(double)RAND_MAX);
+
+	// select data samples for current class
+	std::vector<int> sample_indices;
+	for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
+	{
+		if ((int)class_index == display_class)
+		{
+			int object_number = data_sample_hierarchy[class_index].size();
+			for (int object_index=0; object_index<object_number; ++object_index)
+				for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
+					sample_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
+		}
+	}
+
+	// fill data into display
+	data_point_color *= 255./(double)sample_indices.size();
+	for (size_t i=0; i<sample_indices.size(); ++i)
+		for (int a=0; a<attribute_matrix.cols; ++a)
+		{
+			cv::Point draw_location((a+1)*column_spacing + 8*attribute_display_mat_plot_counter_, 250-20*attribute_matrix.at<float>(sample_indices[i],a));
+			cv::Vec3b old_color = attribute_display_mat_.at<cv::Vec3b>(draw_location);
+			if (old_color == cv::Vec3b::zeros())
+			{
+				old_color.val[0] = 255;
+				old_color.val[1] = 255;
+				old_color.val[2] = 255;
+			}
+			cv::Scalar new_color(old_color.val[0]+data_point_color.val[0], old_color.val[1]+data_point_color.val[1], old_color.val[2]+data_point_color.val[2]);
+			cv::circle(attribute_display_mat_, draw_location, 2, new_color, 2);
+		}
+
+	if (store_on_disk == false)
+	{
+		cv::imshow("Attribute distribution", attribute_display_mat_);
+		cv::moveWindow("Attribute distribution", 0, 0);
+		cv::waitKey(10);
+	}
+	else
+	{
+		std::stringstream ss;
+		ss << "attribute_distribution/" << texture_classes[display_class] << "_" << display_class << ".png";
+		cv::imwrite(ss.str(), attribute_display_mat_);
+	}
 }

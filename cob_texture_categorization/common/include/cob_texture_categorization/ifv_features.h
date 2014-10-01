@@ -22,7 +22,7 @@ public:
 	IfvFeatures();
 	~IfvFeatures();
 
-	enum FeatureType {DENSE_MULTISCALE_SIFT = 0, RGB_PATCHES = 1};
+	enum FeatureType {DENSE_MULTISCALE_SIFT = 0, RGB_PATCHES = 1, HSV_PATCHES = 2};
 
 	void computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type);
 
@@ -59,7 +59,7 @@ public:
 	{
 		if (feature_type == DENSE_MULTISCALE_SIFT)
 			return 128;
-		else if (feature_type == RGB_PATCHES)
+		else if (feature_type == RGB_PATCHES || feature_type == HSV_PATCHES)
 			return 27;
 		return -1;
 	}

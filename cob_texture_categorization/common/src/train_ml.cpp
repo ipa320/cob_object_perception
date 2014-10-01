@@ -11,6 +11,8 @@
 #include "ml.h"
 #include "highgui.h"
 
+#include "cob_texture_categorization/attribute_learning.h"
+
 train_ml::train_ml()
 {
 }
@@ -306,9 +308,29 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 	std::vector<std::string> texture_classes = data_object.get_texture_classes();
 	std::stringstream screen_output;
 
+	std::set<int> considered_classes;
+//	considered_classes.insert(2);
+//	considered_classes.insert(3);
+//	considered_classes.insert(5);
+//	considered_classes.insert(9);
+//	considered_classes.insert(19);
+//	considered_classes.insert(26);
+//	considered_classes.insert(32);
+//	considered_classes.insert(37);
+//	considered_classes.insert(38);
+//	considered_classes.insert(41);
+//	considered_classes.insert(44);
+//	considered_classes.insert(46);
+//	considered_classes.insert(52);
+//	considered_classes.insert(54);
+//	considered_classes.insert(56);
+
 	srand(0);	// random seed --> keep reproducible
 	for (size_t fold=0; fold<(size_t)folds; ++fold)
 	{
+		if (considered_classes.size() > 0 && considered_classes.find(fold) == considered_classes.end())
+			continue;
+
 		std::cout << "=== fold " << fold+1 << " ===" << std::endl;		screen_output << "=== fold " << fold+1 << " ===" << std::endl;
 		const cv::Mat& computed_attribute_matrix = computed_attribute_matrices[fold];
 
@@ -317,6 +339,9 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 		// select the class left out on attribute training for testing, training data comes from verbal description
 		for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
 		{
+			if (considered_classes.size() > 0 && considered_classes.find(class_index) == considered_classes.end())
+				continue;
+
 			if (class_index == fold)
 			{
 				// use computed attributes from this class as test case
@@ -328,11 +353,12 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 							//std::cout << data_sample_hierarchy[class_index][object_index][s] << "\t";
 							screen_output << data_sample_hierarchy[class_index][object_index][s] << "\t";
 						}
-				// take the generated attributes (e.g. from verbal description) of this class for training the classifier
-				object_number = generated_attributes_data_sample_hierarchy[class_index].size();
-				for (int object_index=0; object_index<object_number; ++object_index)
-					for (unsigned int s=0; s<generated_attributes_data_sample_hierarchy[class_index][object_index].size(); ++s)
-						train_indices_generated_attributes.push_back(generated_attributes_data_sample_hierarchy[class_index][object_index][s]);
+	// todo: try out using the full verbal set for training, in addition
+//				// take the generated attributes (e.g. from verbal description) of this class for training the classifier
+//				object_number = generated_attributes_data_sample_hierarchy[class_index].size();
+//				for (int object_index=0; object_index<object_number; ++object_index)
+//					for (unsigned int s=0; s<generated_attributes_data_sample_hierarchy[class_index][object_index].size(); ++s)
+//						train_indices_generated_attributes.push_back(generated_attributes_data_sample_hierarchy[class_index][object_index][s]);
 			}
 			else
 			{
@@ -342,6 +368,11 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 					for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
 						train_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
 			}
+			// take the generated attributes (e.g. from verbal description) as additional training input to the classifier
+			int object_number = generated_attributes_data_sample_hierarchy[class_index].size();
+			for (int object_index=0; object_index<object_number; ++object_index)
+				for (unsigned int s=0; s<generated_attributes_data_sample_hierarchy[class_index][object_index].size(); ++s)
+					train_indices_generated_attributes.push_back(generated_attributes_data_sample_hierarchy[class_index][object_index][s]);
 		}
 
 		// create training and test data matrices
@@ -383,6 +414,19 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 				std::cout << std::endl;
 			}
 		}
+
+		AttributeLearning al;
+		create_train_data::DataHierarchyType temp_hierarchy(fold+1, std::vector< std::vector<int> >(1));
+		for (int r=0; r<training_labels.rows; ++r)
+			if (training_labels.at<float>(r) == fold)
+				temp_hierarchy[fold][0].push_back(r);
+		al.displayAttributes(training_data, temp_hierarchy, fold, false);
+		temp_hierarchy.clear();
+		temp_hierarchy.resize(fold+1, std::vector< std::vector<int> >(1));
+		for (int r=0; r<test_labels.rows; ++r)
+			if (test_labels.at<float>(r) == fold)
+				temp_hierarchy[fold][0].push_back(r);
+		al.displayAttributes(test_data, temp_hierarchy, fold, true, true);
 
 		// === train ml classifier ===
 
