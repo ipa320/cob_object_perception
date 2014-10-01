@@ -116,6 +116,8 @@ protected:
 
 	void crossValidationVerbalClassDescription();
 
+
+	std::set<int> considered_classes_;	// considered classes may limit the amount of classes used from a database for training and recognition
 };
 
 

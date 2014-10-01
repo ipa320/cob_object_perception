@@ -214,12 +214,12 @@ public:
 		bool savepointcloud=false;
 		if(savepointcloud)
 		{
-			 pcl::io::savePCDFileASCII ("/home/rmb-dh/evaluation/test_pcd.pcd", *cloud);
-			 std::cout<<"cloud saved"<<std::endl;
-			 cv::imwrite("/home/rmb-dh/evaluation/pointcloud_img.jpg", color_image );
-			 cv::imshow("Saved Image", color_image);
-			 cv::waitKey(100000);
-			 std::cout<<"Get new Image"<<std::endl;
+			pcl::io::savePCDFileASCII ("/home/rmb-dh/evaluation/test_pcd.pcd", *cloud);
+			std::cout<<"cloud saved"<<std::endl;
+			cv::imwrite("/home/rmb-dh/evaluation/pointcloud_img.jpg", color_image );
+			cv::imshow("Saved Image", color_image);
+			cv::waitKey(100000);
+			std::cout<<"Get new Image"<<std::endl;
 		}
 
 		//Load Pointcloud for Evaluation
@@ -227,8 +227,33 @@ public:
 		sensor_msgs::PointCloud2 cloud_blob;
 
 
+		std::vector<int> image_indices;
+		image_indices.push_back(16);	//!
+		image_indices.push_back(17);
+		image_indices.push_back(19);
+		image_indices.push_back(21);
+		image_indices.push_back(27);
+		image_indices.push_back(29);
+		image_indices.push_back(33);
+		image_indices.push_back(34);	//!
+		image_indices.push_back(35);
+		image_indices.push_back(36);
+		image_indices.push_back(37);
+		image_indices.push_back(38);
+		image_indices.push_back(39);
+		image_indices.push_back(40);
+		image_indices.push_back(43);
+		image_indices.push_back(44);
+		image_indices.push_back(45);
+		image_indices.push_back(46);
+		image_indices.push_back(47);
+		image_indices.push_back(48);
+		image_indices.push_back(49);
+		image_indices.push_back(50);
+		image_indices.push_back(51);	//!
+
 		std::ostringstream outStream;
-		outStream << global_imagecount;
+		outStream << image_indices[global_imagecount];
 		std::string num;
 		num  = outStream.str();
 
@@ -246,39 +271,43 @@ public:
 //		std::string num2 = "34";
 
 
-		std::string pcd = "/home/rmb-dh/evaluation/Final2/ev"+ num + ".pcd";
-		std::string jpg = "/home/rmb-dh/evaluation/Final2/ev"+ num +".jpg";
-//		std::string pcd = "/home/rmb-dh/evaluation/test.pcd";
-//		std::string jpg = "/home/rmb-dh/evaluation/test.jpg";
-		std::string segmented = "/home/rmb-dh/evaluation/Segmented/Segmented"+ num2 +".jpg";
+//		std::string pcd = "/home/rmb-dh/evaluation/Final2/ev"+ num + ".pcd";
+//		std::string jpg = "/home/rmb-dh/evaluation/Final2/ev"+ num +".jpg";
+////		std::string pcd = "/home/rmb-dh/evaluation/test.pcd";
+////		std::string jpg = "/home/rmb-dh/evaluation/test.jpg";
+//		std::string segmented = "/home/rmb-dh/evaluation/Segmented/Segmented"+ num2 +".jpg";
+		std::string pcd = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/scenes_database/Table"+ num + ".pcd";
+		std::string jpg = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/scenes_database/Table"+ num +".jpg";
 		std::cout<< pcd <<" Used PCD File   "<<jpg<<" Used JPG File"<<std::endl;
 
-		global_imagecount++;
-		if(global_imagecount==4)
-			global_imagecount=2;
+		--global_imagecount;
+		if(global_imagecount>=(int)image_indices.size())
+			global_imagecount=0;
+		if(global_imagecount<0)
+			global_imagecount=(int)image_indices.size()-1;
 
 //		cv::imshow("imagebevore", cv::imread(segmented,1));
 
 
 		if(loadpointcloud)
 		{
-			  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcd, *cloud) == -1) //* load the file
-			  {
-			    PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
-			  }
-			  io::loadPCDFile (pcd, cloud_blob);
-			  color_image = cv::imread(jpg, 1);
-			  std::cout << "Loaded "
-			            << cloud->width * cloud->height
-			            << " data points from test_pcd.pcd with the following fields: "
-			            << std::endl;
+			if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcd, *cloud) == -1) //* load the file
+			{
+			PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
+			}
+			io::loadPCDFile (pcd, cloud_blob);
+			color_image = cv::imread(jpg, 1);
+			std::cout << "Loaded "
+					<< cloud->width * cloud->height
+					<< " data points from test_pcd.pcd with the following fields: "
+					<< std::endl;
 		}
 
 
 
 		int key = 0;
 		cv::imshow("image", color_image);
-		cv::waitKey(100000);
+		cv::waitKey();
 //		if(!EVALUATION_ONLINE_MODE)
 //			cv::waitKey(10);
 //		if(EVALUATION_ONLINE_MODE)
@@ -335,11 +364,13 @@ public:
 //				for (int u=0; u<edge.cols; ++u)
 //					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
 			edge_detection_.computeDepthEdges(cloud, edge);
+			// hack:
+			edge = cv::Mat::zeros(cloud->height,cloud->width,CV_8UC1);	// hack:
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
-			cv::imshow("edge", edge);
-			cv::waitKey(10);
+//			cv::imshow("edge", edge);
+//			cv::waitKey(10);
 
 			//Timer timer;
 			//timer.start();
@@ -591,7 +622,7 @@ private:
 
 int main (int argc, char** argv)
 {
-	global_imagecount=2;
+	global_imagecount=0;
 	// Initialize ROS, specify name of node
 	ros::init(argc, argv, "cob_surface_classification");
 

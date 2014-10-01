@@ -13,6 +13,9 @@
 
 #include <ml.h>
 
+#include <set>
+#include <map>
+
 
 class train_ml
 {
@@ -31,7 +34,10 @@ public:
 			const cv::Mat& generated_attributes_matrix, const cv::Mat& generated_attributes_class_label_matrix, const create_train_data::DataHierarchyType generated_attributes_data_sample_hierarchy);
 
 	void train(const cv::Mat& training_data, const cv::Mat& training_labels);
-	void predict(const cv::Mat& test_data, const cv::Mat& test_labels);
+	void predict(const cv::Mat& test_data, const cv::Mat& test_labels, cv::Mat& predicted_labels);
+
+	void save_mlp(std::string path);
+	void load_mlp(std::string path);
 
 	void save_computed_attribute_matrices(std::string path, const std::vector<cv::Mat>& computed_attribute_matrices);
 	void load_computed_attribute_matrices(std::string path, std::vector<cv::Mat>& computed_attribute_matrices);
@@ -41,5 +47,7 @@ public:
 
 private:
 	CvANN_MLP mlp_;
+	std::map<float, float> label_class_mapping_;	// maps the original data label (first) to a class number (second) between 0 and number_classes
+	std::map<float, float> class_label_mapping_;	// maps a class number (first) between 0 and number_classes to the original data label (second)
 };
 #endif /* TRAIN_ML_H_ */

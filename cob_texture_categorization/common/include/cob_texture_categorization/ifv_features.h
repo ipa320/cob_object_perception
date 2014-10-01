@@ -25,6 +25,7 @@ public:
 	enum FeatureType {DENSE_MULTISCALE_SIFT = 0, RGB_PATCHES = 1, HSV_PATCHES = 2};
 
 	void computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type);
+	void computeImprovedFisherVector(const cv::Mat& original_image, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type);
 
 	void constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor=1.0, const int feature_samples_per_image=1000, const int number_clusters = 256, FeatureType feature_type = DENSE_MULTISCALE_SIFT);
 

@@ -407,7 +407,7 @@ bool p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud<
 		cv::Mat imgbevore = (*source).clone();
 
 	//	Homography H
-		float birdEyeResolution = 300;
+		float birdEyeResolution = 900; //300;
 		std::vector<cv::Point2f> inputpoint;
 		std::vector<cv::Point2f> outputpoint;
 		double step = std::max(1.0, (double)pointsCamera.size()/100.0);
@@ -419,7 +419,7 @@ bool p_transformation::run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud<
 					outputpoint.push_back(birdEyeResolution*(pointsPlane[(int)i]-cameraImagePlaneOffset));
 		}
 		cv::Mat H = findHomography(inputpoint, outputpoint);
-		cv::Mat imageH = cv::Mat::zeros(480,640,CV_8UC3);
+		//cv::Mat imageH = cv::Mat::zeros(480,640,CV_8UC3);
 //		std::cout<<H<<"homohradph"<<std::endl;
 		cv::warpPerspective((*source), (*source), H, workimage.size());
 		*H_ = H.inv(cv::DECOMP_LU);

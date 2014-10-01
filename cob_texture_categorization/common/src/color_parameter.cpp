@@ -272,10 +272,10 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 		dom_color2 = 0;
 	}
 
-	std::cout << "\nhue histogram:  ";
-	for(size_t i=0;i<hue_hist.size();i++)
-		std::cout<<hue_hist[i]<<"  ";
-	std::cout << std::endl;
+//	std::cout << "\nhue histogram:  ";
+//	for(size_t i=0;i<hue_hist.size();i++)
+//		std::cout<<hue_hist[i]<<"  ";
+//	std::cout << std::endl;
 
 	//colorfulness
 	int amount_of_color=0;
@@ -307,7 +307,7 @@ void color_parameter::get_color_parameter(cv::Mat img, struct feature_results *r
 	if(dom_color2<1)dom_color2=1;
 	if(dom_color2>10)dom_color2=10;
 	if(dom_color==1 && dom_color2==1) dom_color2=1.5;
-	std::cout<< "dominant colors: " << dom_color<<", "<<dom_color2<<std::endl;
+//	std::cout<< "dominant colors: " << dom_color<<", "<<dom_color2<<std::endl;
 
 
 	colorfulness = amount_of_color;

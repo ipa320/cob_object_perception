@@ -13,11 +13,16 @@ IfvFeatures::~IfvFeatures()
 		vl_gmm_delete(gmm_);
 }
 
-
 void IfvFeatures::computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type)
 {
-	// load and prepare image
+	// load image
 	cv::Mat original_image = cv::imread(image_filename);
+	computeImprovedFisherVector(original_image, image_resize_factor, number_clusters, fisher_vector_encoding, feature_type);
+}
+
+void IfvFeatures::computeImprovedFisherVector(const cv::Mat& original_image, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type)
+{
+	// prepare image
 	cv::Mat image;
 	if (image_resize_factor != 1.0)
 		cv::resize(original_image, image, cv::Size(), image_resize_factor, image_resize_factor, cv::INTER_AREA);

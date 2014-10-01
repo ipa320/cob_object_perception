@@ -309,21 +309,6 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 	std::stringstream screen_output;
 
 	std::set<int> considered_classes;
-//	considered_classes.insert(2);
-//	considered_classes.insert(3);
-//	considered_classes.insert(5);
-//	considered_classes.insert(9);
-//	considered_classes.insert(19);
-//	considered_classes.insert(26);
-//	considered_classes.insert(32);
-//	considered_classes.insert(37);
-//	considered_classes.insert(38);
-//	considered_classes.insert(41);
-//	considered_classes.insert(44);
-//	considered_classes.insert(46);
-//	considered_classes.insert(52);
-//	considered_classes.insert(54);
-//	considered_classes.insert(56);
 
 	srand(0);	// random seed --> keep reproducible
 	for (size_t fold=0; fold<(size_t)folds; ++fold)
@@ -553,8 +538,8 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 				t++;
 			else
 				f++;
-			std::cout << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
-			screen_output << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
+			std::cout << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << "\tclassifier raw value: " << prediction_order.begin()->first << std::endl;
+			screen_output << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << "\tclassifier raw value: " << prediction_order.begin()->first << std::endl;
 		}
 		std::cout << "Ranking distribution of correct predictions:" << std::endl;	screen_output << "Ranking distribution of correct predictions:" << std::endl;
 		for (size_t i=0; i<true_predictions_rank.size(); ++i)
@@ -618,7 +603,19 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 
 void train_ml::train(const cv::Mat& training_data, const cv::Mat& training_labels)
 {
-	const int number_classes = 57;
+	int number_classes = 0;
+	label_class_mapping_.clear();
+	class_label_mapping_.clear();
+	for (int r=0; r<training_labels.rows; ++r)
+	{
+		if (label_class_mapping_.find(training_labels.at<float>(r)) == label_class_mapping_.end())
+		{
+			label_class_mapping_[training_labels.at<float>(r)] = number_classes;
+			class_label_mapping_[number_classes] = training_labels.at<float>(r);
+			std::cout << "mapping original label: " << training_labels.at<float>(r) << " --> " << number_classes << std::endl;
+			number_classes++;
+		}
+	}
 
 	// Neural Network
 	cv::Mat input;
@@ -627,14 +624,13 @@ void train_ml::train(const cv::Mat& training_data, const cv::Mat& training_label
 	cv::Mat labels;
 	training_labels.convertTo(labels, CV_32F);
 	for(int i=0; i<labels.rows; ++i)
-		output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
+		output.at<float>(i,label_class_mapping_[(int)labels.at<float>(i,0)]) = 1.f;		//change.at<float>(i,0);
 
 	cv::Mat layers = cv::Mat(3,1,CV_32SC1);
 	layers.row(0) = cv::Scalar(training_data.cols);
 	layers.row(1) = cv::Scalar(400);	//400
 	layers.row(2) = cv::Scalar(number_classes);
 
-	CvANN_MLP mlp;
 	CvANN_MLP_TrainParams params;
 	CvTermCriteria criteria;
 
@@ -653,9 +649,10 @@ void train_ml::train(const cv::Mat& training_data, const cv::Mat& training_label
 }
 
 
-void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels)
+void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels, cv::Mat& predicted_labels)
 {
-	const int number_classes = 57;
+	const int number_classes = (int)class_label_mapping_.size();
+	predicted_labels.create(test_labels.rows, test_labels.cols, CV_32FC1);
 
 	// === apply ml classifier to predict test set ===
 	create_train_data data_object;
@@ -672,7 +669,7 @@ void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels)
 		mlp_.predict(sample, response);
 		std::multimap<float, int, std::greater<float> > prediction_order;
 		for (int j = 0; j < number_classes; j++)
-			prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), j));
+			prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), class_label_mapping_[j]));
 		for (std::multimap<float, int, std::greater<float> >::iterator it=prediction_order.begin(); it!=prediction_order.end(); ++it, ++correct_prediction_at_rank)
 			if (it->second == test_labels.at<float>(i, 0))
 				break;
@@ -683,6 +680,7 @@ void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels)
 //		int predicted_class = rtree.predict(sample);	// Random Tree
 //		int predicted_class = bayesmod.predict(sample);	// Normal Bayes Classifier
 
+		predicted_labels.at<float>(i, 0) = predicted_class;
 		if (predicted_class == test_labels.at<float>(i, 0))
 			t++;
 		else
@@ -725,6 +723,64 @@ void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels)
 		file << screen_output.str();
 	else
 		std::cout << "Error: could not write screen output to file.";
+	file.close();
+}
+
+
+void train_ml::save_mlp(std::string path)
+{
+	std::string filename = path + "mlp.yml";
+	std::cout << "Saving MLP to file " << filename << std::endl;
+	mlp_.save(filename.c_str(), "mlp");
+
+	// save mappings
+	filename = path + "mlp.txt";
+	std::ofstream file(filename.c_str(), std::ios::out);
+	if (file.is_open() == true)
+	{
+		file << label_class_mapping_.size() << std::endl;
+		for (std::map<float, float>::iterator it=label_class_mapping_.begin(); it!=label_class_mapping_.end(); ++it)
+			file << it->first << "\t" << it->second << std::endl;
+		file << class_label_mapping_.size() << std::endl;
+		for (std::map<float, float>::iterator it=class_label_mapping_.begin(); it!=class_label_mapping_.end(); ++it)
+			file << it->first << "\t" << it->second << std::endl;
+	}
+	else
+		std::cout << "Error: could not write to file " << filename << ".\n";
+	file.close();
+}
+
+
+void train_ml::load_mlp(std::string path)
+{
+	std::string filename = path + "mlp.yml";
+	mlp_.load(filename.c_str(), "mlp");
+
+	// load mappings
+	label_class_mapping_.clear();
+	class_label_mapping_.clear();
+	filename = path + "mlp.txt";
+	std::ifstream file(filename.c_str(), std::ios::in);
+	if (file.is_open() == true)
+	{
+		size_t length = 0;
+		file >> length;
+		for (size_t i=0; i<length; ++i)
+		{
+			float first, second;
+			file >> first >> second;
+			label_class_mapping_[first] = second;
+		}
+		file >> length;
+		for (size_t i=0; i<length; ++i)
+		{
+			float first, second;
+			file >> first >> second;
+			class_label_mapping_[first] = second;
+		}
+	}
+	else
+		std::cout << "Error: could not read from file " << filename << ".\n";
 	file.close();
 }
 

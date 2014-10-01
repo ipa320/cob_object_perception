@@ -384,7 +384,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 			criteria.max_iter = 1000;//1000;	// 1000
 			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+			CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
 
 //			//	Neural Network
@@ -515,6 +515,71 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	else
 		std::cout << "Error: could not write screen output to file.";
 	file.close();
+}
+
+
+void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix)
+{
+	svm_.clear();
+	svm_.resize(attribute_matrix.cols);
+	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
+	{
+		std::cout << "--- attribute " << attribute_index+1 << " ---" << std::endl;
+
+		// create label vector
+		cv::Mat training_labels(attribute_matrix.rows, 1, CV_32FC1);
+		const double feature_scaling_factor = (attribute_index==1 || attribute_index==2) ? 2.0 : 1.0;
+		for (int r=0; r<attribute_matrix.rows; ++r)
+			training_labels.at<float>(r) = attribute_matrix.at<float>(r, attribute_index)/feature_scaling_factor;
+
+		// SVM
+		CvTermCriteria criteria;
+		criteria.max_iter = 1000;//1000;	// 1000
+		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
+		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+		CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+		svm_[attribute_index].train(feature_matrix, training_labels, cv::Mat(), cv::Mat(), svm_params);
+	}
+}
+
+
+void AttributeLearning::predict(const cv::Mat& feature_data, cv::Mat& predicted_labels)
+{
+	predicted_labels.create(feature_data.rows, svm_.size(), CV_32FC1);
+	for (size_t attribute_index=0; attribute_index<svm_.size(); ++attribute_index)
+	{
+		const double feature_scaling_factor = (attribute_index==1 || attribute_index==2) ? 2.0 : 1.0;
+		for (int r = 0; r < feature_data.rows ; ++r)
+		{
+			cv::Mat sample = feature_data.row(r);
+			predicted_labels.at<float>(r,attribute_index) = feature_scaling_factor*svm_[attribute_index].predict(sample);	// SVM
+		}
+	}
+}
+
+
+void AttributeLearning::save_SVMs(std::string path)
+{
+	for (size_t i=0; i<svm_.size(); ++i)
+	{
+		std::stringstream ss;
+		ss << path << "attribute_svm_" << i << ".yml";
+		svm_[i].save(ss.str().c_str(), "svm");
+	}
+}
+
+
+void AttributeLearning::load_SVMs(std::string path)
+{
+	svm_.clear();
+	const int attribute_number = 17;
+	svm_.resize(attribute_number);
+	for (size_t i=0; i<svm_.size(); ++i)
+	{
+		std::stringstream ss;
+		ss << path << "attribute_svm_" << i << ".yml";
+		svm_[i].load(ss.str().c_str(), "svm");
+	}
 }
 
 

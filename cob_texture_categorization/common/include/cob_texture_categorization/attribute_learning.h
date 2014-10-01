@@ -11,6 +11,7 @@
 #include "cob_texture_categorization/create_train_data.h"
 
 #include <cv.h>
+#include <ml.h>
 
 
 class AttributeLearning
@@ -41,11 +42,19 @@ public:
 			bool return_set_data, const cv::Mat& class_label_matrix, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data,
 			bool return_computed_attribute_matrices, std::vector<cv::Mat>& computed_attribute_matrices);
 
+	void train(const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix);
+	void predict(const cv::Mat& feature_data, cv::Mat& predicted_labels);
+
+	void save_SVMs(std::string path);
+	void load_SVMs(std::string path);
+
 	void displayAttributes(const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int display_class, bool update=false, bool store_on_disk=false);
 
 private:
 	cv::Mat attribute_display_mat_;
 	int attribute_display_mat_plot_counter_;
+
+	std::vector<CvSVM> svm_;
 };
 
 #endif /* ATTRIBUTE_LEARNING_H_ */
