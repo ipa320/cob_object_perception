@@ -1464,8 +1464,8 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 //	}
 //	}
 //
-	cv::imshow("original", color_image);
-	//splitandmerge test = splitandmerge();
+//	cv::imshow("original", color_image);
+//	splitandmerge test = splitandmerge();
 //	cv::Mat pic1 = test.categorize(color_image);
 //	cv::Mat pic2 = test.categorize(test2);
 //	cv::Mat pic3 = test.categorize(test3);
