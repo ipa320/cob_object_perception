@@ -28,7 +28,7 @@ void color_parameter::get_color_parameter_new(cv::Mat img, struct feature_result
 	// 6. saturation/color strength / 7. variety of saturation/color strength
 
 	// threshold for saturation to decide whether color (hue) of pixel is defined (relevant/visible)
-	double saturation_color_threshold=0.25;
+	//double saturation_color_threshold=0.25;
 
 	// transform into HSV color space  (h [0, 360], s,v [0, 1])
 	cv::Mat hsv;
@@ -37,8 +37,8 @@ void color_parameter::get_color_parameter_new(cv::Mat img, struct feature_result
 	// COLOR
 	double colorfulness=0.;
 	double colorfulness_raw=0.;
-	double dom_color;
-	double dom_color2;
+	double dom_color = 0.;
+	double dom_color2 = 0.;
 	std::vector<double> color_histogram;
 //	for(int i=0;i<hsv.rows;i++)
 //	{
