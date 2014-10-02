@@ -19,6 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\common\src\AbstractFiducialModel.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
+    </ClCompile>
     <ClCompile Include="..\common\src\aruco\arucofidmarkers.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"</PrecompiledHeaderFile>
@@ -192,7 +196,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ObjectFileName>$(IntDir)</ObjectFileName>
-      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <OpenMPSupport>true</OpenMPSupport>
@@ -206,6 +210,7 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(OutDir)$(ProjectName)D.dll" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName)D.dll"
@@ -276,6 +281,7 @@ copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\wi
       </DataExecutionPrevention>
       <Profile>false</Profile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(OutDir)$(ProjectName).dll" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName).dll"

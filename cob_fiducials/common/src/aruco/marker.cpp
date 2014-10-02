@@ -27,10 +27,11 @@ or implied, of Rafael Muñoz Salinas.
 ********************************/
 
 #include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+
 #ifdef __LINUX__
-#include "cob_fiducials/aruco/marker.h"
 #define _USE_MATH_DEFINES
-#include <math.h>
+#include <cmath>
+#include "cob_fiducials/aruco/marker.h"
 #else
 #include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/marker.h"
 #endif

@@ -31,6 +31,9 @@
     <ClCompile Include="..\common\src\FiducialTestingEnvironment.cpp">
       <Filter>cob_fiducials\aruco</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\src\AbstractFiducialModel.cpp">
+      <Filter>cob_fiducials</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\include\cob_fiducials\FiducialTestingEnvironment.h">

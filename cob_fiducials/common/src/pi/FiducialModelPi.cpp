@@ -178,17 +178,20 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 		}
 
 		//Fast Pi Tag
-		std::vector<float> badellipses;
 		std::vector<cv::Point2i> points;
 		std::vector<cv::Rect> rois;
 		cv::Mat ellipsevoting(src_mat_8U1.rows,src_mat_8U1.cols,CV_32FC1);
 		cv::Mat ellipsedensity(src_mat_8U1.rows,src_mat_8U1.cols,CV_8UC1);
 
-		if(m_use_fast_pi_tag){
+		if(m_use_fast_pi_tag)
+		{
+			std::vector<size_t> badellipses;
 
 			//Fil cv::Mat with -1
-			for(int i = 0; i < ellipsevoting.rows; i++){
-				for(int j = 0; j < ellipsevoting.cols; j++){
+			for(int i = 0; i < ellipsevoting.rows; i++)
+			{
+				for(int j = 0; j < ellipsevoting.cols; j++)
+				{
 					ellipsevoting.at<float> (i,j) = -1;
 					ellipsedensity.at<unsigned char> (i,j) = 0;
 				}
@@ -196,7 +199,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 
 			//ellipse density voting
-			for(size_t i = 0; i < ellipses.size(); i++){
+			for(size_t i = 0; i < ellipses.size(); i++)
+			{
 				unsigned int votingsize = (int)std::min(src_mat_8U1.rows,src_mat_8U1.cols)*0.005;
 				unsigned int vr_x = votingsize;
 				unsigned int vr_y = votingsize;
@@ -220,8 +224,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 			//check if a ellipse is already in the same place - > Take bigger one(ellipses are order in ascending order)
 			//if(false) -> vote
-			for(size_t i = 0; i < ellipses.size(); i++){
-
+			for(size_t i = 0; i < ellipses.size(); i++)
+			{
 				//unsigned int min = std::min(ellipses[i].size.height,ellipses[i].size.width);
 				//voting area
 				unsigned int votingsize = (int)std::min(src_mat_8U1.rows,src_mat_8U1.cols)*0.003;
@@ -248,9 +252,12 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 					}
 				}
 
-				if(insert){
-					for(int k = -(int)vr_x/2; k < (int)vr_x/2; k++){
-						for(int l = -(int)vr_y/2; l < (int)vr_y/2; l++){
+				if(insert)
+				{
+					for(int k = -(int)vr_x/2; k < (int)vr_x/2; k++)
+					{
+						for(int l = -(int)vr_y/2; l < (int)vr_y/2; l++)
+						{
 
 							int x = ellipses[i].center.x+l;
 							int y = ellipses[i].center.y+k;
@@ -405,7 +412,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 			//Kick ellipses in inverted order
 			while (!badellipses.empty())
 			{
-				int index = (int)badellipses.back();
+				size_t index = badellipses.back();
 				badellipses.pop_back();
 				ellipses.erase(ellipses.begin()+index);
 			}
@@ -486,8 +493,8 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 
 			// ------------ Fiducial corner extraction --------------------------------------
 			std::vector<std::vector<cv::Point2f> > marker_lines;
-			int max_pixel_dist_to_line; // Will be set automatically
-			int max_ellipse_difference; // Will be set automatically
+			double max_pixel_dist_to_line; // Will be set automatically
+			double max_ellipse_difference; // Will be set automatically
 			double deviation_of_aspectratio = 0.3; //m_use_fast_pi_tag
 			// Compute area
 			std::vector<double> ref_A;
@@ -560,7 +567,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 						double d_k_sqr = (vec_KprojK.x*vec_KprojK.x) + (vec_KprojK.y*vec_KprojK.y);
 
 						max_pixel_dist_to_line = std::sqrt(std::min(ellipses[k].size.height, ellipses[k].size.width));
-						max_pixel_dist_to_line = std::max(2, max_pixel_dist_to_line);
+						max_pixel_dist_to_line = std::max(2.0, max_pixel_dist_to_line);
 						if (d_k_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 							continue;
 
@@ -593,7 +600,7 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 							double d_l_sqr = (vec_LprojL.x*vec_LprojL.x) + (vec_LprojL.y*vec_LprojL.y);
 
 							max_pixel_dist_to_line = std::sqrt(std::min(ellipses[l].size.height, ellipses[l].size.width));
-							max_pixel_dist_to_line = std::max(2, max_pixel_dist_to_line);
+							max_pixel_dist_to_line = std::max(2.0, max_pixel_dist_to_line);
 							if (d_l_sqr > max_pixel_dist_to_line*max_pixel_dist_to_line)
 								continue;
 
@@ -1303,17 +1310,17 @@ unsigned long FiducialModelPi::GetPose(cv::Mat& image, std::vector<t_pose>& vec_
 bool FiducialModelPi::AnglesValid2D(std::vector<cv::Point2f>& image_points)
 {
 		// Check angles
-		//double max_symtry_deg_diff = 40;
-		double min_deg_angle = 20;
+		//float max_symtry_deg_diff = 40;
+		float min_deg_angle = 20;
 		cv::Point2f vec_03 = image_points[3] - image_points[0];
 		cv::Point2f vec_36 = image_points[6] - image_points[3];
 		cv::Point2f vec_69 = image_points[9] - image_points[6];
 		cv::Point2f vec_90 = image_points[0] - image_points[9];
 
-		double size_vec_03 = std::sqrt(vec_03.x*vec_03.x + vec_03.y*vec_03.y);
-		double size_vec_36 = std::sqrt(vec_36.x*vec_36.x + vec_36.y*vec_36.y);
-		double size_vec_69 = std::sqrt(vec_69.x*vec_69.x + vec_69.y*vec_69.y);
-		double size_vec_90 = std::sqrt(vec_90.x*vec_90.x + vec_90.y*vec_90.y);
+		float size_vec_03 = std::sqrt(vec_03.x*vec_03.x + vec_03.y*vec_03.y);
+		float size_vec_36 = std::sqrt(vec_36.x*vec_36.x + vec_36.y*vec_36.y);
+		float size_vec_69 = std::sqrt(vec_69.x*vec_69.x + vec_69.y*vec_69.y);
+		float size_vec_90 = std::sqrt(vec_90.x*vec_90.x + vec_90.y*vec_90.y);
 
 		vec_03.x /= size_vec_03;
 		vec_03.y /= size_vec_03;
@@ -1324,11 +1331,11 @@ bool FiducialModelPi::AnglesValid2D(std::vector<cv::Point2f>& image_points)
 		vec_90.x /= size_vec_90;
 		vec_90.y /= size_vec_90;
 
-		double pi = 3.14159265359;
-		double angle_ur = std::acos((-vec_03.x)*vec_36.x+(-vec_03.y)*vec_36.y)*180.0/pi;
-		double angle_lr = std::acos((-vec_36.x)*vec_69.x+(-vec_36.y)*vec_69.y)*180.0/pi;
-		double angle_ll = std::acos((-vec_69.x)*vec_90.x+(-vec_69.y)*vec_90.y)*180.0/pi;
-		double angle_ul = std::acos((-vec_90.x)*vec_03.x+(-vec_90.y)*vec_03.y)*180.0/pi;
+		float pi = 3.14159265359;
+		float angle_ur = std::acos((-vec_03.x)*vec_36.x+(-vec_03.y)*vec_36.y)*180.0/pi;
+		float angle_lr = std::acos((-vec_36.x)*vec_69.x+(-vec_36.y)*vec_69.y)*180.0/pi;
+		float angle_ll = std::acos((-vec_69.x)*vec_90.x+(-vec_69.y)*vec_90.y)*180.0/pi;
+		float angle_ul = std::acos((-vec_90.x)*vec_03.x+(-vec_90.y)*vec_03.y)*180.0/pi;
 
 		//if (std::abs(angle_ur-angle_ll) > max_symtry_deg_diff ||
 		//        std::abs(angle_ul-angle_lr) > max_symtry_deg_diff)
