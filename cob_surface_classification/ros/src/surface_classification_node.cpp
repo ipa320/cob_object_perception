@@ -190,10 +190,6 @@ public:
 
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
-
-
-
-
 		//ROS_INFO("Input Callback");
 
 		// convert color image to cv::Mat
@@ -223,9 +219,8 @@ public:
 		}
 
 		//Load Pointcloud for Evaluation
-		bool loadpointcloud = true;
+		bool loadpointcloud = false;
 		sensor_msgs::PointCloud2 cloud_blob;
-
 
 		std::vector<int> image_indices;
 		image_indices.push_back(16);	//!
@@ -257,16 +252,15 @@ public:
 		std::string num;
 		num  = outStream.str();
 
-
-		std::ostringstream outStream2;
-		if(global_imagecount==1)
-		{
-			outStream2 << global_imagecount;
-		}else{
-			outStream2 << global_imagecount-1;
-		}
-		std::string num2;
-		num2  = outStream2.str();
+//		std::ostringstream outStream2;
+//		if(global_imagecount==1)
+//		{
+//			outStream2 << global_imagecount;
+//		}else{
+//			outStream2 << global_imagecount-1;
+//		}
+//		std::string num2;
+//		num2  = outStream2.str();
 //		std::string num = "34";
 //		std::string num2 = "34";
 
@@ -286,7 +280,7 @@ public:
 		if(global_imagecount<0)
 			global_imagecount=(int)image_indices.size()-1;
 
-//		cv::imshow("imagebevore", cv::imread(segmented,1));
+//		cv::imshow("imagebefore", cv::imread(segmented,1));
 
 
 		if(loadpointcloud)
@@ -307,7 +301,7 @@ public:
 
 		int key = 0;
 		cv::imshow("image", color_image);
-		cv::waitKey();
+		cv::waitKey(10);
 //		if(!EVALUATION_ONLINE_MODE)
 //			cv::waitKey(10);
 //		if(EVALUATION_ONLINE_MODE)

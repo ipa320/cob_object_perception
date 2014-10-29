@@ -4,6 +4,7 @@
 #include "cob_texture_categorization/color_parameter.h"
 #include <math.h>
 
+#include "cob_texture_categorization/timer.h"
 #include <sys/time.h>
 
 int mergefirstval = 2;
@@ -2651,8 +2652,7 @@ cv::Mat splitandmerge::categorize(cv::Mat image_in, std::vector<cv::Mat>* segmen
 //	    int b=0;
 
 
-	    timeval start, end;
-	    gettimeofday(&start, NULL);
+	    Timer timer;
 
 //	    get_num_lbp(r, a, b);
 	    std::vector<int> ids;
@@ -2673,17 +2673,7 @@ cv::Mat splitandmerge::categorize(cv::Mat image_in, std::vector<cv::Mat>* segmen
 	    std::cout<<"clearneigbhor"<<std::endl;
 	    clear_neighbor(r);
 
-
-	    gettimeofday(&end, NULL);
-
-
-	    double seconds = end.tv_sec - start.tv_sec;
-	    double useconds = end.tv_usec - start.tv_usec;
-
-
-
-
-	    std::cout<<seconds<<"used time "<<useconds<<"u used time"<<std::endl;
+	    std::cout<< "Processing time: " << timer.getElapsedTimeInMilliSec() << "ms " << std::endl;
 
 	    std::cout<<"merge first"<<std::endl;
 //	    std::cout<<"neighbor_finished"<<std::endl;

@@ -8,7 +8,7 @@
 #ifndef TRAIN_ML_H_
 #define TRAIN_ML_H_
 
-#include "cob_texture_categorization/texture_categorization.h"
+//#include "cob_texture_categorization/texture_categorization.h"
 #include "cob_texture_categorization/create_train_data.h"
 
 #include <ml.h>

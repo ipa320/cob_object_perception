@@ -47,9 +47,11 @@
 
 
 //#include </home/rmb-dh/git/care-o-bot/cob_object_perception/cob_surface_classification/msg_gen/cpp/include/cob_surface_classification/SegmentedPointCloud2.h>
-#include "../../../../cob_surface_classification/msg_gen/cpp/include/cob_surface_classification/Int32Array.h"
-#include "../../../../cob_surface_classification/msg_gen/cpp/include/cob_surface_classification/SegmentedPointCloud2.h"
+#include "cob_surface_classification/Int32Array.h"
+#include "cob_surface_classification/SegmentedPointCloud2.h"
 
+#include "cob_texture_categorization/train_ml.h"
+#include "cob_texture_categorization/attribute_learning.h"
 
 
 class TextCategorizationNode
@@ -118,6 +120,10 @@ protected:
 
 
 	std::set<int> considered_classes_;	// considered classes may limit the amount of classes used from a database for training and recognition
+
+	IfvFeatures ifv_;
+	AttributeLearning al_;
+	train_ml ml_;
 };
 
 

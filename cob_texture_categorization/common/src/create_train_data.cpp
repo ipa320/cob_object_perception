@@ -292,7 +292,8 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 {
 	// compute or load GMM
 	const int number_gaussian_centers = 256;
-	const double image_resize_factor = 0.25;
+	const double image_resize_factor = 0.25;	//0.25 //0.05
+	const int feature_samples_per_image = 1000;	//1000	//200
 	IfvFeatures ifv;
 	std::string gmm_filename = path_save + "gmm_model.yml";
 	if (generateGMM == true)
@@ -322,7 +323,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 			}
 		}
 		// compute and store GMM
-		ifv.constructGenerativeModel(image_filenames, image_resize_factor, 1000, number_gaussian_centers, feature_type);
+		ifv.constructGenerativeModel(image_filenames, image_resize_factor, feature_samples_per_image, number_gaussian_centers, feature_type);
 		ifv.saveGenerativeModel(gmm_filename);
 	}
 	else
