@@ -33,8 +33,29 @@ public:
 
 private:
 
+	// saves all generated data of one image
+	void save_generated_data(const std::string path, const cv::Mat& image, const int image_counter, std::stringstream& annotation_data, const feature_results& attributes);
+
+	// hsv -> bgr conversion and blurring
+	void post_processing(const cv::Mat& image_hsv, cv::Mat& image_bgr, const double blur_factor);
+
+	// put colors on image
+	void colorize_gray_image(cv::Mat& image, const std::vector<ColorData>& colors, int& dominant_color_index, int& dominant_color2_index);
+
+	// generates a random lined pattern
+	cv::Mat random_lined_pattern(int max_width, int max_height, double* line_thickness_value=0, double* line_spacing_value=0);
+
+	// generates a random checked pattern
+	cv::Mat random_checked_pattern(int max_width, int max_height, double* line_thickness_value=0, double* line_spacing_value=0);
+
 	// generates a random primitive mask
 	cv::Mat random_primitive_mask(int max_width, int max_height);
+
+	// randomly rotates an image
+	void random_image_rotation(cv::Mat& image);
+
+	// draws number_colors different random colors
+	void distinct_random_colors(std::vector<ColorData>& colors, int number_colors);
 
 	// generates a random color in HSV color space
 	ColorData random_color();

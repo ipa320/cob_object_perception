@@ -48,6 +48,26 @@ struct feature_results
 	double lined;				//Value 16: lined
 	double checked;				//Value 17: checked
 
+	void setTo(double val)
+	{
+		colorfulness = val;
+		dom_color = val;
+		dom_color2 = val;
+		v_mean = val;
+		v_std = val;
+		s_mean = val;
+		s_std = val;
+		avg_size = val;
+		prim_num = val;
+		prim_strength = val;
+		prim_regularity = val;
+		contrast = val;
+		line_likeness = val;
+		roughness = val;
+		direct_reg = val;
+		lined = val;
+		checked = val;
+	}
 };
 
 

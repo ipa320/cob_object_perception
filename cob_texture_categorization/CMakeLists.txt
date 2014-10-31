@@ -41,4 +41,6 @@ FIND_LIBRARY(VL_LIBRARY vl ~/opt/vlfeat-0.9.18/bin/glnxa64)
 target_link_libraries(texture_categorization_node ${VL_LIBRARY})
 
 
-rosbuild_add_executable(texture_generator common/src/texture_generator.cpp)
+rosbuild_add_executable(texture_generator common/src/texture_generator.cpp
+                                          common/src/color_parameter.cpp
+                                          common/src/amadasun.cpp)
