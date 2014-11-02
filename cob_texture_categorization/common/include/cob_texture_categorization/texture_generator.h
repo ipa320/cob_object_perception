@@ -39,13 +39,21 @@ private:
 	// hsv -> bgr conversion and blurring
 	void post_processing(const cv::Mat& image_hsv, cv::Mat& image_bgr, const double blur_factor);
 
+	// put primitives into an image with specified arragement
+	void place_primitives(cv::Mat& image, const std::vector<cv::Mat>& primitives, const std::vector<ColorData>& colors, const double directionality, const double primitive_number, int& dominant_color_index, int& dominant_color2_index);
+
 	// put colors on image
 	void colorize_gray_image(cv::Mat& image, const std::vector<ColorData>& colors, int& dominant_color_index, int& dominant_color2_index);
 
+	// creates number_primitves different primitive templates
+	void distinct_random_primitives(std::vector<cv::Mat>& primitives, int number_primitves, int max_width, int max_height);
+
 	// generates a random lined pattern
+	// line_thickness_value, line_spacing_value: relative values in [0,1] representing the ratio of chosen value to possible range
 	cv::Mat random_lined_pattern(int max_width, int max_height, double* line_thickness_value=0, double* line_spacing_value=0);
 
 	// generates a random checked pattern
+	// line_thickness_value, line_spacing_value: relative values in [0,1] representing the ratio of chosen value to possible range
 	cv::Mat random_checked_pattern(int max_width, int max_height, double* line_thickness_value=0, double* line_spacing_value=0);
 
 	// generates a random primitive mask

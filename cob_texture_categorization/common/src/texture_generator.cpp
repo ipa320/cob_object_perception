@@ -44,6 +44,7 @@ void TextureGenerator::generate_textures()
 
 	// ------------------------------------------------------
 	const int templates_number = 1700;
+	const int image_width = 266, image_height = 200;
 	int image_counter = 0;
 
 	std::stringstream annotation_data;
@@ -53,7 +54,7 @@ void TextureGenerator::generate_textures()
 	for (; image_counter < templates_number/17; ++image_counter)
 	{
 		// image
-		cv::Mat sample_image_hsv = cv::Mat::zeros(200, 266, CV_8UC3);
+		cv::Mat sample_image_hsv = cv::Mat::zeros(image_height, image_width, CV_8UC3);
 		ColorData color = random_color();
 		sample_image_hsv.setTo(color.color_hsv);
 		cv::Mat sample_image_rgb;
@@ -75,12 +76,11 @@ void TextureGenerator::generate_textures()
 	{
 		// image
 		double line_thickness_value=0, line_spacing_value=0;	// relative values in [0,1] representing the ratio of chosen value to possible range
-		cv::Mat sample_image_hsv = random_lined_pattern(266, 200, &line_thickness_value, &line_spacing_value);
+		cv::Mat sample_image_hsv = random_lined_pattern(image_width, image_height, &line_thickness_value, &line_spacing_value);
 		std::vector<ColorData> colors;
 		distinct_random_colors(colors, 2);
 		int dom_color_index=0, dom_color2_index=0;
 		colorize_gray_image(sample_image_hsv, colors, dom_color_index, dom_color2_index);
-
 		cv::Mat sample_image_bgr;
 		post_processing(sample_image_hsv, sample_image_bgr, line_spacing_value);
 
@@ -114,7 +114,7 @@ void TextureGenerator::generate_textures()
 	{
 		// image
 		double line_thickness_value=0, line_spacing_value=0;	// relative values in [0,1] representing the ratio of chosen value to possible range
-		cv::Mat sample_image_hsv = random_checked_pattern(266, 200, &line_thickness_value, &line_spacing_value);
+		cv::Mat sample_image_hsv = random_checked_pattern(image_width, image_height, &line_thickness_value, &line_spacing_value);
 		std::vector<ColorData> colors;
 		distinct_random_colors(colors, 2);
 		int dom_color_index=0, dom_color2_index=0;
@@ -143,6 +143,51 @@ void TextureGenerator::generate_textures()
 		attributes.direct_reg = 5. - 0.5*rand()/(double)RAND_MAX;
 		attributes.lined = 5. - 0.5*rand()/(double)RAND_MAX;
 		attributes.checked = 5. - 0.5*rand()/(double)RAND_MAX;
+
+		// save generated data
+		save_generated_data(path, sample_image_bgr, image_counter, annotation_data, attributes);
+	}
+	// generate templates with primitives
+	for (; image_counter < templates_number; ++image_counter)
+	{
+		// choose some attribute values
+		feature_results attributes;
+		attributes.setTo(1.0);
+		attributes.colorfulness = 2. + rand()%4;
+		attributes.avg_size = 1. + 4.*rand()/(double)RAND_MAX;
+		attributes.prim_num = 1. + (5.-attributes.avg_size)*rand()/(double)RAND_MAX;
+		attributes.prim_regularity = 1. + 4.*rand()/(double)RAND_MAX;
+		attributes.line_likeness = 1. + 4.*rand()/(double)RAND_MAX;
+		attributes.direct_reg = 1. + 4.*rand()/(double)RAND_MAX;
+
+		// image
+		std::vector<cv::Mat> primitives;
+		int l1 = (int)(0.2*attributes.avg_size*0.5*std::min(image_width, image_height));
+		int l2 = l1 * 0.2*(6.-attributes.line_likeness);
+		distinct_random_primitives(primitives, cvRound(6-attributes.prim_regularity), l1, l2);
+		std::vector<ColorData> colors;
+		distinct_random_colors(colors, (int)attributes.colorfulness);
+		cv::Mat sample_image_hsv = cv::Mat::zeros(image_height, image_width, CV_8UC3);
+		sample_image_hsv.setTo(colors[0].color_hsv);
+		int dom_color_index=0, dom_color2_index=0;
+		place_primitives(sample_image_hsv, primitives, colors, attributes.direct_reg, attributes.prim_num, dom_color_index, dom_color2_index);
+		cv::Mat sample_image_bgr;
+		post_processing(sample_image_hsv, sample_image_bgr, 0.5);
+
+
+		// determine remaining attributes
+		color_parameter cp;
+		cp.get_color_parameter(sample_image_bgr, &attributes);
+		double contrast_raw;
+		double d = 1;
+		amadasun amadasun_fkt2;
+		amadasun_fkt2.get_amadasun(sample_image_bgr, d, &attributes, contrast_raw);
+		attributes.dom_color = colors[dom_color_index].color_code;
+		attributes.dom_color2 = colors[dom_color2_index].color_code;
+		attributes.prim_strength = 2. + attributes.avg_size/5. + attributes.v_std/5. + attributes.contrast/5.;
+		attributes.roughness = 1. + 0.2*attributes.avg_size + 2*rand()/(double)RAND_MAX;		// todo: this is a quite random choice
+		attributes.lined = 1. + 0.5*rand()/(double)RAND_MAX;
+		attributes.checked = 1. + 0.5*rand()/(double)RAND_MAX;
 
 		// save generated data
 		save_generated_data(path, sample_image_bgr, image_counter, annotation_data, attributes);
@@ -194,6 +239,12 @@ void TextureGenerator::post_processing(const cv::Mat& image_hsv, cv::Mat& image_
 }
 
 
+void TextureGenerator::place_primitives(cv::Mat& image, const std::vector<cv::Mat>& primitives, const std::vector<ColorData>& colors, const double directionality, const double primitive_number, int& dominant_color_index, int& dominant_color2_index)
+{
+	// placement pattern
+}
+
+
 void TextureGenerator::colorize_gray_image(cv::Mat& image, const std::vector<ColorData>& colors, int& dominant_color_index, int& dominant_color2_index)
 {
 	std::vector<int> color_usage(colors.size(), 0);
@@ -242,6 +293,30 @@ void TextureGenerator::colorize_gray_image(cv::Mat& image, const std::vector<Col
 		}
 	}
 	dominant_color2_index = max_index;
+}
+
+
+void TextureGenerator::distinct_random_primitives(std::vector<cv::Mat>& primitives, int number_primitves, int max_width, int max_height)
+{
+	primitives.clear();
+	primitives.resize(number_primitves);
+	for (int i=0; i<number_primitves; ++i)
+	{
+		int rand_pattern = rand()%10;
+		double d1=0, d2=0;
+		if (rand_pattern < 8)
+			primitives[i] = random_primitive_mask(max_width, max_height);
+		else if (rand_pattern <9)
+		{
+			cv::Mat temp = random_lined_pattern(2*max_width, 2*max_height, &d1, &d2);
+			primitives[i] = temp(cv::Rect(max_width/2, max_height/2, max_width, max_height));
+		}
+		else
+		{
+			cv::Mat temp = random_checked_pattern(2*max_width, 2*max_height, &d1, &d2);
+			primitives[i] = temp(cv::Rect(max_width/2, max_height/2, max_width, max_height));
+		}
+	}
 }
 
 
