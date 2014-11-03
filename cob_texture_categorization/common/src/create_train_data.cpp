@@ -21,65 +21,72 @@
 #include <fstream>
 
 
-create_train_data::create_train_data()
+create_train_data::create_train_data(int database)
 {
-	texture_classes_.push_back("Alufoil");				//0
-	texture_classes_.push_back("Asphalt");
-	texture_classes_.push_back("Bookshelf");
-	texture_classes_.push_back("Bread");
-	texture_classes_.push_back("Brick");
-	texture_classes_.push_back("Broccoli");
-	texture_classes_.push_back("Carpet");
-	texture_classes_.push_back("Cauliflower");
-	texture_classes_.push_back("CD");
-	texture_classes_.push_back("Chocolate");
-	texture_classes_.push_back("Clock");				//10
-	texture_classes_.push_back("Coconut");
-	texture_classes_.push_back("Coffee");
-	texture_classes_.push_back("Concrete");
-	texture_classes_.push_back("Corduroy");
-	texture_classes_.push_back("Cork");
-	texture_classes_.push_back("Cotton");
-	texture_classes_.push_back("Cracker");
-	texture_classes_.push_back("Cup");
-	texture_classes_.push_back("Flakes");
-	texture_classes_.push_back("Flour");				//20
-	texture_classes_.push_back("Foam");
-	texture_classes_.push_back("Football");
-	texture_classes_.push_back("Fork");
-	texture_classes_.push_back("Fur");
-	texture_classes_.push_back("Granite");
-	texture_classes_.push_back("Grapes");
-	texture_classes_.push_back("Ingrain");
-	texture_classes_.push_back("Jalousie");
-	texture_classes_.push_back("Kiwi");
-	texture_classes_.push_back("Knife");				//30
-	texture_classes_.push_back("Leather");
-	texture_classes_.push_back("Lemon");
-	texture_classes_.push_back("Lime");
-	texture_classes_.push_back("Linen");
-	texture_classes_.push_back("Marble");
-	texture_classes_.push_back("Mouse");
-	texture_classes_.push_back("Orange");
-	texture_classes_.push_back("Parsley");
-	texture_classes_.push_back("Pasta");
-	texture_classes_.push_back("Pavingstone");			//40
-	texture_classes_.push_back("PCKeyboard");
-	texture_classes_.push_back("Pineapple");
-	texture_classes_.push_back("Plate");
-	texture_classes_.push_back("Rice");
-	texture_classes_.push_back("Sand");
-	texture_classes_.push_back("Smarties");
-	texture_classes_.push_back("Sponge");
-	texture_classes_.push_back("Spoon");
-	texture_classes_.push_back("Styrofoam");
-	texture_classes_.push_back("Telephone");			//50
-	texture_classes_.push_back("Texwallpaper");
-	texture_classes_.push_back("Tiles");
-	texture_classes_.push_back("Tomato");
-	texture_classes_.push_back("Varnished");
-	texture_classes_.push_back("Washingmachine");
-	texture_classes_.push_back("Wood");
+	if (database==0)
+	{
+		texture_classes_.push_back("Alufoil");				//0
+		texture_classes_.push_back("Asphalt");
+		texture_classes_.push_back("Bookshelf");
+		texture_classes_.push_back("Bread");
+		texture_classes_.push_back("Brick");
+		texture_classes_.push_back("Broccoli");
+		texture_classes_.push_back("Carpet");
+		texture_classes_.push_back("Cauliflower");
+		texture_classes_.push_back("CD");
+		texture_classes_.push_back("Chocolate");
+		texture_classes_.push_back("Clock");				//10
+		texture_classes_.push_back("Coconut");
+		texture_classes_.push_back("Coffee");
+		texture_classes_.push_back("Concrete");
+		texture_classes_.push_back("Corduroy");
+		texture_classes_.push_back("Cork");
+		texture_classes_.push_back("Cotton");
+		texture_classes_.push_back("Cracker");
+		texture_classes_.push_back("Cup");
+		texture_classes_.push_back("Flakes");
+		texture_classes_.push_back("Flour");				//20
+		texture_classes_.push_back("Foam");
+		texture_classes_.push_back("Football");
+		texture_classes_.push_back("Fork");
+		texture_classes_.push_back("Fur");
+		texture_classes_.push_back("Granite");
+		texture_classes_.push_back("Grapes");
+		texture_classes_.push_back("Ingrain");
+		texture_classes_.push_back("Jalousie");
+		texture_classes_.push_back("Kiwi");
+		texture_classes_.push_back("Knife");				//30
+		texture_classes_.push_back("Leather");
+		texture_classes_.push_back("Lemon");
+		texture_classes_.push_back("Lime");
+		texture_classes_.push_back("Linen");
+		texture_classes_.push_back("Marble");
+		texture_classes_.push_back("Mouse");
+		texture_classes_.push_back("Orange");
+		texture_classes_.push_back("Parsley");
+		texture_classes_.push_back("Pasta");
+		texture_classes_.push_back("Pavingstone");			//40
+		texture_classes_.push_back("PCKeyboard");
+		texture_classes_.push_back("Pineapple");
+		texture_classes_.push_back("Plate");
+		texture_classes_.push_back("Rice");
+		texture_classes_.push_back("Sand");
+		texture_classes_.push_back("Smarties");
+		texture_classes_.push_back("Sponge");
+		texture_classes_.push_back("Spoon");
+		texture_classes_.push_back("Styrofoam");
+		texture_classes_.push_back("Telephone");			//50
+		texture_classes_.push_back("Texwallpaper");
+		texture_classes_.push_back("Tiles");
+		texture_classes_.push_back("Tomato");
+		texture_classes_.push_back("Varnished");
+		texture_classes_.push_back("Washingmachine");
+		texture_classes_.push_back("Wood");
+	}
+	else if (database==1)
+	{
+		texture_classes_.push_back("generated");
+	}
 }
 
 std::vector<std::string> create_train_data::get_texture_classes()
@@ -123,6 +130,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					std::string str = path + "/";
 					std::string name = entry->d_name;
 					str.append(name);
+					std::cout << str << ":   ";
 
 					if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
 					{
@@ -223,7 +231,6 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					// 17. checked: (raw[21])
 					// raw[21]: --> max(1, min(5, a*raw[21]+b))
 
-					std::cout << str << ":   ";
 					cv::Mat image = cv::imread(str);
 //					cv::Mat temp;		// hack: downsizing image
 //					cv::resize(image, temp, cv::Size(), 0.25, 0.25, cv::INTER_AREA);
@@ -232,7 +239,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					cv::Mat raw_features = base_feature_matrix.row(sample_index); // todo: check width
 					//struct color_vals color_results;
 					color_parameter color = color_parameter(); //Berechnung der Farbfeatures
-					color.get_color_parameter(image, &results, &raw_features);
+					color.get_color_parameter_new(image, &results, &raw_features);
 
 					texture_features edge = texture_features(); //Berechnung der Texturfeatures
 					edge.primitive_size(&image, &results, &raw_features);
@@ -264,8 +271,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 						}
 					}
 					sample_index++;
-					std::cout << "Feature computation completed: " << (sample_index / number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
-
+					std::cout << "\n\t\tFeature computation completed: " << (sample_index / number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
 				}
 			}
 			closedir(pDIR);
@@ -292,8 +298,8 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 {
 	// compute or load GMM
 	const int number_gaussian_centers = 256;
-	const double image_resize_factor = 0.25;	//0.25 //0.05
-	const int feature_samples_per_image = 1000;	//1000	//200
+	const double image_resize_factor = 1.0;	//0.25 //0.05
+	const int feature_samples_per_image = 500;	//1000	//200
 	IfvFeatures ifv;
 	std::string gmm_filename = path_save + "gmm_model.yml";
 	if (generateGMM == true)

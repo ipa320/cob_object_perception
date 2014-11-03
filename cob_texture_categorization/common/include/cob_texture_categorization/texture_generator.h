@@ -42,6 +42,8 @@ private:
 	// put primitives into an image with specified arragement
 	void place_primitives(cv::Mat& image, const std::vector<cv::Mat>& primitives, const std::vector<ColorData>& colors, const double directionality, const double primitive_number, int& dominant_color_index, int& dominant_color2_index);
 
+	int count_non_zeros(const cv::Mat& image);
+
 	// put colors on image
 	void colorize_gray_image(cv::Mat& image, const std::vector<ColorData>& colors, int& dominant_color_index, int& dominant_color2_index);
 

@@ -21,7 +21,7 @@ class create_train_data
 public:
 	typedef std::vector< std::vector< std::vector< int > > > DataHierarchyType;   // data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 
-	create_train_data();
+	create_train_data(int database=0);
 
 	std::vector<std::string> get_texture_classes();
 

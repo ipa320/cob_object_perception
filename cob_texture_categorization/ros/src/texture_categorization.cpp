@@ -93,27 +93,32 @@ node_handle_(nh)
 //	colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
 //	pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
 
-
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/scale0-05/"; // path to save data
-	std::string gmm_filename = feature_files_path + "gmm_model.yml";
-	ifv_.loadGenerativeModel(gmm_filename);
-	al_.load_SVMs(feature_files_path);
-	ml_.load_mlp(feature_files_path);
-	segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
-
-
 //	sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
 //	sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
 //	sync_input_->registerCallback(boost::bind(&TextCategorizationNode::inputCallback, this, _1, _2));
 
-	// database tests
-//	inputCallbackNoCam();
-//	attributeLearningDatabaseTestFarhadi();
-//	attributeLearningDatabaseTestCimpoi();
-//	attributeLearningDatabaseTestHandcrafted();
-//	crossValidationVerbalClassDescription();
-
-//	attributeLearningDatabaseTestAutomatedClass();
+	if (true)
+	{
+		// live processing
+	//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/scale0-05/"; // path to save data
+	//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/";
+		std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/cimpoi2014_rgb/";
+		std::string gmm_filename = feature_files_path + "gmm_model.yml";
+		ifv_.loadGenerativeModel(gmm_filename);
+		al_.load_SVMs(feature_files_path);
+		ml_.load_mlp(feature_files_path);
+		segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
+	}
+	else
+	{
+		// database tests
+		attributeLearningGeneratedDatabaseTestHandcrafted();
+	//	inputCallbackNoCam();
+	//	attributeLearningDatabaseTestFarhadi();
+	//	attributeLearningDatabaseTestCimpoi();
+	//	attributeLearningDatabaseTestHandcrafted();
+	//	crossValidationVerbalClassDescription();
+	}
 }
 
 void TextCategorizationNode::segmentationCallback(const std_msgs::String::ConstPtr& msg)
@@ -137,7 +142,61 @@ void TextCategorizationNode::init()
 //   	coordinatesystem = node_handle_.advertise<visualization_msgs::MarkerArray>("markertest", 1 );
 ////    cloudpub = node_handle_.advertise<PointCloud> ("points2", 1);
 //    pub_cloud = node_handle_.advertise<sensor_msgs::PointCloud2> ("cloud", 1);
+}
 
+void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
+{
+	// === using the hand crafted attributes
+	std::string path_database = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/";
+//	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/"; // path to save data
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/cimpoi2014_rgb/";
+
+	// compute 16 texture attributes on the ipa texture database
+	create_train_data database_data(1);									// computes feature and label matrices of the provided database
+//	database_data.compute_data_handcrafted(path_database, feature_files_path, 1700);
+//	database_data.compute_data_cimpoi(path_database, feature_files_path, 1700, 0, true, IfvFeatures::RGB_PATCHES);
+//	return;
+
+	// attribute cross-validation
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	train_ml ml;
+	AttributeLearning al;
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	// option 1: pre-computed in MATLAB:
+//	al.loadTextureDatabaseBaseFeatures(data_file_name, 16, 17, computed_attribute_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+//	cv::Mat temp = ground_truth_attribute_matrix.clone();
+//	ground_truth_attribute_matrix.create(temp.rows, temp.cols-1, temp.type());
+//	for (int r=0; r<temp.rows; ++r)
+//		for (int c=0; c<16; ++c)
+//			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
+	// option 2: computed with this program
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+	// train classifier with whole database
+	al.train(base_feature_matrix, ground_truth_attribute_matrix);
+	al.save_SVMs(feature_files_path);
+	return;
+
+//	ml.train(training_data, labels);
+//	ml.save_mlp(feature_files_path);
+//	cv::Mat predictions;
+//	ml.predict(mat_rand, class_label_matrix, predictions);
+//	return;
+
+	int folds = 20;
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
+	////al.crossValidation(folds, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
+	al.crossValidation(folds, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, AttributeLearning::LEAVE_OUT_ONE_OBJECT_PER_CLASS, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+//	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+//	ml.cross_validation(folds, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	ml.cross_validation(folds, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
 }
 
 void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
@@ -1207,45 +1266,49 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 	// Compute Features of Segments
 	std::vector<cv::Mat>& images = segment_vec; //retransformed_segment_cut;		// segment_vec;
 
+	// todo: choose
+
 //	//    a) handcrafted
 //	std::cout<<"Compute features"<<std::endl;
 //	std::vector<struct feature_results> segment_features;
 //	struct feature_results results;
-//	cv::Mat img_seg;
 //	for(unsigned int i=0;i<images.size();i++)
 //	{
 //		//imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
-//		img_seg = images[i];
+//		cv::Mat img_seg = images[i];
 //		color_parameter color = color_parameter();
-//		color.get_color_parameter(img_seg, &results);
+//		color.get_color_parameter_new(img_seg, &results);
 //		texture_features textur = texture_features();
 //		cv::Mat dummy(1,100,CV_32F);
 //		textur.primitive_size(&img_seg, &results, &dummy);
 //		segment_features.push_back(results);
 //	}
 //	// Create attribute matrix for classification
-//	cv::Mat attribute_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
+//	cv::Mat base_attribute_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
 //	for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
 //	{
 //		results = segment_features[sample_index];
-//		attribute_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
-//		attribute_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
-//		attribute_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
-//		attribute_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
-//		attribute_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
-//		attribute_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
-//		attribute_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
-//		attribute_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
-//		attribute_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
-//		attribute_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
-//		attribute_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
-//		attribute_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
-//		attribute_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
+//		base_attribute_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
+//		base_attribute_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
+//		base_attribute_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
+//		base_attribute_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
+//		base_attribute_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
+//		base_attribute_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
+//		base_attribute_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
+//		base_attribute_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
+//		base_attribute_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
+//		base_attribute_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
+//		base_attribute_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
+//		base_attribute_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
+//		base_attribute_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
 //		//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
-//		attribute_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-//		attribute_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
-//		attribute_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
+//		base_attribute_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
+//		base_attribute_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
+//		base_attribute_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
 //	}
+//	//       compute attributes
+//	cv::Mat attribute_mat;
+//	al_.predict(base_attribute_mat, attribute_mat);
 
 	//    b) CIMPOI
 	//       load base features
@@ -1261,6 +1324,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 	//       compute attributes
 	cv::Mat attribute_mat;
 	al_.predict(feature_mat, attribute_mat);
+
 	// display attribute_mat
 	for (int r=0; r<attribute_mat.rows; ++r)
 	{

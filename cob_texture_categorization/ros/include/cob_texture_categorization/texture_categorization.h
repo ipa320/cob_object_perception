@@ -111,6 +111,8 @@ protected:
 
 	void inputCallbackNoCam();
 
+	void attributeLearningGeneratedDatabaseTestHandcrafted();
+
 	void attributeLearningDatabaseTestFarhadi();
 	void attributeLearningDatabaseTestHandcrafted();
 	void attributeLearningDatabaseTestCimpoi();

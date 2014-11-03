@@ -14,15 +14,15 @@ void color_parameter::get_color_parameter_new(cv::Mat img, struct feature_result
 	//    0 = no dominant color (e.g. too colorful or transparent)
 	//    1 = brown (ocher): h in [20, 70], s > 0.15, 0.2 < v < 0.7
 	//    2 = red: h in [0, 20] & [345, 360], s > 0.2, v > 0.3
-	//    3 = orange: h in [20, 50], s > 0.2, v > 0.3
+	//    3 = orange: h in [20, 50], s > 0.3, v > 0.7
 	//    4 = yellow: h in [50, 70], s > 0.2, v > 0.3
 	//    5 = green: h in [70, 160], s > 0.2, v > 0.3
 	//    6 = cyan (turquoise): h in [160, 180], s > 0.2, v > 0.3
 	//    7 = blue: h in [180, 250], s > 0.2, v > 0.2
 	//    8 = purple: h in [250, 295], s > 0.2, v > 0.3
 	//    9 = pink (rose): h in [295, 345], s > 0.2, v > 0.3
-	//   10 = white: s < 0.2, v >= 0.75
-	//   11 = gray (silver/metallic): s < 0.2, 0.2 < v < 0.75 or s>0.2, 0.2<v<0.3
+	//   10 = white: s <= 0.2, v >= 0.75
+	//   11 = gray (silver/metallic): s <= 0.2, 0.2 < v < 0.75 or s>0.2, 0.2<v<0.3
 	//   12 = black: v <= 0.2
 	// 4. value/brightness / 5. variety of value/brightness
 	// 6. saturation/color strength / 7. variety of saturation/color strength
@@ -35,11 +35,96 @@ void color_parameter::get_color_parameter_new(cv::Mat img, struct feature_result
 	cv::cvtColor(img, hsv, CV_BGR2HSV);
 
 	// COLOR
-	double colorfulness=0.;
-	double colorfulness_raw=0.;
+	std::vector<double> color_histogram(13, 0);
+	for(int v=0;v<hsv.rows;++v)
+	{
+		for(int u=0;u<hsv.cols;++u)
+		{
+			const cv::Vec3b& val = hsv.at<cv::Vec3b>(v,u);
+			double h = 2*val.val[0];	// [0,360]
+			double s = val.val[1]/255.;	// [0,1]
+			double v = val.val[2]/255.;	// [0,1]
+			if (v <= 0.2)
+				color_histogram[12]+=1.;	// black
+			else if ((s<=0.2 && 0.2<v && v<0.75) || (s>0.2 && 0.2<v && v<0.3))
+				color_histogram[11]+=1.;	// gray
+			else if (s<=0.2 && v>=0.75)
+				color_histogram[10]+=1.;	// white
+			else if (295<h && h<=345 && s>0.2 && v>0.3)
+				color_histogram[9]+=1.;	// pink
+			else if (250<h && h<=295 && s>0.2 && v>0.3)
+				color_histogram[8]+=1.;	// purple
+			else if (180<h && h<=250 && s>0.2 && v>0.2)
+				color_histogram[7]+=1.;	// blue
+			else if (160<h && h<=180 && s>0.2 && v>0.3)
+				color_histogram[6]+=1.;	// cyan
+			else if (70<h && h<=160 && s>0.2 && v>0.3)
+				color_histogram[5]+=1.;	// green
+			else if (50<h && h<=70 && s>0.2 && v>0.3)
+				color_histogram[4]+=1.;	// yellow
+			else if (20<h && h<=50 && s>0.3 && v>0.7)
+				color_histogram[3]+=1.;	// orange
+			else if (((0<=h && h<=20) || (345<h && h<=360)) && s>0.2 && v>0.3)
+				color_histogram[2]+=1.;	// red
+			else if (20<h && h<=70 && ((s>0.15 && 0.2<v && v<=0.7) || (s>0.15 && s<=0.3 && 0.2<v)))
+				color_histogram[1]+=1.;	// brown
+			else
+			{
+				color_histogram[11]+=1.;	// gray
+			}
+		}
+	}
+	// normalize histogram
+	double sum = hsv.rows*hsv.cols;
+	for (size_t i=0; i<color_histogram.size(); ++i)
+		color_histogram[i] /= sum;
+
+	// determine dominant and secondary dominant color
 	double dom_color = 0.;
 	double dom_color2 = 0.;
-	std::vector<double> color_histogram;
+	double max1=0., max2=0.;
+	for (size_t i=0; i<color_histogram.size(); ++i)
+	{
+		if (max1 < color_histogram[i])
+		{
+			max2 = max1;
+			dom_color2 = dom_color;
+			max1 = color_histogram[i];
+			dom_color = i;
+		}
+		else if (max2 < color_histogram[i])
+		{
+			max2 = color_histogram[i];
+			dom_color2 = i;
+		}
+	}
+
+	// determine colorfulness
+	double colorfulness=0.;
+	double colorfulness_raw=0.;
+	const double color_histogram_threshold = 0.03;
+	bool small_portion_secondary_color = false;
+	for (size_t i=0; i<color_histogram.size(); ++i)
+	{
+		if (color_histogram[i] > color_histogram_threshold)
+			colorfulness += 1.;
+		else if (color_histogram[i] > 0.01 && small_portion_secondary_color==false)
+			small_portion_secondary_color = true;
+	}
+	if (colorfulness <= 1. && small_portion_secondary_color==true)
+		colorfulness += 1.;
+	if (colorfulness == 0)
+	{
+		dom_color = 0.;
+		dom_color2 = 0.;
+	}
+	else if (colorfulness == 1)
+	{
+		dom_color2 = 0.;
+	}
+	colorfulness = std::max(1., std::min(5., colorfulness));
+
+
 //	for(int i=0;i<hsv.rows;i++)
 //	{
 //		for(int j=0;j<hsv.cols;j++)
@@ -92,20 +177,20 @@ void color_parameter::get_color_parameter_new(cv::Mat img, struct feature_result
 //	}
 
 	// Submit results
-	(*results).colorfulness = colorfulness;
-	(*results).dom_color = dom_color;
-	(*results).dom_color2 = dom_color2;
-	(*results).s_mean = s_mean;
-	(*results).s_std = s_std;
-	(*results).v_mean = v_mean;
-	(*results).v_std = v_std;
+	results->colorfulness = colorfulness;
+	results->dom_color = dom_color;
+	results->dom_color2 = dom_color2;
+	results->s_mean = s_mean;
+	results->s_std = s_std;
+	results->v_mean = v_mean;
+	results->v_std = v_std;
 
 	// raw values
 	if (raw_features != 0)
 	{
 		raw_features->at<float>(0, 0) = colorfulness_raw;
-		raw_features->at<float>(0, 1) = (*results).dom_color;
-		raw_features->at<float>(0, 2) = (*results).dom_color2;
+		raw_features->at<float>(0, 1) = results->dom_color;
+		raw_features->at<float>(0, 2) = results->dom_color2;
 		raw_features->at<float>(0, 3) = v_mean_raw;
 		raw_features->at<float>(0, 4) = v_std_raw;
 		raw_features->at<float>(0, 5) = s_mean_raw;

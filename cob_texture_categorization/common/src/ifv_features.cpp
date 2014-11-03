@@ -66,7 +66,7 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 	for (size_t i=0; i<image_filenames.size(); ++i)
 	{
 		// load image
-		std::cout << image_filenames[i] << std::endl;
+		std::cout << i << ": " << image_filenames[i] << std::endl;
 		cv::Mat original_image = cv::imread(image_filenames[i]);
 		cv::Mat image;
 		if (image_resize_factor != 1.0)
@@ -101,10 +101,11 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 		for (int sample_index=0; sample_index<feature_samples_per_image; ++sample_index)
 		{
 			std::set<int> drawn_features;
+			int attempts = 0;
 			while (true)
 			{
 				int random_feature_index = (int)(((double)rand()/(double)RAND_MAX)*features.rows);
-				if ((drawn_features.find(random_feature_index) == drawn_features.end()) && sum(features.row(random_feature_index)).val[0] != 0)
+				if ((drawn_features.find(random_feature_index) == drawn_features.end()) && (sum(features.row(random_feature_index)).val[0] != 0 || attempts>100))
 				{
 					// feature not yet sampled and not zero
 					drawn_features.insert(random_feature_index);
@@ -112,6 +113,7 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 						feature_subset.at<float>(i*feature_samples_per_image+sample_index,j) = features.at<float>(random_feature_index, j);
 					break;
 				}
+				++attempts;
 			}
 		}
 	}

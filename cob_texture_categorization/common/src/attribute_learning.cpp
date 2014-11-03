@@ -528,9 +528,9 @@ void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attr
 
 		// create label vector
 		cv::Mat training_labels(attribute_matrix.rows, 1, CV_32FC1);
-		const double feature_scaling_factor = (attribute_index==1 || attribute_index==2) ? 2.0 : 1.0;
+		//const double feature_scaling_factor = (attribute_index==1 || attribute_index==2) ? 2.0 : 1.0;
 		for (int r=0; r<attribute_matrix.rows; ++r)
-			training_labels.at<float>(r) = attribute_matrix.at<float>(r, attribute_index)/feature_scaling_factor;
+			training_labels.at<float>(r) = attribute_matrix.at<float>(r, attribute_index); // /feature_scaling_factor;
 
 		// SVM
 		CvTermCriteria criteria;
@@ -548,7 +548,8 @@ void AttributeLearning::predict(const cv::Mat& feature_data, cv::Mat& predicted_
 	predicted_labels.create(feature_data.rows, svm_.size(), CV_32FC1);
 	for (size_t attribute_index=0; attribute_index<svm_.size(); ++attribute_index)
 	{
-		const double feature_scaling_factor = (attribute_index==1 || attribute_index==2) ? 2.0 : 1.0;
+		//const double feature_scaling_factor = (attribute_index==1 || attribute_index==2) ? 2.0 : 1.0;
+		const double feature_scaling_factor = 1.0;
 		for (int r = 0; r < feature_data.rows ; ++r)
 		{
 			cv::Mat sample = feature_data.row(r);
