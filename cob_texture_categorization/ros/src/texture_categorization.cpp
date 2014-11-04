@@ -101,10 +101,10 @@ node_handle_(nh)
 	{
 		// live processing
 	//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/scale0-05/"; // path to save data
-	//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/";
-		std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/cimpoi2014_rgb/";
-		std::string gmm_filename = feature_files_path + "gmm_model.yml";
-		ifv_.loadGenerativeModel(gmm_filename);
+		std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/";
+//		std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/cimpoi2014_rgb/";
+//		std::string gmm_filename = feature_files_path + "gmm_model.yml";
+//		ifv_.loadGenerativeModel(gmm_filename);
 		al_.load_SVMs(feature_files_path);
 		ml_.load_mlp(feature_files_path);
 		segmented_pointcloud_  = nh.subscribe("/surface_classification/segmented_pointcloud", 1, &TextCategorizationNode::segmented_pointcloud_callback, this);
@@ -1268,62 +1268,63 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 
 	// todo: choose
 
-//	//    a) handcrafted
-//	std::cout<<"Compute features"<<std::endl;
-//	std::vector<struct feature_results> segment_features;
-//	struct feature_results results;
+	//    a) handcrafted
+	std::cout<<"Compute features"<<std::endl;
+	std::vector<struct feature_results> segment_features;
+	struct feature_results results;
+	for(unsigned int i=0;i<images.size();i++)
+	{
+		//imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
+		cv::Mat img_seg = images[i];
+		color_parameter color = color_parameter();
+		color.get_color_parameter_new(img_seg, &results);
+		texture_features textur = texture_features();
+		cv::Mat dummy(1,100,CV_32F);
+		textur.primitive_size(&img_seg, &results, &dummy);
+		segment_features.push_back(results);
+	}
+	// Create attribute matrix for classification
+	cv::Mat base_attribute_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
+	for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
+	{
+		results = segment_features[sample_index];
+		base_attribute_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
+		base_attribute_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
+		base_attribute_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
+		base_attribute_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
+		base_attribute_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
+		base_attribute_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
+		base_attribute_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
+		base_attribute_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
+		base_attribute_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
+		base_attribute_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
+		base_attribute_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
+		base_attribute_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
+		base_attribute_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
+		//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
+		//base_attribute_mat.at<float>(sample_index, 13) = 0.f;
+		base_attribute_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
+		base_attribute_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
+		base_attribute_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
+	}
+	//       compute attributes
+	cv::Mat attribute_mat;// = base_attribute_mat;
+	al_.predict(base_attribute_mat, attribute_mat);
+
+//	//    b) CIMPOI
+//	//       load base features
+//	const IfvFeatures::FeatureType feature_type = IfvFeatures::RGB_PATCHES;
+//	const int number_gaussian_centers = 256;
+//	const double image_resize_factor = 1.0;
+//	cv::Mat feature_mat = cv::Mat::zeros(images.size(), 2*ifv_.getFeatureDimension(feature_type)*number_gaussian_centers, CV_32FC1);
 //	for(unsigned int i=0;i<images.size();i++)
 //	{
-//		//imwrite( "/home/rmb-dh/Pictures/features.jpg", segment_vec[i] );
-//		cv::Mat img_seg = images[i];
-//		color_parameter color = color_parameter();
-//		color.get_color_parameter_new(img_seg, &results);
-//		texture_features textur = texture_features();
-//		cv::Mat dummy(1,100,CV_32F);
-//		textur.primitive_size(&img_seg, &results, &dummy);
-//		segment_features.push_back(results);
-//	}
-//	// Create attribute matrix for classification
-//	cv::Mat base_attribute_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
-//	for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
-//	{
-//		results = segment_features[sample_index];
-//		base_attribute_mat.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
-//		base_attribute_mat.at<float>(sample_index, 1) = results.dom_color; // 4: dominant color
-//		base_attribute_mat.at<float>(sample_index, 2) = results.dom_color2; // 5: dominant color2
-//		base_attribute_mat.at<float>(sample_index, 3) = results.v_mean; //6: v_mean
-//		base_attribute_mat.at<float>(sample_index, 4) = results.v_std; // 7: v_std
-//		base_attribute_mat.at<float>(sample_index, 5) = results.s_mean; // 8: s_mean
-//		base_attribute_mat.at<float>(sample_index, 6) = results.s_std; // 9: s_std
-//		base_attribute_mat.at<float>(sample_index, 7) = results.avg_size; // 10: average primitive size
-//		base_attribute_mat.at<float>(sample_index, 8) = results.prim_num; // 11: number of primitives
-//		base_attribute_mat.at<float>(sample_index, 9) = results.prim_strength; // 12: strength of primitives
-//		base_attribute_mat.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
-//		base_attribute_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
-//		base_attribute_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
-//		//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
-//		base_attribute_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-//		base_attribute_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
-//		base_attribute_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
+//		cv::Mat base_feature = feature_mat.row(i);
+//		ifv_.computeImprovedFisherVector(images[i], image_resize_factor, number_gaussian_centers, base_feature, feature_type);
 //	}
 //	//       compute attributes
 //	cv::Mat attribute_mat;
-//	al_.predict(base_attribute_mat, attribute_mat);
-
-	//    b) CIMPOI
-	//       load base features
-	const IfvFeatures::FeatureType feature_type = IfvFeatures::RGB_PATCHES;
-	const int number_gaussian_centers = 256;
-	const double image_resize_factor = 1.0;
-	cv::Mat feature_mat = cv::Mat::zeros(images.size(), 2*ifv_.getFeatureDimension(feature_type)*number_gaussian_centers, CV_32FC1);
-	for(unsigned int i=0;i<images.size();i++)
-	{
-		cv::Mat base_feature = feature_mat.row(i);
-		ifv_.computeImprovedFisherVector(images[i], image_resize_factor, number_gaussian_centers, base_feature, feature_type);
-	}
-	//       compute attributes
-	cv::Mat attribute_mat;
-	al_.predict(feature_mat, attribute_mat);
+//	al_.predict(feature_mat, attribute_mat);
 
 	// display attribute_mat
 	for (int r=0; r<attribute_mat.rows; ++r)
@@ -1515,212 +1516,7 @@ void TextCategorizationNode::inputCallback(const sensor_msgs::Image::ConstPtr& c
 	cv_bridge::CvImageConstPtr color_image_ptr;
 	cv::Mat color_image;
 	convertColorImageMessageToMat(color_image_msg, color_image_ptr, color_image);
-
-
-
-
-
-
-
-
-
-
-/// convert depth data to cv::Mat
-//	cv::Mat depth(480, 640, CV_32F);
-//	depth_image dimage = depth_image();
-//	dimage.get_depth_image(pointcloud_msg, &depth);
-//	cv::imshow("3D",depth);
-//	cv::moveWindow("3D", 800,600);
-
-
-
-///	Filter to smooth depthimage
-
-	/// Medianfilter
-//		dimage.medianfilter(&depth);
-
-	///	Morphological closeing
-//		dimage.close_operation(&depth);
-//		cv::imshow("smoothed depth", depth);
-
-//		std::vector<float> var_depth_first;
-//		for(int i=0;i<depth.rows;i++)
-//		{
-//			for(int j=0;j<depth.cols;j++)
-//			{
-//				if(depth.at<float>(i,j)!=0)
-//				{
-//				var_depth_first.push_back(depth.at<float>(i,j));
-//				}
-//			}
-//		}
-//		cv::Scalar means_first, stds_first;
-//				cv::meanStdDev(var_depth_first, means_first, stds_first);
-//				std::cout<<means_first<<"meansfirst "<<stds_first<<"stdsfirst "<<std::endl;
-
-
-//	Image segmentation
-//		Run meanshift with rgbxy and rgbxyd
-//		std::vector < std::vector<cv::Mat> > segmented_regions;
-//		run_meanshift_test segmentation_test = run_meanshift_test();
-//		segmentation_test.run_test(&color_image, depth, &segmented_regions);
-//
-//
-//		for(int i=0;i<segmented_regions.size();i++)
-//		{
-//			int j = cv::countNonZero((segmented_regions[i][1]));
-//			if(j<600)
-//			{
-//				segmented_regions.erase(segmented_regions.begin()+i);
-//			}
-//		}
-//		std::cout<<segmented_regions.size()<<"segmented size"<<std::endl;
-
-
-// 		Imagetransformation
-//		cv::imshow("test", color_image);
-//		std::vector<float> plane_coeff;
-
-//		for(int i=0;i<segmented_regions.size();i=i+10)
-//		{
-//			p_transformation transform = p_transformation();
-//			transform.run_pca(&color_image, &depth, pointcloud_msg, &marker, &plane_coeff);
-//			cv::imshow("segment", segmented_regions[2][0]);
-//			transform.run_pca(&segmented_regions[2][0], &depth, pointcloud_msg, &marker);
-//		}
-//			cv::imshow("transformed region", color_image);
-//			cv::imshow("transformed depth", depth);
-
-//			float dist_sum=0;
-//			int used_points=0;
-//			pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-//			pcl::fromROSMsg(*pointcloud_msg, *input_cloud);
-////			std::vector<float> var_depth;
-//			pcl::PointXYZRGB point;
-//			for(int i=0;i<depth.rows;i++)
-//			{
-//				for(int j=0;j<depth.cols;j++)
-//				{
-//					if(depth.at<float>(i,j)>0)
-//					{
-////					var_depth.push_back(depth.at<float>(i,j));
-//
-//						point = (*input_cloud)[i*640+j];
-////						std::cout<<point<<" "<<point.z<<" "<<(float)point.z<<std::endl;
-//						if(point.z==point.z)
-//						{
-//						dist_sum = dist_sum + std::abs(((-plane_coeff[0]*point.x-plane_coeff[1]*point.y+plane_coeff[3])/plane_coeff[2])-point.z);
-//						used_points++;
-//						}
-//					}
-//
-//				}
-//			}
-//			std::cout<<point<<"point"<<std::endl;
-//			std::cout<<dist_sum<<"absoluter_abstand "<<(dist_sum/used_points)*10<<"normierter abstand "<<used_points<<"points "<<std::endl;
-//			cv::Scalar means, stds;
-//			cv::meanStdDev(var_depth, means, stds);
-//			std::cout<<means<<"means "<<stds<<"stds "<<std::endl;
-
-//		display normals of transformation
-//			coordinatesystem.publish(marker);
-////		 cloudpub.publish(msg);
-//			pub_cloud.publish(pointcloud_msg);
-
-
-
-
-
-
-
-//	cv::Mat test1 = cv::imread("/home/rmb-dh/obst.jpg"); //TEST
-//	cv::Mat test2 = cv::imread("/home/rmb-dh/strasse.jpg"); //TEST
-//	cv::Mat test3 = cv::imread("/home/rmb-dh/strasse2.jpg"); //TEST
-//	cv::Mat test4 = cv::imread("/home/rmb-dh/stadt.jpg"); //TEST
-//	cv::Mat test5 = cv::imread("/home/rmb-dh/test4.jpg"); //TEST
-//	cv::Mat test6 = cv::imread("/home/rmb-dh/test5.jpg"); //TEST
-//	resize(test4, test4, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
-
-	// do something useful with code located in common/src
-//	cv::Mat gray_image, dx;
-//	cv::cvtColor(color_image, gray_image, CV_BGR2GRAY);
-//	cv::Sobel(gray_image, dx, -1, 1, 0, 3);
-//	double lbp_hist[10];
-
-
-
-
-
-
-	//LBP only
-//	create_lbp lbp = create_lbp();
-//	lbp.create_lbp_class(test4, 1, 8, false, lbp_hist);
-//	for(int i=0;i<10;i++)
-//	{
-//		std::cout << lbp_hist[i]<<"--" << i << "- ";
-//	}std::cout <<std::endl;
-
-
-	//Split and Merge with LBP
-
-//	for(int i=0; i<newimg.rows-2;i++)
-//	{for(int j=0;j<newimg.cols;j++)
-//	{for(int rgb=0;rgb<3;rgb++)
-//	{
-//		newimg.at<cv::Vec3b>(i,j)[rgb]=255;
-//	}
-//	}
-//	}
-//
-//	cv::imshow("original", color_image);
-//	splitandmerge test = splitandmerge();
-//	cv::Mat pic1 = test.categorize(color_image);
-//	cv::Mat pic2 = test.categorize(test2);
-//	cv::Mat pic3 = test.categorize(test3);
-//	cv::Mat pic4 = test.categorize(test4);
-//	cv::Mat pic5 = test.categorize(test5);
-//	cv::Mat pic6 = test.categorize(test6);
-//	cv::imshow("sam1", pic1);
-//	cv::moveWindow("sam1", 0,0);
-//	cv::imshow("sam2", pic2);
-//	cv::moveWindow("sam2", 1380,0);
-//	cv::imshow("sam3", pic3);
-//	cv::moveWindow("sam3", 740,0);
-//	cv::imshow("sam4", pic4);
-//	cv::moveWindow("sam4", 0,480);
-//	cv::imshow("sam5", pic5);
-//	cv::moveWindow("sam5", 1380,480);
-//	cv::imshow("sam6", pic6);
-//	cv::moveWindow("sam6", 740,480);
-//	cv::imshow("sam6o", test6);
-//	cv::imshow("orig1", test1);
-//	cv::imshow("orig2", test2);
-//	cv::imshow("orig3", test3);
-//	cv::imshow("orig4", test4);
-//	cv::imshow("orig5", test5);
-
-
-//	cv::Mat picstream = test.categorize(color_image);
-//	cv::imshow("image", color_image);
-//	cv::imshow("image2", picstream);
-
-//	texture_features edge = texture_features();
-//	edge.primitive_size(test1);
-
-
-
-//	compute_textures test = compute_textures();
-//	test.compute_textures_all();
-
-
-//	cv::imshow("gray image", gray_image);
-//	cv::imshow("dx image", dx);
-//	cv::waitKey(10);
-
-//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-//	pcl::fromROSMsg(*pointcloud_msg, *cloud);
 }
-
 
 /// Converts a color image message to cv::Mat format.
 bool TextCategorizationNode::convertColorImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image)
