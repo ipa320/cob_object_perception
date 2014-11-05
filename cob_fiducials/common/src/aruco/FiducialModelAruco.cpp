@@ -1,11 +1,13 @@
-//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_fiducials/aruco/FiducialModelAruco.h"
+
+	#include <opencv/highgui.h>
 #else
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/arucofidmarkers.h"
 #endif
-#include <opencv/highgui.h>
+
 
 using namespace ipa_Fiducials;
 

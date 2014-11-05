@@ -25,19 +25,22 @@ The views and conclusions contained in the software and documentation are those 
 authors and should not be interpreted as representing official policies, either expressed
 or implied, of Rafael Muñoz Salinas.
 ********************************/
-//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 #include "cob_fiducials/aruco/boarddetector.h"
+
+#include <math.h>
+#include <fstream>
 #else
 #include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/boarddetector.h"
 #endif
 
 #define _USE_MATH_DEFINES
-#include <math.h>
+
 #include <cstdlib>
 #include <ctime>
 #include <cassert>
-#include <fstream>
+
 using namespace std;
 using namespace cv;
 namespace aruco
