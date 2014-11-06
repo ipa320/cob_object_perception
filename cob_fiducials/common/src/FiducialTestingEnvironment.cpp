@@ -1,4 +1,4 @@
-#include "../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include "../../../cob_object_perception/common/include/cob_object_perception/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_fiducials/pi/FiducialModelPi.h"
 	#include "cob_fiducials/aruco/FiducialModelAruco.h"

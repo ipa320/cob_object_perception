@@ -26,12 +26,15 @@ authors and should not be interpreted as representing official policies, either 
 or implied, of Rafael Muñoz Salinas.
 ********************************/
 
-#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include "../../../../cob_object_perception/common/include/cob_object_perception/StdAfx.h"
 
 #ifdef __LINUX__
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include "cob_fiducials/aruco/marker.h"
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #else
 #include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/marker.h"
 #endif

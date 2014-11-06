@@ -28,14 +28,14 @@ or implied, of Rafael Muñoz Salinas.
 
 */
 
-#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include "../../../../cob_object_perception/common/include/cob_object_perception/StdAfx.h"
 #ifdef __LINUX__
 #include "cob_fiducials/aruco/arucofidmarkers.h"
+#include <opencv2/imgproc/imgproc.hpp>
 #else
 #include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/arucofidmarkers.h"
 #endif
 
-//#include <opencv2/imgproc/imgproc.hpp>
 using namespace cv;
 using namespace std;
 namespace aruco {

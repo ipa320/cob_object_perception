@@ -1,8 +1,9 @@
-#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include "../../../../cob_object_perception/common/include/cob_object_perception/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_fiducials/aruco/FiducialModelAruco.h"
 
-	#include <opencv/highgui.h>
+	#include <opencv2/imgproc/imgproc.hpp>
+	#include <opencv2/calib3d/calib3d.hpp>
 #else
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/FiducialModelAruco.h"
 	#include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/arucofidmarkers.h"

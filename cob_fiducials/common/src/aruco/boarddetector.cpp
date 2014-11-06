@@ -25,10 +25,12 @@ The views and conclusions contained in the software and documentation are those 
 authors and should not be interpreted as representing official policies, either expressed
 or implied, of Rafael Muñoz Salinas.
 ********************************/
-#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include "../../../../cob_object_perception/common/include/cob_object_perception/StdAfx.h"
 #ifdef __LINUX__
 #include "cob_fiducials/aruco/boarddetector.h"
 
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #include <math.h>
 #include <fstream>
 #else

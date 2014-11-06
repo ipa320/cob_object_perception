@@ -76,6 +76,7 @@ include_directories(
 ## Declare a cpp library
 
 set(project_CPP_FILES
+	common/src/AbstractFiducialModel.cpp
 	common/src/pi/FiducialModelPi.cpp
         common/src/aruco/arucofidmarkers.cpp
         common/src/aruco/board.cpp
