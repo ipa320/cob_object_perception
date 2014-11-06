@@ -1,7 +1,9 @@
 all: installed
 
 TARBALL = build/zxing-2.1.tar.gz
-TARBALL_URL = https://code.ros.org/svn/release/download/thirdparty/zxing-2.1.tar.gz # originally from http://zxing.googlecode.com/files/ZXing-2.1.zip
+TARBALL_URL = zxing-2.1.tar.gz # Tarball from code.ros.org no longer compiling on ubuntu 14.04
+#https://code.ros.org/svn/release/download/thirdparty/zxing-2.1.tar.gz 
+# originally from http://zxing.googlecode.com/files/ZXing-2.1.zip
 SOURCE_DIR = build/zxing-2.1
 UNPACK_CMD = tar xzf
 MD5SUM_FILE = zxing-2.1.tar.gz.md5sum
