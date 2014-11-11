@@ -1,4 +1,4 @@
-#include "../../../../cob_object_perception/common/include/cob_object_perception/StdAfx.h"
+#include <cob_vision_utils/StdAfx.h>
 #ifdef __LINUX__
 		#include "cob_fiducials/pi/FiducialModelPi.h"
 		#include <opencv2/imgproc/imgproc.hpp>
