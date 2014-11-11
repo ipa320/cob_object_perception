@@ -28,8 +28,6 @@
 #include <iostream>
 #include <cmath>
 
-using namespace cv;
-
 // Distance used in Mean Shift
 inline int color_distance( const IplImage* img, int x1, int y1, int x2, int y2)
 {
@@ -46,7 +44,7 @@ inline float color_distance( const float* a, const float* b)
 float l = a[0]-b[0], u=a[1]-b[1], v=a[2]-b[2];
 return l*l+u*u+v*v;
 }
-inline float color_distance( const Vec3f& a, const Vec3f& b)
+inline float color_distance( const cv::Vec3f& a, const cv::Vec3f& b)
 {
 float l = a.val[0]-b.val[0], u=a.val[1]-b.val[1], v=a.val[2]-b.val[2];
 return l*l+u*u+v*v;

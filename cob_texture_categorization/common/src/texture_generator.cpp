@@ -88,7 +88,7 @@ void TextureGenerator::generate_textures()
 		feature_results attributes;
 		attributes.setTo(1.0);
 		color_parameter cp;
-		cp.get_color_parameter(sample_image_bgr, &attributes);
+		cp.get_color_parameter_new(sample_image_bgr, &attributes);
 		double contrast_raw;
 		double d = 1;
 		amadasun amadasun_fkt2;
@@ -126,7 +126,7 @@ void TextureGenerator::generate_textures()
 		feature_results attributes;
 		attributes.setTo(1.0);
 		color_parameter cp;
-		cp.get_color_parameter(sample_image_bgr, &attributes);
+		cp.get_color_parameter_new(sample_image_bgr, &attributes);
 		double contrast_raw;
 		double d = 1;
 		amadasun amadasun_fkt2;
@@ -189,7 +189,7 @@ void TextureGenerator::generate_textures()
 		attributes.dom_color = colors[dom_color_index].color_code;
 		attributes.dom_color2 = colors[dom_color2_index].color_code;
 		attributes.prim_strength = 2. + attributes.avg_size/5. + attributes.v_std/5. + attributes.contrast/5.;
-		attributes.roughness = 1. + 0.2*attributes.avg_size + 2*rand()/(double)RAND_MAX;		// todo: this is a quite random choice
+		attributes.roughness = 1. + 0.2*attributes.avg_size + 0.2*attributes.line_likeness + 0.2*attributes.contrast + 0.2*attributes.prim_strength;		// todo: this is a quite random choice
 		attributes.direct_reg = std::max(1., 5.*directionality*0.2 * attributes.prim_num*0.2);
 		attributes.lined = 1. + 0.25*(attributes.line_likeness-1.) + 0.25*(attributes.direct_reg-1.) + 0.5*rand()/(double)RAND_MAX;
 		attributes.checked = 1. + 0.25*(attributes.direct_reg-1.) + 0.5*rand()/(double)RAND_MAX;

@@ -149,8 +149,8 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 	// === using the hand crafted attributes
 	std::string path_database = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/";
 //	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/"; // path to save data
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/cimpoi2014_rgb/";
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/"; // path to save data
+//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/cimpoi2014_rgb/";
 
 	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data(1);									// computes feature and label matrices of the provided database
@@ -176,7 +176,7 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 	// train classifier with whole database
-	al.train(base_feature_matrix, ground_truth_attribute_matrix);
+	al.train(computed_attribute_matrix, ground_truth_attribute_matrix);
 	al.save_SVMs(feature_files_path);
 	return;
 
@@ -524,9 +524,9 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		cv::Mat depth(480, 640, CV_32F);
 		std::vector<float> plane_coeff;
 		visualization_msgs::MarkerArray marker;
-		cv::Mat undefined_cluster;				//Contains all small segments
+		cv::Mat undefined_cluster;				// contains all small segments
 		undefined_cluster = cv::Mat::zeros(480, 640, CV_8UC3);
-		cv::Mat seg_whole;						//Image to show all segments of depthsegmentation
+		cv::Mat seg_whole;						// image to show all segments of depthsegmentation
 		seg_whole = cv::Mat::zeros(480,640,CV_8UC3);
 		//std::vector<cv::Mat> segment_edges;
 		//cv::Mat test=cv::Mat::zeros(480,640,CV_8UC3);
@@ -1280,11 +1280,11 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		color.get_color_parameter_new(img_seg, &results);
 		texture_features textur = texture_features();
 		cv::Mat dummy(1,100,CV_32F);
-		textur.primitive_size(&img_seg, &results, &dummy);
+		textur.compute_texture_features(img_seg, results, &dummy);
 		segment_features.push_back(results);
 	}
 	// Create attribute matrix for classification
-	cv::Mat base_attribute_mat = cv::Mat::zeros(segment_features.size(), 16, CV_32FC1);
+	cv::Mat base_attribute_mat = cv::Mat::zeros(segment_features.size(), 17, CV_32FC1);
 	for(unsigned int sample_index=0;sample_index<segment_features.size();sample_index++)
 	{
 		results = segment_features[sample_index];
@@ -1302,14 +1302,14 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		base_attribute_mat.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
 		base_attribute_mat.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
 		//	Nicht implementiert	    	feature_mat.at<float>(count,13) = results.roughness; // 16: 3D roughness
-		//base_attribute_mat.at<float>(sample_index, 13) = 0.f;
-		base_attribute_mat.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-		base_attribute_mat.at<float>(sample_index, 14) = results.lined; // 18: lined
-		base_attribute_mat.at<float>(sample_index, 15) = results.checked; // 19: checked
+		base_attribute_mat.at<float>(sample_index, 13) = results.roughness;
+		base_attribute_mat.at<float>(sample_index, 14) = results.direct_reg; // 17: directionality/regularity
+		base_attribute_mat.at<float>(sample_index, 15) = results.lined; // 18: lined
+		base_attribute_mat.at<float>(sample_index, 16) = results.checked; // 19: checked
 	}
 	//       compute attributes
-	cv::Mat attribute_mat;// = base_attribute_mat;
-	al_.predict(base_attribute_mat, attribute_mat);
+	cv::Mat attribute_mat = base_attribute_mat;
+	//al_.predict(base_attribute_mat, attribute_mat);
 
 //	//    b) CIMPOI
 //	//       load base features
@@ -1327,12 +1327,15 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 //	al_.predict(feature_mat, attribute_mat);
 
 	// display attribute_mat
+	for (int i=1; i<18; ++i)
+		std::cout << "\t" << i;
+	std::cout << std::endl;
 	for (int r=0; r<attribute_mat.rows; ++r)
 	{
-		std::cout << r << ":\t";
+		std::cout << r << ":\t" << std::setprecision(2);
 		for (int c=0; c<attribute_mat.cols; ++c)
 			std::cout << attribute_mat.at<float>(r,c) << "\t";
-		std::cout << std::endl;
+		std::cout << std::setprecision(5) << std::endl;
 	}
 
 

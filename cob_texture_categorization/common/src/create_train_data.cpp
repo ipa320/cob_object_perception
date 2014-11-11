@@ -104,7 +104,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
-	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 16, CV_32FC1);			// matrix of computed attributes
+	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);			// matrix of computed attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 22, CV_32FC1); // matrix of computed base features
 
@@ -134,12 +134,15 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 
 					if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
 					{
+						std::cout << "\ngt:\t";
 						for (unsigned int i=0, j=0; i<filenames_gt_attributes[name].size(); ++i)
 							//if (i!=13)	// one attribute (3d roughness) is currently not implemented here, so just leave it out from gt
 						{
 								ground_truth_attribute_matrix.at<float>(sample_index, j) = filenames_gt_attributes[name][i];
+								std::cout << filenames_gt_attributes[name][i] << "\t";
 								++j;
 						}
+						std::cout << std::endl;
 					}
 					else
 					{
@@ -242,7 +245,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					color.get_color_parameter_new(image, &results, &raw_features);
 
 					texture_features edge = texture_features(); //Berechnung der Texturfeatures
-					edge.primitive_size(&image, &results, &raw_features);
+					edge.compute_texture_features(image, results, &raw_features);
 
 					class_label_matrix.at<float>(sample_index, 0) = class_index;
 					computed_attribute_matrix.at<float>(sample_index, 0) = results.colorfulness; // 3: colorfulness
@@ -258,18 +261,22 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					computed_attribute_matrix.at<float>(sample_index, 10) = results.prim_regularity; // 13: regularity of primitives
 					computed_attribute_matrix.at<float>(sample_index, 11) = results.contrast; // 14: contrast:
 					computed_attribute_matrix.at<float>(sample_index, 12) = results.line_likeness; // 15: line-likeness
-					//	not implemented	    	train_data.at<float>(count,13) = results.roughness; // 16: 3D roughness
-					computed_attribute_matrix.at<float>(sample_index, 13) = results.direct_reg; // 17: directionality/regularity
-					computed_attribute_matrix.at<float>(sample_index, 14) = results.lined; // 18: lined
-					computed_attribute_matrix.at<float>(sample_index, 15) = results.checked; // 19: checked
-					for (int i = 0; i < 16; i++)
+					//	not well implemented (quite random choice)
+					computed_attribute_matrix.at<float>(sample_index, 13) = results.roughness; // 16: 3D roughness
+					computed_attribute_matrix.at<float>(sample_index, 14) = results.direct_reg; // 17: directionality/regularity
+					computed_attribute_matrix.at<float>(sample_index, 15) = results.lined; // 18: lined
+					computed_attribute_matrix.at<float>(sample_index, 16) = results.checked; // 19: checked
+					std::cout << "comp:\t";
+					for (int i = 0; i < 17; i++)
 					{
 						if (computed_attribute_matrix.at<float>(sample_index, i) != computed_attribute_matrix.at<float>(sample_index, i))
 						{
 							errors.push_back(i);
 							computed_attribute_matrix.at<float>(sample_index, i) = 0;
 						}
+						std::cout << computed_attribute_matrix.at<float>(sample_index, i) << "\t";
 					}
+					std::cout << std::endl;
 					sample_index++;
 					std::cout << "\n\t\tFeature computation completed: " << (sample_index / number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
 				}

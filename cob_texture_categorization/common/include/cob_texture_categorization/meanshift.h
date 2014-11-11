@@ -28,8 +28,6 @@
 #include <iostream>
 #include <cmath>
 
-using namespace cv;
-
 //// Distance used in Mean Shift
 //inline int color_distance( const IplImage* img, int x1, int y1, int x2, int y2 )
 //{

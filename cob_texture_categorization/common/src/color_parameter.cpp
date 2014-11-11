@@ -1,7 +1,7 @@
 #include "cob_texture_categorization/color_parameter.h"
 
 
-#define DEBUG_DISPLAY
+//#define DEBUG_DISPLAY
 
 color_parameter::color_parameter()
 {

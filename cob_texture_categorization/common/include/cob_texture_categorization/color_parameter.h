@@ -8,8 +8,8 @@
 #ifndef COLOR_PARAMETER_H_
 #define COLOR_PARAMETER_H_
 
-#include <cob_texture_categorization/texture_categorization.h>
-#include "texture_features.h"
+//#include <cob_texture_categorization/texture_categorization.h>
+#include "cob_texture_categorization/texture_features.h"
 
 class color_parameter
 {

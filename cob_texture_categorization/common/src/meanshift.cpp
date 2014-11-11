@@ -104,8 +104,8 @@ int MeanShift(const IplImage* img, int **labels, cv::Mat* depth_mat)
 			float mV = 0;
 			int num=0;
 
-			int i2from = max(0,i-spatial_radius), i2to = min(img->height, i+spatial_radius+1);
-			int j2from = max(0,j-spatial_radius), j2to = min(img->width, j+spatial_radius+1);
+			int i2from = std::max(0,i-spatial_radius), i2to = std::min(img->height, i+spatial_radius+1);
+			int j2from = std::max(0,j-spatial_radius), j2to = std::min(img->width, j+spatial_radius+1);
 			for (int i2=i2from; i2 < i2to;i2++) {
 				for (int j2=j2from; j2 < j2to; j2++) {
 

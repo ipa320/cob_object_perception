@@ -8,7 +8,10 @@
 #ifndef TEXTURE_FEATURES_H_
 #define TEXTURE_FEATURES_H_
 
-#include <cob_texture_categorization/texture_categorization.h>
+//#include <cob_texture_categorization/texture_categorization.h>
+
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 
 struct color_vals
 {
@@ -86,5 +89,6 @@ public:
 	void compute_regularity_of_primitives(std::vector <std::vector <cv::Point> > *contours, std::vector<int>* numPixels, cv::Mat *edge_pixels, struct feature_results *results, std::vector< std::vector<double> > *centroid, std::vector<int> *idx );
 	void linelikeness_of_primitives(cv::Mat image, std::vector <std::vector <cv::Point> > *contours, cv::Mat *edge_pixels, struct feature_results *results, std::vector<cv::RotatedRect> *ellipse_ecc, std::vector<double> *eccentricity);
 
+	void compute_texture_features(const cv::Mat& img, struct feature_results& results, cv::Mat* raw_features);
 };
 #endif /* TEXTURE_FEATURES_H_ */

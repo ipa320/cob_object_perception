@@ -34,11 +34,8 @@ amadasun::amadasun()
 }
 
 
-void amadasun::get_amadasun(cv::Mat img,double d, struct feature_results *results, double& contrast_raw)
+void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results *results, double& contrast_raw)
 {
-
-
-
 	cv::Mat imagein1;
 	cv::Mat imagein;
 	cv::Mat imageinp1(img.rows, img.cols, CV_8UC1);

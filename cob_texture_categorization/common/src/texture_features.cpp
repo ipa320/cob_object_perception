@@ -3,6 +3,7 @@
 #include "cob_texture_categorization/amadasun.h"
 
 #include <math.h>
+#include <sys/time.h>
 
 
 //calculates 17 color and texture features for a selected folder/database
@@ -27,25 +28,27 @@
 //   column 16: lined
 //   column 17: checked
 
-	struct pos {
-	    int num;
-	    int index;
-	};
-	struct Predicate {
-	    bool operator()(const pos first, const pos second) {
-	        return first.num < second.num;
-	    }
-	};
+struct pos
+{
+	int num;
+	int index;
+};
+
+struct Predicate
+{
+	bool operator()(const pos first, const pos second)
+	{
+		return first.num < second.num;
+	}
+};
 
 std::vector<int> sort_index(std::vector<int> &to_sort)
 {
-//	Sorts inputvector and returns vector of old index position
+	// Sorts inputvector and returns vector of old index position
 
-	std::vector<int> idx;
-	std::vector<pos> sortid;
-	sortid.resize(to_sort.size());
-	idx.resize(to_sort.size());
-	for(unsigned int i=0; i<to_sort.size();i++)
+	std::vector<int> idx(to_sort.size());
+	std::vector<pos> sortid(to_sort.size());
+	for(size_t i=0; i<to_sort.size(); ++i)
 	{
 		sortid[i].num=to_sort[i];
 		sortid[i].index=i;
@@ -1562,8 +1565,6 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	double line_likeness_raw;
 	std::vector<cv::Vec3f> circles_s, circles_m, circles_l, circles_xl;
 
-
-
 	cv::Canny( image_gray, edge_pixels,30, 90, 3);
 	std::vector <std::vector <cv::Point> > circle_contours;
 	findContours(edge_pixels, circle_contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
@@ -1748,9 +1749,12 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	(*results).line_likeness=crit1;
 //	Result Value 13
 
-	struct timeval zeit9;
-	gettimeofday(&zeit9, 0);
+//	struct timeval zeit9;
+//	gettimeofday(&zeit9, 0);
 
+
+	// 3d roughness - dummy implementation
+	results->roughness = 1. + 0.2*results->avg_size + 0.2*results->line_likeness + 0.2*results->contrast + 0.2*results->prim_strength;
 
 
 	// Directionality/Lined/Checked -- Value 15/16/17
@@ -2247,10 +2251,1186 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 //	struct timeval zeit8;
 //	gettimeofday(&zeit8, 0);
 //	 std::cout << zeit8.tv_sec-zeit9.tv_sec  << ':' <<zeit8.tv_usec-zeit9.tv_usec <<"Old_fkt"<< std::endl;
-
-
 }
 
 
+struct MinMaxChecker
+{
+	double min;
+	double max;
+
+	MinMaxChecker()
+	{
+		min = DBL_MAX;
+		max = -DBL_MAX;
+	}
+
+	void check(double val)
+	{
+		min = std::min(min, val);
+		max = std::max(max, val);
+	}
+};
+
+#define DEBUG_OUTPUTS
+
+// todo: working on this
+void texture_features::compute_texture_features(const cv::Mat& img, struct feature_results& results, cv::Mat* raw_features)
+{
+	std::vector<int> numPixels;
+	std::vector<int> idx;
+	cv::Mat edge_pixels, small_image;
+
+	// Size of Primitives -- Value 8
+	double avg_primitive_size_raw1=0., avg_primitive_size_raw2=0.;
+	cv::Mat image, image_gray, detected_edges;
+	// Resize input image
+//	std::cout<< img.size()<<"size "<< img.type()<<"type "<<std::endl;
+	if(img.rows>200 && img.cols>200)
+		resize(img, image, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
+	else
+		image = img;
+
+	// create mask of valid image regions (if not rectangular), valid regions are black, invalid is white
+	cv::Mat mask = cv::Mat::zeros(image.rows, image.cols, CV_8UC1);
+	cv::Vec3b zero(0,0,0);
+	for (int v=0; v<image.rows; ++v)
+		for (int u=0; u<image.cols; ++u)
+			if (image.at<cv::Vec3b>(v,u) == zero)
+				mask.at<uchar>(v,u) = 255;
+	cv::dilate(mask, mask, cv::Mat(), cv::Point(-1,-1), 3);
+	const double number_mask_pixels = cv::sum(mask==0).val[0]/255.;
+
+	// new: ratio of edge pixels to mask pixels
+	// CRITERIUM 1: determine ratio of edge pixels to mask pixels
+	cv::cvtColor(image, image_gray, CV_BGR2GRAY);
+	// edge detection by Canny Edge
+	cv::Canny(image_gray, detected_edges, 30, 200, 3);  //Modify Threshold to get more or less edges
+	detected_edges.setTo(0, mask);
+
+	const double number_edge_pixels = cv::sum(detected_edges!=0).val[0]/255.;
+	double ratio = number_edge_pixels/number_mask_pixels;
+	avg_primitive_size_raw1 = ratio;
+
+	// CRITERIUM 2: determine average size of large/relevant components
+	// if low ratio of edge pixels --> check primitive size via contours
+#ifdef DEBUG_OUTPUTS
+	edge_pixels = detected_edges.clone();
+#endif
+	std::vector <std::vector <cv::Point> > contours;
+	std::vector<cv::Vec4i> hierarchy;
+	cv::findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+
+	// compute primitive area from aligned bounding box
+	numPixels.clear();
+	for (unsigned int i=0;i<contours.size();i++)
+		numPixels.push_back(cv::minAreaRect(contours[i]).size.area());
+	// Sort numPixels, save old index in idx
+	idx=sort_index(numPixels);
+	size_t size = numPixels.size();
+	double avg_size=0.;
+	int first_point = round(size*0.75);
+	for(size_t i=first_point;i<size;i++)
+		avg_size += numPixels[i];
+	avg_size = ((size-first_point)>0 ? avg_size/(double)(size-first_point) : 1.);
+	avg_primitive_size_raw2 = avg_size;
+	avg_size = std::max(1., std::min(5., 0.004*avg_size+0.8));
+
+#ifdef DEBUG_OUTPUTS
+	static MinMaxChecker avg_primitive_size_mm1;
+	avg_primitive_size_mm1.check(avg_primitive_size_raw1);
+	std::cout << "edge ratio: " << avg_primitive_size_raw1 << "  (" << avg_primitive_size_mm1.min << "/" << avg_primitive_size_mm1.max << ")" << std::endl;
+	static MinMaxChecker avg_primitive_size_mm2;
+	avg_primitive_size_mm2.check(avg_primitive_size_raw2);
+	std::cout << "avg contour size: " << avg_primitive_size_raw2 << "  (" << avg_primitive_size_mm2.min << "/" << avg_primitive_size_mm2.max << ")" << std::endl;
+	cv::imshow("edges", edge_pixels);
+	cv::waitKey();
+#endif
+	const double ratio_factor = std::min(1., ratio/0.4);
+	double val8 = std::max(1., std::min(5., ratio_factor*(5.-4.*ratio_factor) + (1.-ratio_factor)*avg_size));
+	results.avg_size=val8;
+
+//	// old: contour sizes only
+//	cv::cvtColor(image, image_gray, CV_BGR2GRAY);
+//	// Get center of image
+//	small_image = image_gray;//(cv::Rect(round(image_gray.cols/4), round(image_gray.rows/4),round(image_gray.cols/2), round(image_gray.rows/2)));	// hack: why smaller?
+//
+//	// Edge detection by Canny Edge
+//	cv::Canny(small_image, detected_edges, 30, 200, 3);  //Modify Threshold to get more or less edges
+//	detected_edges.setTo(0, mask);
+//
+//	// Get contours -- clone edge_pixels cause findContours changes input
+//#ifdef DEBUG_OUTPUTS
+//	edge_pixels = detected_edges.clone();
+//#endif
+//	std::vector <std::vector <cv::Point> > contours;
+//	std::vector<cv::Vec4i> hierarchy;
+//	cv::findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+//
+//	cv::Mat disp = cv::Mat::zeros(detected_edges.rows, detected_edges.cols, CV_8UC3);
+//	for (size_t i=0; i<contours.size(); ++i)
+//	{
+//		cv::drawContours(disp, contours, i, CV_RGB(rand()%255, rand()%255, rand()%255), 1);
+//		cv::imshow("cont", disp);
+//		cv::waitKey();
+//	}
+//
+//	// CRITERIA 1: determine biggest component
+//	numPixels.clear();
+//	for (unsigned int i=0;i<contours.size();i++)
+//	{
+//		numPixels.push_back(contours[i].size());
+//		std::cout << contours[i].size() << "\t";
+//	}
+//	std::cout << std::endl;
+//	// Sort numPixels, save old index in idx
+//	idx=sort_index(numPixels);
+//	size_t size = numPixels.size();
+//	double big_comp = 0.;
+//	int num = 0;
+//	for(std::vector<int>::reverse_iterator it = numPixels.rbegin(); it!=numPixels.rend() && num<3; ++it, ++num)
+//	{
+//		big_comp += *it;
+//		std::cout << *it << "\t";
+//	}
+//	std::cout << num << std::endl;
+//	if (num>0)
+//		big_comp=big_comp/(double)num;
+//	avg_primitive_size_raw1 = big_comp;
+//	big_comp=0.0025*big_comp+0.9;
+//#ifdef DEBUG_OUTPUTS
+//	static MinMaxChecker avg_primitive_size_mm1;
+//	avg_primitive_size_mm1.check(avg_primitive_size_raw1);
+//	std::cout << "big_comp: " << avg_primitive_size_raw1 << "  (" << avg_primitive_size_mm1.min << "/" << avg_primitive_size_mm1.max << ")" << std::endl;
+//#endif
+//
+//	// CRITERIA 2: determine average size of large/relevant components
+//	double avg_size=0.;
+//	int first_point = round(size*0.75);
+//	for(size_t i=first_point;i<size;i++)
+//		avg_size = avg_size+numPixels[i];
+//	if(size-first_point!=0)
+//	{
+//		avg_size = avg_size/(double)(size-first_point);
+//		avg_primitive_size_raw2 = avg_size;
+//		avg_size = 0.006*avg_size+0.8;
+//	}
+//	else
+//	{
+//		avg_size=1;
+//		avg_primitive_size_raw2 = 1;
+//	}
+//#ifdef DEBUG_OUTPUTS
+//	static MinMaxChecker avg_primitive_size_mm2;
+//	avg_primitive_size_mm2.check(avg_primitive_size_raw2);
+//	std::cout << "avg size: " << avg_primitive_size_raw2 << "  (" << avg_primitive_size_mm2.min << "/" << avg_primitive_size_mm2.max << ")" << std::endl;
+//	cv::imshow("edge_size_of_prim_masked", edge_pixels);
+//	cv::waitKey();
+//#endif
+//	avg_size = std::max(1., std::min(5., avg_size));
+//	if(big_comp>2.5*avg_size) big_comp=big_comp*0.25;
+//	big_comp = std::max(1., std::min(5., big_comp));
+//	double val8 = (big_comp + avg_size)/2;
+//	results.avg_size=val8;
+
+	double big_comp = 0.;	// hack: for compilation
+	small_image = image_gray;
+
+//    Amount of primitives -- Value 9
+//    CRITERIA 1: average distance to next edge pixel:
+//        high: few small or large primitives
+//        low: many small primitives
+//    delete small/irrelevant contours
+	double number_primitives_raw1, number_primitives_raw2;
+	cv::Canny( small_image, edge_pixels, 100, 300, 3);
+	detected_edges = edge_pixels.clone();
+	findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+	numPixels.clear();
+	idx.clear();
+//	Get size/position of contours
+	for (unsigned int i=0;i<contours.size();i++)
+		numPixels.push_back(contours[i].size());
+	// Sort numPixels, save old index in idx
+	idx=sort_index(numPixels);
+	// clear small contours
+	for(int i=0;i<ceil(numPixels.size()*0.8);i++)
+	{
+		if(numPixels[i]<big_comp/8 &&  (unsigned int)idx[i]<contours.size())
+		{
+			for (unsigned int j=0;j<contours[idx[i]].size();j++)
+			{
+				for(int g=0;g<3;g++)
+				{
+					edge_pixels.at<uchar>(contours[idx[i]][j].y, contours[idx[i]][j].x) = 0;
+				}
+			}
+		}
+	}
+
+//  Invert binary image
+	float dist_edge = 0;
+	cv::Mat L2dist;
+	for(int i=0;i<edge_pixels.cols;i++)
+	{
+		for(int j=0;j<edge_pixels.rows;j++)
+		{
+			if(edge_pixels.at<uchar>(j,i)!=0)
+			{
+				edge_pixels.at<uchar>(j,i)=0;
+			}else{
+				edge_pixels.at<uchar>(j,i)=255;
+			}
+		}
+	}
+//  compute dist_edge
+	distanceTransform(edge_pixels, L2dist, CV_DIST_L2, 5);
+
+	for(int i=0;i<L2dist.rows;i++)
+	{
+		for(int j=0;j<L2dist.cols;j++)
+		{
+			float dist_val = L2dist.at<float>(i,j);
+			dist_edge = dist_edge + dist_val;
+		}
+	}
+	if(L2dist.rows!=0 && L2dist.cols!=0 && small_image.rows*small_image.cols!=0)
+	{
+	dist_edge = (dist_edge/(L2dist.rows*L2dist.cols));
+	dist_edge = dist_edge / (small_image.rows*small_image.cols)*10000;
+	}
+	number_primitives_raw1 = dist_edge;
+	dist_edge=-0.06*dist_edge+4.4;
+	if(dist_edge<1)dist_edge = 1;
+	if(dist_edge>5)dist_edge = 5;
+
+//	//CRITERIA 2: amount of contours
+	number_primitives_raw2 = numPixels.size();
+	double amt_obj = 0.007*numPixels.size()+1.1;
+	if(amt_obj<1)amt_obj = 1;
+	if(amt_obj>5)amt_obj = 5;
+
+	double val9;
+	if(amt_obj>dist_edge)
+	{
+		val9=amt_obj;
+	}else{
+		val9=dist_edge;
+	}
+	results.prim_num=val9;
+//	Result Value 9
 
 
+//  Strength of primitives -- Value 10
+//	Resize input image
+	double primitive_strength_raw=0.;
+	cv::Mat image_resize;
+	cv::Mat image_05, image_gray_05;
+	if(img.rows>200 && img.cols>200)
+		resize(img, image_05, cv::Size(), 0.5, 0.5, cv::INTER_CUBIC);
+	else
+		image_05 = img;
+	cvtColor(image_05, image_resize, CV_BGR2HSV);
+//	extract edges
+//	Edge detection by Canny
+	cvtColor(image_05, image_gray_05, CV_BGR2GRAY );
+	cv::Canny(image_gray_05, detected_edges, 40, 200, 3);
+	edge_pixels = detected_edges.clone();
+//	Get contours
+	findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+//	determine biggest components and delete small contours
+//	Get size/postion of contours
+	numPixels.clear();
+	for (unsigned int i=0;i<contours.size();i++)
+	{
+		numPixels.push_back(contours[i].size());
+	}
+//	Sort numPixels, save old index in idx
+	idx=sort_index(numPixels);
+	for(int i=0;i<round(numPixels.size()*0.75) && contours.size()>=numPixels.size();i++)
+	{
+			for (unsigned int j=0;j<contours[idx[i]].size();j++)
+			{
+				edge_pixels.at<uchar>(contours[idx[i]][j].y, contours[idx[i]][j].x) = 0;
+			}
+	}
+//	Get number of non-zero points
+	double edge_pixels_amount=0;
+	for(int i=2;i<edge_pixels.rows-2;i++)
+	{
+		for(int j=2;j<edge_pixels.cols-2;j++)
+		{
+			if(edge_pixels.at<uint>(i,j)!=0)
+			{
+				edge_pixels_amount++;
+			}
+		}
+	}
+
+//	calculate standard deviation of values around edge pixels in a 3x3
+//	window and add them up
+	double std_window=0;
+	cv::Scalar stddev;
+	cv::Scalar mean;
+	cv::Mat window;// = cvCreateMat(3,3,CV_32FC1);
+	window = cv::Mat::zeros(3,3, CV_32FC1);
+	for(int i=2;i<image_resize.rows-2;i++)
+	{
+		for(int j=2;j<image_resize.cols-2;j++)
+		{
+			if(edge_pixels.at<uint>(i,j)!=0)
+			{
+
+				int a = 0;
+				int b = 0;
+				for(int l=i-1;l<=i+1;l++)
+				{
+					for(int o=j-1;o<=j+1;o++)
+					{
+						float swap =image_resize.at<cv::Vec3b>(l,o)[2];                 // Warum nur kanal 2??????????????????????????????????
+						window.at<float>(a,b)=swap/255;
+						b++;
+					}
+					a++;
+					b=0;
+				}
+				cv::meanStdDev(window, mean, stddev);
+				std_window = std_window + stddev.val[0];
+			}
+		}
+	}
+
+	double val10=0.;
+	if(edge_pixels_amount!=0 && val8!=0)
+	{
+		primitive_strength_raw = std_window/edge_pixels_amount;
+		val10= 30*std_window/edge_pixels_amount*val8/2+1;
+	}
+	val10 = pow(val10,2);
+	if(val10>5) val10=5;
+	if(val10<1) val10=1;
+	if(val10!=val10)val10=0;
+	results.prim_strength=val10;
+//	Result Value 10
+
+//  Contrast -- Value 12
+	double contrast_raw;
+	double d = 1;
+	amadasun amadasun_fkt2 = amadasun();
+	amadasun_fkt2.get_amadasun(img, d, &results, contrast_raw);
+
+
+//  Regularity/Similarity of primitives
+//  downsampling to avoid fine structures
+	double primitive_regularity_raw1, primitive_regularity_raw2, primitive_regularity_raw3;
+	//	resize(img, image, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);	// use the one from above
+	//	cvtColor( image, image_gray, CV_BGR2GRAY );
+//	extract edges
+//	Edge detection by Canny
+	cv::Canny(image_gray, detected_edges, 10, 30, 3);  //Modify Threshold to get more or less edges  40 190
+//	Get contours
+	edge_pixels = detected_edges.clone();
+	contours.clear();
+	hierarchy.clear();
+	findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+
+//	CRITERIA 1: determine biggest component
+	numPixels.clear();
+	for (unsigned int i=0;i<contours.size();i++)
+	{
+		numPixels.push_back(contours[i].size());
+	}
+//	Sort numPixels, save old index in idx
+	idx=sort_index(numPixels);
+	size = numPixels.size();
+	big_comp=0;
+	if(numPixels.size()>=3)	// Less amount of contours
+	{
+		big_comp = (numPixels[size-1]+numPixels[size-2]+numPixels[size-3])/3;
+	}else
+	{
+		for(size_t i=0;i<size;i++)
+		{
+			big_comp = big_comp+numPixels[i];
+		}
+		big_comp=big_comp/size;
+	}
+//	std::cout <<big_comp<<"big_comp"<<std::endl;
+	if(0.025*big_comp+0.9>1)
+	{
+		if((0.025*big_comp+0.9)<5)big_comp=0.025*big_comp+0.9;
+		else big_comp =5;
+	}else big_comp =1;
+
+	for(int i=0;i<ceil(numPixels.size()*0.9);i++)
+	{
+		if(numPixels[i]<big_comp/8 && (unsigned int)idx[i]<contours.size())
+		{
+			for (unsigned int j=0;j<contours[idx[i]].size();j++)
+			{
+				for(int g=0;g<3;g++)
+				{
+					edge_pixels.at<uchar>(contours[idx[i]][j].y, contours[idx[i]][j].x) = 0;
+				}
+			}
+		}
+	}
+
+//	determine properties of different components - compare Area, EquivDiameter, Extent
+//	Get contours of optimized image
+
+//	cv::Canny( image_gray, edge_pixels,10, 30, 3);
+//	cv::Mat edge_pixels_new = edge_pixels.clone();
+	findContours(edge_pixels, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+
+	std::vector<double> equivdiameter;
+	std::vector<double> extent;
+	std::vector<double> area;
+	std::vector< std::vector<double> > centroid(contours.size());
+	cv::Moments moment;
+	double extent_val;
+//	std::cout<<std::endl<<contours.size()<<"contourssize"<<std::endl;
+	for (unsigned int i=0;i<contours.size();i++)
+	{
+		moment = moments( contours[i], false );
+		double size = contours[i].size();
+
+		centroid[i].push_back(moment.m10/moment.m00);
+		centroid[i].push_back(moment.m01/moment.m00);
+		equivdiameter.push_back(sqrt(4*moment.m00/M_PI));
+		cv::Rect boundingbox = boundingRect(contours[i]);
+		double box1 = boundingbox.width;
+		double box2 = boundingbox.height;
+		area.push_back(moment.m00);
+		double box = box1/box2;
+		extent_val = box/size;
+		extent.push_back(extent_val);
+	}
+	double regu;
+	cv::meanStdDev(area, mean, stddev);
+	double std_val = stddev.val[0];
+	double mean_val = mean.val[0]*3;
+//	std::cout<<std::endl<<std_val<<"area std "<<std::endl<<mean_val<<"area mean"<<std::endl;
+//	regu = (std_val/mean_val);
+	regu = (std_val/mean_val);
+	primitive_regularity_raw1 = (std_val/mean_val);
+	cv::meanStdDev(equivdiameter, mean, stddev);
+	std_val = stddev.val[0];
+//	std::cout<<std_val<<"equi std"<<std::endl;
+	mean_val = mean.val[0]*3;
+//	std::cout<<mean_val<<"equi mean"<<std::endl;
+//	regu = regu/(std_val/mean_val);
+	regu = regu + (std_val/mean_val)/2;
+	primitive_regularity_raw2 = (std_val/mean_val);
+	cv::meanStdDev(extent, mean, stddev);
+	std_val = stddev.val[0];
+//	std::cout<<std_val<<"extend std"<<std::endl;
+//	regu = regu/(std_val/50);
+	regu = regu+(std_val)*2;
+	primitive_regularity_raw3 = std_val;
+	regu = 8-regu;
+
+//	std::cout<<regu<<"regularity"<<std::endl;
+	if(regu<5)
+	{
+		if(regu<1)regu=1;
+	}else
+	{
+		regu = 5;
+	}
+	double val11 = regu;
+	results.prim_regularity=val11;
+//	Result Value 11
+
+//	13 Line-Likeness of primitives
+//	 --> following steps already done above at Regularity/Similarity of primitives
+//
+//	      Criteria 1: search large circles/blobs by generalized Hough Transform
+	double line_likeness_raw;
+	std::vector<cv::Vec3f> circles_s, circles_m, circles_l, circles_xl;
+
+	cv::Canny(image_gray, edge_pixels,30, 90, 3);
+	std::vector <std::vector <cv::Point> > circle_contours;
+	findContours(edge_pixels, circle_contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+
+	cv::HoughCircles(image_gray, circles_s,CV_HOUGH_GRADIENT,1.5,10,50,150, 4, 10 );
+	cv::HoughCircles(image_gray, circles_m,CV_HOUGH_GRADIENT,1,25,10,30, 10, 25 );
+	cv::HoughCircles(image_gray, circles_l,CV_HOUGH_GRADIENT,1.4,50,30,90, 25, 50 );
+	cv::HoughCircles(image_gray, circles_xl,CV_HOUGH_GRADIENT,1.2,110,30,90, 50, 110 );
+
+//	Code to draw circles/ellipse
+//	std::cout<<circles_s.size()<<"circ_s ";
+//	std::cout<<circles_m.size()<<"circ_m ";
+//	std::cout<<circles_l.size()<<"circ_l ";
+//	std::cout<<circles_xl.size()<<"circ_xl ";
+
+//	for(int i = 0;i<circles_s.size();i++)
+//	{
+////		image_gray.at<uchar>(circles_s[i][1],circles_s[i][0])=255;
+////		image_gray.at<uchar>(circles_s[i][1]+1,circles_s[i][0])=255;
+////		image_gray.at<uchar>(circles_s[i][1],circles_s[i][0]+1)=255;
+////		image_gray.at<uchar>(circles_s[i][1]-1,circles_s[i][0])=255;
+////		image_gray.at<uchar>(circles_s[i][1],circles_s[i][0]-1)=255;
+//        cv::Point center(cvRound(circles_s[i][0]), cvRound(circles_s[i][1]));
+//        int radius = cvRound(circles_s[i][2]);
+//        // draw the circle center
+//        cv::circle( image_gray, center, 3, cv::Scalar(0,255,0), -1, 8, 0 );
+//        // draw the circle outline
+//        cv::circle( image_gray, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );
+//	}
+//	for(int i = 0;i<circles_m.size();i++)
+//	{
+//        cv::Point center(cvRound(circles_m[i][0]), cvRound(circles_m[i][1]));
+//        int radius = cvRound(circles_m[i][2]);
+//        // draw the circle center
+//        cv::circle( image_gray, center, 3, cv::Scalar(0,255,0), -1, 8, 0 );
+//        // draw the circle outline
+//        cv::circle( image_gray, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );
+//	}
+//	for(int i = 0;i<circles_l.size();i++)
+//	{
+//        cv::Point center(cvRound(circles_l[i][0]), cvRound(circles_l[i][1]));
+//        int radius = cvRound(circles_l[i][2]);
+//        // draw the circle center
+//        cv::circle( image_gray, center, 3, cv::Scalar(0,255,0), -1, 8, 0 );
+//        // draw the circle outline
+//        cv::circle( image_gray, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );
+//	}
+//	for(int i = 0;i<circles_xl.size();i++)
+//	{
+//        cv::Point center(cvRound(circles_xl[i][0]), cvRound(circles_xl[i][1]));
+//        int radius = cvRound(circles_xl[i][2]);
+//        // draw the circle center
+//        cv::circle( image_gray, center, 3, cv::Scalar(0,255,0), -1, 8, 0 );
+//        // draw the circle outline
+//        cv::circle( image_gray, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );
+//	}
+
+
+
+	double crit1 = (circles_s.size()+circles_m.size()+circles_l.size());
+	if(crit1>6)
+	{
+		line_likeness_raw = crit1;
+		crit1 = 4-(crit1/7);
+	}
+	else
+	{
+		cv::Mat image_gray_small, check_lines;
+		std::vector<cv::Vec2f> lines;
+		cv::Canny(image_gray, check_lines,100, 300, 3);
+		std::vector < std::vector<cv::Point> > lines_contours;
+		findContours(check_lines, lines_contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+		HoughLines(check_lines, lines, 1, CV_PI/180, 100, 0, 0 );
+		double line_num = lines.size();
+		double line_contours_num = lines_contours.size();
+		double line_value = line_num/line_contours_num;
+		if(line_value >1)
+		{
+			crit1=5;
+			line_likeness_raw = 5;
+		}
+		else if(line_value>0)
+		{
+			crit1=4;
+			line_likeness_raw = 4;
+		}
+		else
+		{
+			crit1=1;
+			line_likeness_raw = 1;
+		}
+	}
+	if (crit1 < 1)
+		crit1 = 1;
+	if (crit1 > 5)
+		crit1 = 5;
+
+	std::vector<cv::RotatedRect> ellipse_ecc;
+	std::vector<double> eccentricity;
+	double count_orient = 0;
+
+	for (unsigned int i = 0; i < contours.size(); i++)
+	{
+		if (contours[i].size() > 5)
+		{
+			ellipse_ecc.push_back(fitEllipse(contours[i]));
+		}
+	}
+	cv::RNG rng(12345);
+	cv::Mat drawing = cv::Mat::zeros(img.size(), CV_8UC3);
+	for (unsigned int i = 0; i < ellipse_ecc.size(); i++)
+	{
+		cv::Scalar color = cv::Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+//		// contour
+//		cv::drawContours( edge_pixels, contours, i, color, 1, 8, std::vector<cv::Vec4i>(), 0, cv::Point() );
+		// ellipse
+		double val;
+		if(ellipse_ecc[i].size.height>ellipse_ecc[i].size.width)
+		{
+			val = sqrt(1-(ellipse_ecc[i].size.width/ellipse_ecc[i].size.height));
+		}
+		else
+		{
+			val = sqrt(1-(ellipse_ecc[i].size.height/ellipse_ecc[i].size.width));
+//			if(val<0.1)count_orient++;
+		}
+		if (val < 0.5 && ellipse_ecc[i].size.height > 20)
+		{
+			ellipse(edge_pixels, ellipse_ecc[i], color, 2, 8);
+		}
+		// rotated rectangle
+//	       cv::Point2f rect_points[4]; minRect[i].points( rect_points );
+//	       for( int j = 0; j < 4; j++ )
+//	          line( edge_pixels, rect_points[j], rect_points[(j+1)%4], color, 1, 8 );
+	     }
+
+//	cv::imshow("ellipse", edge_pixels);
+
+//	std::cout<<ellipse_ecc.size()<<"ellipse size"<<std::endl;
+	for (unsigned int i=0;i<ellipse_ecc.size();i++)
+	{
+		double val;
+		if(ellipse_ecc[i].size.height>ellipse_ecc[i].size.width)
+		{
+			val = sqrt(1-(ellipse_ecc[i].size.width/ellipse_ecc[i].size.height));
+			eccentricity.push_back(val);
+
+		}
+		else
+		{
+			val = sqrt(1-(ellipse_ecc[i].size.height/ellipse_ecc[i].size.width));
+			eccentricity.push_back(val);
+//			if(val<0.1)count_orient++;
+		}
+		if(val<0.6)count_orient++;
+	}
+//	std::cout<<count_orient<<"oriten"<<std::endl;
+//	double small_lineblob = count_orient/ellipse_ecc.size();
+	// rescale
+	double crit2;
+//	std::cout<<small_lineblob<<"smallline "<<std::endl;
+//	if((small_lineblob-0.4)*10<5)
+//	{
+//		if(((small_lineblob-0.4)*10)<1)
+//		{
+//			crit2=1;
+//		}else
+//		{
+//			crit2=(small_lineblob-0.4)*10;
+//		}
+//	}else{
+//		crit2=5;
+//	}
+//	std::cout<<crit2<<"crit2 "<<std::endl;
+//	double val13;
+//	if(crit1<crit2)
+//	{
+//		val13=crit1;
+//	}else{
+//		val13=crit2;
+//	}
+	results.line_likeness=crit1;
+//	Result Value 13
+
+//	struct timeval zeit9;
+//	gettimeofday(&zeit9, 0);
+
+
+	// 3d roughness - dummy implementation
+	results.roughness = 1. + 0.2*results.avg_size + 0.2*results.line_likeness + 0.2*results.contrast + 0.2*results.prim_strength;
+
+
+	// Directionality/Lined/Checked -- Value 15/16/17
+	cv::Mat grad_x, grad_y;
+	cv::Mat abs_grad_x, abs_grad_y;
+	cv::Mat hsv_conv;
+	cv::cvtColor(image, hsv_conv, CV_BGR2HSV);
+	cv::Mat hsv_value(image.rows, image.cols, CV_32FC1);
+	GaussianBlur(hsv_conv, hsv_conv, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT);
+	for(int i=0;i<image.rows;i++)
+	{
+		for(int j=0;j<image.cols;j++)
+		{
+			float v_val = hsv_conv.at<cv::Vec3b>(i,j)[2];
+			hsv_value.at<float>(i,j)=v_val/180.f;
+		}
+	}
+
+	// Gradient X
+	Sobel(hsv_value, grad_x, CV_32F, 1, 0, 5, 1, 0.5, cv::BORDER_DEFAULT);
+	// Gradient Y
+	Sobel(hsv_value, grad_y, CV_32F, 0, 1, 5, 1, 0.5, cv::BORDER_DEFAULT);
+	// Polar coordinates Theta and Rho
+	cv::Mat t(grad_x.rows, grad_x.cols, CV_32F);
+	cv::Mat r(grad_x.rows, grad_x.cols, CV_32F);
+	float r_max=-1000;
+	float rmin=1000;
+
+	for(int i=0;i<grad_x.rows;i++)
+	{
+		for(int j=0;j<grad_x.cols;j++)
+		{
+			t.at<float>(i,j)=atan2(grad_y.at<float>(i,j),grad_x.at<float>(i,j));
+			double py =grad_y.at<float>(i,j);
+			double px =grad_x.at<float>(i,j);
+			float r_val = sqrt(py*py + px*px);
+			r.at<float>(i,j)=r_val;
+			if(r_max<r_val) r_max=r_val;
+			if(rmin>r_val) rmin=r_val;
+		}
+	}
+
+	// Gradients with a small magnitude are irrelevant
+	// Modulo 180\B0
+	std::vector<float> t0;
+	float eps = pow(2, -52);
+	std::vector<float> r_vec;
+
+	float tmin = 10;
+	float tmax =-10;
+
+	for(int i=0;i<grad_x.rows;i++)
+	{
+		for(int j=0;j<grad_x.cols;j++)
+		{
+			if(r.at<float>(i,j)<(0.15*r_max))r.at<float>(i,j)=0;
+			if(r.at<float>(i,j)>eps)
+			{
+				if(t.at<float>(i,j)<0)
+				{
+					t0.push_back(t.at<float>(i,j)+M_PI);
+					if(tmin>t.at<float>(i,j))tmin=t.at<float>(i,j)+M_PI;
+					if(tmax<t.at<float>(i,j))tmax=t.at<float>(i,j)+M_PI;
+				}
+				else
+				{
+					t0.push_back(t.at<float>(i,j));
+					if(tmin>t.at<float>(i,j))tmin=t.at<float>(i,j);
+					if(tmax<t.at<float>(i,j))tmax=t.at<float>(i,j);
+				}
+				r_vec.push_back(r.at<float>(i,j));
+			}
+			else if(r.at<float>(i,j)<0 && r.at<float>(i,j)*(-1)>eps)
+			{
+				if(t.at<float>(i,j)<0)
+				{
+					t0.push_back(t.at<float>(i,j)+M_PI);
+					if(tmin>t.at<float>(i,j))tmin=t.at<float>(i,j)+M_PI;
+					if(tmax<t.at<float>(i,j))tmax=t.at<float>(i,j)+M_PI;
+				}
+				else
+				{
+					t0.push_back(t.at<float>(i,j));
+					if(tmin>t.at<float>(i,j))tmin=t.at<float>(i,j);
+					if(tmax<t.at<float>(i,j))tmax=t.at<float>(i,j);
+				}
+			r_vec.push_back(r.at<float>(i,j));
+			}
+		}
+	}
+
+	// Histogram of angles
+	// Amount of defined directions
+	std::vector<double> nbins;
+	std::vector<double> Hd(16);
+	double pi_part=M_PI/16;
+	for (int i=0;i<=15;i++)
+	{
+		nbins.push_back(pi_part*i);
+	}
+	for(std::size_t i=0;i<t0.size();i++)
+	{
+		double angle_val = t0[i]/pi_part;
+		double bin_num;
+		modf(angle_val, &bin_num);
+		Hd[bin_num]+=1.;
+	}
+	for(int i=0;i<16;i++)
+	{
+		Hd[i]/=t0.size();
+	}
+	// Find max in hist
+	double fmx=0;
+	double max_value=Hd[0];
+	for(size_t i=1;i<Hd.size();i++)
+	{
+		if(max_value<Hd[i])
+		{
+			max_value = Hd[i];
+			fmx=i;
+		}
+	}
+	// Check if Hd has values <> NaN
+	std::vector<double> Hd_sort(Hd.size());
+	double lin;
+	double lined_raw;
+	std::vector<double> ff;
+	// Shift max into center
+	if(fmx>=0)
+	{
+		if(fmx<7)
+		{
+			double shift = 7-fmx;
+			for(int i=0;i<Hd.size()-shift;i++)
+			{
+				Hd_sort[i+shift]=Hd[i];
+			}
+			for(int i=0;i<shift;i++)
+			{
+				Hd_sort[i]=Hd[(Hd.size()-shift)+i];
+			}
+		}
+		else if (fmx>8)
+		{
+			double shift = fmx-7;
+			for(int i=0;i<Hd.size()-shift;i++)
+			{
+				Hd_sort[i]=Hd[(shift)+i];
+			}
+			for(int i=0;i<=shift;i++)
+			{
+				Hd_sort[(Hd.size()-shift)+i]=Hd[i];
+			}
+		}
+		else
+		{
+			Hd_sort=Hd;
+		}
+		fmx=0;
+		double max_value=Hd_sort[0];
+		for(size_t i=1;i<Hd_sort.size();i++)
+		{
+			if(max_value<Hd_sort[i])
+			{
+				max_value = Hd_sort[i];
+				fmx=(unsigned int)i+1;
+			}
+		}
+
+		for(unsigned int i=0;i<Hd_sort.size();i++)
+		{
+			if (i+1-fmx <0)
+			{
+				ff.push_back((i+1-fmx)*(-1));
+			}
+			else
+			{
+				ff.push_back(i+1-fmx);
+			}
+		}
+
+		if(max_value>0.3)
+			max_value=0.3;
+		double sum_Hd_ff=0;
+		for (unsigned int i=3;i<Hd_sort.size()-4;i++)
+		{
+			sum_Hd_ff = sum_Hd_ff + Hd_sort[i]*ff[i];
+		}
+		lined_raw = max_value/sum_Hd_ff;
+		lin = (max_value/sum_Hd_ff-0.06)*100;
+		if(lin<1) lin=1;
+	}
+	else
+	{
+		lin = 1;
+		lined_raw = 1;
+	}
+	// rescale
+	if(lin>5) lin=5;
+	if(lin<1) lin=1;
+	results.lined=lin;
+	// Result Value 16
+
+
+	// Checked -- Value 17
+	std::vector<double> Hd_sort_checked;
+	// Switch first and second half of hist
+	for (unsigned int i=8;i<Hd_sort.size();i++)
+	{
+		Hd_sort_checked.push_back(Hd_sort[i]);
+	}
+	for(int i=0;i<8;i++)
+	{
+		Hd_sort_checked.push_back(Hd_sort[i]);
+	}
+
+	// peaks in the middle
+	std::vector< std::vector<double> > peaks;
+	double Hd_sum=0;
+	for(unsigned int i=3; i<Hd_sort_checked.size()-2;i++)
+	{
+		if(Hd_sort_checked[i]>Hd_sort_checked[i-1] && Hd_sort_checked[i]>Hd_sort_checked[i+1] && Hd_sort_checked[i]>0.05)
+		{
+			peaks.resize(peaks.size()+1);
+			peaks[peaks.size()-1].push_back(i);
+			peaks[peaks.size()-1].push_back(Hd_sort_checked[i]);
+		}
+		Hd_sum = Hd_sum + Hd_sort_checked[i]*ff[i];
+	}
+	double checked;
+	double checked_raw;
+	// compute value of checked
+	if(peaks.size()==0 || lin<2)
+	{
+		checked = 1;
+		checked_raw = 1;
+	}
+	else
+	{
+		cv::Mat check_x, check_y;
+		for(int i=0;i<grad_x.rows;i++)
+		{
+			for(int j=0;j<grad_x.cols;j++)
+			{
+				double val_grad_x = grad_x.at<float>(i,j);
+				double val_grad_y = grad_y.at<float>(i,j);
+				grad_x.at<float>(i,j)=round(val_grad_x*255);
+				grad_y.at<float>(i,j)=round(val_grad_y*255);
+			}
+		}
+
+//		cv::Canny( grad_y, check_y,100, 300, 3);
+//		cv::Canny( grad_x, check_x,100, 300, 3);
+//		std::vector < std::vector<cv::Point> > lines_x;
+//		std::vector < std::vector<cv::Point> > lines_y;
+//		findContours(check_y, lines_y, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+//		findContours(check_x, lines_x, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+//		std::cout<<lines_x.size()<<"lines_x "<<lines_y.size()<<"lines_y "<<std::endl;
+		double contours_factor = 1;
+		if (circle_contours.size()<=10)
+			contours_factor = circle_contours.size()/20;
+		else if (circle_contours.size()>=60)
+			contours_factor = 80.*80./((double)circle_contours.size()*circle_contours.size());
+		double min_pks=peaks[0][0];
+		if(min_pks>0.3)
+			min_pks=0.3;
+		checked = 5-Hd_sum*(0.4-min_pks);
+		checked_raw = checked;
+		if(checked<1)
+			checked = 1;
+		checked = ((checked-4.7)*21+1)*contours_factor;
+		if(checked<1)checked=1;
+		if(checked>5)checked=5;
+	}
+	results.checked=checked;
+
+
+	// Directionality -- Value 15
+	// check if placement of few coarse primitives is on circle
+	double directionality_raw1=0., directionality_raw2=0., directionality_raw3=0.;
+	crit1 = 0.;
+	if(centroid.size()<50 && centroid.size()>=3)
+	{
+		// create matrices of equation
+		std::vector< std::vector<double> > circfit_a(centroid.size());
+		cv::Mat amat=cvCreateMat(centroid.size(), 3, CV_32FC1);
+		cv::Mat bmat= cvCreateMat(centroid.size(), 1, CV_32FC1);
+		cv::Mat xmat;
+		for (unsigned int i=0;i<centroid.size();i++)
+		{
+			float swap_var1 = (-(centroid[i][0]*centroid[i][0]+centroid[i][1]*centroid[i][1]));
+			float swap_var2 = centroid[i][0];
+			float swap_var3 = centroid[i][1];
+			if(swap_var1!=swap_var1)swap_var1=0;
+			if(swap_var2!=swap_var2)swap_var2=0;
+			if(swap_var3!=swap_var3)swap_var3=0;
+			bmat.at<float>(i,0)= swap_var1;
+			amat.at<float>(i,0)= swap_var2;
+			amat.at<float>(i,1)= swap_var3;
+			amat.at<float>(i,2)= 1;
+		}
+		// solve equation
+		solve(amat, bmat, xmat, cv::DECOMP_SVD);
+		float a1 = xmat.at<float>(0,0);
+		float a2 = xmat.at<float>(0,1);
+		float a3 = xmat.at<float>(0,2);
+		float xc = -.5*a1;
+		float yc = -.5*a2;
+		float R  =  sqrt((a1*a1+a2*a2)/4-a3);
+
+		std::vector<double> th;
+		double pi_part=M_PI/50;
+		for(int i=0;i<=100;i++)
+		{
+			th.push_back(pi_part*i);
+		}
+		std::vector<double>xunit;
+		std::vector<double>yunit;
+		for (unsigned int i=0; i<th.size();i++)
+		{
+			xunit.push_back(R*cos(th[i])+xc);
+			yunit.push_back(R*sin(th[i])+yc);
+		}
+		double err = 0;
+		for (unsigned int i=0;i<centroid.size();i++)
+		{
+			float dist = sqrt(edge_pixels.rows*edge_pixels.cols);
+			for(unsigned int j=0;j<xunit.size();j++)
+			{
+				double sqrt_val = (centroid[i][0]-xunit[j])*(centroid[i][0]-xunit[j])+(centroid[i][1]-yunit[j])*(centroid[i][1]-yunit[j]);
+				double dist_check = sqrt(sqrt_val);
+				if(dist>dist_check)dist=dist_check;
+			}
+			err = err+dist;
+		}
+		err = err/centroid.size();
+		directionality_raw1 = err;
+		crit1 = 5-0.085*err;
+		if(crit1 >1)crit1 = 1;
+	}else
+	{
+		crit1 = 1;
+		directionality_raw1 = 1;
+	}
+
+	//std::cout<<"point"<<std::endl;
+
+	// check distribution of centroids over image
+	double bins_xhori=edge_pixels.cols/10;
+	double bins_yvert=edge_pixels.rows/10;
+	std::vector<double> hist_xhori(10);
+	std::vector<double> hist_yvert(10);
+	double xdivision = 0;
+	double ydivision = 0;
+	// compute hist_xhori and hist_yvert
+	for (unsigned int i=0;i<centroid.size();i++)
+	{
+		if(bins_xhori!=0 && bins_yvert!=0){
+			xdivision = centroid[i][0]/bins_xhori;
+			ydivision = centroid[i][1]/bins_yvert;
+		}
+			double xhist_val;
+			double yhist_val;
+			modf(xdivision, &xhist_val);
+			modf(ydivision, &yhist_val);
+			if(xhist_val<hist_xhori.size())
+				hist_xhori[xhist_val]=hist_xhori[xhist_val]+1;
+			if(yhist_val<hist_yvert.size())
+				hist_yvert[yhist_val]=hist_yvert[yhist_val]+1;
+	}
+	for(int i=0;i<10;i++)
+	{
+		hist_xhori[i]=hist_xhori[i]/centroid.size();
+		hist_yvert[i]=hist_yvert[i]/centroid.size();
+	}
+	//std::cout<<"point"<<std::endl;
+
+	// delete first and last position of hist
+	hist_xhori.pop_back();
+	hist_yvert.pop_back();
+	hist_xhori[0]=hist_xhori[hist_xhori.size()-1];
+	hist_yvert[0]=hist_yvert[hist_yvert.size()-1];
+	hist_xhori.pop_back();
+	hist_yvert.pop_back();
+	// compute crit2 value
+	//std::cout<<"point"<<std::endl;
+	cv::meanStdDev(hist_xhori, mean, stddev);
+	crit2=stddev.val[0];
+	cv::meanStdDev(hist_yvert, mean, stddev);
+	directionality_raw2 = crit2 + stddev.val[0];
+	crit2=5-160*(crit2 + stddev.val[0]);
+	if(crit2 < 1)
+		crit2=1;
+
+	// check orientation of contours
+//	std::cout<<"pointeccsize"<<ellipse_ecc.size()<<std::endl;
+//	std::vector<double> angel(ellipse_ecc.size());
+
+	std::vector<double> hist_angle(13);
+//	std::cout<<"pointangels"<<std::endl;
+	int hist_point_num=0;
+//	std::cout<<"point2"<<std::endl;
+	// compute hist_angle
+//	std::cout<<"eccentricity size"<<eccentricity.size()<<"  "<<eccentricity[2]<<std::endl;
+//	std::cout<<"ellipse_ecc[i]"<<ellipse_ecc.size()<<"  "<<ellipse_ecc[2].angle<<std::endl;
+//	std::cout<<"point3"<<std::endl;
+
+	for (unsigned int i=0;i<ellipse_ecc.size(); i++)
+	{
+		if(eccentricity[i]>1)
+		{
+			if(ellipse_ecc[i].angle>90)
+			{
+				ellipse_ecc[i].angle=ellipse_ecc[i].angle-180;
+			}
+			if(ellipse_ecc[i].angle>=0)
+			{
+				double angle_val = ellipse_ecc[i].angle/15;
+				double bin_num;
+				modf(angle_val, &bin_num);
+				if((6+bin_num)<13)
+				{
+					hist_angle[6+(int)bin_num]=hist_angle[6+(int)bin_num]+1;
+				}else{
+					std::cout<<"memory failure"<<std::endl;
+				}
+			}else{
+				double angle_val = (ellipse_ecc[i].angle/15)*(-1);
+				double bin_num;
+				modf(angle_val, &bin_num);
+				if(bin_num<13)
+				{
+				hist_angle[(int)bin_num]=hist_angle[(int)bin_num]+1;
+				}else{
+					std::cout<<"memory failure2"<<std::endl;
+				}
+			}
+			hist_point_num++;
+		}
+
+	}
+
+
+	// normalize hist_angle
+	for (unsigned int i=0; i<hist_angle.size(); ++i)
+	{
+		if(hist_point_num>0) hist_angle[i]=hist_angle[i]/hist_point_num;
+	}
+	// compute crit3 value
+	cv::meanStdDev(hist_angle, mean, stddev);
+	directionality_raw3 = stddev.val[0]*stddev.val[0];
+	double crit3 = 500*stddev.val[0]*stddev.val[0];
+	if(crit3<5)
+	{
+		if(crit3<1)
+			crit3=1;
+	}
+	else
+		crit3=5;
+
+	double val15 = lin;
+	if(val15<checked)val15=checked;
+	if(val15<crit1)val15=crit1;
+	if(val15<crit2)val15=crit2;
+	if(val15<crit3)val15=crit3;
+//	if(val15*0.9>=1)val15=val15*0.9;
+	if(crit1+crit2+crit3+lin+checked <9)
+		val15=1;
+	results.direct_reg=val15;
+
+
+	if (raw_features != 0)
+	{
+		raw_features->at<float>(0, 7) = avg_primitive_size_raw1;
+		raw_features->at<float>(0, 8) = avg_primitive_size_raw2;
+		raw_features->at<float>(0, 9) = number_primitives_raw1;
+		raw_features->at<float>(0, 10) = number_primitives_raw2;
+		raw_features->at<float>(0, 11) = primitive_strength_raw;
+		raw_features->at<float>(0, 12) = primitive_regularity_raw1;
+		raw_features->at<float>(0, 13) = primitive_regularity_raw2;
+		raw_features->at<float>(0, 14) = primitive_regularity_raw3;
+		raw_features->at<float>(0, 15) = contrast_raw;
+		raw_features->at<float>(0, 16) = line_likeness_raw;
+		raw_features->at<float>(0, 17) = directionality_raw1;
+		raw_features->at<float>(0, 18) = directionality_raw2;
+		raw_features->at<float>(0, 19) = directionality_raw3;
+		raw_features->at<float>(0, 20) = lined_raw;
+		raw_features->at<float>(0, 21) = checked_raw;
+	}
+
+//	struct timeval zeit8;
+//	gettimeofday(&zeit8, 0);
+//	 std::cout << zeit8.tv_sec-zeit9.tv_sec  << ':' <<zeit8.tv_usec-zeit9.tv_usec <<"Old_fkt"<< std::endl;
+
+
+}
