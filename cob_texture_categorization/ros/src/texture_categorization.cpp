@@ -559,7 +559,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 					int y = (int)floor((segmented_pointcloud_msg.clusters[i].array[j])/641);
 
 					pcl::PointXYZ point;
-					point.z = (*cloud).points[segmented_pointcloud_msg.clusters[i].array[j]].z;
+					point.z = cloud->points[segmented_pointcloud_msg.clusters[i].array[j]].z;
 					point.x=x;
 					point.y=y;
 					pixel_cloud->push_back(point);
@@ -702,19 +702,19 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 
 				if(usefull_3D_data)
 				{
-				////Compute Transformation and save transformed image in segment_vec
-				p_transformation transform_segment = p_transformation();
-				cv::Mat H;
+					////Compute Transformation and save transformed image in segment_vec
+					p_transformation transform_segment = p_transformation();
+					cv::Mat H;
 
-				transform_segment.run_pca(&segment_img, &depth, pixel_cloud, metric_cloud, &marker, &plane_coeff, &H);
+					transform_segment.run_pca(&segment_img, &depth, pixel_cloud, metric_cloud, &marker, &plane_coeff, &H);
 
-				cv::Mat newimg = segment_img.clone();
-				segment_vec.push_back(newimg);
-				cv::Mat H_new = H.clone();
-				H_vec.push_back(H_new);
-
-
-				}else{
+					cv::Mat newimg = segment_img.clone();
+					segment_vec.push_back(newimg);
+					cv::Mat H_new = H.clone();
+					H_vec.push_back(H_new);
+				}
+				else
+				{
 					for(unsigned int j=0; j<segmented_pointcloud_msg.clusters[i].array.size();j++)
 						{
 								int x = (segmented_pointcloud_msg.clusters[i].array[j])%640;

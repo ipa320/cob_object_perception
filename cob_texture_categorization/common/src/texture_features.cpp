@@ -2284,12 +2284,18 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	// Size of Primitives -- Value 8
 	double avg_primitive_size_raw1=0., avg_primitive_size_raw2=0.;
 	cv::Mat image, image_gray, detected_edges;
+
+	// todo: sensible?
 	// Resize input image
-//	std::cout<< img.size()<<"size "<< img.type()<<"type "<<std::endl;
-	if(img.rows>200 && img.cols>200)
-		resize(img, image, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
-	else
+	// std::cout<< img.size()<<"size "<< img.type()<<"type "<<std::endl;
+//	if(img.rows>200 && img.cols>200)
+//		resize(img, image, cv::Size(), 0.2, 0.2, cv::INTER_CUBIC);
+//	else
 		image = img;
+
+#ifdef DEBUG_OUTPUTS
+	cv::imshow("image", image);
+#endif
 
 	// create mask of valid image regions (if not rectangular), valid regions are black, invalid is white
 	cv::Mat mask = cv::Mat::zeros(image.rows, image.cols, CV_8UC1);
@@ -2305,12 +2311,12 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	// CRITERIUM 1: determine ratio of edge pixels to mask pixels
 	cv::cvtColor(image, image_gray, CV_BGR2GRAY);
 	// edge detection by Canny Edge
-	cv::Canny(image_gray, detected_edges, 30, 200, 3);  //Modify Threshold to get more or less edges
+	cv::Canny(image_gray, detected_edges, 20, 60, 3);  //Modify Threshold to get more or less edges		// 30, 200, 3
 	detected_edges.setTo(0, mask);
 
 	const double number_edge_pixels = cv::sum(detected_edges!=0).val[0]/255.;
-	double ratio = number_edge_pixels/number_mask_pixels;
-	avg_primitive_size_raw1 = ratio;
+	const double edge_mask_pixel_ratio = number_edge_pixels/number_mask_pixels;
+	avg_primitive_size_raw1 = edge_mask_pixel_ratio;
 
 	// CRITERIUM 2: determine average size of large/relevant components
 	// if low ratio of edge pixels --> check primitive size via contours
@@ -2328,13 +2334,13 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	// Sort numPixels, save old index in idx
 	idx=sort_index(numPixels);
 	size_t size = numPixels.size();
-	double avg_size=0.;
+	double avg_primitive_size=0.;
 	int first_point = round(size*0.75);
 	for(size_t i=first_point;i<size;i++)
-		avg_size += numPixels[i];
-	avg_size = ((size-first_point)>0 ? avg_size/(double)(size-first_point) : 1.);
-	avg_primitive_size_raw2 = avg_size;
-	avg_size = std::max(1., std::min(5., 0.004*avg_size+0.8));
+		avg_primitive_size += numPixels[i];
+	avg_primitive_size = ((size-first_point)>0 ? avg_primitive_size/(double)(size-first_point) : 1.);
+	avg_primitive_size_raw2 = avg_primitive_size;
+	avg_primitive_size = std::max(1., std::min(5., 0.004*avg_primitive_size+0.8));
 
 #ifdef DEBUG_OUTPUTS
 	static MinMaxChecker avg_primitive_size_mm1;
@@ -2344,10 +2350,9 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	avg_primitive_size_mm2.check(avg_primitive_size_raw2);
 	std::cout << "avg contour size: " << avg_primitive_size_raw2 << "  (" << avg_primitive_size_mm2.min << "/" << avg_primitive_size_mm2.max << ")" << std::endl;
 	cv::imshow("edges", edge_pixels);
-	cv::waitKey();
 #endif
-	const double ratio_factor = std::min(1., ratio/0.4);
-	double val8 = std::max(1., std::min(5., ratio_factor*(5.-4.*ratio_factor) + (1.-ratio_factor)*avg_size));
+	const double prim_size_ratio_factor = std::min(1., edge_mask_pixel_ratio/0.4);
+	double val8 = std::max(1., std::min(5., prim_size_ratio_factor*(5.-4.*prim_size_ratio_factor) + (1.-prim_size_ratio_factor)*avg_primitive_size));
 	results.avg_size=val8;
 
 //	// old: contour sizes only
@@ -2433,95 +2438,137 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 //	double val8 = (big_comp + avg_size)/2;
 //	results.avg_size=val8;
 
-	double big_comp = 0.;	// hack: for compilation
-	small_image = image_gray;
+	// Amount of primitives -- Value 9
+	double number_primitives_raw1=0., number_primitives_raw2=0.;
+	const double prim_num_ratio_factor = std::min(1., edge_mask_pixel_ratio/0.35);
+	number_primitives_raw1 = prim_num_ratio_factor;
 
-//    Amount of primitives -- Value 9
-//    CRITERIA 1: average distance to next edge pixel:
-//        high: few small or large primitives
-//        low: many small primitives
-//    delete small/irrelevant contours
-	double number_primitives_raw1, number_primitives_raw2;
-	cv::Canny( small_image, edge_pixels, 100, 300, 3);
-	detected_edges = edge_pixels.clone();
-	findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
-	numPixels.clear();
-	idx.clear();
-//	Get size/position of contours
-	for (unsigned int i=0;i<contours.size();i++)
-		numPixels.push_back(contours[i].size());
-	// Sort numPixels, save old index in idx
-	idx=sort_index(numPixels);
-	// clear small contours
-	for(int i=0;i<ceil(numPixels.size()*0.8);i++)
+	// count number of larger primitives
+	double number_primitives = 0.;
+	for (size_t i=0; i<numPixels.size(); ++i)
+		if (avg_primitive_size_raw2>1. && numPixels[i]>0.5*avg_primitive_size_raw2)
+			number_primitives += 1.;
+	number_primitives_raw2 = number_primitives;
+	number_primitives = 1+4*sqrt(number_primitives)*0.05;
+
+#ifdef DEBUG_OUTPUTS
+	static MinMaxChecker primitive_number_mm2;
+	primitive_number_mm2.check(number_primitives_raw2);
+	std::cout << "number primitives: " << number_primitives_raw2 << "  (" << primitive_number_mm2.min << "/" << primitive_number_mm2.max << ")" << std::endl;
+	uchar key = cv::waitKey();
+	if (key == 'c')
 	{
-		if(numPixels[i]<big_comp/8 &&  (unsigned int)idx[i]<contours.size())
+		double t1 = 20;
+		double t2 = 60;
+		cv::Mat edges;
+		while (key != 'q')
 		{
-			for (unsigned int j=0;j<contours[idx[i]].size();j++)
-			{
-				for(int g=0;g<3;g++)
-				{
-					edge_pixels.at<uchar>(contours[idx[i]][j].y, contours[idx[i]][j].x) = 0;
-				}
-			}
+			cv::Canny(image_gray, edges, t1, t2, 3);
+			cv::imshow("canny", edges);
+			std::cout << "t1=" << t1 << "\tt2=" << t2 << std::endl;
+			key = cv::waitKey();
+			if (key=='v')
+				t1 = std::max(10., std::min(300., t1-10.));
+			if (key=='b')
+				t1 = std::max(10., std::min(300., t1+10.));
+			if (key=='n')
+				t2 = std::max(10., std::min(300., t2-10.));
+			if (key=='m')
+				t2 = std::max(10., std::min(300., t2+10.));
 		}
 	}
-
-//  Invert binary image
-	float dist_edge = 0;
-	cv::Mat L2dist;
-	for(int i=0;i<edge_pixels.cols;i++)
-	{
-		for(int j=0;j<edge_pixels.rows;j++)
-		{
-			if(edge_pixels.at<uchar>(j,i)!=0)
-			{
-				edge_pixels.at<uchar>(j,i)=0;
-			}else{
-				edge_pixels.at<uchar>(j,i)=255;
-			}
-		}
-	}
-//  compute dist_edge
-	distanceTransform(edge_pixels, L2dist, CV_DIST_L2, 5);
-
-	for(int i=0;i<L2dist.rows;i++)
-	{
-		for(int j=0;j<L2dist.cols;j++)
-		{
-			float dist_val = L2dist.at<float>(i,j);
-			dist_edge = dist_edge + dist_val;
-		}
-	}
-	if(L2dist.rows!=0 && L2dist.cols!=0 && small_image.rows*small_image.cols!=0)
-	{
-	dist_edge = (dist_edge/(L2dist.rows*L2dist.cols));
-	dist_edge = dist_edge / (small_image.rows*small_image.cols)*10000;
-	}
-	number_primitives_raw1 = dist_edge;
-	dist_edge=-0.06*dist_edge+4.4;
-	if(dist_edge<1)dist_edge = 1;
-	if(dist_edge>5)dist_edge = 5;
-
-//	//CRITERIA 2: amount of contours
-	number_primitives_raw2 = numPixels.size();
-	double amt_obj = 0.007*numPixels.size()+1.1;
-	if(amt_obj<1)amt_obj = 1;
-	if(amt_obj>5)amt_obj = 5;
-
-	double val9;
-	if(amt_obj>dist_edge)
-	{
-		val9=amt_obj;
-	}else{
-		val9=dist_edge;
-	}
+#endif
+	double val9 = std::max(1., std::min(5., prim_num_ratio_factor*(1.+4.*prim_num_ratio_factor) + (1.-prim_num_ratio_factor)*number_primitives));
 	results.prim_num=val9;
+
+//	// old:
+//	//    CRITERIA 1: average distance to next edge pixel:
+//	//        high: few small or large primitives
+//	//        low: many small primitives
+//	//    delete small/irrelevant contours
+////	double number_primitives_raw1, number_primitives_raw2;
+//	cv::Canny( small_image, edge_pixels, 100, 300, 3);
+//	detected_edges = edge_pixels.clone();
+//	findContours(detected_edges, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+//	numPixels.clear();
+//	idx.clear();
+////	Get size/position of contours
+//	for (unsigned int i=0;i<contours.size();i++)
+//		numPixels.push_back(contours[i].size());
+//	// Sort numPixels, save old index in idx
+//	idx=sort_index(numPixels);
+//	// clear small contours
+//	for(int i=0;i<ceil(numPixels.size()*0.8);i++)
+//	{
+//		if(numPixels[i]<big_comp/8 &&  (unsigned int)idx[i]<contours.size())
+//		{
+//			for (unsigned int j=0;j<contours[idx[i]].size();j++)
+//			{
+//				for(int g=0;g<3;g++)
+//				{
+//					edge_pixels.at<uchar>(contours[idx[i]][j].y, contours[idx[i]][j].x) = 0;
+//				}
+//			}
+//		}
+//	}
+//
+////  Invert binary image
+//	double dist_edge = 0;
+//	cv::Mat L2dist;
+//	for(int i=0;i<edge_pixels.cols;i++)
+//	{
+//		for(int j=0;j<edge_pixels.rows;j++)
+//		{
+//			if(edge_pixels.at<uchar>(j,i)!=0)
+//			{
+//				edge_pixels.at<uchar>(j,i)=0;
+//			}else{
+//				edge_pixels.at<uchar>(j,i)=255;
+//			}
+//		}
+//	}
+////  compute dist_edge
+//	distanceTransform(edge_pixels, L2dist, CV_DIST_L2, 5);
+//
+//	for(int i=0;i<L2dist.rows;i++)
+//	{
+//		for(int j=0;j<L2dist.cols;j++)
+//		{
+//			float dist_val = L2dist.at<float>(i,j);
+//			dist_edge = dist_edge + dist_val;
+//		}
+//	}
+//	if(L2dist.rows!=0 && L2dist.cols!=0 && small_image.rows*small_image.cols!=0)
+//	{
+//	dist_edge = (dist_edge/(L2dist.rows*L2dist.cols));
+//	dist_edge = dist_edge / (small_image.rows*small_image.cols)*10000;
+//	}
+//	number_primitives_raw1 = dist_edge;
+//	dist_edge=-0.06*dist_edge+4.4;
+//	if(dist_edge<1)dist_edge = 1;
+//	if(dist_edge>5)dist_edge = 5;
+//
+////	//CRITERIA 2: amount of contours
+//	number_primitives_raw2 = numPixels.size();
+//	double amt_obj = 0.007*numPixels.size()+1.1;
+//	if(amt_obj<1)amt_obj = 1;
+//	if(amt_obj>5)amt_obj = 5;
+//
+//	std::cout << "prim num: old: " << std::max(amt_obj, dist_edge) << "\tnew: " << val9 << std::endl;
+//
+//	double val9;
+//	if(amt_obj>dist_edge)
+//	{
+//		val9=amt_obj;
+//	}else{
+//		val9=dist_edge;
+//	}
+//	results.prim_num=val9;
 //	Result Value 9
 
 
-//  Strength of primitives -- Value 10
-//	Resize input image
+	// Strength of primitives -- Value 10
+	// Resize input image
 	double primitive_strength_raw=0.;
 	cv::Mat image_resize;
 	cv::Mat image_05, image_gray_05;
@@ -2586,7 +2633,7 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 				{
 					for(int o=j-1;o<=j+1;o++)
 					{
-						float swap =image_resize.at<cv::Vec3b>(l,o)[2];                 // Warum nur kanal 2??????????????????????????????????
+						float swap =image_resize.at<cv::Vec3b>(l,o)[2];                 // Warum nur kanal 2 --> v Kanal!
 						window.at<float>(a,b)=swap/255;
 						b++;
 					}
@@ -2642,7 +2689,7 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 //	Sort numPixels, save old index in idx
 	idx=sort_index(numPixels);
 	size = numPixels.size();
-	big_comp=0;
+	double big_comp=0;
 	if(numPixels.size()>=3)	// Less amount of contours
 	{
 		big_comp = (numPixels[size-1]+numPixels[size-2]+numPixels[size-3])/3;
