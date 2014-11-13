@@ -2305,7 +2305,7 @@ void texture_features::distance_to_edge_histogram(const cv::Mat& detected_edges,
 	std::cout << "acc=" << acc << "\tvalue=" << value/acc << std::endl;
 }
 
-//#define DEBUG_OUTPUTS
+#define DEBUG_OUTPUTS
 
 // todo: working on this
 void texture_features::compute_texture_features(const cv::Mat& img, struct feature_results& results, cv::Mat* raw_features)

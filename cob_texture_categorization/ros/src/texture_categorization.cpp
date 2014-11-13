@@ -75,7 +75,7 @@ node_handle_(nh)
 //	considered_classes_.insert(38);
 //	considered_classes_.insert(41);
 //	considered_classes_.insert(44);
-	considered_classes_.insert(46);
+	considered_classes_.insert(46);		// smarties
 //	considered_classes_.insert(52);
 	considered_classes_.insert(53);
 	considered_classes_.insert(54);
@@ -175,16 +175,29 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
-	// train classifier with whole database
-	al.train(computed_attribute_matrix, ground_truth_attribute_matrix);
-	al.save_SVMs(feature_files_path);
-	return;
+//	// train classifier with whole database
+//	al.train(computed_attribute_matrix, ground_truth_attribute_matrix);
+//	al.save_SVMs(feature_files_path);
+//	return;
 
-//	ml.train(training_data, labels);
-//	ml.save_mlp(feature_files_path);
+	// generated class descriptions
+	std::string generated_attributes_file_name = feature_files_path + "ipa_database_generated_class_attributes.txt";
+	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
+	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
+	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+	cv::Mat train_ = generated_attributes_17, labels_ = generated_attributes_class_label_matrix, training_data, labels;
+	for (int r=0; r<labels_.rows; ++r)
+		if (considered_classes_.find(labels_.at<float>(r)) != considered_classes_.end())
+		{
+			training_data.push_back(train_.row(r));
+			labels.push_back(labels_.row(r));
+		}
+
+	ml.train(training_data, labels);
+	ml.save_mlp(feature_files_path);
 //	cv::Mat predictions;
 //	ml.predict(mat_rand, class_label_matrix, predictions);
-//	return;
+	return;
 
 	int folds = 20;
 	std::vector< std::vector<int> > preselected_train_indices;
