@@ -2305,7 +2305,7 @@ void texture_features::distance_to_edge_histogram(const cv::Mat& detected_edges,
 	std::cout << "acc=" << acc << "\tvalue=" << value/acc << std::endl;
 }
 
-#define DEBUG_OUTPUTS
+//#define DEBUG_OUTPUTS
 
 // todo: working on this
 void texture_features::compute_texture_features(const cv::Mat& img, struct feature_results& results, cv::Mat* raw_features)
@@ -2981,10 +2981,10 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 		for(int u=0;u<magnitude.cols;u++)
 			if(magnitude.at<float>(v,u) < (0.5*magnitude_mean))
 				magnitude_mask.at<uchar>(v,u)=0;
-	const int number_magnitude_mask_pixels = cv::sum(magnitude_mask!=0).val[0]/255.;
-	// todo: use this ratio?
-	double gradient_pixel_ratio = (double)number_magnitude_mask_pixels/(double)number_inv_mask_pixels;
-	std::cout << "gradient_pixel_ratio=" << gradient_pixel_ratio << std::endl;
+//	const int number_magnitude_mask_pixels = cv::sum(magnitude_mask!=0).val[0]/255.;
+//	// todo: use this ratio?
+//	double gradient_pixel_ratio = (double)number_magnitude_mask_pixels/(double)number_inv_mask_pixels;
+//	std::cout << "gradient_pixel_ratio=" << gradient_pixel_ratio << std::endl;
 
 	// map gradient directions to [0, M_PI] range
 	for(int v=0;v<theta.rows;v++)
@@ -3001,16 +3001,16 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	cv::Mat histogram = cv::Mat::ones(histogram_width, 1, CV_32FC1);
 	cv::calcHist(&theta, 1, channels, magnitude_mask, histogram, 1, histogram_size, ranges, true, true);
 
-	std::cout << "gradients:\n";
+	//std::cout << "gradients:\n";
 	double sum = 0.;
 	for (int i=0; i<histogram.rows; ++i)
 		sum += histogram.at<float>(i);
 	for (int i=0; i<histogram.rows; ++i)
 	{
 		histogram.at<float>(i) /= sum;
-		std::cout << histogram.at<float>(i) << "\t";
+		//std::cout << histogram.at<float>(i) << "\t";
 	}
-	std::cout << std::endl;
+	//std::cout << std::endl;
 
 	// find maximum bin, add neighboring bins
 	double min_val=0., max_val1=0.;
@@ -3335,7 +3335,6 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 		cv::Mat xmat;
 		for (unsigned int i=0;i<centroids.size();i++)
 		{
-			std::cout << "(" << centroids[i][0] << ", " << centroids[i][1] << "), ";
 			float swap_var1 = -(centroids[i][0]*centroids[i][0]+centroids[i][1]*centroids[i][1]);
 			float swap_var2 = centroids[i][0];
 			float swap_var3 = centroids[i][1];
@@ -3357,10 +3356,11 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 		double yc = -.5*a2;
 		double R  =  sqrt((a1*a1+a2*a2)/4-a3);
 
+#ifdef DEBUG_OUTPUTS
 		std::cout << xc << ", " << yc << ", " << R << std::endl;
 		cv::circle(large_edges, cv::Point(xc,yc), R, CV_RGB(128,128,128), 2);
 		cv::imshow("large edges", large_edges);
-
+#endif
 
 //		std::vector<double> th;
 //		double pi_part=M_PI/50;
@@ -3393,7 +3393,6 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 			err += abs(R - sqrt((double)(centroids[i][0]-xc)*(centroids[i][0]-xc)+(centroids[i][1]-yc)*(centroids[i][1]-yc))) / R;
 		directionality_raw1 = err;
 		crit1 = std::max(1., 5. - 10.*std::max(0., err-0.1));
-		std::cout << "crit1=" << crit1 << std::endl;
 	}
 	else
 	{
@@ -3402,55 +3401,54 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	}
 
 	// check distribution of centroids over image
-	double bins_xhori=edge_pixels.cols/10;
-	double bins_yvert=edge_pixels.rows/10;
-	std::vector<double> hist_xhori(10);
-	std::vector<double> hist_yvert(10);
-	double xdivision = 0;
-	double ydivision = 0;
+	int number_bins = 10;
+	double bin_size_xhori=edge_pixels.cols/(double)number_bins;
+	double bin_size_yvert=edge_pixels.rows/(double)number_bins;
+	std::vector<double> hist_xhori(number_bins);
+	std::vector<double> hist_yvert(number_bins);
 	// compute hist_xhori and hist_yvert
-	for (unsigned int i=0;i<centroids.size();i++)
+	if(bin_size_xhori!=0 && bin_size_yvert!=0)
 	{
-		if(bins_xhori!=0 && bins_yvert!=0){
-			xdivision = centroids[i][0]/bins_xhori;
-			ydivision = centroids[i][1]/bins_yvert;
+		for (size_t i=0;i<centroids.size(); ++i)
+		{
+			int xhist_val = (int)(centroids[i][0]/bin_size_xhori);
+			int yhist_val = (int)(centroids[i][1]/bin_size_yvert);
+			if(xhist_val<(int)hist_xhori.size())
+				hist_xhori[xhist_val]++;
+			if(yhist_val<(int)hist_yvert.size())
+				hist_yvert[yhist_val]++;
 		}
-			double xhist_val;
-			double yhist_val;
-			modf(xdivision, &xhist_val);
-			modf(ydivision, &yhist_val);
-			if(xhist_val<hist_xhori.size())
-				hist_xhori[xhist_val]=hist_xhori[xhist_val]+1;
-			if(yhist_val<hist_yvert.size())
-				hist_yvert[yhist_val]=hist_yvert[yhist_val]+1;
 	}
-	for(int i=0;i<10;i++)
+	for(size_t i=0;i<hist_xhori.size(); ++i)
 	{
-		hist_xhori[i]=hist_xhori[i]/centroids.size();
-		hist_yvert[i]=hist_yvert[i]/centroids.size();
+		hist_xhori[i]/=centroids.size();
+		hist_yvert[i]/=centroids.size();
 	}
-	//std::cout<<"point"<<std::endl;
 
-	// delete first and last position of hist
-	hist_xhori.pop_back();
-	hist_yvert.pop_back();
-	hist_xhori[0]=hist_xhori[hist_xhori.size()-1];
-	hist_yvert[0]=hist_yvert[hist_yvert.size()-1];
-	hist_xhori.pop_back();
-	hist_yvert.pop_back();
+//	// delete first and last position of hist
+//	hist_xhori.pop_back();
+//	hist_yvert.pop_back();
+//	hist_xhori[0]=hist_xhori[hist_xhori.size()-1];
+//	hist_yvert[0]=hist_yvert[hist_yvert.size()-1];
+//	hist_xhori.pop_back();
+//	hist_yvert.pop_back();
 	// compute crit2 value
 	//std::cout<<"point"<<std::endl;
-	cv::meanStdDev(hist_xhori, mean, stddev);
-	crit2=stddev.val[0];
-	cv::meanStdDev(hist_yvert, mean, stddev);
-	directionality_raw2 = crit2 + stddev.val[0];
-	crit2=5-160*(crit2 + stddev.val[0]);
+	if (centroids.size() > 0)
+	{
+		cv::meanStdDev(hist_xhori, mean, stddev);
+		crit2 = stddev.val[0];
+		cv::meanStdDev(hist_yvert, mean, stddev);
+		directionality_raw2 = crit2 + stddev.val[0];
+	}
+	else
+		directionality_raw2 = 1.;
+	crit2 = 5. - 10.*(directionality_raw2);
 	crit2 = std::max(1., std::min(5., crit2));
 
 	// check orientation of contours
 //	std::cout<<"pointeccsize"<<ellipse_ecc.size()<<std::endl;
 //	std::vector<double> angel(ellipse_ecc.size());
-
 	std::vector<double> hist_angle(13);
 //	std::cout<<"pointangels"<<std::endl;
 	int hist_point_num=0;
@@ -3462,48 +3460,46 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 
 	for (unsigned int i=0;i<ellipse_ecc.size(); i++)
 	{
-		if(eccentricity[i]>1)
+		if(eccentricity[i]>0.7)
 		{
 			if(ellipse_ecc[i].angle>90)
-			{
 				ellipse_ecc[i].angle=ellipse_ecc[i].angle-180;
-			}
 			if(ellipse_ecc[i].angle>=0)
 			{
 				double angle_val = ellipse_ecc[i].angle/15;
 				double bin_num;
 				modf(angle_val, &bin_num);
 				if((6+bin_num)<13)
-				{
-					hist_angle[6+(int)bin_num]=hist_angle[6+(int)bin_num]+1;
-				}else{
+					hist_angle[6+(int)bin_num]++;
+				else
 					std::cout<<"memory failure"<<std::endl;
-				}
-			}else{
-				double angle_val = (ellipse_ecc[i].angle/15)*(-1);
+			}
+			else
+			{
+				double angle_val = -(ellipse_ecc[i].angle/15);
 				double bin_num;
 				modf(angle_val, &bin_num);
 				if(bin_num<13)
-				{
-				hist_angle[(int)bin_num]=hist_angle[(int)bin_num]+1;
-				}else{
+					hist_angle[(int)bin_num]++;
+				else
 					std::cout<<"memory failure2"<<std::endl;
-				}
 			}
 			hist_point_num++;
 		}
 	}
 
 	// normalize hist_angle
-	for (unsigned int i=0; i<hist_angle.size(); ++i)
+	double crit3 = 1.;
+	if(hist_point_num>0)
 	{
-		if(hist_point_num>0) hist_angle[i]=hist_angle[i]/hist_point_num;
+		for (unsigned int i=0; i<hist_angle.size(); ++i)
+			hist_angle[i]/=hist_point_num;
+		// compute crit3 value
+		cv::meanStdDev(hist_angle, mean, stddev);
+		directionality_raw3 = stddev.val[0]*stddev.val[0];
+		crit3 = 50*directionality_raw3;
+		crit3 = std::max(1., std::min(5., crit3));
 	}
-	// compute crit3 value
-	cv::meanStdDev(hist_angle, mean, stddev);
-	directionality_raw3 = stddev.val[0]*stddev.val[0];
-	double crit3 = 500*stddev.val[0]*stddev.val[0];
-	crit3 = std::max(1., std::min(5., crit3));
 
 	double val15 = results.lined;
 	if(val15<results.checked) val15=results.checked;
@@ -3513,6 +3509,7 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 //	if(crit1+crit2+crit3+results.lined+results.checked <9)
 //		val15=1;
 	results.direct_reg=val15;
+	//std::cout << crit1 << "\t" << crit2 << "\t" << crit3 << std::endl;
 
 #ifdef DEBUG_OUTPUTS
 	static MinMaxChecker directionality_mm1;

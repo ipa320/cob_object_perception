@@ -1361,7 +1361,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 		std::cout << r << ":\t" << std::setprecision(2);
 		for (int c=0; c<attribute_mat.cols; ++c)
 			std::cout << attribute_mat.at<float>(r,c) << "\t";
-		std::cout << std::setprecision(5) << std::endl;
+		std::cout << r << std::setprecision(5) << std::endl;
 	}
 
 
