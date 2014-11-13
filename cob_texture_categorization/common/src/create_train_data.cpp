@@ -106,7 +106,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);			// matrix of computed attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
-	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 22, CV_32FC1); // matrix of computed base features
+	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 23, CV_32FC1); // matrix of computed base features
 
 	std::cout<<"BEGIN" << std::endl;
 	double sample_index=0;

@@ -89,6 +89,7 @@ public:
 	void compute_regularity_of_primitives(std::vector <std::vector <cv::Point> > *contours, std::vector<int>* numPixels, cv::Mat *edge_pixels, struct feature_results *results, std::vector< std::vector<double> > *centroid, std::vector<int> *idx );
 	void linelikeness_of_primitives(cv::Mat image, std::vector <std::vector <cv::Point> > *contours, cv::Mat *edge_pixels, struct feature_results *results, std::vector<cv::RotatedRect> *ellipse_ecc, std::vector<double> *eccentricity);
 
+	void distance_to_edge_histogram(const cv::Mat& detected_edges, const cv::Mat& mask, cv::Mat& histogram);
 	void compute_texture_features(const cv::Mat& img, struct feature_results& results, cv::Mat* raw_features);
 };
 #endif /* TEXTURE_FEATURES_H_ */

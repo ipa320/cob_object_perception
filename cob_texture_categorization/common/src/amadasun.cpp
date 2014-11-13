@@ -36,14 +36,14 @@ amadasun::amadasun()
 
 void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results *results, double& contrast_raw)
 {
-	cv::Mat imagein1;
-	cv::Mat imagein;
-	cv::Mat imageinp1(img.rows, img.cols, CV_8UC1);
+	cv::Mat image_in_hsv;
+	cv::Mat image_in_vchannel;
+	cv::Mat image_in_vchannelp1(img.rows, img.cols, CV_8UC1);
 //	cvtColor(img, imagein, CV_BGR2GRAY);
-	cvtColor(img, imagein1, CV_BGR2HSV);
+	cvtColor(img, image_in_hsv, CV_BGR2HSV);
 	int from_to[] = { 2,0 };
-	mixChannels( &imagein1, 1, &imageinp1, 1, from_to, 1 );
-	imagein = imageinp1.clone();
+	mixChannels(&image_in_hsv, 1, &image_in_vchannelp1, 1, from_to, 1);
+	image_in_vchannel = image_in_vchannelp1.clone();
 	int greylevels=255;
 	int rowsize = img.rows;
 	int colsize = img.cols;
@@ -55,16 +55,8 @@ void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results 
 
 //	define neighborhood kernels
 
-	cv::Mat oneskernel(2*d+1, 2*d+1, CV_8UC1);
-	cv::Mat kernel(2*d+1, 2*d+1, CV_8UC1);
-	for(int i=0;i<2*d+1;i++)
-	{
-		for(int j=0;j<2*d+1;j++)
-		{
-			oneskernel.at<uchar>(i,j)=1;
-			kernel.at<uchar>(i,j)=1;
-		}
-	}
+	cv::Mat oneskernel = cv::Mat::ones(2*d+1, 2*d+1, CV_8UC1);
+	cv::Mat kernel = cv::Mat::ones(2*d+1, 2*d+1, CV_8UC1);
 	kernel.at<uchar>(d,d)=0;
 	double kerncount=(2*d+1)*(2*d+1)-1;
 
@@ -73,7 +65,7 @@ void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results 
 	std::vector<double> n(greylevels);
 
 //	increment entire image to give index into ngt and count vectors
-	imageinp1 = imageinp1+1;
+	image_in_vchannelp1 = image_in_vchannelp1+1;
 
 //	****************************************************************
 //	select region of interest
@@ -82,21 +74,20 @@ void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results 
 //	compute mask to select region of interest from image
 //	mask=0 inside region, and +ve elsewhere
 	int pix_val;
-	cv::Mat mask = imagein.clone();
+	cv::Mat mask = image_in_vchannel.clone();
 	for(int i=0;i<mask.rows;i++)
 	{
 		for(int j=0;j<mask.cols;j++)
 		{
 			pix_val = mask.at<uchar>(i,j);
 			if(pix_val==254)
-			{
 				mask.at<uchar>(i,j)=1;
-			}else if(pix_val==255)
-			{
+			else if(pix_val==255)
 				mask.at<uchar>(i,j)=2;
-			}else{
+			else if (pix_val==0)
+				mask.at<uchar>(i,j)=3;
+			else
 				mask.at<uchar>(i,j)=0;
-			}
 		}
 	}
 
@@ -130,9 +121,9 @@ void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results 
 //	****************************************************************
 //
 //	calculate neighbourhood average
-	cv::Mat convimage(imagein.rows, imagein.cols, CV_32F);
+	cv::Mat convimage(image_in_vchannel.rows, image_in_vchannel.cols, CV_32F);
 	cv::Mat source;
-	source = imagein.clone();
+	source = image_in_vchannel.clone();
 	cv::Point anchor2(kernel.cols - kernel.cols/2 - 1, kernel.rows - kernel.rows/2 - 1);
 	cv::flip(kernel, kernel, -1);
 
@@ -146,7 +137,7 @@ void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results 
 		for(int j=0;j<convimage.cols;j++)
 		{
 			float pix_val = convimage.at<float>(i,j);
-			float img_val = imagein.at<uchar>(i,j);
+			float img_val = image_in_vchannel.at<uchar>(i,j);
 			float conv_val = img_val-pix_val;
 			if(conv_val<0)
 			{
@@ -167,7 +158,7 @@ void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results 
 			int conv_val = convmask.at<uchar>(i,j);
 			if(conv_val>0)
 			{
-				int index=imageinp1.at<uchar>(i,j);
+				int index=image_in_vchannelp1.at<uchar>(i,j);
 				float conv_add = convimage.at<float>(i,j);
 				s[index]=s[index] + conv_add;
 				n[index]=n[index]+1;
@@ -267,7 +258,7 @@ void amadasun::get_amadasun(const cv::Mat& img,double d, struct feature_results 
 	if(contr<1)contr=1;
 	if(contr>5)contr=5;
 
-//	busyness
+//	business
 //	assumes that absolute value of sum of differences between
 //	weighted grey scale valuesis intended, in accordance with
 //	textual description in source paper

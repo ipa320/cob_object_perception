@@ -1266,6 +1266,32 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 	// Compute Features of Segments
 	std::vector<cv::Mat>& images = segment_vec; //retransformed_segment_cut;		// segment_vec;
 
+//	double t1 = 20;
+//	double t2 = 60;
+//	int aperture_size = 3;
+//	cv::Mat edges, image_gray;
+//	cv::cvtColor(orig_img, image_gray, CV_BGR2GRAY);
+//	uchar key = 0;
+//	while (key != 'q')
+//	{
+//		cv::Canny(image_gray, edges, t1, t2, aperture_size);
+//		cv::imshow("canny", edges);
+//		std::cout << "t1=" << t1 << "\tt2=" << t2 << "\taperture_size=" << aperture_size << std::endl;
+//		key = cv::waitKey();
+//		if (key=='v')
+//			t1 = std::max(10., std::min(300., t1-10.));
+//		if (key=='b')
+//			t1 = std::max(10., std::min(300., t1+10.));
+//		if (key=='n')
+//			t2 = std::max(10., std::min(300., t2-10.));
+//		if (key=='m')
+//			t2 = std::max(10., std::min(300., t2+10.));
+//		if (key=='x')
+//			aperture_size = std::max(3, std::min(31, aperture_size-2));
+//		if (key=='c')
+//			aperture_size = std::max(3, std::min(31, aperture_size+2));
+//	}
+
 	// todo: choose
 
 	//    a) handcrafted
