@@ -8,18 +8,20 @@
 #ifndef PCA_TEST_H_
 #define PCA_TEST_H_
 
-#include <cob_texture_categorization/texture_categorization.h>
-
-//#include <iostream>
+#include <iostream>
 #include <pcl/point_types.h>
 //#include <pcl/filters/conditional_removal.h>
+#include <opencv/cv.h>
+//#include <visualization_msgs/MarkerArray.h>
 
-class p_transformation
+
+class PerspectiveTransformation
 {
 public:
-	p_transformation();
-	bool run_pca(cv::Mat *source, cv::Mat *depth, pcl::PointCloud< pcl::PointXYZ >::Ptr pixelpointcloud, pcl::PointCloud< pcl::PointXYZ >::Ptr metricpointcloud, visualization_msgs::MarkerArray* marker, std::vector<float>* plane_coeff, cv::Mat *H_);
-//	const sensor_msgs::PointCloud2ConstPtr&
-//	pcl::PointCloud< pcl::PointXYZ >::Ptr
+	PerspectiveTransformation();
+
+	// normalized_resolution: desired resolution of the normalized perspective in [pixel/m]
+	bool normalize_perspective(cv::Mat& image, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, std::vector<float>& plane_coeff, cv::Mat& H_, const double normalized_resolution = 300., const pcl::IndicesPtr indices = pcl::IndicesPtr());
+
 };
 #endif /* PERSPECTIVE_TRANSFORMATION_H_ */

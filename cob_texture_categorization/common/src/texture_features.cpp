@@ -2802,9 +2802,9 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	double line_likeness_raw = 0.;
 	std::vector<cv::Vec3f> circles_s, circles_m, circles_l, circles_xl;
 
-	cv::Canny(image_gray, edge_pixels, 30, 90, 3);
-	std::vector <std::vector <cv::Point> > circle_contours;
-	findContours(edge_pixels, circle_contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
+//	cv::Canny(image_gray, edge_pixels, 30, 90, 3);
+//	std::vector <std::vector <cv::Point> > circle_contours;
+//	cv::findContours(edge_pixels, circle_contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point());
 
 	double crit1 = 0.;
 //	cv::HoughCircles(image_gray, circles_s, CV_HOUGH_GRADIENT, 1.5,  10,  100, 15,   4,  10);
@@ -2935,7 +2935,7 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 #endif
 
 	// 3d roughness - dummy implementation -- Value 14
-	results.roughness = 1. + 0.2*results.avg_size + 0.2*results.line_likeness + 0.2*results.contrast + 0.2*results.prim_strength;
+	results.roughness = 1. + 0.25*(results.avg_size-1.) + 0.25*(results.line_likeness-1.) + 0.25*(results.contrast-1.) + 0.25*(results.prim_strength-1.);
 
 
 	// Directionality/Lined/Checked -- Value 15/16/17
@@ -2981,10 +2981,10 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 		for(int u=0;u<magnitude.cols;u++)
 			if(magnitude.at<float>(v,u) < (0.5*magnitude_mean))
 				magnitude_mask.at<uchar>(v,u)=0;
-//	const int number_magnitude_mask_pixels = cv::sum(magnitude_mask!=0).val[0]/255.;
+	const int number_magnitude_mask_pixels = cv::sum(magnitude_mask!=0).val[0]/255.;
 //	// todo: use this ratio?
-//	double gradient_pixel_ratio = (double)number_magnitude_mask_pixels/(double)number_inv_mask_pixels;
-//	std::cout << "gradient_pixel_ratio=" << gradient_pixel_ratio << std::endl;
+	double gradient_pixel_ratio = (number_inv_mask_pixels>0 ? (double)number_magnitude_mask_pixels/(double)number_inv_mask_pixels : 0.);
+	std::cout << "gradient_pixel_ratio=" << gradient_pixel_ratio << std::endl;
 
 	// map gradient directions to [0, M_PI] range
 	for(int v=0;v<theta.rows;v++)
@@ -3023,7 +3023,7 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	max_val1 += histogram.at<float>((max_p1.y+1)%histogram.rows);
 
 	lined_raw = max_val1;
-	results.lined = std::max(1., std::min(5., 1. + 4*3.3*(max_val1-0.4)));
+	results.lined = std::max(1., std::min(5., 1. + 4*3.3*(max_val1-0.4) * std::min(1., gradient_pixel_ratio*1.25)));
 
 #ifdef DEBUG_OUTPUTS
 	static MinMaxChecker lined_mm1;
@@ -3346,7 +3346,6 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 			amat.at<float>(i,1)= swap_var3;
 			amat.at<float>(i,2)= 1;
 		}
-		std::cout << std::endl;
 		// solve equation
 		cv::solve(amat, bmat, xmat, cv::DECOMP_SVD);
 		float a1 = xmat.at<float>(0,0);
@@ -3357,7 +3356,6 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 		double R  =  sqrt((a1*a1+a2*a2)/4-a3);
 
 #ifdef DEBUG_OUTPUTS
-		std::cout << xc << ", " << yc << ", " << R << std::endl;
 		cv::circle(large_edges, cv::Point(xc,yc), R, CV_RGB(128,128,128), 2);
 		cv::imshow("large edges", large_edges);
 #endif
