@@ -25,18 +25,20 @@ The views and conclusions contained in the software and documentation are those 
 authors and should not be interpreted as representing official policies, either expressed
 or implied, of Rafael Muñoz Salinas.
 ********************************/
-//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
+#include <cob_vision_utils/StdAfx.h>
 #ifdef __LINUX__
 #include "cob_fiducials/aruco/markerdetector.h"
 #include "cob_fiducials/aruco/arucofidmarkers.h"
+
+#include <opencv2/imgproc/imgproc.hpp>
+#include <iostream>
+#include <fstream>
 #else
 #include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/markerdetector.h"
 #include "cob_object_perception/cob_fiducials/common/include/cob_fiducials/aruco/arucofidmarkers.h"
 #endif
 
-#include <opencv/highgui.h>
-#include <iostream>
-#include <fstream>
+
 #include <valarray>
 using namespace std;
 using namespace cv;

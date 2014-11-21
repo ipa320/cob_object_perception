@@ -1,7 +1,8 @@
 #include <object_categorization/object_categorization.h>
 #include <boost/filesystem.hpp>
 #include <fstream>
-
+#include <pcl/conversions.h>
+#include <pcl_conversions/pcl_conversions.h>
 //ObjectCategorization::ObjectCategorization()
 //{
 //}
@@ -108,7 +109,12 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 	{
 		typedef pcl::PointXYZRGB PointType;
 		pcl::PointCloud<PointType>::Ptr input_pointcloud(new pcl::PointCloud<PointType>);
-		pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], *input_pointcloud);
+
+		pcl::PCLPointCloud2 pcl_pc;
+		pcl_conversions::toPCL(input_pointcloud_segments_msg->segments[segmentIndex], pcl_pc);
+		pcl::fromPCLPointCloud2(pcl_pc, *input_pointcloud);
+
+		//pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], *input_pointcloud);
 
 		// convert to shared image
 		int umin=1e8, vmin=1e8;

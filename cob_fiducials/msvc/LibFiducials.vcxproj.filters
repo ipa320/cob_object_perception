@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\common\src\FiducialTestingEnvironment.cpp">
-      <Filter>cob_fiducials</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\src\aruco\arucofidmarkers.cpp">
       <Filter>cob_fiducials\aruco</Filter>
     </ClCompile>
@@ -30,6 +27,12 @@
     </ClCompile>
     <ClCompile Include="..\common\src\pi\FiducialModelPi.cpp">
       <Filter>cob_fiducials\pi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\FiducialTestingEnvironment.cpp">
+      <Filter>cob_fiducials\aruco</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\src\AbstractFiducialModel.cpp">
+      <Filter>cob_fiducials</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
