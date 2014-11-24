@@ -12,6 +12,8 @@
 
 #include <cv.h>
 #include <ml.h>
+#include <vector>
+#include <boost/shared_ptr.hpp>
 
 
 class AttributeLearning
@@ -54,7 +56,7 @@ private:
 	cv::Mat attribute_display_mat_;
 	int attribute_display_mat_plot_counter_;
 
-	std::vector<CvSVM> svm_;
+	std::vector<boost::shared_ptr<CvSVM> > svm_;
 };
 
 #endif /* ATTRIBUTE_LEARNING_H_ */

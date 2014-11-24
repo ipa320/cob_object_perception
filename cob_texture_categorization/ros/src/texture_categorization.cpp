@@ -795,7 +795,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 				if (rec.angle < -45.)
 				{
 					angle += 90.0;
-					swap(rect_size.width, rect_size.height);
+					std::swap(rect_size.width, rect_size.height);
 					swap_vec_bool[i]=true;
 				}else{
 					swap_vec_bool[i]=false;
@@ -1034,7 +1034,7 @@ void TextCategorizationNode::segmented_pointcloud_callback(const cob_surface_cla
 							if (rec.angle < -45.)
 							{
 								angle += 90.0;
-								swap(rect_size.width, rect_size.height);
+								std::swap(rect_size.width, rect_size.height);
 							}
 							if(segment_vec[i].cols>100 && segment_vec[i].rows>100 && rec.size.width>0 && rec.size.height>0)
 							{

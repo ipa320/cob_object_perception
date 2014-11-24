@@ -64,7 +64,7 @@
  *      Author: rmb-ce
  */
 
-#include "scene_recording.h"
+#include "cob_surface_classification/scene_recording.h"
 
 
 Scene_recording::Scene_recording() {

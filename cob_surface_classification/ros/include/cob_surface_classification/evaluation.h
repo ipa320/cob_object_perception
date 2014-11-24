@@ -72,18 +72,13 @@
 #include <cob_3d_segmentation/cluster_classifier.h>
 #include <cob_3d_segmentation/depth_segmentation.h>
 #include <cob_3d_mapping_common/label_defines.h>
-#include "scene_recording.h"
+#include "cob_surface_classification/scene_recording.h"
 
 //pcl
-#include <iostream>
-#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
-#include <pcl/point_types_conversion.h>
 
 // opencv
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-
+#include <opencv2/core/core.hpp>
 
 #include <boost/tuple/tuple.hpp>
 

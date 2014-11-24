@@ -22,11 +22,11 @@ cob_3d_segmentation::RefineSegmentation<ClusterGraphT,PointT,PointNT,PointLabelT
 	//c = graph_->clusters()->getCluster(graph_->clusters()->numClusters()/2);//(int)(surface_->points.size()/2));
 
 	c = graph_->clusters()->end();	//biggest cluster
-for(int i=0;i<5;i++)
-{
-	if(c != graph_->clusters()->begin())
+	for(int i=0;i<5;i++)
+	{
+		if(c != graph_->clusters()->begin())
 		c = --c;
-}
+	}
 
 
 	graph_->clusters()->computeCurvature(c);

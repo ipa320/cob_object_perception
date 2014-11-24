@@ -93,7 +93,7 @@ void compute_textures::compute_textures_all()
 //	    	 initialisieren und ersten Abschnitt erstellen
 	    	ptr = strtok(string, delimiter);
 	    	struct data daten;
-	    	struct stat status;
+	    	struct status status;
 	    	std::string patho="/home/rmb-dh/XML/db.xml";
 	    	status.create = 1;
 	    	daten.data_in[0]=str;

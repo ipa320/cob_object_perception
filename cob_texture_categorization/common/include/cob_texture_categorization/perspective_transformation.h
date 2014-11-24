@@ -10,6 +10,8 @@
 
 #include <iostream>
 #include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl/pcl_base.h>
 //#include <pcl/filters/conditional_removal.h>
 #include <opencv/cv.h>
 //#include <visualization_msgs/MarkerArray.h>

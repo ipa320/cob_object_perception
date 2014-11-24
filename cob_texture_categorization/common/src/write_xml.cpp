@@ -19,11 +19,6 @@
 #include <sstream>
 
 
-
-
-
-
-
 xml_write::xml_write()
 {
 }
@@ -150,7 +145,7 @@ std::string xml_write::write_dataset(struct data *daten, int status, struct feat
 	return dataset;
 }
 
-void xml_write::write_data(struct stat *status, std::string path, struct data *daten, struct feature_results *results)
+void xml_write::write_data(struct status *status, std::string path, struct data *daten, struct feature_results *results)
 {
 	std::ofstream inn(path.c_str(), std::ofstream::in );
 	std::ifstream newFile( path.c_str(), std::ifstream::out);
@@ -296,7 +291,7 @@ void xml_write::write_data(struct stat *status, std::string path, struct data *d
 
 
 
-void xml_write::getstat(std::string path, struct data *daten, struct stat *status)
+void xml_write::getstat(std::string path, struct data *daten, struct status *status)
 {
 
 	std::ifstream searchFile(path.c_str(), std::fstream::out);
@@ -374,7 +369,7 @@ void xml_write::getstat(std::string path, struct data *daten, struct stat *statu
 
 
 
-void xml_write::write_main(struct feature_results *results, struct data *daten, struct stat *status)
+void xml_write::write_main(struct feature_results *results, struct data *daten, struct status *status)
 {
 
 

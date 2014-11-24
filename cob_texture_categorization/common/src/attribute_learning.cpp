@@ -521,7 +521,7 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix)
 {
 	svm_.clear();
-	svm_.resize(attribute_matrix.cols);
+	svm_.reserve(attribute_matrix.cols);
 	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
 	{
 		std::cout << "--- attribute " << attribute_index+1 << " ---" << std::endl;
@@ -540,7 +540,8 @@ void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attr
 		CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 		if (attribute_index == 1 || attribute_index == 2)
 			svm_params.svm_type = CvSVM::NU_SVC;
-		svm_[attribute_index].train(feature_matrix, training_labels, cv::Mat(), cv::Mat(), svm_params);
+		svm_.push_back(boost::shared_ptr<CvSVM>(new CvSVM()));
+		svm_[attribute_index]->train(feature_matrix, training_labels, cv::Mat(), cv::Mat(), svm_params);
 	}
 }
 
@@ -555,7 +556,7 @@ void AttributeLearning::predict(const cv::Mat& feature_data, cv::Mat& predicted_
 		for (int r = 0; r < feature_data.rows ; ++r)
 		{
 			cv::Mat sample = feature_data.row(r);
-			predicted_labels.at<float>(r,attribute_index) = feature_scaling_factor*svm_[attribute_index].predict(sample);	// SVM
+			predicted_labels.at<float>(r,attribute_index) = feature_scaling_factor*svm_[attribute_index]->predict(sample);	// SVM
 		}
 	}
 }
@@ -567,7 +568,7 @@ void AttributeLearning::save_SVMs(std::string path)
 	{
 		std::stringstream ss;
 		ss << path << "attribute_svm_" << i << ".yml";
-		svm_[i].save(ss.str().c_str(), "svm");
+		svm_[i]->save(ss.str().c_str(), "svm");
 	}
 }
 
@@ -581,7 +582,7 @@ void AttributeLearning::load_SVMs(std::string path)
 	{
 		std::stringstream ss;
 		ss << path << "attribute_svm_" << i << ".yml";
-		svm_[i].load(ss.str().c_str(), "svm");
+		svm_[i]->load(ss.str().c_str(), "svm");
 	}
 }
 
