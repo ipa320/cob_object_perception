@@ -1,8 +1,7 @@
 all: installed
 
 TARBALL = build/zxing-2.1.tar.gz
-TARBALL_URL = zxing-2.1.tar.gz # Tarball from code.ros.org no longer compiling on ubuntu 14.04
-#https://code.ros.org/svn/release/download/thirdparty/zxing-2.1.tar.gz 
+TARBALL_URL = https://github.com/ipa320/thirdparty/raw/master/zxing-2.1.tar.gz
 # originally from http://zxing.googlecode.com/files/ZXing-2.1.zip
 SOURCE_DIR = build/zxing-2.1
 UNPACK_CMD = tar xzf
@@ -23,9 +22,9 @@ installed: $(SOURCE_DIR)/unpacked
 	#mkdir tmp
 	#cd $(SOURCE_DIR)/cpp/build/core/src && find -name '*.h'
 	cd common/include && rm `find -type f -not -name '*.h' -not -name 'README'`
-
+	touch ROS_NOBUILD
 clean:
 	rm -rf common $(SOURCE_DIR) $(TARBALL)
-
+	rm -rf ROS_NOBUILD
 wipe: clean
 	-rm -rf build
