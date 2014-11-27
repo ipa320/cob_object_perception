@@ -18,10 +18,12 @@ message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a to ${CATKIN_
 
 	
 catkin_package(
-	DEPENDS 
+	INCLUDE_DIRS
+#		common/include 
+	LIBRARIES
+		zxing
 	CATKIN_DEPENDS
-	INCLUDE_DIRS common/include 
-	LIBRARIES zxing
+	DEPENDS 
 )
 
 include_directories(${catkin_INCLUDE_DIRS})

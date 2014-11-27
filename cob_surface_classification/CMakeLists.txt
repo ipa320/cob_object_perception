@@ -106,6 +106,7 @@ LIBRARIES
 	cob_3d_curvatureSegmentation
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
+	message_runtime
 DEPENDS
 	OpenCV
 	Boost

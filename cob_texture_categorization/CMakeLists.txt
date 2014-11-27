@@ -72,7 +72,7 @@ ros/src/texture_categorization.cpp common/src/create_lbp.cpp common/src/get_mapp
 common/src/attribute_learning.cpp common/src/ifv_features.cpp
 )
 
-FIND_LIBRARY(VL_LIBRARY vl /home/rmb/opt/vlfeat-0.9.19/bin/glnxa64)
+find_library(VL_LIBRARY vl /home/rmb/opt/vlfeat-0.9.19/bin/glnxa64)
 target_link_libraries(texture_categorization_node
 	${VL_LIBRARY}
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
