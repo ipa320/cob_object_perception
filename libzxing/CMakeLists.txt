@@ -7,14 +7,18 @@ add_custom_target(
 	build_zxing ALL
 	COMMAND cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.tarball)
 
-
-
-add_custom_target(
-	copy_zxing ALL
-	COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
-)
-
-message(STATUS "Copying ${PROJECT_SOURCE_DIR}/common/lib/libzxing.a to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}")
+set(toon_libraries "zxing")
+foreach(library ${toon_libraries})
+	add_custom_target(
+		copy_${library} ALL
+		COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
+		COMMENT "Copying ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.a to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}"
+	)
+	add_library(${library} STATIC IMPORTED)
+	# now you can use TARGET as if it were a regular cmake built target in your project
+	add_dependencies(${library} copy_${library})
+	add_dependencies(copy_${library} build_${library})
+endforeach()
 
 	
 catkin_package(
@@ -24,16 +28,9 @@ catkin_package(
 	LIBRARIES zxing
 )
 
-include_directories(${catkin_INCLUDE_DIRS})
-add_library(zxing STATIC)
-set_target_properties(zxing PROPERTIES LINKER_LANGUAGE CXX)
-
-add_dependencies(zxing copy_zxing)
-add_dependencies(copy_zxing build_zxing)
-
-install(TARGETS zxing
-	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
+#install(TARGETS zxing
+#	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#)
 
 install(DIRECTORY common/include/
 	DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}

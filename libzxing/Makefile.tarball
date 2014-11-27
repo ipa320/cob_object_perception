@@ -9,7 +9,7 @@ MD5SUM_FILE = zxing-2.1.tar.gz.md5sum
 
 include $(shell rospack find mk)/download_unpack_build.mk
 
-installed: wipe $(SOURCE_DIR)/unpacked
+installed: $(SOURCE_DIR)/unpacked
 	cd $(SOURCE_DIR)/core && ant &&  cd ../javase && ant && cd ../cpp && scons lib 
 	
 	# copy to common
