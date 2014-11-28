@@ -147,8 +147,8 @@ private:
     cv::Mat camera_matrix_;
     bool camera_matrix_initialized_;
 
-//    ros::Time received_timestamp_;
-//    std::string received_frame_id_;
+    ros::Time received_timestamp_;
+    std::string received_frame_id_;
     cob_object_detection_msgs::DetectionArray detection_array_;
 
 
@@ -368,8 +368,8 @@ public:
               return;
             }
 
-//            received_timestamp_ = color_camera_data->header.stamp;
-//            received_frame_id_ = color_camera_data->header.frame_id;
+            received_timestamp_ = color_camera_data->header.stamp;
+            received_frame_id_ = color_camera_data->header.frame_id;
             cv::Mat tmp = cv_ptr->image;
             color_mat_8U3_ = tmp.clone();
 
@@ -548,10 +548,10 @@ public:
                 }
 
                 detection_array.detections.push_back(fiducial_instance);
-                if (debug_verbosity_ == 1)
-                    ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
-                             fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
-                             vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
+               // if (debug_verbosity_ == 1)
+                   // ROS_INFO("[fiducials] Detected Tag '%s' at x,y,z,rw,rx,ry,rz ( %f, %f, %f, %f, %f, %f, %f ) ",
+                            // fiducial_instance.label.c_str(), vec7d[0], vec7d[1], vec7d[2],
+                             //vec7d[3], vec7d[4], vec7d[5], vec7d[6]);
             }
         }
         else
@@ -629,8 +629,8 @@ public:
                 for (unsigned int j=0; j<3; j++)
                 {
                     unsigned int idx = 3*i+j;
-//                    marker_array_msg_.markers[idx].header.frame_id = received_frame_id_;// "/" + frame_id;//"tf_name.str()";
-//                    marker_array_msg_.markers[idx].header.stamp = received_timestamp_;
+                    marker_array_msg_.markers[idx].header.frame_id = received_frame_id_;// "/" + frame_id;//"tf_name.str()";
+                    marker_array_msg_.markers[idx].header.stamp = received_timestamp_;
                     marker_array_msg_.markers[idx].header = detection_array.header;
                     marker_array_msg_.markers[idx].ns = "fiducials";
                     marker_array_msg_.markers[idx].id =  id_start_idx + idx;

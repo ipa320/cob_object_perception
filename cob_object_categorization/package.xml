@@ -8,7 +8,7 @@
   </description>
   <author>Richard Bormann</author>
   <maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-  <license>LGPL, Fraunhofer IPA</license>
+  <license>LGPL</license>
   <url>http://ros.org/wiki/cob_object_categorization</url>
 
   <buildtool_depend>catkin</buildtool_depend>

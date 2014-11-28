@@ -79,15 +79,10 @@ include_directories(
 #	${PCL_INCLUDE_DIRS}
 )
 
-
-set(project_CPP_FILES
-	common/src/MagickBitmapSource.cpp
-)
-
 ## Declare a cpp executable
 add_executable(marker
 	ros/src/marker_action.cpp
-	${project_CPP_FILES}
+	common/src/MagickBitmapSource.cpp
 )
 
 target_link_libraries(marker
@@ -100,11 +95,6 @@ target_link_libraries(marker
 )
 
 add_dependencies(marker ${catkin_EXPORTED_TARGETS})
-
-# set build flags for targets
-#set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")
-#set_target_properties(marker PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")
-
 
 #############
 ## Install ##
@@ -126,4 +116,3 @@ install(DIRECTORY ros/launch
 	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
 	PATTERN ".svn" EXCLUDE
 )
-

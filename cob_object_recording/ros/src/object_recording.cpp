@@ -415,7 +415,7 @@ bool ObjectRecording::convertColorImageMessageToMat(const sensor_msgs::Image::Co
 tf::Transform ObjectRecording::computeMarkerPose(const cob_object_detection_msgs::DetectionArray::ConstPtr& input_marker_detections_msg)
 {
 	tf::Vector3 mean_translation;
-	tf::Quaternion mean_orientation(0.,0.,0.);
+	tf::Quaternion mean_orientation; mean_orientation.setEuler(0.,0.,0.);
 	for (unsigned int i=0; i<input_marker_detections_msg->detections.size(); ++i)
 	{
 		tf::Point translation;
@@ -518,12 +518,13 @@ void ObjectRecording::publishRecordingPoseMarkers(const cob_object_detection_msg
 void ObjectRecording::computePerspective(const double& pan, const double& tilt, const double& preferred_recording_distance, tf::Transform& perspective_pose)
 {
 	tf::Transform pose1, pose2, pose3;
+	tf::Quaternion q_temp;
 	pose1.setOrigin(tf::Vector3(preferred_recording_distance, 0., 0.));			// recording distance
-	pose1.setRotation(tf::Quaternion(-90./180.*CV_PI, 0., 90./180.*CV_PI));		// rotation in camera direction
+	q_temp.setEuler(-90./180.*CV_PI, 0., 90./180.*CV_PI); pose1.setRotation(q_temp);		// rotation in camera direction
 	pose2.setOrigin(tf::Vector3(0.,0.,0.));
-	pose2.setRotation(tf::Quaternion(tilt, 0., 0.));		// orientation in tilt direction
+	q_temp.setEuler(tilt, 0., 0.); pose2.setRotation(q_temp);		// orientation in tilt direction
 	pose3.setOrigin(tf::Vector3(0.,0.,0.));
-	pose3.setRotation(tf::Quaternion(0., 0., pan));			// orientation in pan direction
+	q_temp.setEuler(0., 0., pan); pose3.setRotation(q_temp);			// orientation in pan direction
 	perspective_pose = pose3 * pose2 * pose1;
 }
 

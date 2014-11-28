@@ -177,7 +177,7 @@ add_dependencies(read_text_script_for_imglist  ${catkin_EXPORTED_TARGETS})
 ## cmake --help-policy CMP0003
 if(COMMAND cmake_policy)
 	cmake_policy(SET CMP0003 NEW)
-endif(COMMAND cmake_policy)
+endif() #(COMMAND cmake_policy)
 add_executable(read_text_showPCD 
 	common/src/showPCD.cpp
 )
