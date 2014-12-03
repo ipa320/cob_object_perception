@@ -72,6 +72,7 @@ common/src/attribute_learning.cpp common/src/ifv_features.cpp
 
 target_link_libraries(texture_categorization_node
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${OpenCV_LIBRARIES}
 )
 
 add_executable(texture_generator common/src/texture_generator.cpp
@@ -80,6 +81,7 @@ add_executable(texture_generator common/src/texture_generator.cpp
 )
 target_link_libraries(texture_generator
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${OpenCV_LIBRARIES}
 )
 
 add_dependencies(texture_categorization_node ${catkin_EXPORTED_TARGETS})
