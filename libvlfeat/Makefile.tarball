@@ -1,11 +1,11 @@
 all: installed
 
 TARBALL = build/vlfeat-0.9.19.tar.gz
-TARBALL_URL = https://github.com/ipa-rmb/thirdparty/raw/master/vlfeat-0.9.19.tar.gz
+TARBALL_URL = https://github.com/ipa320/thirdparty/raw/master/vlfeat-0.9.19.tar.gz
 # http://www.vlfeat.org/download.html
 SOURCE_DIR = build/vlfeat-0.9.19
 UNPACK_CMD = tar xzf
-#MD5SUM_FILE = vlfeat-0.9.19.gz.md5sum
+MD5SUM_FILE = vlfeat-0.9.19.gz.md5sum
 
 include $(shell rospack find mk)/download_unpack_build.mk
 
