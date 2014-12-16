@@ -163,7 +163,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ObjectFileName>$(IntDir)</ObjectFileName>
-      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeadersD.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\LibVisionUtilsD.pch</PrecompiledHeaderOutputFile>
       <PrecompiledHeaderFile>"cob_vision_utils\StdAfx.h"</PrecompiledHeaderFile>
       <OpenMPSupport>true</OpenMPSupport>
       <DisableSpecificWarnings>4290</DisableSpecificWarnings>
@@ -183,10 +183,10 @@
 copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName)D.lib"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>xcopy /D /Y "$(SolutionDir)PreCompiledHeaders$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
+      <Command>xcopy /D /Y "$(SolutionDir)LibVisionUtils$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Message>Copying program databas file from PreCompiledHeaders.vcxproj project</Message>
+      <Message>Copying program databas file from LibVisionUtils.vcxproj project</Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -230,7 +230,7 @@ copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\wi
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PrecompiledHeaderFile>"cob_vision_utils\StdAfx.h"</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\PreCompiledHeaders.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(COB3_DIR)\cob_object_perception_intern\windows\pch\LibVisionUtils.pch</PrecompiledHeaderOutputFile>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <OmitFramePointers>true</OmitFramePointers>
@@ -253,10 +253,10 @@ copy "$(OutDir)$(ProjectName)D.lib" "$(COB3_DIR)\cob_object_perception_intern\wi
 copy "$(OutDir)$(ProjectName).lib" "$(COB3_DIR)\cob_object_perception_intern\windows\lib\IPA\$(ProjectName).lib"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>xcopy /D /Y "$(SolutionDir)PreCompiledHeaders$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
+      <Command>xcopy /D /Y "$(SolutionDir)LibVisionUtils$(Configuration)\vc$(PlatformToolsetVersion).pdb" ".\$(IntDir)"</Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Message>Copying program databas file from PreCompiledHeaders.vcxproj project</Message>
+      <Message>Copying program databas file from LibVisionUtils.vcxproj project</Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
