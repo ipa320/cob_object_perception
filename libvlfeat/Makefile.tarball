@@ -22,6 +22,6 @@ installed: $(SOURCE_DIR)/unpacked
 	
 clean:
 	rm -rf common $(SOURCE_DIR) $(TARBALL)
-	rm -rf ROS_NOBUILD
+	#rm -rf ROS_NOBUILD
 wipe: clean
 	-rm -rf build

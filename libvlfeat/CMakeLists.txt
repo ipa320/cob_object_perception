@@ -9,8 +9,9 @@ find_package(catkin REQUIRED)
 
 message(STATUS "Project source dir: ${PROJECT_SOURCE_DIR}")
 add_custom_target(
-    build_vlfeat ALL
-    COMMAND cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.tarball)
+    	build_vlfeat ALL
+    		COMMAND test -e ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME}/INSTALLED || (cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.tarball && touch ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME}/INSTALLED)
+    )
 
 
 set(libraries "vl")
