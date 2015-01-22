@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.4.6)
 project(cob_surface_classification)
 
+# set default build type
+IF(NOT CMAKE_BUILD_TYPE)
+    SET(CMAKE_BUILD_TYPE Release) # RelWithDebInfo)
+ENDIF(NOT CMAKE_BUILD_TYPE)
+
 set(catkin_RUN_PACKAGES # all ROS packages from package.xml (libopencv-dev is system dependency --> sudo apt-get install)
   pcl_ros
   roscpp

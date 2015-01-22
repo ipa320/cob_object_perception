@@ -205,12 +205,11 @@ public:
 			cloud->width = 640;
 		}
 
-
 		//SAVE Pointcloud
 		bool savepointcloud=false;
 		if(savepointcloud)
 		{
-			pcl::io::savePCDFileASCII ("/home/rmb-dh/evaluation/test_pcd.pcd", *cloud);
+			pcl::io::savePCDFileASCII ("evaluation/test_pcd.pcd", *cloud);
 			std::cout<<"cloud saved"<<std::endl;
 			cv::imwrite("/home/rmb-dh/evaluation/pointcloud_img.jpg", color_image );
 			cv::imshow("Saved Image", color_image);
