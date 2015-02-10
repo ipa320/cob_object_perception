@@ -66,7 +66,7 @@
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						true 	//segmentation + refinement
+#define SEG 						false 	//segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement according to curvatures (outdated)
 #define CLASSIFY 					false	//classification
@@ -77,7 +77,7 @@
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	//visualisation of classification
 
-#define PUBLISH_SEGMENTATION		true	//publish segmented point cloud on topic
+#define PUBLISH_SEGMENTATION		false //true	//publish segmented point cloud on topic
 
 
 // ROS includes
@@ -151,6 +151,8 @@ public:
 		runtime_normal_edge_ = 0.;
 		number_processed_images_ = 0;
 
+		depth_factor_ = 0.01f;
+
 		it_ = 0;
 		sync_input_ = 0;
 
@@ -205,6 +207,7 @@ public:
 			cloud->width = 640;
 		}
 
+		/*
 		//SAVE Pointcloud
 		bool savepointcloud=false;
 		if(savepointcloud)
@@ -295,12 +298,11 @@ public:
 					<< " data points from test_pcd.pcd with the following fields: "
 					<< std::endl;
 		}
-
+*/
 
 
 		int key = 0;
 		cv::imshow("image", color_image);
-		cv::waitKey(10);
 //		if(!EVALUATION_ONLINE_MODE)
 //			cv::waitKey(10);
 //		if(EVALUATION_ONLINE_MODE)
@@ -356,14 +358,33 @@ public:
 //			for (int v=0; v<edge.rows; ++v)
 //				for (int u=0; u<edge.cols; ++u)
 //					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
-			edge_detection_.computeDepthEdges(cloud, edge);
+			edge_detection_.computeDepthEdges(cloud, edge, depth_factor_);
 			// hack:
-			edge = cv::Mat::zeros(cloud->height,cloud->width,CV_8UC1);	// hack:
+			//edge = cv::Mat::zeros(cloud->height,cloud->width,CV_8UC1);	// hack:
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
-//			cv::imshow("edge", edge);
-//			cv::waitKey(10);
+			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
+			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
+			for (int v=0; v<color_image.rows; ++v)
+				for (int u=0; u<color_image.cols; ++u)
+				{
+					if (edge.at<uchar>(v,u) == 254)
+						color_image.at<cv::Vec3b>(v,u) = blue;
+					if (edge.at<uchar>(v,u) == 255)
+						color_image.at<cv::Vec3b>(v,u) = green;
+				}
+			cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
+			cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
+			cv::imshow("color with edge", color_image);
+
+			cv::imshow("edge", edge);
+			int key2 = cv::waitKey(100);
+			if (key2 == 'i')
+				depth_factor_ -= 0.005;
+			else if (key2 == 'o')
+				depth_factor_ += 0.005;
+			std::cout << "depth_factor_ = " << depth_factor_ << std::endl;
 
 			//Timer timer;
 			//timer.start();
@@ -502,13 +523,10 @@ public:
 			if (PUBLISH_SEGMENTATION)
 			{
 				cob_surface_classification::SegmentedPointCloud2 msg;
-				if(!loadpointcloud)
-				{
+//				if(!loadpointcloud)
 					msg.pointcloud = *pointcloud_msg;
-				}else
-				{
-					msg.pointcloud = cloud_blob;
-				}
+//				else
+//					msg.pointcloud = cloud_blob;
 				for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
 				{
 					cob_surface_classification::Int32Array point_indices;
@@ -597,6 +615,8 @@ private:
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segWithoutEdges_;
 
 	cob_3d_segmentation::ClusterClassifier<ST::CH, ST::Point, ST::Normal, ST::Label> cc_;
+
+	float depth_factor_;
 
 	//evaluation
 	Evaluation eval_;

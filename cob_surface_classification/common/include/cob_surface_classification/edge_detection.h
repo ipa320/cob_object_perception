@@ -72,6 +72,7 @@
 
 // timer
 #include <iostream>
+#include <vector>
 #include "timer.h"
 
 
@@ -94,9 +95,11 @@ public:
 		runtime_normal_original_ = 0.;
 		runtime_normal_edge_ = 0.;
 		number_processed_images_ = 0;
+
+		scan_line_width_ = 10;
 	};
 
-	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge)
+	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const float depth_factor)
 	{
 		// compute x,y, z images
 		Timer tim;
@@ -129,6 +132,9 @@ public:
 		}
 		//std::cout << "Time for x/y/z images: " << tim.getElapsedTimeInMilliSec() << "\n";
 		runtime_depth_image_ += tim.getElapsedTimeInMilliSec();
+		cv::Mat z_display;
+		cv::normalize(z_image, z_display, 0, 1, cv::NORM_MINMAX);
+		cv::imshow("depth", z_display);
 
 		//visualization
 //		cv::Mat depth_im_scaled;
@@ -144,14 +150,21 @@ public:
 		tim.start();
 		cv::Mat x_dx, y_dy, z_dx, z_dy;
 		//cv::medianBlur(z_image, z_image, 5);
-		cv::Sobel(x_image, x_dx, -1, 1, 0, 5, 1./(6.*16.));
-		cv::Sobel(y_image, y_dy, -1, 0, 1, 5, 1./(6.*16.));
-		cv::Sobel(z_image, z_dx, -1, 1, 0, 5, 1./(6.*16.));
-		cv::Sobel(z_image, z_dy, -1, 0, 1, 5, 1./(6.*16.));
+		const int kernel_size = 3; 					//  3		    5
+		const double kernel_scale = 1./8.;			// 1./8.	1./(6.*16.)
+		cv::Sobel(x_image, x_dx, -1, 1, 0, kernel_size, kernel_scale);
+		cv::Sobel(y_image, y_dy, -1, 0, 1, kernel_size, kernel_scale);
+		cv::Sobel(z_image, z_dx, -1, 1, 0, kernel_size, kernel_scale);
+		cv::Sobel(z_image, z_dy, -1, 0, 1, kernel_size, kernel_scale);
 		//cv::medianBlur(z_dx, z_dx, 5);
 		//cv::medianBlur(z_dy, z_dy, 5);
-		cv::GaussianBlur(z_dx, z_dx, cv::Size(5,5), 0, 0);
-		cv::GaussianBlur(z_dy, z_dy, cv::Size(5,5), 0, 0);
+		const int kernel_size2 = 7;
+//		cv::Mat temp = z_dx.clone();
+//		cv::bilateralFilter(temp, z_dx, 5, 90, 90);
+//		temp = z_dy.clone();
+//		cv::bilateralFilter(temp, z_dy, 5, 90, 90);
+		cv::GaussianBlur(z_dx, z_dx, cv::Size(kernel_size2,kernel_size2), 0, 0);
+		cv::GaussianBlur(z_dy, z_dy, cv::Size(kernel_size2,kernel_size2), 0, 0);
 		//std::cout << "Time for slope Sobel: " << tim.getElapsedTimeInMilliSec() << "\n";
 		runtime_sobel_ += tim.getElapsedTimeInMilliSec();
 
@@ -174,9 +187,8 @@ public:
 //		}
 
 		// depth discontinuities
-		//cv::Mat edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
 		edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
-		const int max_line_width = 30;
+		const int max_line_width = 20;
 		for (int v = max_line_width; v < z_dx.rows - max_line_width - 1; ++v)
 		{
 			for (int u = max_line_width; u < z_dx.cols - max_line_width - 1; ++u)
@@ -184,26 +196,42 @@ public:
 				float depth = z_image.at<float>(v, u);
 				if (depth==0.f)
 					continue;
-				if (z_dx.at<float>(v, u) <= -0.02*depth || z_dx.at<float>(v, u) >= 0.02*depth ||
-						z_dy.at<float>(v, u) <= -0.02*depth || z_dy.at<float>(v, u) >= 0.02*depth)
-					edge.at<uchar>(v, u) = 255;
+				float edge_threshold = std::max(0.0f, depth_factor*depth);
+				if (z_dx.at<float>(v, u) <= -edge_threshold || z_dx.at<float>(v, u) >= edge_threshold ||
+						z_dy.at<float>(v, u) <= -edge_threshold || z_dy.at<float>(v, u) >= edge_threshold)
+					//edge.at<uchar>(v, u) = 254;
+					edge.at<uchar>(v, u) = (uchar)std::min<float>(255.f, 50.f*(1.+sqrt(z_dx.at<float>(v, u)*z_dx.at<float>(v, u) + z_dy.at<float>(v, u)*z_dy.at<float>(v, u))));
 			}
 		}
-//		cv::Mat edge_integral;
-//		cv::integral(edge, edge_integral, CV_32S);
-		//std::cout << "Time for edge+integral: " << tim.getElapsedTimeInMilliSec() << "\n";
+		nonMaximumSuppression<uchar>(edge, z_dx, z_dy);
+		cv::Mat edge_integral;
+		cv::integral(edge, edge_integral, CV_32S);
+//		std::cout << "Time for edge+integral: " << tim.getElapsedTimeInMilliSec() << "\n";
+
+		int key = cv::waitKey(20);
+		if (key == 'k')
+			scan_line_width_ -= 5;
+		if (key == 'l')
+			scan_line_width_ += 5;
+		std::cout << "scan_line_width = " << scan_line_width_ << std::endl;
+		//cv::Mat angle_image = cv::Mat::zeros(edge.rows, edge.cols, CV_32FC1);
 
 		// surface discontinuities
+		const float min_detectable_edge_angle = 45.; //35.;	// minimum angle between two planes to consider their intersection an edge, measured in [° degree]
 		// x lines
-		int line_width = 10; // 1px/0.10m
-		int last_line_width = 10;
+		//int scan_line_width_ = 10; // width of scan line left or right of a query pixel, measured in [px]
+		int last_line_width = scan_line_width_;
 		cv::Mat x_dx_integralX, z_dx_integralX;
 		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
 		for (int v = max_line_width; v < z_dx.rows - max_line_width - 1; ++v)
 		{
 			int edge_start_index = -1;
+			float max_edge_diff = 0;
 			for (int u = max_line_width; u < z_dx.cols - max_line_width - 1; ++u)
 			{
+				if (v==240 && u==320)
+					drawCoordinateSample(u, v, x_image, x_dx, y_image, y_dy, z_image, z_dx);
+
 				float depth = z_image.at<float>(v, u);
 				if (depth==0.f)
 					continue;
@@ -214,49 +242,63 @@ public:
 //				}
 //				else
 //				{
-					// depth dependent scan line width for slope computation (1px/0.10m)
-					line_width = std::min(int(10 * depth), max_line_width);
-					if (line_width == 0)
-						line_width = last_line_width;
+					// depth dependent scan line width for slope computation (1px width per 0.10m depth)
+					scan_line_width_ = std::min(int(6.666*depth+1.666), max_line_width);
+					if (scan_line_width_ <= 5)
+						scan_line_width_ = last_line_width;
 					else
-						last_line_width = line_width;
+						last_line_width = scan_line_width_;
 					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
-		//			if (edge_integral.at<int>(v+1,u+line_width+1)-edge_integral.at<int>(v+1,u-line_width)-edge_integral.at<int>(v,u+line_width+1)+edge_integral.at<int>(v,u-line_width) != 0)
-		//				continue;
+					if (edge_integral.at<int>(v+1,u+scan_line_width_+1)-edge_integral.at<int>(v+1,u-scan_line_width_)-edge_integral.at<int>(v,u+scan_line_width_+1)+edge_integral.at<int>(v,u-scan_line_width_) != 0)
+					{
+						edge_start_index = -1;
+						max_edge_diff = 0.f;
+						continue;
+					}
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
-					double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-line_width);
-					double avg_dz_l = z_dx_integralX.at<float>(v, u-1) - z_dx_integralX.at<float>(v, u-line_width);
-					float avg_dx_r = x_dx_integralX.at<float>(v, u+line_width) - x_dx_integralX.at<float>(v, u+1);
-					float avg_dz_r = z_dx_integralX.at<float>(v, u+line_width) - z_dx_integralX.at<float>(v, u+1);
+					// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
+					double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-scan_line_width_);
+					double avg_dz_l = z_dx_integralX.at<float>(v, u-1) - z_dx_integralX.at<float>(v, u-scan_line_width_);
+					float avg_dx_r = x_dx_integralX.at<float>(v, u+scan_line_width_) - x_dx_integralX.at<float>(v, u+1);
+					float avg_dz_r = z_dx_integralX.at<float>(v, u+scan_line_width_) - z_dx_integralX.at<float>(v, u+1);
 
 					// estimate angle difference
 					float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
 					float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
 					float diff = fabs(alpha_left - alpha_right);
-					if (diff!=0 && (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI))
+					if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
 					{
-						//edge.at<uchar>(v, u) = 16; //(diff < 145. / 180. * CV_PI ? -64 : 64);//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
 						if (edge_start_index == -1)
 							edge_start_index = u;
+						float dist = fabs(CV_PI - diff);
+						//angle_image.at<float>(v,u) += CV_PI - (alpha_left - alpha_right + (alpha_left<0. ? 2*CV_PI : 0));
+						if (dist > max_edge_diff)
+						{
+							max_edge_diff = dist;
+							edge_start_index = u;
+						}
 					}
 					else
 					{
 						if (edge_start_index != -1)
 						{
-							edge.at<uchar>(v, (edge_start_index+u-1)/2) = 255;	//192
+							//edge.at<uchar>(v, (edge_start_index+u-1)/2) = 255;
+							edge.at<uchar>(v, edge_start_index) = 255;
 							edge_start_index = -1;
+							max_edge_diff = 0;
 						}
 					}
 //				}
 			}
 		}
 		// y lines
-		line_width = 10; // 1px/0.10m
-		last_line_width = 10;
+		//scan_line_width_ = 10; // 1px/0.10m
+		last_line_width = scan_line_width_;
 		cv::Mat y_dy_integralY, z_dy_integralY;
 		computeIntegralImageY(y_dy, y_dy_integralY, z_dy, z_dy_integralY);
 		std::vector<int> edge_start_index(z_dy.cols, -1);
+		std::vector<float> max_edge_diff(z_dy.cols, 0);
 		for (int v = max_line_width; v < z_dy.rows - max_line_width - 1; ++v)
 		{
 			for (int u = max_line_width; u < z_dy.cols - max_line_width - 1; ++u)
@@ -273,37 +315,49 @@ public:
 				if (edge.at<uchar>(v, u) == 0)
 				{
 					// depth dependent scan line width for slope computation (1px/0.10m)
-					line_width = std::min(int(10 * depth), max_line_width);
-					if (line_width == 0)
-						line_width = last_line_width;
+					scan_line_width_ = std::min(int(6.666*depth+1.666), max_line_width);
+					if (scan_line_width_ < 5)
+						scan_line_width_ = last_line_width;
 					else
-						last_line_width = line_width;
+						last_line_width = scan_line_width_;
 					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
-		//			if (edge_integral.at<int>(v+line_width+1,u+1)-edge_integral.at<int>(v-line_width,u+1)-edge_integral.at<int>(v+line_width+1,u)+edge_integral.at<int>(v-line_width,u) != 0)
-		//todo:				continue;
+					if (edge_integral.at<int>(v+scan_line_width_+1,u+1)-edge_integral.at<int>(v-scan_line_width_,u+1)-edge_integral.at<int>(v+scan_line_width_+1,u)+edge_integral.at<int>(v-scan_line_width_,u) != 0)
+					{
+						edge_start_index[u] = -1;
+						max_edge_diff[u] = 0.f;
+						continue;
+					}
 
 					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
-					double avg_dy_u = y_dy_integralY.at<float>(v-1, u) - y_dy_integralY.at<float>(v-line_width, u);
-					double avg_dz_u = z_dy_integralY.at<float>(v-1, u) - z_dy_integralY.at<float>(v-line_width, u);
-					float avg_dy_l = y_dy_integralY.at<float>(v+line_width, u) - y_dy_integralY.at<float>(v+1, u);
-					float avg_dz_l = z_dy_integralY.at<float>(v+line_width, u) - z_dy_integralY.at<float>(v+1, u);
+					double avg_dy_u = y_dy_integralY.at<float>(v-1, u) - y_dy_integralY.at<float>(v-scan_line_width_, u);
+					double avg_dz_u = z_dy_integralY.at<float>(v-1, u) - z_dy_integralY.at<float>(v-scan_line_width_, u);
+					float avg_dy_l = y_dy_integralY.at<float>(v+scan_line_width_, u) - y_dy_integralY.at<float>(v+1, u);
+					float avg_dz_l = z_dy_integralY.at<float>(v+scan_line_width_, u) - z_dy_integralY.at<float>(v+1, u);
 
 					// estimate angle difference
 					float alpha_upper = fast_atan2f_1(-avg_dz_u, -avg_dy_u);
 					float alpha_lower = fast_atan2f_1(avg_dz_l, avg_dy_l);
 					float diff = fabs(alpha_upper - alpha_lower);
-					if (diff!=0 && (diff < 145. / 180. * CV_PI || diff > 215. / 180. * CV_PI))
+					if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
 					{
-						//edge.at<uchar>(v, u) = 32; //128 + (diff < 145. / 180. * CV_PI ? -64 : 64);//64 + 64 * 2 * fabs(CV_PI - fabs(alpha_left - alpha_right)) / CV_PI;
 						if (edge_start_index[u] == -1)
 							edge_start_index[u] = v;
+						float dist = fabs(CV_PI - diff);
+						//angle_image.at<float>(v,u) += CV_PI - (alpha_upper - alpha_lower + (alpha_upper<0. ? 2*CV_PI : 0));
+						if (dist > max_edge_diff[u])
+						{
+							max_edge_diff[u] = dist;
+							edge_start_index[u] = v;
+						}
 					}
 					else
 					{
 						if (edge_start_index[u] != -1)
 						{
-							edge.at<uchar>((edge_start_index[u]+v-1)/2, u) = 255;  //192;
+							//edge.at<uchar>((edge_start_index[u]+v-1)/2, u) = 255;
+							edge.at<uchar>(edge_start_index[u], u) = 255;
 							edge_start_index[u] = -1;
+							max_edge_diff[u] = 0;
 						}
 					}
 				}
@@ -338,6 +392,86 @@ public:
 //		average_dz_right = average_dz_right * 15 + 0.5;
 //		cv::imshow("average_slope", average_dz_right);
 //		cv::imshow("edge", edge);
+
+//		cv::Mat a_dx, a_dy;
+//		cv::pow(angle_image, 2, angle_image);
+//		cv::Sobel(angle_image, a_dx, -1, 1, 0, kernel_size, kernel_scale);
+//		cv::Sobel(angle_image, a_dy, -1, 0, 1, kernel_size, kernel_scale);
+//		nonMaximumSuppression<float>(angle_image, a_dx, a_dy);
+//		cv::normalize(angle_image, angle_image, 0., 1., cv::NORM_MINMAX);
+//		cv::imshow("angle image", angle_image);
+	}
+
+	template <typename t>
+	void nonMaximumSuppression(cv::Mat& edge, const cv::Mat& dx, const cv::Mat& dy)
+	{
+		for (int v=1; v<edge.rows-1; ++v)
+		{
+			for (int u=1; u<edge.cols-1; ++u)
+			{
+				if (edge.at<t>(v,u)==0)
+					continue;
+				double x=dx.at<float>(v,u);
+				double y=dy.at<float>(v,u);
+				if (x==0 && y==0)
+					continue;
+				double mag = sqrt(x*x+y*y);
+				x = floor(x/mag+0.5);
+				y = floor(y/mag+0.5);
+				t& edge_val = edge.at<t>(v,u);
+				if (edge_val>edge.at<t>(v+y,u+x) && edge_val>edge.at<t>(v-y,u-x))
+					edge_val = (t)254;
+				else
+					edge_val = (t)0;
+			}
+		}
+	}
+
+	void drawCoordinateSample(int u, int v, const cv::Mat& x_image, const cv::Mat& x_dx, const cv::Mat& y_image, const cv::Mat& y_dy, const cv::Mat& z_image, const cv::Mat& z_dx)
+	{
+		cv::Mat display = cv::Mat::zeros(600, 600, CV_8UC1);
+		cv::line(display, cv::Point(0,display.rows/2), cv::Point(display.cols-1,display.rows/2), cv::Scalar(32), 1);
+
+		float avg_x = cv::mean(x_image(cv::Rect(u-scan_line_width_,v,2*scan_line_width_+1,1))).val[0];
+		float avg_dx = cv::mean(x_dx(cv::Rect(u-scan_line_width_,v,2*scan_line_width_+1,1))).val[0];
+		float avg_y = cv::mean(y_image(cv::Rect(u,v-scan_line_width_,1,2*scan_line_width_+1))).val[0];
+		float avg_zx = cv::mean(z_image(cv::Rect(u-scan_line_width_,v,2*scan_line_width_+1,1))).val[0];
+		float avg_zy = cv::mean(z_image(cv::Rect(u,v-scan_line_width_,1,2*scan_line_width_+1))).val[0];
+		float avg_dz = cv::mean(z_dx(cv::Rect(u-scan_line_width_,v,2*scan_line_width_+1,1))).val[0];
+		int draw_u = 10;
+		for (int du=-scan_line_width_; du<scan_line_width_; ++du, draw_u+=10)
+		{
+			const float scale1 = 1000.f;
+			const float scale2 = 10000.f;
+			float x = display.cols/2 + scale1*(x_image.at<float>(v, u+du) - avg_x);
+			float dx = display.rows/2 + scale2*(x_dx.at<float>(v, u+du) - avg_dx);
+			float y = display.cols/2 + scale1*(y_image.at<float>(v+du, u) - avg_y);
+			float zx = display.rows/2 + scale1*(z_image.at<float>(v, u+du) - avg_zx);
+			float dz = display.rows/2 + scale2*(z_dx.at<float>(v, u+du) - avg_dz);
+			float zy = display.rows/2 + scale1*(z_image.at<float>(v+du, u) - avg_zy);
+			float x2 = display.cols/2 + scale1*(x_image.at<float>(v, u+du+1) - avg_x);
+			float dx2 = display.rows/2 + scale2*(x_dx.at<float>(v, u+du+1) - avg_dx);
+			float y2 = display.cols/2 + scale1*(y_image.at<float>(v+du+1, u) - avg_y);
+			float zx2 = display.rows/2 + scale1*(z_image.at<float>(v, u+du+1) - avg_zx);
+			float dz2 = display.rows/2 + scale2*(z_dx.at<float>(v, u+du+1) - avg_dz);
+			float zy2 = display.rows/2 + scale1*(z_image.at<float>(v+du+1, u) - avg_zy);
+			cv::line(display, cv::Point(x,zx), cv::Point(x2,zx2), cv::Scalar(255), 1);
+			cv::line(display, cv::Point(y,zy), cv::Point(y2,zy2), cv::Scalar(128), 1);
+			if (du==0)
+			{
+				cv::circle(display, cv::Point(x,zx), 2, cv::Scalar(192));
+				cv::circle(display, cv::Point(y,zy), 2, cv::Scalar(128));
+			}
+			cv::line(display, cv::Point(draw_u,dx), cv::Point(draw_u+10,dx2), cv::Scalar(64), 1);
+			cv::line(display, cv::Point(draw_u,dz), cv::Point(draw_u+10,dz2), cv::Scalar(128), 1);
+		}
+		cv::imshow("measure", display);
+		cv::waitKey(10);
+	}
+
+	int getScanLineWidth()
+	{
+		return scan_line_width_;
 	}
 
 private:
@@ -422,7 +556,7 @@ private:
 			float sumZ = 0.f;
 			for (int u=0; u<srcX.cols; ++u)
 			{
-				if (*srcX_ptr > 0.f)
+				if (*srcX_ptr > 0.f)	// only take data with increasing metric x-coordinate (Kinect sensor may sporadically yield decreasing x coordinate with increasing u image coordinate)
 				{
 					sumX += *srcX_ptr;
 					sumZ += *srcZ_ptr;
@@ -494,6 +628,7 @@ private:
 	double runtime_normal_edge_;
 	int number_processed_images_;
 
+	int scan_line_width_;	// width of scan line left or right of a query pixel, measured in [px]
 };
 
 
