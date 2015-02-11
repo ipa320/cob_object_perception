@@ -141,8 +141,6 @@ public:
 //		cv::normalize(z_image, depth_im_scaled,0,1,cv::NORM_MINMAX);
 //		cv::imshow("depth_image", depth_im_scaled);
 //		cv::waitKey(10);
-
-
 		//int key = 0;
 
 		Timer total;
@@ -235,61 +233,54 @@ public:
 				float depth = z_image.at<float>(v, u);
 				if (depth==0.f)
 					continue;
-				//if (z_dx.at<float>(v, u) <= -0.05 || z_dx.at<float>(v, u) >= 0.05)
-//				if (z_dx.at<float>(v, u) <= -0.02*depth || z_dx.at<float>(v, u) >= 0.02*depth)
-//				{
-//					edge.at<uchar>(v, u) = 255;
-//				}
-//				else
-//				{
-					// depth dependent scan line width for slope computation (1px width per 0.10m depth)
-					scan_line_width_ = std::min(int(6.666*depth+1.666), max_line_width);
-					if (scan_line_width_ <= 5)
-						scan_line_width_ = last_line_width;
-					else
-						last_line_width = scan_line_width_;
-					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
-					if (edge_integral.at<int>(v+1,u+scan_line_width_+1)-edge_integral.at<int>(v+1,u-scan_line_width_)-edge_integral.at<int>(v,u+scan_line_width_+1)+edge_integral.at<int>(v,u-scan_line_width_) != 0)
+
+				// depth dependent scan line width for slope computation (1px width per 0.10m depth)
+				scan_line_width_ = std::min(int(6.666*depth+1.666), max_line_width);
+				if (scan_line_width_ <= 5)
+					scan_line_width_ = last_line_width;
+				else
+					last_line_width = scan_line_width_;
+				// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
+				if (edge_integral.at<int>(v+1,u+scan_line_width_+1)-edge_integral.at<int>(v+1,u-scan_line_width_)-edge_integral.at<int>(v,u+scan_line_width_+1)+edge_integral.at<int>(v,u-scan_line_width_) != 0)
+				{
+					edge_start_index = -1;
+					max_edge_diff = 0.f;
+					continue;
+				}
+
+				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
+				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
+				double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-scan_line_width_);
+				double avg_dz_l = z_dx_integralX.at<float>(v, u-1) - z_dx_integralX.at<float>(v, u-scan_line_width_);
+				float avg_dx_r = x_dx_integralX.at<float>(v, u+scan_line_width_) - x_dx_integralX.at<float>(v, u+1);
+				float avg_dz_r = z_dx_integralX.at<float>(v, u+scan_line_width_) - z_dx_integralX.at<float>(v, u+1);
+
+				// estimate angle difference
+				float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
+				float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
+				float diff = fabs(alpha_left - alpha_right);
+				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
+				{
+					if (edge_start_index == -1)
+						edge_start_index = u;
+					float dist = fabs(CV_PI - diff);
+					//angle_image.at<float>(v,u) += CV_PI - (alpha_left - alpha_right + (alpha_left<0. ? 2*CV_PI : 0));
+					if (dist > max_edge_diff)
 					{
+						max_edge_diff = dist;
+						edge_start_index = u;
+					}
+				}
+				else
+				{
+					if (edge_start_index != -1)
+					{
+						//edge.at<uchar>(v, (edge_start_index+u-1)/2) = 255;
+						edge.at<uchar>(v, edge_start_index) = 255;
 						edge_start_index = -1;
-						max_edge_diff = 0.f;
-						continue;
+						max_edge_diff = 0;
 					}
-
-					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
-					// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
-					double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-scan_line_width_);
-					double avg_dz_l = z_dx_integralX.at<float>(v, u-1) - z_dx_integralX.at<float>(v, u-scan_line_width_);
-					float avg_dx_r = x_dx_integralX.at<float>(v, u+scan_line_width_) - x_dx_integralX.at<float>(v, u+1);
-					float avg_dz_r = z_dx_integralX.at<float>(v, u+scan_line_width_) - z_dx_integralX.at<float>(v, u+1);
-
-					// estimate angle difference
-					float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
-					float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
-					float diff = fabs(alpha_left - alpha_right);
-					if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
-					{
-						if (edge_start_index == -1)
-							edge_start_index = u;
-						float dist = fabs(CV_PI - diff);
-						//angle_image.at<float>(v,u) += CV_PI - (alpha_left - alpha_right + (alpha_left<0. ? 2*CV_PI : 0));
-						if (dist > max_edge_diff)
-						{
-							max_edge_diff = dist;
-							edge_start_index = u;
-						}
-					}
-					else
-					{
-						if (edge_start_index != -1)
-						{
-							//edge.at<uchar>(v, (edge_start_index+u-1)/2) = 255;
-							edge.at<uchar>(v, edge_start_index) = 255;
-							edge_start_index = -1;
-							max_edge_diff = 0;
-						}
-					}
-//				}
+				}
 			}
 		}
 		// y lines
@@ -306,12 +297,7 @@ public:
 				float depth = z_image.at<float>(v, u);
 				if (depth==0.f)
 					continue;
-				//if (z_dy.at<float>(v, u) <= -0.05 || z_dy.at<float>(v, u) >= 0.05)
-//				if (z_dy.at<float>(v, u) <= -0.02*depth || z_dy.at<float>(v, u) >= 0.02*depth)
-//				{
-//					edge.at<uchar>(v, u) = 255;
-//				}
-//				else
+
 				if (edge.at<uchar>(v, u) == 0)
 				{
 					// depth dependent scan line width for slope computation (1px/0.10m)
