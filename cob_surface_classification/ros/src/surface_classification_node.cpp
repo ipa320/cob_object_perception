@@ -302,11 +302,11 @@ public:
 
 
 		int key = 0;
-		cv::imshow("image", color_image);
-//		if(!EVALUATION_ONLINE_MODE)
-//			cv::waitKey(10);
-//		if(EVALUATION_ONLINE_MODE)
-			key = cv::waitKey(10);
+//		cv::imshow("image", color_image);
+////		if(!EVALUATION_ONLINE_MODE)
+////			cv::waitKey(10);
+////		if(EVALUATION_ONLINE_MODE)
+//			key = cv::waitKey(10);
 
 		//record scene
 		//----------------------------------------
@@ -359,11 +359,12 @@ public:
 //				for (int u=0; u<edge.cols; ++u)
 //					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
 			edge_detection_.computeDepthEdges(cloud, edge, depth_factor_);
-			// hack:
-			//edge = cv::Mat::zeros(cloud->height,cloud->width,CV_8UC1);	// hack:
 
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
+			// visualization on color image
+//			cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
+//			cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
 			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
 			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
 			for (int v=0; v<color_image.rows; ++v)
@@ -374,17 +375,16 @@ public:
 					if (edge.at<uchar>(v,u) == 255)
 						color_image.at<cv::Vec3b>(v,u) = green;
 				}
-			cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
-			cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
 			cv::imshow("color with edge", color_image);
+			cv::waitKey(10);
 
-			cv::imshow("edge", edge);
-			int key2 = cv::waitKey(100);
-			if (key2 == 'i')
-				depth_factor_ -= 0.005;
-			else if (key2 == 'o')
-				depth_factor_ += 0.005;
-			std::cout << "depth_factor_ = " << depth_factor_ << std::endl;
+//			cv::imshow("edge", edge);
+//			int key2 = cv::waitKey(10);
+//			if (key2 == 'i')
+//				depth_factor_ -= 0.005;
+//			else if (key2 == 'o')
+//				depth_factor_ += 0.005;
+//			std::cout << "depth_factor_ = " << depth_factor_ << std::endl;
 
 			//Timer timer;
 			//timer.start();
@@ -408,7 +408,7 @@ public:
 				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
 				++number_processed_images_;
 				std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
-							"\nruntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
+							"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
 //			}
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
