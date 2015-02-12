@@ -362,20 +362,19 @@ public:
 			ST::Graph::Ptr graph(new ST::Graph);
 			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 
-/*
-			if (key=='n')
-			{
+//			if (key=='n')
+//			{
 				tim.start();
 				oneWithoutEdges_.setInputCloud(cloud);
-				oneWithoutEdges_.setPixelSearchRadius(8,2,2);	//(8,1,1)   (8,2,2)
+				oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
 				oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
 				oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 				oneWithoutEdges_.compute(*normalsWithoutEdges);
 				//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
 				runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
 				//return;
-			}
-//*/
+//			}
+
 			cv::Mat edge;
 			edge_detection_.computeDepthEdges(cloud, edge, depth_factor_);
 			//edge_detection_.sobelLaplace(color_image,depth_image);
@@ -422,7 +421,7 @@ public:
 				one_.setEdgeImage(edge);
 				one_.setOutputLabels(labels);
 				//one_.setSameDirectionThres(0.94);
-				one_.setSkipDistantPointThreshold(8);	//don't consider points in neighbourhood with depth distance larger than 8
+				one_.setSkipDistantPointThreshold(8);	//don't consider points in neighborhood with depth distance larger than 8
 				one_.compute(*normals);
 				//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
 				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
