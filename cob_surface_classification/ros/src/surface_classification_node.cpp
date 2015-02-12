@@ -185,13 +185,17 @@ public:
 			}
 
 			int index = 0;
-			int counter = 1;
-			while (counter<=600)
+			int counter = 0;
+			Timer tim;
+			tim.start();
+			while (counter<600)
 			{
 				computations(image_vector[index], pointcloud_vector[index]);
 				index = (index+1)%image_number;
-				std:cout << "=============================================================> Finished iteration " << counter++ << std::endl;
+				++counter;
+				//std:cout << "=============================================================> Finished iteration " << counter << std::endl;
 			}
+			std::cout << "Total runtime: " << tim.getElapsedTimeInSec() << "s \t Runtime per cycle: " << tim.getElapsedTimeInMilliSec()/(double)counter << "ms" << std::endl;
 			exit(0);
 		}
 	}
@@ -355,23 +359,19 @@ public:
 		//record if "e" is pressed while "image"-window is activated
 		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
 		{
-			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-			pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdges(new pcl::PointCloud<pcl::Normal>);
-			pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
-			pcl::PointCloud<PointLabel>::Ptr labelsWithoutEdges(new pcl::PointCloud<PointLabel>);
-			ST::Graph::Ptr graph(new ST::Graph);
-			ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
-
 //			if (key=='n')
 //			{
-				tim.start();
-				oneWithoutEdges_.setInputCloud(cloud);
-				oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
-				oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
-				oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-				oneWithoutEdges_.compute(*normalsWithoutEdges);
+				pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdges(new pcl::PointCloud<pcl::Normal>);
+				pcl::PointCloud<PointLabel>::Ptr labelsWithoutEdges(new pcl::PointCloud<PointLabel>);
+				ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
+				//tim.start();
+//				oneWithoutEdges_.setInputCloud(cloud);
+//				oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
+//				oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
+//				oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+//				oneWithoutEdges_.compute(*normalsWithoutEdges);
 				//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
-				runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
+				//runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
 				//return;
 //			}
 
@@ -412,7 +412,10 @@ public:
 
 //			if (key=='n')
 //			{
-				tim.start();
+				pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+				pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
+				ST::Graph::Ptr graph(new ST::Graph);
+				//tim.start();
 				one_.setInputCloud(cloud);
 				one_.setPixelSearchRadius(4,2,2);	//call before calling computeMaskManually()!!!
 				//one_.computeMaskManually_increasing(cloud->width);
@@ -426,8 +429,8 @@ public:
 				//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
 				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
 				++number_processed_images_;
-				std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
-							"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
+				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
+				//			"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
 //			}
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
