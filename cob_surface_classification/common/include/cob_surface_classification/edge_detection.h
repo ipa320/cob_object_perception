@@ -265,10 +265,10 @@ public:
 
 				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
-				double avg_dx_l = x_dx_integralX.at<float>(v, u-1) - x_dx_integralX.at<float>(v, u-scan_line_width);
-				double avg_dz_l = z_dx_integralX.at<float>(v, u-1) - z_dx_integralX.at<float>(v, u-scan_line_width);
-				float avg_dx_r = x_dx_integralX.at<float>(v, u+scan_line_width) - x_dx_integralX.at<float>(v, u+1);
-				float avg_dz_r = z_dx_integralX.at<float>(v, u+scan_line_width) - z_dx_integralX.at<float>(v, u+1);
+				double avg_dx_l = x_dx_integralX.at<float>(v,u-1) - x_dx_integralX.at<float>(v,u-scan_line_width);
+				double avg_dz_l = z_dx_integralX.at<float>(v,u-1) - z_dx_integralX.at<float>(v,u-scan_line_width);
+				float avg_dx_r = x_dx_integralX.at<float>(v,u+scan_line_width) - x_dx_integralX.at<float>(v,u+1);
+				float avg_dz_r = z_dx_integralX.at<float>(v,u+scan_line_width) - z_dx_integralX.at<float>(v,u+1);
 
 				// estimate angle difference
 				float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
@@ -563,10 +563,10 @@ private:
 //#pragma omp parallel for num_threads(2)	// no parallel speed up possible because of threading overhead
 		for (int v=0; v<srcX.rows; ++v)
 		{
-			float* dstX_ptr = (float*)dstX.ptr(v);
 			const float* srcX_ptr = (const float*)srcX.ptr(v);
-			float* dstZ_ptr = (float*)dstZ.ptr(v);
+			float* dstX_ptr = (float*)dstX.ptr(v);
 			const float* srcZ_ptr = (const float*)srcZ.ptr(v);
+			float* dstZ_ptr = (float*)dstZ.ptr(v);
 			float sumX = 0.f;
 			float sumZ = 0.f;
 			for (int u=0; u<srcX.cols; ++u)
@@ -589,7 +589,6 @@ private:
 	// creates an integral image within y-direction (i.e. column-wise, vertically) for two source images
 	void computeIntegralImageY(const cv::Mat& srcY, cv::Mat& dstY, const cv::Mat& srcZ, cv::Mat& dstZ)
 	{
-		double start = omp_get_wtime();
 		dstY = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
 		dstZ = cv::Mat(srcY.rows, srcY.cols, CV_32FC1);
 		float* dstY_ptr = (float*)dstY.ptr(0);
@@ -634,8 +633,6 @@ private:
 				dstZprev_ptr++;
 			}
 		}
-		double stop = omp_get_wtime();
-		std::cout << "\t\t\t\ttest: " << 1000*(stop-start) << "\n";
 	}
 
 	bool adaptScanLineWidth(int& scan_line_width_left, int& scan_line_width_right, const cv::Mat& edge, const int u, const int v, const int min_line_width)

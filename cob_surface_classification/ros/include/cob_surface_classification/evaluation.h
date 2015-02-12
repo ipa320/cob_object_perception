@@ -100,7 +100,7 @@ public:
 
 private:
 	std::string search_directory;
-	Scene_recording rec;
+	SceneRecording rec;
 
 	ST::CH::Ptr clusterHandler;
 

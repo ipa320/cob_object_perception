@@ -59,6 +59,7 @@
 
 /*switches for execution of processing steps*/
 
+#define DATA_SOURCE					1			// 0=from camera, 1=from file
 #define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		//computations without record
 #define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
@@ -156,15 +157,43 @@ public:
 		it_ = 0;
 		sync_input_ = 0;
 
-		it_ = new image_transport::ImageTransport(node_handle_);
-		colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
-		pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
-
-		sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
-		sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
-		sync_input_->registerCallback(boost::bind(&SurfaceClassificationNode::inputCallback, this, _1, _2));
-
 		segmented_pointcloud_pub_ = node_handle_.advertise<cob_surface_classification::SegmentedPointCloud2>("segmented_pointcloud", 1);
+
+		if (DATA_SOURCE == 0)
+		{
+			it_ = new image_transport::ImageTransport(node_handle_);
+			colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
+			pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
+
+			sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
+			sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
+			sync_input_->registerCallback(boost::bind(&SurfaceClassificationNode::inputCallback, this, _1, _2));
+		}
+		else if (DATA_SOURCE == 1)
+		{
+			const int image_number = 6;
+			std::vector<cv::Mat> image_vector(image_number);
+			std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pointcloud_vector(image_number);
+			for (int i=1; i<=image_number; ++i)
+			{
+				std::stringstream ss_image, ss_cloud;
+				ss_image << i << "color";
+				rec_.loadImage(image_vector[i-1], ss_image.str());
+				ss_cloud << i << "cloud";
+				pointcloud_vector[i-1] = boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGB> >(new pcl::PointCloud<pcl::PointXYZRGB>);
+				rec_.loadCloud(pointcloud_vector[i-1], ss_cloud.str());
+			}
+
+			int index = 0;
+			int counter = 1;
+			while (counter<=600)
+			{
+				computations(image_vector[index], pointcloud_vector[index]);
+				index = (index+1)%image_number;
+				std:cout << "=============================================================> Finished iteration " << counter++ << std::endl;
+			}
+			exit(0);
+		}
 	}
 
 	~SurfaceClassificationNode()
@@ -207,19 +236,12 @@ public:
 			cloud->width = 640;
 		}
 
-		/*
-		//SAVE Pointcloud
-		bool savepointcloud=false;
-		if(savepointcloud)
-		{
-			pcl::io::savePCDFileASCII ("evaluation/test_pcd.pcd", *cloud);
-			std::cout<<"cloud saved"<<std::endl;
-			cv::imwrite("/home/rmb-dh/evaluation/pointcloud_img.jpg", color_image );
-			cv::imshow("Saved Image", color_image);
-			cv::waitKey(100000);
-			std::cout<<"Get new Image"<<std::endl;
-		}
+		computations(color_image, cloud);
+	}
 
+	void computations(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+	{
+		/*
 		//Load Pointcloud for Evaluation
 		bool loadpointcloud = false;
 		sensor_msgs::PointCloud2 cloud_blob;
@@ -312,14 +334,14 @@ public:
 		//----------------------------------------
 		if(RECORD_MODE)
 		{
-			cv::Mat im_flipped;
-			cv::flip(color_image, im_flipped,-1);
-			cv::imshow("image", im_flipped);
+			//cv::Mat im_flipped;
+			//cv::flip(color_image, im_flipped,-1);
+			//cv::imshow("image", im_flipped);
+			cv::imshow("image", color_image);
 			int key = cv::waitKey(50);
-			//record if "r" is pressed while "image"-window is activated
-			if(key == 1048690)
+			if(key == 'r') //record if "r" is pressed while "image"-window is activated
 			{
-				rec_.saveImage(im_flipped,"color");
+				rec_.saveImage(color_image,"color");
 				rec_.saveCloud(cloud,"cloud");
 			}
 
@@ -354,29 +376,27 @@ public:
 				//return;
 			}
 //*/
-			cv::Mat edge; // = cv::Mat::ones(z_image.rows,z_image.cols,CV_32FC1);
-//			for (int v=0; v<edge.rows; ++v)
-//				for (int u=0; u<edge.cols; ++u)
-//					edgeImage.at<float>(v,u) = 255-edge.at<uchar>(v,u);
+			cv::Mat edge;
 			edge_detection_.computeDepthEdges(cloud, edge, depth_factor_);
-
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
 			// visualization on color image
 //			cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
 //			cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
-			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
-			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
-			for (int v=0; v<color_image.rows; ++v)
-				for (int u=0; u<color_image.cols; ++u)
-				{
-					if (edge.at<uchar>(v,u) == 254)
-						color_image.at<cv::Vec3b>(v,u) = blue;
-					if (edge.at<uchar>(v,u) == 255)
-						color_image.at<cv::Vec3b>(v,u) = green;
-				}
-			cv::imshow("color with edge", color_image);
-			cv::waitKey(10);
+//			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
+//			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
+//			for (int v=0; v<color_image.rows; ++v)
+//				for (int u=0; u<color_image.cols; ++u)
+//				{
+//					if (edge.at<uchar>(v,u) == 254)
+//						color_image.at<cv::Vec3b>(v,u) = blue;
+//					if (edge.at<uchar>(v,u) == 255)
+//						color_image.at<cv::Vec3b>(v,u) = green;
+//				}
+//			cv::imshow("color with edge", color_image);
+//			int quit = cv::waitKey(1000);
+//			if (quit=='q')
+//				exit(0);
 
 //			cv::imshow("edge", edge);
 //			int key2 = cv::waitKey(10);
@@ -524,7 +544,7 @@ public:
 			{
 				cob_surface_classification::SegmentedPointCloud2 msg;
 //				if(!loadpointcloud)
-					msg.pointcloud = *pointcloud_msg;
+//					msg.pointcloud = *pointcloud_msg;
 //				else
 //					msg.pointcloud = cloud_blob;
 				for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
@@ -589,7 +609,7 @@ public:
 //		}
 
 
-	}//inputCallback()
+	}
 
 
 private:
@@ -603,8 +623,8 @@ private:
 	ros::Publisher segmented_pointcloud_pub_;	// publisher for the segmented point cloud
 
 	//records
-	Scene_recording rec_;
 
+	SceneRecording rec_;
 	cob_3d_features::OrganizedNormalEstimationEdgeOMP<pcl::PointXYZRGB, pcl::Normal, PointLabel> one_;
 	cob_3d_features::OrganizedNormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal, PointLabel> oneWithoutEdges_;
 

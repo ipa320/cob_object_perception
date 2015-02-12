@@ -67,12 +67,12 @@
 #include "cob_surface_classification/scene_recording.h"
 
 
-Scene_recording::Scene_recording() {
+SceneRecording::SceneRecording() {
 	nr_records = 1;
-	data_storage_path = std::string(getenv("HOME"));
+	data_storage_path = ""; //std::string(getenv("HOME"))+"/";
 }
 
-Scene_recording::~Scene_recording() {
+SceneRecording::~SceneRecording() {
 }
 
 //save files to "data_storage_path/records/"
@@ -81,24 +81,33 @@ Scene_recording::~Scene_recording() {
 //-------------------------------------------------------------------------------
 
 
-void Scene_recording::saveImage(cv::Mat color_image, std::string name)
+void SceneRecording::saveImage(const cv::Mat& color_image, std::string name)
 {
-
 	//specify path
 	std::stringstream nr;
 	nr << nr_records;
-	std::string image_filename = data_storage_path + "/records/"  + nr.str() + name + ".png";
+	std::string image_filename = data_storage_path + "scene_recordings/"  + nr.str() + name + ".png";
 
 	// save image
 	cv::imwrite(image_filename, color_image);
 }
 
-void Scene_recording::saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pointcloud, std::string name)
+void SceneRecording::loadImage(cv::Mat& color_image, std::string name)
+{
+	//specify path
+	std::string image_filename = data_storage_path + "scene_recordings/"  + name + ".png";
+
+	// load image
+	std::cout << "Loading image " << image_filename << std::endl;
+	color_image = cv::imread(image_filename);
+}
+
+void SceneRecording::saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pointcloud, std::string name)
 {
 	//specify path
 	std::stringstream nr;
 	nr << nr_records;
-	std::string pcd_filename = data_storage_path + "/records/"  + nr.str() + name + ".pcd";
+	std::string pcd_filename = data_storage_path + "scene_recordings/"  + nr.str() + name + ".pcd";
 
 	//save pointcloud
 	pcl::io::savePCDFile(pcd_filename, *pointcloud, false);
@@ -106,13 +115,23 @@ void Scene_recording::saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr poin
 	nr_records++;
 }
 
-void Scene_recording::saveText(std::string txt, std::string name)
+void SceneRecording::loadCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, std::string name)
+{
+	//specify path
+	std::string pcd_filename = data_storage_path + "scene_recordings/"  + name + ".pcd";
+
+	//load pointcloud
+	std::cout << "Loading point cloud " << pcd_filename << std::endl;
+	pcl::io::loadPCDFile(pcd_filename, *pointcloud);
+}
+
+void SceneRecording::saveText(std::string txt, std::string name)
 {
 	std::ofstream file;
 	const char* s;
 	std::stringstream nr;
 	nr << nr_records;
-	std::string filename = data_storage_path + "/records/" +  nr.str() + name + ".txt";
+	std::string filename = data_storage_path + "scene_recordings/" +  nr.str() + name + ".txt";
 	s = filename.c_str();
 
 	file.open (s);
