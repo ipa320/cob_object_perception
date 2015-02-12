@@ -67,16 +67,17 @@
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						false 	//segmentation + refinement
+#define SEG 						true 	//segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement according to curvatures (outdated)
-#define CLASSIFY 					false	//classification
+#define CLASSIFY 					true	//classification
+#define SIMPLE_OBJECT_CLASSIFICATION true	//simple object classification and localization (for symmetric simple objects made of one cluster)
 
 
 #define NORMAL_VIS 					false 	//visualisation of normals
 #define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					false 	//visualisation of classification
+#define CLASS_VIS 					true 	//visualisation of classification
 
 #define PUBLISH_SEGMENTATION		false //true	//publish segmented point cloud on topic
 
@@ -132,6 +133,8 @@
 #include "cob_surface_classification/scene_recording.h"
 //evaluation
 #include "cob_surface_classification/evaluation.h"
+
+#include "cob_surface_classification/simple_object_classification.h"
 
 int global_imagecount;
 
@@ -393,7 +396,7 @@ public:
 //						color_image.at<cv::Vec3b>(v,u) = green;
 //				}
 //			cv::imshow("color with edge", color_image);
-//			int quit = cv::waitKey(1000);
+//			int quit = cv::waitKey();
 //			if (quit=='q')
 //				exit(0);
 
@@ -417,7 +420,7 @@ public:
 				ST::Graph::Ptr graph(new ST::Graph);
 				//tim.start();
 				one_.setInputCloud(cloud);
-				one_.setPixelSearchRadius(4,2,2);	//call before calling computeMaskManually()!!!
+				one_.setPixelSearchRadius(4,2,2);	// 4,2,2	//call before calling computeMaskManually()!!!
 				//one_.computeMaskManually_increasing(cloud->width);
 				one_.computeMaskManually(cloud->width);
 				one_.computePointAngleLookupTable(16);
@@ -545,6 +548,7 @@ public:
 			if (PUBLISH_SEGMENTATION)
 			{
 				cob_surface_classification::SegmentedPointCloud2 msg;
+				pcl::toROSMsg(*cloud, msg.pointcloud);
 //				if(!loadpointcloud)
 //					msg.pointcloud = *pointcloud_msg;
 //				else
@@ -561,18 +565,24 @@ public:
 				segmented_pointcloud_pub_.publish(msg);
 			}
 
-			return;
+			//return;
 
 			if(CLASSIFY|| EVALUATION_ONLINE_MODE)
 			{
 				//classification
-
+				tim.start();
 				cc_.setClusterHandler(graph->clusters());
 				cc_.setNormalCloudInOut(normals);
 				cc_.setLabelCloudIn(labels);
 				cc_.setPointCloudIn(cloud);
 				//cc_.setMaskSizeSmooth(14);
 				cc_.classify();
+				std::cout << "runtime classification: " << tim.getElapsedTimeInMilliSec() << std::endl;
+			}
+			if (SIMPLE_OBJECT_CLASSIFICATION)
+			{
+				//simple_object_classification_.displaySegmentedPointCloud(cloud, graph);
+				simple_object_classification_.classifyObjects(cloud, graph);
 			}
 			if(CLASS_VIS)
 			{
@@ -637,6 +647,8 @@ private:
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segWithoutEdges_;
 
 	cob_3d_segmentation::ClusterClassifier<ST::CH, ST::Point, ST::Normal, ST::Label> cc_;
+
+	SimpleObjectClassification simple_object_classification_;
 
 	float depth_factor_;
 

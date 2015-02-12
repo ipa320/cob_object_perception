@@ -164,6 +164,7 @@ add_executable(surface_classification
 	common/src/surface_classification.cpp
 	ros/src/scene_recording.cpp
 	ros/src/evaluation.cpp
+	common/src/simple_object_classification.cpp
 )
 cmake_policy(POP)
 
