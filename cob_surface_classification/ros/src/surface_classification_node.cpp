@@ -59,7 +59,7 @@
 
 /*switches for execution of processing steps*/
 
-#define DATA_SOURCE					0			// 0=from camera, 1=from file
+#define DATA_SOURCE					1			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
 #define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		//computations without record
 #define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
@@ -77,7 +77,7 @@
 #define NORMAL_VIS 					false 	//visualisation of normals
 #define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					true 	//visualisation of classification
+#define CLASS_VIS 					false 	//visualisation of classification
 
 #define PUBLISH_SEGMENTATION		false //true	//publish segmented point cloud on topic
 
@@ -113,6 +113,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 
 //internal includes
@@ -135,6 +136,7 @@
 #include "cob_surface_classification/evaluation.h"
 
 #include "cob_surface_classification/simple_object_classification.h"
+#include "cob_object_detection_msgs/DetectionArray.h"
 
 int global_imagecount;
 
@@ -164,6 +166,7 @@ public:
 
 		if (DATA_SOURCE == 0)
 		{
+			// from camera with broadcast
 			it_ = new image_transport::ImageTransport(node_handle_);
 			colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
 			pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
@@ -174,6 +177,15 @@ public:
 		}
 		else if (DATA_SOURCE == 1)
 		{
+			// from camera but publishing only on demand
+			sub_counter_ = 0;
+			it_ = new image_transport::ImageTransport(node_handle_);
+			sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
+			object_detection_pub_ = node_handle_.advertise<cob_object_detection_msgs::DetectionArray>("object_detections", 1, boost::bind(&SurfaceClassificationNode::connectCallback, this), boost::bind(&SurfaceClassificationNode::disconnectCallback, this));
+		}
+		else if (DATA_SOURCE == 2)
+		{
+			// from stored files
 			const int image_number = 6;
 			std::vector<cv::Mat> image_vector(image_number);
 			std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pointcloud_vector(image_number);
@@ -581,8 +593,10 @@ public:
 			}
 			if (SIMPLE_OBJECT_CLASSIFICATION)
 			{
-				//simple_object_classification_.displaySegmentedPointCloud(cloud, graph);
-				simple_object_classification_.classifyObjects(cloud, graph);
+				cob_object_detection_msgs::DetectionArray msg;
+				msg.header = pcl_conversions::fromPCL(cloud->header);
+				simple_object_classification_.classifyObjects(cloud, graph, msg);
+				object_detection_pub_.publish(msg);
 			}
 			if(CLASS_VIS)
 			{
@@ -634,6 +648,10 @@ private:
 	message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >* sync_input_;
 	ros::Publisher segmented_pointcloud_pub_;	// publisher for the segmented point cloud
 
+	ros::Publisher object_detection_pub_;	// publisher for object detections
+	SimpleObjectClassification simple_object_classification_;
+	int sub_counter_; /// Number of subscribers to topic
+
 	//records
 
 	SceneRecording rec_;
@@ -647,8 +665,6 @@ private:
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segWithoutEdges_;
 
 	cob_3d_segmentation::ClusterClassifier<ST::CH, ST::Point, ST::Normal, ST::Label> cc_;
-
-	SimpleObjectClassification simple_object_classification_;
 
 	float depth_factor_;
 
@@ -665,6 +681,38 @@ private:
 	int number_processed_images_;
 
 
+	/// Subscribe to camera topics if not already done.
+	void connectCallback()
+	{
+		ROS_INFO("[surface_classification] Subscribing to camera topics");
+
+		if (sub_counter_ == 0)
+		{
+			colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
+			pointcloud_sub_.subscribe(node_handle_, "pointcloud_in", 1);
+
+			sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
+			sync_input_->registerCallback(boost::bind(&SurfaceClassificationNode::inputCallback, this, _1, _2));
+		}
+		sub_counter_++;
+		ROS_INFO("[surface_classification] %i subscribers on camera topics [OK]", sub_counter_);
+	}
+
+	/// Unsubscribe from camera topics if possible.
+	void disconnectCallback()
+	{
+		if (sub_counter_ > 0)
+			sub_counter_--;
+
+		if (sub_counter_ == 0)
+		{
+			ROS_INFO("[surface_classification] Unsubscribing from camera topics");
+
+			colorimage_sub_.unsubscribe();
+			pointcloud_sub_.unsubscribe();
+		}
+		ROS_INFO("[surface_classification] %i subscribers on camera topics [OK]", sub_counter_);
+	}
 };
 
 int main (int argc, char** argv)

@@ -17,6 +17,7 @@ set(catkin_RUN_PACKAGES # all ROS packages from package.xml (libopencv-dev is sy
   cob_3d_mapping_common
   cob_3d_segmentation
   cob_3d_features
+  cob_object_detection_msgs
 )
 
 set(catkin_BUILD_PACKAGES 
@@ -164,7 +165,7 @@ add_executable(surface_classification
 	common/src/surface_classification.cpp
 	ros/src/scene_recording.cpp
 	ros/src/evaluation.cpp
-	common/src/simple_object_classification.cpp
+	ros/src/simple_object_classification.cpp
 )
 cmake_policy(POP)
 

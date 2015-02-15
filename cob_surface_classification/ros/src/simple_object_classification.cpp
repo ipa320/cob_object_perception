@@ -61,6 +61,8 @@
 
 #include <iostream>
 
+#include <pcl_conversions/pcl_conversions.h>
+
 SimpleObjectClassification::SimpleObjectClassification()
 {
 
@@ -103,7 +105,7 @@ void SimpleObjectClassification::displaySegmentedPointCloud(pcl::PointCloud<pcl:
 		exit(0);
 }
 
-void SimpleObjectClassification::classifyObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, ST::Graph::Ptr graph)
+void SimpleObjectClassification::classifyObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, ST::Graph::Ptr graph, cob_object_detection_msgs::DetectionArray& msg)
 {
 	std::cout << "=================================================\n";
 	for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
@@ -111,11 +113,16 @@ void SimpleObjectClassification::classifyObjects(pcl::PointCloud<pcl::PointXYZRG
 		if (c->type == I_CYL)
 		{
 			const Eigen::Vector3f centroid = c->getCentroid();
-			const Eigen::Vector3f normal = c->getOrientation();
+			Eigen::Vector3f normal = c->getOrientation();
+			if (normal(2) > 0)
+				normal *= -1;
 			graph->clusters()->computeCurvature(c);
-			const Eigen::Vector3f local_y_axis = normal.cross(c->min_curvature_direction);
+			if (c->min_curvature_direction(1) > 0)
+				c->min_curvature_direction *= -1;
+			const Eigen::Vector3f local_y_axis = c->min_curvature_direction.cross(normal);
 			Eigen::Matrix3f T;
-			T << c->min_curvature_direction(0), local_y_axis(0), normal(0), c->min_curvature_direction(1), local_y_axis(1), normal(1), c->min_curvature_direction(2), local_y_axis(2), normal(2);
+			T << normal(0), normal(1), normal(2), local_y_axis(0), local_y_axis(1), local_y_axis(2), c->min_curvature_direction(0), c->min_curvature_direction(1), c->min_curvature_direction(2);
+			std::cout << T << std::endl;
 			pcl::PointXYZ min_point(1e10, 1e10, 1e10);
 			pcl::PointXYZ max_point(-1e10, -1e10, -1e10);
 			for (ST::Graph::ClusterType::iterator it = c->begin(); it != c->end(); ++it)
@@ -129,9 +136,9 @@ void SimpleObjectClassification::classifyObjects(pcl::PointCloud<pcl::PointXYZRG
 				max_point.y = std::max(max_point.y, tpoint(1));
 				max_point.z = std::max(max_point.z, tpoint(2));
 			}
-			double bb_diag_height = max_point.x - min_point.x; //sqrt((max_point.x-min_point.x)*(max_point.x-min_point.x)+(max_point.y-min_point.y)*(max_point.y-min_point.y)+(max_point.z-min_point.z)*(max_point.z-min_point.z));
+			double bb_diag_height = max_point.z - min_point.z; //sqrt((max_point.x-min_point.x)*(max_point.x-min_point.x)+(max_point.y-min_point.y)*(max_point.y-min_point.y)+(max_point.z-min_point.z)*(max_point.z-min_point.z));
 			const float radius = 0.5*(max_point.y-min_point.y);
-			if (bb_diag_height > 0.12)
+			//if (bb_diag_height > 0.12)
 				std::cout << "-------------------------------------------------"
 					<< "\nCentroid: (" << centroid(0) << ", " << centroid(1) << ", " << centroid(2) << ")"
 					<< "\nmin_point: (" << min_point.x << ", " << min_point.y << ", " << min_point.z << ")"
@@ -142,10 +149,26 @@ void SimpleObjectClassification::classifyObjects(pcl::PointCloud<pcl::PointXYZRG
 					<< "\nradius: " << radius << std::endl;
 //					<< "\nc->min_curvature_direction: (" << c->min_curvature_direction(0) << ", " << c->min_curvature_direction(1) << ", " << c->min_curvature_direction(2) << ")"
 //					<< "\nc->min_curvature_direction: (" << c->pca_inter_comp1(0) << ", " << c->pca_inter_comp1(1) << ", " << c->pca_inter_comp1(2) << ")" << std::endl;
-			if (fabs(bb_diag_height - 0.20) < 0.025 && c->min_curvature < 0.01 && fabs(radius - 0.04) < 0.015)
+			if (fabs(bb_diag_height - 0.22) < 0.025 && c->min_curvature < 0.01 && fabs(radius - 0.04) < 0.015)
 			{
 				// found a Pringles sized cylinder
 				std::cout << "---> Pringles detection <---" << std::endl;
+
+				cob_object_detection_msgs::Detection det;
+				det.label = "Pringles";
+				Eigen::Vector3f center_offset(max_point.x - radius, 0, 0);
+				Eigen::Vector3f cylinder_center = centroid + T.inverse() * center_offset;
+				det.pose.pose.position.x = cylinder_center(0);
+				det.pose.pose.position.y = cylinder_center(1);
+				det.pose.pose.position.z = cylinder_center(2);
+				Eigen::Quaterniond orientation(T.inverse().cast<double>());
+				tf::quaternionEigenToMsg(orientation, det.pose.pose.orientation);
+				det.pose.header = pcl_conversions::fromPCL(cloud->header);
+				det.bounding_box_lwh.x = 0.08;
+				det.bounding_box_lwh.y = 0.08;
+				det.bounding_box_lwh.z = 0.22;
+				det.detector = "cob_surface_classification/simple_object_classification";
+				msg.detections.push_back(det);
 			}
 		}
 	}

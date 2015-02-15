@@ -57,6 +57,10 @@
 *
 ****************************************************************/
 
+#include <ros/ros.h>
+#include <eigen_conversions/eigen_msg.h>
+#include "cob_object_detection_msgs/DetectionArray.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -72,7 +76,7 @@ public:
 
 	void displaySegmentedPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, ST::Graph::Ptr graph);
 
-	void classifyObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, ST::Graph::Ptr graph);
+	void classifyObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, ST::Graph::Ptr graph, cob_object_detection_msgs::DetectionArray& msg);
 
 private:
 
