@@ -94,6 +94,10 @@ public:
 
 	inline void setPath(std::string p) { data_storage_path = p; }
 
+	inline void setImageRecordCounter(int number)
+	{
+		nr_records = number;
+	}
 
 private:
 	std::string data_storage_path;

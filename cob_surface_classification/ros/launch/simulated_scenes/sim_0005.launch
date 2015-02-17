@@ -1,0 +1,27 @@
+<launch>
+
+	<!-- send urdf to param server -->
+	<param name="bottom_plane" textfile="$(find cob_gazebo_objects)/objects/bottom_plane.urdf" />
+	<!-- push urdf to factory and spawn robot in gazebo -->
+	<node name="spawn_bottom_plane" pkg="gazebo_ros" type="spawn_model" args=" -param bottom_plane -urdf -x -11 -y 0 -z 0  -R 0 -P 0 -Y 0 -model bottom_plane" respawn="false" output="screen" />
+
+	<param name="floor" textfile="$(find cob_gazebo_objects)/objects/floor.urdf" />
+	<node name="spawn_floor" pkg="gazebo_ros" type="spawn_model" args=" -param floor -urdf -x -1.8 -y 0 -z -0.1 -R 0 -P 0 -Y 0 -model floor" respawn="false" output="screen" />
+
+	<param name="wall" textfile="$(find cob_gazebo_objects)/objects/wall.urdf" />
+	<node name="spawn_wall" pkg="gazebo_ros" type="spawn_model" args=" -param wall -urdf -x -3.6 -y 0 -z 0.15 -R 0 -P 0 -Y 0 -model wall" respawn="false" output="screen" />
+
+
+	<param name="cylinder" textfile="$(find cob_gazebo_objects)/objects/cylinder.urdf" />
+	<node name="spawn_cylinder" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder -urdf  -x -1.65 -y 0 -z 0.65  -R 0 -P 0 -Y 0 -model cylinder" respawn="false" output="screen" />
+
+	<param name="cylinder_hollow" textfile="$(find cob_gazebo_objects)/objects/cylinder_hollow.urdf" />
+	<node name="spawn_cylinder_hollow" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder_hollow -urdf -x -1.55 -y 0.3 -z 0.65  -R 0 -P 0 -Y 0 -model cylinder_hollow" respawn="false" output="screen" />
+
+	<param name="cup_and_saucer" textfile="$(find cob_gazebo_objects)/objects/cup_and_saucer.urdf" />
+	<node name="spawn_cup_and_saucer" pkg="gazebo_ros" type="spawn_model" args=" -param cup_and_saucer -urdf -x -1.5 -y 0.7 -z 0.63  -R 0 -P 0 -Y 0 -model cup_and_saucer" respawn="false" output="screen" />
+
+	<param name="cup_large" textfile="$(find cob_gazebo_objects)/objects/cup_large.urdf" />
+	<node name="spawn_cup_large" pkg="gazebo_ros" type="spawn_model" args=" -param cup_large -urdf -x -1.75 -y -0.3 -z 0.65  -R 0 -P 0 -Y 0.4 -model cup_large" respawn="false" output="screen" />
+
+</launch>

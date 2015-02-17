@@ -59,7 +59,8 @@
 
 /*switches for execution of processing steps*/
 
-#define DATA_SOURCE					1			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
+#define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
+#define DATA_NUMBER_FILES			3			// number of input files if loaded from file
 #define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		//computations without record
 #define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
@@ -71,13 +72,13 @@
 #define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	//segmentation refinement according to curvatures (outdated)
 #define CLASSIFY 					true	//classification
-#define SIMPLE_OBJECT_CLASSIFICATION true	//simple object classification and localization (for symmetric simple objects made of one cluster)
+#define SIMPLE_OBJECT_CLASSIFICATION false	//simple object classification and localization (for symmetric simple objects made of one cluster)
 
 
-#define NORMAL_VIS 					false 	//visualisation of normals
-#define SEG_VIS 					false 	//visualisation of segmentation
+#define NORMAL_VIS 					true 	//visualisation of normals
+#define SEG_VIS 					true 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					false 	//visualisation of classification
+#define CLASS_VIS 					true 	//visualisation of classification
 
 #define PUBLISH_SEGMENTATION		false //true	//publish segmented point cloud on topic
 
@@ -157,6 +158,8 @@ public:
 		runtime_normal_edge_ = 0.;
 		number_processed_images_ = 0;
 
+		rec_.setImageRecordCounter(DATA_NUMBER_FILES+1);
+
 		depth_factor_ = 0.01f;
 
 		it_ = 0;
@@ -186,7 +189,7 @@ public:
 		else if (DATA_SOURCE == 2)
 		{
 			// from stored files
-			const int image_number = 6;
+			const int image_number = DATA_NUMBER_FILES;
 			std::vector<cv::Mat> image_vector(image_number);
 			std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pointcloud_vector(image_number);
 			for (int i=1; i<=image_number; ++i)
@@ -240,8 +243,6 @@ public:
 
 	void inputCallback(const sensor_msgs::Image::ConstPtr& color_image_msg, const sensor_msgs::PointCloud2::ConstPtr& pointcloud_msg)
 	{
-		//ROS_INFO("Input Callback");
-
 		// convert color image to cv::Mat
 		cv_bridge::CvImageConstPtr color_image_ptr;
 		cv::Mat color_image;
@@ -253,6 +254,7 @@ public:
 		{
 			cloud->height = 480;
 			cloud->width = 640;
+			cloud->is_dense = true;
 		}
 
 		computations(color_image, cloud);
@@ -363,7 +365,7 @@ public:
 				rec_.saveImage(color_image,"color");
 				rec_.saveCloud(cloud,"cloud");
 			}
-
+			return;
 		}
 
 		//----------------------------------------
@@ -397,20 +399,20 @@ public:
 			// visualization on color image
 //			cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
 //			cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
-//			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
-//			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
-//			for (int v=0; v<color_image.rows; ++v)
-//				for (int u=0; u<color_image.cols; ++u)
-//				{
-//					if (edge.at<uchar>(v,u) == 254)
-//						color_image.at<cv::Vec3b>(v,u) = blue;
-//					if (edge.at<uchar>(v,u) == 255)
-//						color_image.at<cv::Vec3b>(v,u) = green;
-//				}
-//			cv::imshow("color with edge", color_image);
-//			int quit = cv::waitKey();
-//			if (quit=='q')
-//				exit(0);
+			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
+			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
+			for (int v=0; v<color_image.rows; ++v)
+				for (int u=0; u<color_image.cols; ++u)
+				{
+					if (edge.at<uchar>(v,u) == 254)
+						color_image.at<cv::Vec3b>(v,u) = blue;
+					if (edge.at<uchar>(v,u) == 255)
+						color_image.at<cv::Vec3b>(v,u) = green;
+				}
+			cv::imshow("color with edge", color_image);
+			int quit = cv::waitKey();
+			if (quit=='q')
+				exit(0);
 
 //			cv::imshow("edge", edge);
 //			int key2 = cv::waitKey(10);
@@ -442,8 +444,8 @@ public:
 				one_.setSkipDistantPointThreshold(8);	//don't consider points in neighborhood with depth distance larger than 8
 				one_.compute(*normals);
 				//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
-				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
-				++number_processed_images_;
+//				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
+//				++number_processed_images_;
 				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
 				//			"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
 //			}

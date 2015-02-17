@@ -30,8 +30,8 @@
    <remap from="pointcloud_in" to="/cam3d/depth_registered/points"/>
    <!--remap from="colorimage_in" to="/cam3d/rgb/image"/-->
    <remap from="colorimage_in" to="/cam3d/rgb/image_raw"/>
-   <!--<remap from="pointcloud_in" to="/camera/depth/points"/>-->
-   <!-- <remap from="colorimage_in" to="/camera/rgb/image_color"/>-->
+   <!--remap from="pointcloud_in" to="/camera/depth/points"/-->
+   <!--remap from="colorimage_in" to="/cam3d/rgb/image_color"/-->
   </node>
 
 </launch>

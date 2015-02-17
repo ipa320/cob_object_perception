@@ -98,6 +98,7 @@ public:
 	};
 
 //#define MEASURE_RUNTIME
+#define USE_ADAPTIVE_SCAN_LINE
 
 	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const float depth_factor)
 	{
@@ -154,15 +155,14 @@ public:
 		cv::Sobel(y_image, y_dy, -1, 0, 1, kernel_size, kernel_scale);
 		cv::Sobel(z_image, z_dx, -1, 1, 0, kernel_size, kernel_scale);
 		cv::Sobel(z_image, z_dy, -1, 0, 1, kernel_size, kernel_scale);
-		//cv::medianBlur(z_dx, z_dx, 5);
-		//cv::medianBlur(z_dy, z_dy, 5);
-//		cv::Mat temp = z_dx.clone();
-//		cv::bilateralFilter(temp, z_dx, 5, 90, 90);
-//		temp = z_dy.clone();
-//		cv::bilateralFilter(temp, z_dy, 5, 90, 90);
 		const int kernel_size2 = 7;
-		cv::GaussianBlur(z_dx, z_dx, cv::Size(kernel_size2,kernel_size2), 0, 0);
-		cv::GaussianBlur(z_dy, z_dy, cv::Size(kernel_size2,kernel_size2), 0, 0);
+//		cv::GaussianBlur(z_dx, z_dx, cv::Size(kernel_size2,kernel_size2), 0, 0);
+//		cv::GaussianBlur(z_dy, z_dy, cv::Size(kernel_size2,kernel_size2), 0, 0);
+		//sigma = 0.3(n/2 - 1) + 0.8
+		cv::Mat temp = z_dx.clone();
+		cv::bilateralFilter(temp, z_dx, kernel_size2, 1.4, 0.1);
+		temp = z_dy.clone();
+		cv::bilateralFilter(temp, z_dy, kernel_size2, 1.4, 0.1);
 #ifdef MEASURE_RUNTIME
 		runtime_sobel_ += tim.getElapsedTimeInMilliSec();
 		tim.start();
@@ -220,8 +220,10 @@ public:
 			}
 		}
 		nonMaximumSuppression(edge, z_dx, z_dy);
+#ifndef USE_ADAPTIVE_SCAN_LINE
 		cv::Mat edge_integral;
 		cv::integral(edge, edge_integral, CV_32S);
+#endif
 		//std::cout << "\t\t\t\tTime for depth discontinuities: " << tim.getElapsedTimeInMilliSec() << "\n";
 
 		//cv::Mat angle_image = cv::Mat::zeros(edge.rows, edge.cols, CV_32FC1);
@@ -240,9 +242,6 @@ public:
 			float max_edge_strength = 0;
 			for (int u = max_line_width+1; u < z_dx.cols - max_line_width - 2; ++u)
 			{
-//				if (v==240 && u==320)
-//					drawCoordinateSample(u, v, scan_line_width, x_image, x_dx, y_image, y_dy, z_image, z_dx);
-
 				const float depth = z_image.at<float>(v, u);
 				if (depth==0.f)
 					continue;
@@ -254,15 +253,16 @@ public:
 				else
 					last_line_width = scan_line_width;
 
-//				int scan_line_width_left = scan_line_width;
-//				int scan_line_width_right = scan_line_width;
-//				if (adaptScanLineWidth(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false)
-//				{
-//					edge_start_index = -1;
-//					max_edge_strength = 0.f;
-//					continue;
-//				}
-
+#ifdef USE_ADAPTIVE_SCAN_LINE
+				int scan_line_width_left = scan_line_width;
+				int scan_line_width_right = scan_line_width;
+				if (adaptScanLineWidth(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false)
+				{
+					edge_start_index = -1;
+					max_edge_strength = 0.f;
+					continue;
+				}
+#else
 				// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
 				if (edge_integral.at<int>(v+1,u+scan_line_width+1)-edge_integral.at<int>(v+1,u-scan_line_width-2)-edge_integral.at<int>(v,u+scan_line_width+1)+edge_integral.at<int>(v,u-scan_line_width-2) != 0)
 				{
@@ -270,13 +270,19 @@ public:
 					max_edge_strength = 0.f;
 					continue;
 				}
+				const int& scan_line_width_left = scan_line_width;
+				const int& scan_line_width_right = scan_line_width;
+#endif
+
+				if (v==190 && u==400)
+					drawCoordinateSample(u, v, scan_line_width_left, scan_line_width_right, x_image, x_dx, y_image, y_dy, z_image, z_dx);
 
 				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
-				const float avg_dx_l = x_dx_integralX.at<float>(v,u-1) - x_dx_integralX.at<float>(v,u-scan_line_width);
-				const float avg_dx_r = x_dx_integralX.at<float>(v,u+scan_line_width) - x_dx_integralX.at<float>(v,u+1);
-				const float avg_dz_l = z_dx_integralX.at<float>(v,u-1) - z_dx_integralX.at<float>(v,u-scan_line_width);
-				const float avg_dz_r = z_dx_integralX.at<float>(v,u+scan_line_width) - z_dx_integralX.at<float>(v,u+1);
+				const float avg_dx_l = x_dx_integralX.at<float>(v,u-1) - x_dx_integralX.at<float>(v,u-scan_line_width_left);
+				const float avg_dx_r = x_dx_integralX.at<float>(v,u+scan_line_width_right) - x_dx_integralX.at<float>(v,u+1);
+				const float avg_dz_l = z_dx_integralX.at<float>(v,u-1) - z_dx_integralX.at<float>(v,u-scan_line_width_left);
+				const float avg_dz_r = z_dx_integralX.at<float>(v,u+scan_line_width_right) - z_dx_integralX.at<float>(v,u+1);
 
 				// estimate angle difference
 				const float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
@@ -320,9 +326,6 @@ public:
 			float max_edge_strength = 0;
 			for (int u = max_line_width+1; u < z_dy.cols - max_line_width - 2; ++u)
 			{
-//				if (v==240 && u==320)
-//					drawCoordinateSample(u, v, scan_line_width, x_image, x_dx, y_image, y_dy, z_image, z_dx);
-
 				const float depth = z_image.at<float>(u, v);
 				if (depth==0.f)
 					continue;
@@ -334,15 +337,16 @@ public:
 				else
 					last_line_width = scan_line_width;
 
-//				int scan_line_width_left = scan_line_width;
-//				int scan_line_width_right = scan_line_width;
-//				if (adaptScanLineWidth(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false)
-//				{
-//					edge_start_index = -1;
-//					max_edge_strength = 0.f;
-//					continue;
-//				}
-
+#ifdef USE_ADAPTIVE_SCAN_LINE
+				int scan_line_height_upper = scan_line_width;
+				int scan_line_height_lower = scan_line_width;
+				if (adaptScanLineHeight(scan_line_height_upper, scan_line_height_lower, edge, v, u, min_line_width) == false)
+				{
+					edge_start_index = -1;
+					max_edge_strength = 0.f;
+					continue;
+				}
+#else
 				// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
 				if (edge_integral.at<int>(u+scan_line_width+1,v+1)-edge_integral.at<int>(u-scan_line_width-2,v+1)-edge_integral.at<int>(u+scan_line_width+1,v)+edge_integral.at<int>(u-scan_line_width-2,v) != 0)
 				{
@@ -350,13 +354,16 @@ public:
 					max_edge_strength = 0.f;
 					continue;
 				}
+				const int& scan_line_height_upper = scan_line_width;
+				const int& scan_line_height_lower = scan_line_width;
+#endif
 
 				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
-				const float avg_dx_l = y_dy_integralY.at<float>(v,u-1) - y_dy_integralY.at<float>(v,u-scan_line_width);
-				const float avg_dx_r = y_dy_integralY.at<float>(v,u+scan_line_width) - y_dy_integralY.at<float>(v,u+1);
-				const float avg_dz_l = z_dy_integralY.at<float>(v,u-1) - z_dy_integralY.at<float>(v,u-scan_line_width);
-				const float avg_dz_r = z_dy_integralY.at<float>(v,u+scan_line_width) - z_dy_integralY.at<float>(v,u+1);
+				const float avg_dx_l = y_dy_integralY.at<float>(v,u-1) - y_dy_integralY.at<float>(v,u-scan_line_height_upper);
+				const float avg_dx_r = y_dy_integralY.at<float>(v,u+scan_line_height_lower) - y_dy_integralY.at<float>(v,u+1);
+				const float avg_dz_l = z_dy_integralY.at<float>(v,u-1) - z_dy_integralY.at<float>(v,u-scan_line_height_upper);
+				const float avg_dz_r = z_dy_integralY.at<float>(v,u+scan_line_height_lower) - z_dy_integralY.at<float>(v,u+1);
 
 				// estimate angle difference
 				const float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
@@ -536,19 +543,19 @@ public:
 					edge.at<uchar>(v,u)=0;
 	}
 
-	void drawCoordinateSample(int u, int v, int scan_line_width, const cv::Mat& x_image, const cv::Mat& x_dx, const cv::Mat& y_image, const cv::Mat& y_dy, const cv::Mat& z_image, const cv::Mat& z_dx)
+	void drawCoordinateSample(int u, int v, int scan_line_width_left, int scan_line_width_right, const cv::Mat& x_image, const cv::Mat& x_dx, const cv::Mat& y_image, const cv::Mat& y_dy, const cv::Mat& z_image, const cv::Mat& z_dx)
 	{
 		cv::Mat display = cv::Mat::zeros(600, 600, CV_8UC1);
 		cv::line(display, cv::Point(0,display.rows/2), cv::Point(display.cols-1,display.rows/2), cv::Scalar(32), 1);
 
-		float avg_x = cv::mean(x_image(cv::Rect(u-scan_line_width,v,2*scan_line_width+1,1))).val[0];
-		float avg_dx = cv::mean(x_dx(cv::Rect(u-scan_line_width,v,2*scan_line_width+1,1))).val[0];
-		float avg_y = cv::mean(y_image(cv::Rect(u,v-scan_line_width,1,2*scan_line_width+1))).val[0];
-		float avg_zx = cv::mean(z_image(cv::Rect(u-scan_line_width,v,2*scan_line_width+1,1))).val[0];
-		float avg_zy = cv::mean(z_image(cv::Rect(u,v-scan_line_width,1,2*scan_line_width+1))).val[0];
-		float avg_dz = cv::mean(z_dx(cv::Rect(u-scan_line_width,v,2*scan_line_width+1,1))).val[0];
+		float avg_x = cv::mean(x_image(cv::Rect(u-scan_line_width_left,v,2*scan_line_width_right+1,1))).val[0];
+		float avg_dx = cv::mean(x_dx(cv::Rect(u-scan_line_width_left,v,2*scan_line_width_right+1,1))).val[0];
+		float avg_y = cv::mean(y_image(cv::Rect(u,v-scan_line_width_left,1,2*scan_line_width_right+1))).val[0];
+		float avg_zx = cv::mean(z_image(cv::Rect(u-scan_line_width_left,v,2*scan_line_width_right+1,1))).val[0];
+		float avg_zy = cv::mean(z_image(cv::Rect(u,v-scan_line_width_left,1,2*scan_line_width_right+1))).val[0];
+		float avg_dz = cv::mean(z_dx(cv::Rect(u-scan_line_width_left,v,2*scan_line_width_right+1,1))).val[0];
 		int draw_u = 10;
-		for (int du=-scan_line_width; du<scan_line_width; ++du, draw_u+=10)
+		for (int du=-scan_line_width_left; du<scan_line_width_right; ++du, draw_u+=10)
 		{
 			const float scale1 = 1000.f;
 			const float scale2 = 10000.f;
@@ -565,7 +572,7 @@ public:
 			float dz2 = display.rows/2 + scale2*(z_dx.at<float>(v, u+du+1) - avg_dz);
 			float zy2 = display.rows/2 + scale1*(z_image.at<float>(v+du+1, u) - avg_zy);
 			cv::line(display, cv::Point(x,zx), cv::Point(x2,zx2), cv::Scalar(255), 1);
-			cv::line(display, cv::Point(y,zy), cv::Point(y2,zy2), cv::Scalar(128), 1);
+			cv::line(display, cv::Point(y,zy), cv::Point(y2,zy2), cv::Scalar(192), 1);
 			if (du==0)
 			{
 				cv::circle(display, cv::Point(x,zx), 2, cv::Scalar(192));
@@ -573,7 +580,10 @@ public:
 			}
 			cv::line(display, cv::Point(draw_u,dx), cv::Point(draw_u+10,dx2), cv::Scalar(64), 1);
 			cv::line(display, cv::Point(draw_u,dz), cv::Point(draw_u+10,dz2), cv::Scalar(128), 1);
+
+			std::cout << "du=" << du << "\tx=" << x_image.at<float>(v, u+du) << "\tz=" << z_image.at<float>(v, u+du) << "\tdx=" << x_dx.at<float>(v, u+du) << "\tdz=" << z_dx.at<float>(v, u+du) << std::endl;
 		}
+		std::cout << "du=" << scan_line_width_right << "\tx=" << x_image.at<float>(v, u+scan_line_width_right) << "\tz=" << z_image.at<float>(v, u+scan_line_width_right) << "\tdx=" << x_dx.at<float>(v, u+scan_line_width_right) << "\tdz=" << z_dx.at<float>(v, u+scan_line_width_right) << std::endl;
 		cv::imshow("measure", display);
 		cv::waitKey(10);
 	}
@@ -661,11 +671,11 @@ private:
 			float sumZ = 0.f;
 			for (int u=0; u<srcX.cols; ++u)
 			{
-				if (*srcX_ptr > 0.f)	// only take data with increasing metric x-coordinate (Kinect sensor may sporadically yield decreasing x coordinate with increasing u image coordinate)
-				{
+				//if (*srcX_ptr > 0.f)	// only take data with increasing metric x-coordinate (Kinect sensor may sporadically yield decreasing x coordinate with increasing u image coordinate)
+				//{
 					sumX += *srcX_ptr;
 					sumZ += *srcZ_ptr;
-				}
+				//}
 				*dstX_ptr = sumX;
 				srcX_ptr++;
 				dstX_ptr++;
@@ -727,14 +737,16 @@ private:
 
 	bool adaptScanLineWidth(int& scan_line_width_left, int& scan_line_width_right, const cv::Mat& edge, const int u, const int v, const int min_line_width)
 	{
+		const int min_distance_to_depth_edge = 1;
+
 		// left scan line
 		const int max_l = scan_line_width_left;
-		for (int du=0; du>=-max_l; --du)
+		for (int du=0; du<=max_l+1+min_distance_to_depth_edge; ++du)
 		{
-			if (edge.at<uchar>(v,u+du)!=0)
+			if (edge.at<uchar>(v,u-du)!=0)
 			{
-				scan_line_width_left = -du-1;
-				if (scan_line_width_left<min_line_width || 2*scan_line_width_left<max_l)
+				scan_line_width_left = du-1-min_distance_to_depth_edge;
+				if (scan_line_width_left<min_line_width || 3*scan_line_width_left<max_l)
 					return false;
 				break;
 			}
@@ -742,12 +754,12 @@ private:
 
 		// right scan line
 		const int max_r = scan_line_width_right;
-		for (int du=0; du<=max_r; ++du)
+		for (int du=0; du<=max_r+1+min_distance_to_depth_edge; ++du)
 		{
 			if (edge.at<uchar>(v,u+du)!=0)
 			{
-				scan_line_width_right = du-1;
-				if (scan_line_width_right<min_line_width || 2*scan_line_width_right<max_r)
+				scan_line_width_right = du-1-min_distance_to_depth_edge;
+				if (scan_line_width_right<min_line_width || 3*scan_line_width_right<max_r)
 					return false;
 				break;
 			}
@@ -758,14 +770,16 @@ private:
 
 	bool adaptScanLineHeight(int& scan_line_height_upper, int& scan_line_height_lower, const cv::Mat& edge, const int u, const int v, const int min_line_width)
 	{
+		const int min_distance_to_depth_edge = 1;
+
 		// upper scan line
 		const int max_u = scan_line_height_upper;
-		for (int dv=0; dv>=-max_u; --dv)
+		for (int dv=0; dv<=max_u+1+min_distance_to_depth_edge; ++dv)
 		{
-			if (edge.at<uchar>(v+dv,u)!=0)
+			if (edge.at<uchar>(v-dv,u)!=0)
 			{
-				scan_line_height_upper = -dv-1;
-				if (scan_line_height_upper<min_line_width || 2*scan_line_height_upper<max_u)
+				scan_line_height_upper = dv-1-min_distance_to_depth_edge;
+				if (scan_line_height_upper<min_line_width || 3*scan_line_height_upper<max_u)
 					return false;
 				break;
 			}
@@ -773,12 +787,12 @@ private:
 
 		// right scan line
 		const int max_l = scan_line_height_lower;
-		for (int dv=0; dv<=max_l; ++dv)
+		for (int dv=0; dv<=max_l+1+min_distance_to_depth_edge; ++dv)
 		{
 			if (edge.at<uchar>(v+dv,u)!=0)
 			{
-				scan_line_height_lower = dv-1;
-				if (scan_line_height_lower<min_line_width || 2*scan_line_height_lower<max_l)
+				scan_line_height_lower = dv-1-min_distance_to_depth_edge;
+				if (scan_line_height_lower<min_line_width || 3*scan_line_height_lower<max_l)
 					return false;
 				break;
 			}
