@@ -71,7 +71,7 @@
     
     <gui>
       <camera name='user_camera'>
-        <pose>3 0 3 0 0.7 3.14</pose>
+        <pose>3 0 4 0 0.7 3.14</pose>
       </camera>
     </gui>
 
