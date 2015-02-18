@@ -91,6 +91,8 @@ public:
 	Evaluation();
 	virtual ~Evaluation();
 
+	void evaluate(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& estimate);
+
 	typedef cob_3d_segmentation::PredefinedSegmentationTypes ST;
     inline void setClusterHandler(ST::CH::Ptr cHdl) { clusterHandler = cHdl; }
 
@@ -99,12 +101,16 @@ public:
 
 
 private:
+
+	void generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, cv::Mat& gt_color_image_normalized);
+
 	std::string search_directory;
 	SceneRecording rec;
 
 	ST::CH::Ptr clusterHandler;
 
-    std::vector<int> color_tab;
+    std::vector<int> color_table_;
+    std::vector<cv::Vec3b> color_table_sim_;		// color coding as used in the gazebo simulation
 
 	struct count
 	{

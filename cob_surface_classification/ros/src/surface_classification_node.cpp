@@ -60,11 +60,11 @@
 /*switches for execution of processing steps*/
 
 #define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
-#define DATA_NUMBER_FILES			3			// number of input files if loaded from file
+#define DATA_NUMBER_FILES			1			// number of input files if loaded from file
 #define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		//computations without record
 #define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
-#define EVALUATION_ONLINE_MODE		false		//computations plus evaluation of current computations plus record of evaluation
+#define EVALUATION_ONLINE_MODE		true		//computations plus evaluation of current computations plus record of evaluation
 
 //steps in computation/evaluation_online mode:
 
@@ -75,12 +75,13 @@
 #define SIMPLE_OBJECT_CLASSIFICATION false	//simple object classification and localization (for symmetric simple objects made of one cluster)
 
 
-#define NORMAL_VIS 					true 	//visualisation of normals
-#define SEG_VIS 					true 	//visualisation of segmentation
+#define EDGE_VIS					true	//visualization of edges
+#define NORMAL_VIS 					false 	//visualisation of normals
+#define SEG_VIS 					false 	//visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					true 	//visualisation of classification
+#define CLASS_VIS 					false 	//visualisation of classification
 
-#define PUBLISH_SEGMENTATION		false //true	//publish segmented point cloud on topic
+#define PUBLISH_SEGMENTATION		false	//publish segmented point cloud on topic
 
 
 // ROS includes
@@ -397,22 +398,27 @@ public:
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
 			// visualization on color image
-//			cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
-//			cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
-			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
-			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
-			for (int v=0; v<color_image.rows; ++v)
-				for (int u=0; u<color_image.cols; ++u)
-				{
-					if (edge.at<uchar>(v,u) == 254)
-						color_image.at<cv::Vec3b>(v,u) = blue;
-					if (edge.at<uchar>(v,u) == 255)
-						color_image.at<cv::Vec3b>(v,u) = green;
-				}
-			cv::imshow("color with edge", color_image);
-			int quit = cv::waitKey();
-			if (quit=='q')
-				exit(0);
+			if (EDGE_VIS)
+			{
+				cv::Mat color_image_edge = color_image.clone();
+//				cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
+//				cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
+				const cv::Vec3b green = cv::Vec3b(0, 255, 0);
+				const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
+				for (int v=0; v<color_image_edge.rows; ++v)
+					for (int u=0; u<color_image_edge.cols; ++u)
+					{
+						if (edge.at<uchar>(v,u) == 254)
+							color_image_edge.at<cv::Vec3b>(v,u) = blue;
+						if (edge.at<uchar>(v,u) == 255)
+							color_image_edge.at<cv::Vec3b>(v,u) = green;
+					}
+				cv::imshow("color_image", color_image);
+				cv::imshow("color with edge", color_image_edge);
+				int quit = cv::waitKey();
+				if (quit=='q')
+					exit(0);
+			}
 
 //			cv::imshow("edge", edge);
 //			int key2 = cv::waitKey(10);
@@ -623,8 +629,10 @@ public:
 
 			if(EVALUATION_ONLINE_MODE)
 			{
+				cv::Mat estimate;
 				eval_.setClusterHandler(graph->clusters());
-				eval_.compareClassification(cloud,color_image);
+				eval_.evaluate(cloud, color_image, estimate);
+				//eval_.compareClassification(cloud,color_image);
 			}
 
 

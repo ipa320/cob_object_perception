@@ -75,27 +75,95 @@
 #include <opencv/highgui.h>
 
 
-#define HUE_GREEN 		113
-#define HUE_MAGENTA 	0
-#define HUE_YELLOW 		55
-#define HUE_DIFF_TH		10		//threshold for deviation in hue value which is still ignored (minimum distance between the different hue values that are used)
+#define HUE_GREEN 		113/2
+#define HUE_MAGENTA 	0/2
+#define HUE_YELLOW 		55/2
+#define HUE_DIFF_TH		20		//threshold for deviation in hue value which is still ignored (minimum distance between the different hue values that are used)
 
 
 
 
 Evaluation::Evaluation() {
-	search_directory = std::string(getenv("HOME")) + "/records/";
+	search_directory = std::string(getenv("HOME")) + "/scene_recordings/";
 
 	//colors of the classification categories in the ground truth
-	color_tab.resize(NUM_LABELS);
-	color_tab[I_EDGE] = LBL_EDGE; //EVAL_COL_EDGE;
-	color_tab[I_PLANE] = LBL_PLANE; //EVAL_COL_PLANE;
-	color_tab[I_CONCAVE]= LBL_CYL; //EVAL_COL_CONC;
-	color_tab[I_CONVEX]= LBL_CYL_CVX; //EVAL_COL_CONV;
+	color_table_.resize(10);
+	color_table_[I_EDGE] = LBL_EDGE; //EVAL_COL_EDGE;
+	color_table_[I_PLANE] = LBL_PLANE; //EVAL_COL_PLANE;
+	color_table_[I_CONCAVE]= LBL_CYL; //EVAL_COL_CONC;
+	color_table_[I_CONVEX]= LBL_CYL_CVX; //EVAL_COL_CONV;
+
+	color_table_sim_.resize(10);
+	color_table_sim_[I_EDGE] = cv::Vec3b(0,0,0);
+	color_table_sim_[I_PLANE] = cv::Vec3b(51,201,69);
+	color_table_sim_[I_CONCAVE] = cv::Vec3b(2,234,255);
+	color_table_sim_[I_CONVEX] = cv::Vec3b(23,23,236);
 }
 
 Evaluation::~Evaluation() {
 }
+
+void Evaluation::evaluate(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& estimate)
+{
+	// 1. Computation of the ground truth image (= color normalization of the scene image + depth edges)
+	cv::Mat gt_color_image_normalized;
+	generateGroundTruthImage(gt_point_cloud, gt_color_image, gt_color_image_normalized);
+	cv::imshow("gt image", gt_color_image_normalized);
+	cv::waitKey();
+}
+
+void Evaluation::generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, cv::Mat& gt_color_image_normalized)
+{
+	// computation of the ground truth image (= color normalization of the scene image + depth edges)
+	gt_color_image_normalized.create(gt_color_image.rows, gt_color_image.cols, CV_8UC3);
+	cv::Mat gt_color_image_hsv;
+	cv::cvtColor(gt_color_image, gt_color_image_hsv, CV_BGR2HSV);
+
+	for (int v=0; v<gt_color_image_hsv.rows; ++v)
+	{
+		for (int u=0; u<gt_color_image_hsv.cols; ++u)
+		{
+			// check for depth edges
+			bool depth_edge = false;
+			if (u!=0 && v!=0 && u!=gt_color_image_hsv.cols-1 && v!=gt_color_image_hsv.rows-1)
+			{
+				const double depth_factor = 0.01;
+				const double depth = gt_point_cloud->at(u,v).z;
+				const double edge_threshold = depth_factor*depth;
+				const double dzl = gt_point_cloud->at(u,v).z - gt_point_cloud->at(u-1,v).z;
+				const double dzr = gt_point_cloud->at(u+1,v).z - gt_point_cloud->at(u,v).z;
+				const double dzu = gt_point_cloud->at(u,v).z - gt_point_cloud->at(u,v-1).z;
+				const double dzb = gt_point_cloud->at(u,v+1).z - gt_point_cloud->at(u,v).z;
+				if ( ((dzr<-edge_threshold || dzr>edge_threshold) && fabs(dzl-dzr)>0.01) || ((dzb<-edge_threshold || dzb>edge_threshold) && fabs(dzu-dzb)>0.01) )
+					depth_edge = true;
+				// additonally check for surface edges
+				const double min_detectable_edge_angle = 35.;
+				const double alpha_left = atan2(-dzl, -(gt_point_cloud->at(u,v).x - gt_point_cloud->at(u-1,v).x));
+				const double alpha_right = atan2(dzr, gt_point_cloud->at(u+1,v).x - gt_point_cloud->at(u,v).x);
+				double diff = fabs(alpha_left - alpha_right);
+				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
+					depth_edge = true;
+				const double alpha_upper = atan2(-dzu, -(gt_point_cloud->at(u,v).y - gt_point_cloud->at(u,v-1).y));
+				const double alpha_below = atan2(dzb, gt_point_cloud->at(u,v+1).y - gt_point_cloud->at(u,v).y);
+				diff = fabs(alpha_upper - alpha_below);
+				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
+					depth_edge = true;
+			}
+
+			// determine color coding class from gt image
+			cv::Vec3b& color_hsv = gt_color_image_hsv.at<cv::Vec3b>(v,u);
+			if (depth_edge)	// || color_hsv.val[2] < 0.38*255)
+				gt_color_image_normalized.at<cv::Vec3b>(v,u) = color_table_sim_[I_EDGE];
+			else if (abs(color_hsv.val[0]-HUE_GREEN) < HUE_DIFF_TH)
+				gt_color_image_normalized.at<cv::Vec3b>(v,u) =  color_table_sim_[I_PLANE];
+			else if (abs(color_hsv.val[0]-HUE_MAGENTA) < HUE_DIFF_TH)
+				gt_color_image_normalized.at<cv::Vec3b>(v,u) =  color_table_sim_[I_CONVEX];
+			else if (abs(color_hsv.val[0]-HUE_YELLOW) < HUE_DIFF_TH)
+				gt_color_image_normalized.at<cv::Vec3b>(v,u) =  color_table_sim_[I_CONCAVE];
+		}
+	}
+}
+
 /*
 int Evaluation::compareClassification(std::string gt_filename)
 {
@@ -137,7 +205,7 @@ void Evaluation::clusterTypesToColorImage(cv::Mat& test_image, unsigned int heig
 		if(c_it->type == I_EDGE || c_it->type == I_PLANE || c_it->type == I_CONCAVE || c_it->type == I_CONVEX )
 		{
 
-			uint32_t rgb = color_tab[c_it->type];
+			uint32_t rgb = color_table_[c_it->type];
 
 			for (ST::CH::ClusterType::iterator idx=c_it->begin(); idx != c_it->end(); ++idx)
 			{
@@ -180,8 +248,8 @@ void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Eval
 			rgb_comp.g = imComp.at<cv::Vec3b>(v,u)[1];
 			rgb_comp.r = imComp.at<cv::Vec3b>(v,u)[2];
 
-			pcl::PointXYZRGBtoXYZHSV ( 	rgb_comp, hsv_comp);
-			pcl::PointXYZRGBtoXYZHSV ( 	rgb_origin, hsv_origin);
+			pcl::PointXYZRGBtoXYZHSV (rgb_comp, hsv_comp);
+			pcl::PointXYZRGBtoXYZHSV (rgb_origin, hsv_origin);
 
 			//black (no determining hue value)
 			if(hsv_origin.v < 20)
@@ -226,15 +294,15 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	struct count c_r = {0,0,0,0,0,0,0,0,0,0,0};
 	struct count c_p = {0,0,0,0,0,0,0,0,0,0,0};
 
-	//points not taken into account until the end remain white (->no class assigned)
 	cv::Mat test_image = cv::Mat::ones(gt->height, gt->width, CV_8UC3);
+/*	//points not taken into account until the end remain white (->no class assigned)
 	clusterTypesToColorImage(test_image, gt->height, gt->width);
 
 	rec.saveImage(test_image,"prediction");
 	rec.saveImage(gt_color_image,"gt");
 
 
-/*
+
 	//comparison using the clusters
 	//------------------------------------
 
@@ -314,11 +382,9 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 		}
 	}
 
-	 */
-
 	cv::imshow("classification",test_image);
 	cv::waitKey(30);
-
+	 */
 
 
 	//precision

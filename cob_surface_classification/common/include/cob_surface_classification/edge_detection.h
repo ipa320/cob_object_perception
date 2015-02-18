@@ -98,7 +98,11 @@ public:
 	};
 
 //#define MEASURE_RUNTIME
+#define USE_GAUSSIAN_NOISE_REDUCTION
+//#define USE_BILATERAL_NOISE_REDUCTION
 #define USE_ADAPTIVE_SCAN_LINE
+#define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
+#define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
 
 	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const float depth_factor)
 	{
@@ -156,13 +160,17 @@ public:
 		cv::Sobel(z_image, z_dx, -1, 1, 0, kernel_size, kernel_scale);
 		cv::Sobel(z_image, z_dy, -1, 0, 1, kernel_size, kernel_scale);
 		const int kernel_size2 = 7;
-//		cv::GaussianBlur(z_dx, z_dx, cv::Size(kernel_size2,kernel_size2), 0, 0);
-//		cv::GaussianBlur(z_dy, z_dy, cv::Size(kernel_size2,kernel_size2), 0, 0);
+#ifdef USE_GAUSSIAN_NOISE_REDUCTION
+		cv::GaussianBlur(z_dx, z_dx, cv::Size(kernel_size2,kernel_size2), 0, 0);
+		cv::GaussianBlur(z_dy, z_dy, cv::Size(kernel_size2,kernel_size2), 0, 0);
+#endif
+#ifdef USE_BILATERAL_NOISE_REDUCTION
 		//sigma = 0.3(n/2 - 1) + 0.8
 		cv::Mat temp = z_dx.clone();
-		cv::bilateralFilter(temp, z_dx, kernel_size2, 1.4, 0.1);
+		cv::bilateralFilter(temp, z_dx, kernel_size2, 10, 1.4);
 		temp = z_dy.clone();
-		cv::bilateralFilter(temp, z_dy, kernel_size2, 1.4, 0.1);
+		cv::bilateralFilter(temp, z_dy, kernel_size2, 10, 1.4);
+#endif
 #ifdef MEASURE_RUNTIME
 		runtime_sobel_ += tim.getElapsedTimeInMilliSec();
 		tim.start();
@@ -274,8 +282,8 @@ public:
 				const int& scan_line_width_right = scan_line_width;
 #endif
 
-				if (v==190 && u==400)
-					drawCoordinateSample(u, v, scan_line_width_left, scan_line_width_right, x_image, x_dx, y_image, y_dy, z_image, z_dx);
+//				if (v==190 && u==400)
+//					drawCoordinateSample(u, v, scan_line_width_left, scan_line_width_right, x_image, x_dx, y_image, y_dy, z_image, z_dx);
 
 				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
@@ -737,7 +745,7 @@ private:
 
 	bool adaptScanLineWidth(int& scan_line_width_left, int& scan_line_width_right, const cv::Mat& edge, const int u, const int v, const int min_line_width)
 	{
-		const int min_distance_to_depth_edge = 1;
+		const int min_distance_to_depth_edge = MIN_DISTANCE_TO_DEPTH_EDGE;
 
 		// left scan line
 		const int max_l = scan_line_width_left;
@@ -746,7 +754,7 @@ private:
 			if (edge.at<uchar>(v,u-du)!=0)
 			{
 				scan_line_width_left = du-1-min_distance_to_depth_edge;
-				if (scan_line_width_left<min_line_width || 3*scan_line_width_left<max_l)
+				if (scan_line_width_left<min_line_width || MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX*scan_line_width_left<max_l)
 					return false;
 				break;
 			}
@@ -759,7 +767,7 @@ private:
 			if (edge.at<uchar>(v,u+du)!=0)
 			{
 				scan_line_width_right = du-1-min_distance_to_depth_edge;
-				if (scan_line_width_right<min_line_width || 3*scan_line_width_right<max_r)
+				if (scan_line_width_right<min_line_width || MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX*scan_line_width_right<max_r)
 					return false;
 				break;
 			}
@@ -770,7 +778,7 @@ private:
 
 	bool adaptScanLineHeight(int& scan_line_height_upper, int& scan_line_height_lower, const cv::Mat& edge, const int u, const int v, const int min_line_width)
 	{
-		const int min_distance_to_depth_edge = 1;
+		const int min_distance_to_depth_edge = MIN_DISTANCE_TO_DEPTH_EDGE;
 
 		// upper scan line
 		const int max_u = scan_line_height_upper;
@@ -779,7 +787,7 @@ private:
 			if (edge.at<uchar>(v-dv,u)!=0)
 			{
 				scan_line_height_upper = dv-1-min_distance_to_depth_edge;
-				if (scan_line_height_upper<min_line_width || 3*scan_line_height_upper<max_u)
+				if (scan_line_height_upper<min_line_width || MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX*scan_line_height_upper<max_u)
 					return false;
 				break;
 			}
@@ -792,7 +800,7 @@ private:
 			if (edge.at<uchar>(v+dv,u)!=0)
 			{
 				scan_line_height_lower = dv-1-min_distance_to_depth_edge;
-				if (scan_line_height_lower<min_line_width || 3*scan_line_height_lower<max_l)
+				if (scan_line_height_lower<min_line_width || MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX*scan_line_height_lower<max_l)
 					return false;
 				break;
 			}
