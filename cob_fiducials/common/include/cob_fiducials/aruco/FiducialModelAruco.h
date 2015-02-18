@@ -1,7 +1,6 @@
 #ifndef __IPA_FIDUCIAL_MODEL_ARUCO_H__
 #define __IPA_FIDUCIAL_MODEL_ARUCO_H__
 
-//#include "../../../../../cob_object_perception_intern/windows/src/PreCompiledHeaders/StdAfx.h"
 #ifdef __LINUX__
 	#include "cob_vision_utils/VisionUtils.h"
 	#include "cob_fiducials/FiducialDefines.h"

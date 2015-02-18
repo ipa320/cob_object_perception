@@ -1,33 +1,57 @@
 cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+project(libzxing)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+find_package(catkin REQUIRED)
 
-rosbuild_init()
+add_custom_target(
+	build_zxing ALL
+	COMMAND cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.tarball)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+set(libraries "zxing")
+foreach(library ${libraries})
+	add_custom_target(
+		copy_${library} ALL
+		COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
+		COMMENT "Copying ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.a to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}"
+	)
+#	add_library(${library} STATIC IMPORTED)
+#	# now you can use TARGET as if it were a regular cmake built target in your project
+#	add_dependencies(${library} copy_${library})
+#	add_dependencies(copy_${library} build_${library})
+endforeach()
 
-#uncomment if you have defined messages
-#rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
+	
+catkin_package(
+	INCLUDE_DIRS
+		common/include
+	LIBRARIES
+		zxing
+	CATKIN_DEPENDS
+	DEPENDS 
+)
 
-#common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
-#rosbuild_add_executable(example examples/example.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
+include_directories(
+	common/include
+)
 
-#rosbuild_download_data(http://zxing.googlecode.com/files/ZXing-2.1.zip build/ZXing.zip 2926e06bb9a67b4a90ede7937596ebea)
+foreach(library ${libraries})
+	add_library(${library} STATIC)
+	add_dependencies(${library} copy_${library})
+	add_dependencies(copy_${library} build_${library})
+	set_target_properties(${library} PROPERTIES LINKER_LANGUAGE CXX)
+endforeach()
 
+
+#############
+## Install ##
+#############
+## Mark executables and/or libraries for installation
+install(TARGETS zxing
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY common/include/
+	DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+)

@@ -1,7 +1,8 @@
 #include <object_categorization/object_categorization.h>
 #include <boost/filesystem.hpp>
 #include <fstream>
-
+#include <pcl/conversions.h>
+#include <pcl_conversions/pcl_conversions.h>
 //ObjectCategorization::ObjectCategorization()
 //{
 //}
@@ -108,7 +109,12 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 	{
 		typedef pcl::PointXYZRGB PointType;
 		pcl::PointCloud<PointType>::Ptr input_pointcloud(new pcl::PointCloud<PointType>);
-		pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], *input_pointcloud);
+
+		pcl::PCLPointCloud2 pcl_pc;
+		pcl_conversions::toPCL(input_pointcloud_segments_msg->segments[segmentIndex], pcl_pc);
+		pcl::fromPCLPointCloud2(pcl_pc, *input_pointcloud);
+
+		//pcl::fromROSMsg(input_pointcloud_segments_msg->segments[segmentIndex], *input_pointcloud);
 
 		// convert to shared image
 		int umin=1e8, vmin=1e8;
@@ -181,15 +187,16 @@ void ObjectCategorization::inputCallback(const cob_perception_msgs::PointCloud2A
 					{
 						std::cout << "avgPoint: " << avgPoint.x << ", " << avgPoint.y << ", " << avgPoint.z << "\n";
 						tf::Transform pose1, pose2, pose3, pose4;
+						tf::Quaternion q_temp;
 						pose1.setOrigin(tf::Vector3(avgPoint.x, avgPoint.y, avgPoint.z));			// recording distance
-						pose1.setRotation(tf::Quaternion(0., 90./180.*CV_PI, -90./180.*CV_PI));		// rotation from camera system to object coordinate system
+						q_temp.setEuler(0., 90./180.*CV_PI, -90./180.*CV_PI); pose1.setRotation(q_temp);		// rotation from camera system to object coordinate system
 						pose2.setOrigin(tf::Vector3(0.,0.,0.));
-						pose2.setRotation(tf::Quaternion(tilt, 0., 0.));		// orientation in tilt direction
+						q_temp.setEuler(tilt, 0., 0.); pose2.setRotation(q_temp);		// orientation in tilt direction
 						pose3.setOrigin(tf::Vector3(0.,0.,0.));
-						pose3.setRotation(tf::Quaternion(0., 0., -pan));			// orientation in pan direction
+						q_temp.setEuler(0., 0., -pan); pose3.setRotation(q_temp);			// orientation in pan direction
 						tf::Transform finalTransformTf(tf::Matrix3x3(finalTransform(0,0),finalTransform(0,1),finalTransform(0,2),finalTransform(1,0),finalTransform(1,1),finalTransform(1,2),finalTransform(2,0),finalTransform(2,1),finalTransform(2,2)), tf::Vector3(finalTransform(0,3),finalTransform(1,3),finalTransform(2,3)));
 						pose4.setOrigin(tf::Vector3(-avgPoint.x, -avgPoint.y, -avgPoint.z));
-						pose4.setRotation(tf::Quaternion(0.,0.,0.));
+						q_temp.setEuler(0.,0.,0.); pose4.setRotation(q_temp);
 						object_pose = pose4.inverse() * finalTransformTf.inverse() * pose4 * pose1 * pose2 * pose3;	// transformation pointing from camera system to object system
 					}
 //					drawObjectCoordinateSystem(object_pose, display_color);

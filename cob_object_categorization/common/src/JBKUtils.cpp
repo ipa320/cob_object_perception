@@ -16,7 +16,7 @@ void IpaVector<T>::AssignCounter(int Size)
 	for(int i=0; i<Size; i++)
 	{
 		T j = (T) i; 
-		push_back(j);
+		this->push_back(j);
 	}
 }
 

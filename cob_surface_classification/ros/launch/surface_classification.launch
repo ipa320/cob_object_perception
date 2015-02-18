@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+
+<launch>
+
+   <!--node ns="surface_classification" pkg="nodelet" type="nodelet" name="object_segmentation_pass_through" args="standalone pcl/PassThrough" output="screen">
+    	<remap from="~input" to="/cam3d/rgb/points" />
+
+    <rosparam>
+      filter_field_name: z
+      filter_limit_min: 0.0
+      filter_limit_max: 2.0
+      keep_organized: true
+    </rosparam>
+  </node-->
+  
+  <!--node pkg="nodelet" type="nodelet" name="pcl_manager"  args="manager" output="screen"/-->
+  <!-- Run speckle filter -->
+  <!--node pkg="nodelet" type="nodelet" name="speckle_filter_nodelet" args="load cob_3d_mapping_filters/SpeckleFilter cam3d_nodelet_manager" output="screen">
+  	<remap from="point_cloud2" to="/cam3d/depth/points_xyzrgb"/>
+  	<remap from="point_cloud2_filtered" to="/cob_3d_mapping_filters/point_cloud2_filtered_speckle"/>
+  	<param name = "speckle_size" type="int" value="50"/>
+  	<param name = "speckle_range" type="double" value="0.2"/>
+  </node-->
+
+  <node ns="surface_classification" name="surface_classification" pkg="cob_surface_classification" type="surface_classification" output="screen"><!-- launch-prefix="gdb -ex run args" -->
+   <!--remap from="pointcloud_in" to="object_segmentation_pass_through/output"/-->
+   <!--remap from="pointcloud_in" to="/cob_3d_mapping_filters/point_cloud2_filtered_speckle"/-->
+   <remap from="pointcloud_in" to="/cam3d/depth/points_xyzrgb"/>
+   <!--remap from="pointcloud_in" to="/cam3d/depth/points"/-->
+   <!--remap from="pointcloud_in" to="/cam3d/depth_registered/points"/-->
+   <!--remap from="colorimage_in" to="/cam3d/rgb/image"/-->
+   <remap from="colorimage_in" to="/cam3d/rgb/image"/>
+   <!--<remap from="pointcloud_in" to="/camera/depth/points"/>-->
+  <!-- <remap from="colorimage_in" to="/camera/rgb/image_color"/>-->
+  </node>
+
+</launch>
