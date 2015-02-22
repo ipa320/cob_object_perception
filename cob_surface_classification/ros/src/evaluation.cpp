@@ -71,6 +71,8 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types_conversion.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #include <opencv/highgui.h>
 
@@ -83,33 +85,82 @@
 
 
 
-Evaluation::Evaluation() {
+Evaluation::Evaluation()
+{
 	search_directory = std::string(getenv("HOME")) + "/scene_recordings/";
 
 	//colors of the classification categories in the ground truth
-	color_table_.resize(10);
+	color_table_.resize(NUMBER_SURFACE_CLASS_TYPES);
 	color_table_[I_EDGE] = LBL_EDGE; //EVAL_COL_EDGE;
 	color_table_[I_PLANE] = LBL_PLANE; //EVAL_COL_PLANE;
 	color_table_[I_CONCAVE]= LBL_CYL; //EVAL_COL_CONC;
 	color_table_[I_CONVEX]= LBL_CYL_CVX; //EVAL_COL_CONV;
 
-	color_table_sim_.resize(10);
+	color_table_sim_.resize(NUMBER_SURFACE_CLASS_TYPES, cv::Vec3b(64,64,64));
+	color_table_sim_[I_UNDEF] = cv::Vec3b(128,128,128);
 	color_table_sim_[I_EDGE] = cv::Vec3b(0,0,0);
 	color_table_sim_[I_PLANE] = cv::Vec3b(51,201,69);
 	color_table_sim_[I_CONCAVE] = cv::Vec3b(2,234,255);
 	color_table_sim_[I_CONVEX] = cv::Vec3b(23,23,236);
 }
 
-Evaluation::~Evaluation() {
+Evaluation::~Evaluation()
+{
 }
 
-void Evaluation::evaluate(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& estimate)
+void Evaluation::evaluateSurfaceTypeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image)
 {
 	// 1. Computation of the ground truth image (= color normalization of the scene image + depth edges)
 	cv::Mat gt_color_image_normalized;
 	generateGroundTruthImage(gt_point_cloud, gt_color_image, gt_color_image_normalized);
+
+	// 2. Compute color coded surface type estimate
+	cv::Mat surface_estimate_image;
+	generateSurfaceTypeEstimateImage(surface_estimate_image, gt_color_image_normalized.rows, gt_color_image_normalized.cols);
+
+	// 3. Count the number of fits in the data
+	const int search_radius = 1;
+	std::vector<double> recall, precision;
+	computePerformanceMeasures(gt_color_image_normalized, surface_estimate_image, search_radius, recall, precision);
+
+	// 4. Displays
+	std::cout << "Results on surface type estimation:\n";
+	for (int i=0; i<recall.size(); ++i)
+		std::cout << i << ":\trecall=" << recall[i] << "\tprecision=" << precision[i] << "\n";
+	std::cout << std::endl;
 	cv::imshow("gt image", gt_color_image_normalized);
-	cv::waitKey();
+	cv::imshow("surface estimate", surface_estimate_image);
+	int key = cv::waitKey();
+	if (key == 'q')
+		exit(0);
+}
+
+void Evaluation::evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& edge_image)
+{
+	// 1. Computation of the ground truth image (= color normalization of the scene image + depth edges)
+	cv::Mat gt_color_image_normalized;
+	generateGroundTruthImage(gt_point_cloud, gt_color_image, gt_color_image_normalized);
+
+	// 2. Compute color coded edge estimate
+	cv::Mat edge_estimate_image(edge_image.rows, edge_image.cols, CV_8UC3);
+	edge_estimate_image.setTo(color_table_sim_[I_UNDEF]);
+	for (int v=0; v<edge_image.rows; ++v)
+		for (int u=0; u<edge_image.cols; ++u)
+			if (edge_image.at<uchar>(v,u)!=0)
+				edge_estimate_image.at<cv::Vec3b>(v,u) = color_table_sim_[I_EDGE];
+
+	// 3. Count the number of fits in the data
+	const int search_radius = 1;
+	std::vector<double> recall, precision;
+	computePerformanceMeasures(gt_color_image_normalized, edge_estimate_image, search_radius, recall, precision);
+
+	// 4. Displays
+	std::cout << "Results on edge estimation:\n\trecall=" << recall[I_EDGE] << "\tprecision=" << precision[I_EDGE] << "\n\n";
+	cv::imshow("gt image", gt_color_image_normalized);
+	cv::imshow("edge estimate", edge_estimate_image);
+	int key = cv::waitKey();
+	if (key == 'q')
+		exit(0);
 }
 
 void Evaluation::generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, cv::Mat& gt_color_image_normalized)
@@ -124,31 +175,7 @@ void Evaluation::generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB
 		for (int u=0; u<gt_color_image_hsv.cols; ++u)
 		{
 			// check for depth edges
-			bool depth_edge = false;
-			if (u!=0 && v!=0 && u!=gt_color_image_hsv.cols-1 && v!=gt_color_image_hsv.rows-1)
-			{
-				const double depth_factor = 0.01;
-				const double depth = gt_point_cloud->at(u,v).z;
-				const double edge_threshold = depth_factor*depth;
-				const double dzl = gt_point_cloud->at(u,v).z - gt_point_cloud->at(u-1,v).z;
-				const double dzr = gt_point_cloud->at(u+1,v).z - gt_point_cloud->at(u,v).z;
-				const double dzu = gt_point_cloud->at(u,v).z - gt_point_cloud->at(u,v-1).z;
-				const double dzb = gt_point_cloud->at(u,v+1).z - gt_point_cloud->at(u,v).z;
-				if ( ((dzr<-edge_threshold || dzr>edge_threshold) && fabs(dzl-dzr)>0.01) || ((dzb<-edge_threshold || dzb>edge_threshold) && fabs(dzu-dzb)>0.01) )
-					depth_edge = true;
-				// additonally check for surface edges
-				const double min_detectable_edge_angle = 35.;
-				const double alpha_left = atan2(-dzl, -(gt_point_cloud->at(u,v).x - gt_point_cloud->at(u-1,v).x));
-				const double alpha_right = atan2(dzr, gt_point_cloud->at(u+1,v).x - gt_point_cloud->at(u,v).x);
-				double diff = fabs(alpha_left - alpha_right);
-				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
-					depth_edge = true;
-				const double alpha_upper = atan2(-dzu, -(gt_point_cloud->at(u,v).y - gt_point_cloud->at(u,v-1).y));
-				const double alpha_below = atan2(dzb, gt_point_cloud->at(u,v+1).y - gt_point_cloud->at(u,v).y);
-				diff = fabs(alpha_upper - alpha_below);
-				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
-					depth_edge = true;
-			}
+			bool depth_edge = checkDepthEdge(gt_point_cloud, u, v);
 
 			// determine color coding class from gt image
 			cv::Vec3b& color_hsv = gt_color_image_hsv.at<cv::Vec3b>(v,u);
@@ -162,6 +189,133 @@ void Evaluation::generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB
 				gt_color_image_normalized.at<cv::Vec3b>(v,u) =  color_table_sim_[I_CONCAVE];
 		}
 	}
+}
+
+void Evaluation::generateSurfaceTypeEstimateImage(cv::Mat& color_image, const int height, const int width)
+{
+	color_image.create(height, width, CV_8UC3);
+	color_image.setTo(color_table_sim_[I_UNDEF]);
+
+	ST::CH::ClusterPtr c_it,c_end;
+
+	for ( boost::tie(c_it,c_end) = clusterHandler->getClusters(); c_it != c_end; ++c_it)
+	{
+		const cv::Vec3b color = color_table_sim_[c_it->type];
+		for (ST::CH::ClusterType::iterator idx=c_it->begin(); idx != c_it->end(); ++idx)
+		{
+			int v = *idx/width;	//row in image
+			int u = *idx%width;	//column
+			color_image.at<cv::Vec3b>(v,u) = color;
+		}
+	}
+}
+
+bool Evaluation::checkDepthEdge(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, int u, int v)
+{
+	if (u!=0 && v!=0 && u!=gt_point_cloud->width-1 && v!=gt_point_cloud->height-1)
+	{
+		// check for depth edges
+		const double depth_factor = 0.01;
+		const double depth = gt_point_cloud->at(u,v).z;
+		const double edge_threshold = depth_factor*depth;
+		const double dzl = gt_point_cloud->at(u,v).z - gt_point_cloud->at(u-1,v).z;
+		const double dzr = gt_point_cloud->at(u+1,v).z - gt_point_cloud->at(u,v).z;
+		const double dzu = gt_point_cloud->at(u,v).z - gt_point_cloud->at(u,v-1).z;
+		const double dzb = gt_point_cloud->at(u,v+1).z - gt_point_cloud->at(u,v).z;
+		if ( ((dzr<-edge_threshold || dzr>edge_threshold) && fabs(dzl-dzr)>0.01) || ((dzb<-edge_threshold || dzb>edge_threshold) && fabs(dzu-dzb)>0.01) )
+			return true;
+		// additonally check for surface edges
+		const double min_detectable_edge_angle = 35.;
+		const double alpha_left = atan2(-dzl, -(gt_point_cloud->at(u,v).x - gt_point_cloud->at(u-1,v).x));
+		const double alpha_right = atan2(dzr, gt_point_cloud->at(u+1,v).x - gt_point_cloud->at(u,v).x);
+		double diff = fabs(alpha_left - alpha_right);
+		if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
+			return true;
+		const double alpha_upper = atan2(-dzu, -(gt_point_cloud->at(u,v).y - gt_point_cloud->at(u,v-1).y));
+		const double alpha_below = atan2(dzb, gt_point_cloud->at(u,v+1).y - gt_point_cloud->at(u,v).y);
+		diff = fabs(alpha_upper - alpha_below);
+		if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
+			return true;
+	}
+	return false;
+}
+
+void Evaluation::computePerformanceMeasures(const cv::Mat& gt_image, const cv::Mat& estimate, const int search_radius, std::vector<double>& recall, std::vector<double>& precision)
+{
+	const int padding = 20; 	// todo: link this parameter to max_line_width from edge detection
+	// 1. recall
+	recall.clear();
+	recall.resize(NUMBER_SURFACE_CLASS_TYPES, 0.);
+	std::vector<int> surface_type_counter(NUMBER_SURFACE_CLASS_TYPES, 0);
+	for (int v=padding; v<gt_image.rows-padding; ++v)
+	{
+		for (int u=padding; u<gt_image.cols-padding; ++u)
+		{
+			bool correct = false;
+			const int gt_label = getSurfaceTypeFromColor(gt_image.at<cv::Vec3b>(v,u));
+			surface_type_counter[gt_label]++;
+			for (int dv=-search_radius; dv<=search_radius && correct==false; ++dv)
+			{
+				for (int du=-search_radius; du<=search_radius && correct==false; ++du)
+				{
+					const int x = u+du;
+					const int y = v+dv;
+					if (x<0 || x>=gt_image.cols || y<0 || y>=gt_image.rows)
+						continue;
+					if (getSurfaceTypeFromColor(estimate.at<cv::Vec3b>(y,x)) == gt_label)
+					{
+						recall[gt_label]+=1.;
+						correct = true;
+					}
+				}
+			}
+		}
+	}
+	for (int i=0; i<recall.size(); ++i)
+		recall[i] = divide(recall[i], surface_type_counter[i]);
+
+	// 2. precision
+	precision.clear();
+	precision.resize(NUMBER_SURFACE_CLASS_TYPES, 0.);
+	surface_type_counter.clear();
+	surface_type_counter.resize(NUMBER_SURFACE_CLASS_TYPES, 0);
+	for (int v=padding; v<estimate.rows-padding; ++v)
+	{
+		for (int u=padding; u<estimate.cols-padding; ++u)
+		{
+			bool correct = false;
+			const int estimate_label = getSurfaceTypeFromColor(estimate.at<cv::Vec3b>(v,u));
+			surface_type_counter[estimate_label]++;
+			for (int dv=-search_radius; dv<=search_radius && correct==false; ++dv)
+			{
+				for (int du=-search_radius; du<=search_radius && correct==false; ++du)
+				{
+					const int x = u+du;
+					const int y = v+dv;
+					if (x<0 || x>=estimate.cols || y<0 || y>=estimate.rows)
+						continue;
+					if (getSurfaceTypeFromColor(gt_image.at<cv::Vec3b>(y,x)) == estimate_label)
+					{
+						precision[estimate_label]+=1.;
+						correct = true;
+					}
+				}
+			}
+		}
+	}
+	for (int i=0; i<precision.size(); ++i)
+		precision[i] = divide(precision[i], surface_type_counter[i]);
+}
+
+int Evaluation::getSurfaceTypeFromColor(const cv::Vec3b& color)
+{
+	for (int i=0; i<color_table_sim_.size(); ++i)
+	{
+		if (color_table_sim_[i] == color)
+			return i;
+	}
+
+	return I_UNDEF;
 }
 
 /*
@@ -182,18 +336,151 @@ int Evaluation::compareClassification(std::string gt_filename)
 
  */
 
-float Evaluation::divide(float a, float b)
+double Evaluation::divide(double a, double b)
 {
 	//compute a/b
 	if (b == 0)
+	{
 		if(a == 0)
 			return 100;
 		else
 			return 0;
+	}
 	else
-		return (a  / b)  * 100;
+		return (a / b) * 100;
 }
 
+
+void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals)
+{
+	// 1. Estimate ground truth normals from gt_point_cloud
+	pcl::PointCloud<pcl::Normal>::Ptr gt_normals(new pcl::PointCloud<pcl::Normal>);
+	computeGroundTruthNormals(gt_point_cloud, gt_normals);
+
+	// 2. Compute error of estimated normals
+	const int padding = 20; 	// todo: link this parameter to max_line_width from edge detection
+	int number_gt_normals = 0, number_normals = 0, number_good_normals = 0;
+	double normal_error = 0;
+	computeNormalEstimationError(gt_point_cloud, gt_normals, normals, padding, number_gt_normals, number_normals, number_good_normals, normal_error);
+
+	// 3. Visualize
+	std::cout << "Coverage of estimated normals on gt_normals: " << 100.*(double)number_normals/(double)number_gt_normals << std::endl;
+	std::cout << "Average normal estimation error: " << normal_error/(double)number_normals << std::endl;
+	std::cout << "Percentage of good normals: " << 100.*(double)number_good_normals/(double)number_normals << "\n" << std::endl;
+
+	pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
+	viewerNormals.setBackgroundColor(0.0, 0.0, 0);
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(gt_point_cloud);
+
+	viewerNormals.addPointCloud<pcl::PointXYZRGB>(gt_point_cloud, rgbNormals, "gt_point_cloud");
+	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, gt_normals, 2, 0.005, "gt_normals");
+	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, normals, 2, 0.005, "normals");
+	viewerNormals.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "gt_point_cloud");
+
+	while (!viewerNormals.wasStopped ())
+	{
+		viewerNormals.spinOnce();
+	}
+	viewerNormals.removePointCloud("gt_point_cloud");
+}
+
+void Evaluation::computeGroundTruthNormals(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr gt_normals)
+{
+	gt_normals->resize(gt_point_cloud->height*gt_point_cloud->width);
+	gt_normals->header = gt_point_cloud->header;
+	gt_normals->height = gt_point_cloud->height;
+	gt_normals->width = gt_point_cloud->width;
+	gt_normals->is_dense = true;
+	for (int v=1; v<gt_point_cloud->height-1; ++v)
+	{
+		for (int u=1; u<gt_point_cloud->width-1; ++u)
+		{
+			if (checkDepthEdge(gt_point_cloud, u, v)==false) // &&  && checkDepthEdge(gt_point_cloud, u, v+1)==false)
+			{
+				Eigen::Vector3f p, p1, p2;
+				p = gt_point_cloud->at(u,v).getVector3fMap();
+
+				bool valid_neighborhood_points = true;
+				if (checkDepthEdge(gt_point_cloud, u+1, v)==false)
+					p1 = gt_point_cloud->at(u+1,v).getVector3fMap();
+				else if (checkDepthEdge(gt_point_cloud, u-1, v)==false)
+					p1 = gt_point_cloud->at(u-1,v).getVector3fMap();
+				else
+					valid_neighborhood_points = false;
+
+				if (checkDepthEdge(gt_point_cloud, u, v+1)==false)
+					p2 = gt_point_cloud->at(u,v+1).getVector3fMap();
+				else if (checkDepthEdge(gt_point_cloud, u, v-1)==false)
+					p2 = gt_point_cloud->at(u,v-1).getVector3fMap();
+				else
+					valid_neighborhood_points = false;
+
+				if (valid_neighborhood_points == true)
+				{
+					Eigen::Vector3f n = (p1-p).cross(p2-p);
+					n.normalize();
+					if (n(2) > 0.)
+						n *= -1;
+					gt_normals->at(u,v).normal_x = n(0);
+					gt_normals->at(u,v).normal_y = n(1);
+					gt_normals->at(u,v).normal_z = n(2);
+				}
+				else
+				{
+					gt_normals->at(u,v).normal_x = std::numeric_limits<float>::quiet_NaN();
+					gt_normals->at(u,v).normal_y = std::numeric_limits<float>::quiet_NaN();
+					gt_normals->at(u,v).normal_z = std::numeric_limits<float>::quiet_NaN();
+				}
+			}
+		}
+	}
+}
+
+void Evaluation::computeNormalEstimationError(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const pcl::PointCloud<pcl::Normal>::Ptr& gt_normals,
+		const pcl::PointCloud<pcl::Normal>::Ptr& normals, const int padding, int& number_gt_normals, int& number_normals, int& number_good_normals, double& normal_error)
+{
+	number_gt_normals = 0;
+	number_normals = 0;
+	number_good_normals = 0;
+	normal_error = 0.;
+	for (int v=padding; v<gt_point_cloud->height-padding; ++v)
+	{
+		for (int u=padding; u<gt_point_cloud->width-padding; ++u)
+		{
+			const Eigen::Vector3f n = normals->at(u,v).getNormalVector3fMap();
+			const Eigen::Vector3f gt_n = gt_normals->at(u,v).getNormalVector3fMap();
+			if (pcl_isnan(gt_normals->at(u,v).normal_z)==false)
+			{
+				// gt_normal exists
+				++number_gt_normals;
+				if (pcl_isnan(normals->at(u,v).normal_z)==false)
+				{
+					// normal estimation has also found a normal
+					++number_normals;
+					double d = gt_n.dot(n);
+					normal_error += fabs(1 - d);
+					if (fabs(d) > 0.97)
+						++number_good_normals;
+				}
+			}
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+///// old stuff
 
 void Evaluation::clusterTypesToColorImage(cv::Mat& test_image, unsigned int height,unsigned int width)
 {
@@ -220,11 +507,10 @@ void Evaluation::clusterTypesToColorImage(cv::Mat& test_image, unsigned int heig
 			}
 		}
 	}
-
 }
 
 
-void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Evaluation::count& c)
+void Evaluation::compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp,  Evaluation::Statistics& c)
 {
 	//check color of all pixels in imOrigin: determine how many of them have been colored as in imComp
 	//-----------------------------------------------------------------------------------------------------
@@ -291,8 +577,7 @@ int Evaluation::compareClassification(pcl::PointCloud<pcl::PointXYZRGB>::ConstPt
 	//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-	struct count c_r = {0,0,0,0,0,0,0,0,0,0,0};
-	struct count c_p = {0,0,0,0,0,0,0,0,0,0,0};
+	struct Statistics c_r, c_p;
 
 	cv::Mat test_image = cv::Mat::ones(gt->height, gt->width, CV_8UC3);
 /*	//points not taken into account until the end remain white (->no class assigned)

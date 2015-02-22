@@ -61,25 +61,26 @@
 
 #define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
 #define DATA_NUMBER_FILES			1			// number of input files if loaded from file
-#define RECORD_MODE					false		//save color image and cloud for usage in EVALUATION_OFFLINE_MODE
-#define COMPUTATION_MODE			true		//computations without record
-#define EVALUATION_OFFLINE_MODE		false		//evaluation of stored pointcloud and image
-#define EVALUATION_ONLINE_MODE		true		//computations plus evaluation of current computations plus record of evaluation
+#define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION_OFFLINE_MODE
+#define COMPUTATION_MODE			true		// computations without record
+#define EVALUATION_OFFLINE_MODE		false		// evaluation of stored pointcloud and image
+#define EVALUATION_ONLINE_MODE		true		// computations plus evaluation of current computations plus record of evaluation
 
 //steps in computation/evaluation_online mode:
 
-#define SEG 						true 	//segmentation + refinement
-#define SEG_WITHOUT_EDGES 			false 	//segmentation without considering edge image (wie Steffen)
-#define SEG_REFINE					false 	//segmentation refinement according to curvatures (outdated)
-#define CLASSIFY 					true	//classification
-#define SIMPLE_OBJECT_CLASSIFICATION false	//simple object classification and localization (for symmetric simple objects made of one cluster)
+#define NORMALS_WITHOUT_EDGES		true	// compute the normals without edges (classic procedure)
+#define SEG 						false 	// segmentation + refinement
+#define SEG_WITHOUT_EDGES 			false 	// segmentation without considering edge image (wie Steffen)
+#define SEG_REFINE					false 	// segmentation refinement according to curvatures (outdated)
+#define CLASSIFY 					false	// classification
+#define SIMPLE_OBJECT_CLASSIFICATION false	// simple object classification and localization (for symmetric simple objects made of one cluster)
 
 
-#define EDGE_VIS					true	//visualization of edges
-#define NORMAL_VIS 					false 	//visualisation of normals
-#define SEG_VIS 					false 	//visualisation of segmentation
-#define SEG_WITHOUT_EDGES_VIS 		false 	//visualisation of segmentation without edge image
-#define CLASS_VIS 					false 	//visualisation of classification
+#define EDGE_VIS					false	// visualization of edges
+#define NORMAL_VIS 					false 	// visualisation of normals
+#define SEG_VIS 					false 	// visualisation of segmentation
+#define SEG_WITHOUT_EDGES_VIS 		false 	// visualisation of segmentation without edge image
+#define CLASS_VIS 					false 	// visualisation of classification
 
 #define PUBLISH_SEGMENTATION		false	//publish segmented point cloud on topic
 
@@ -261,8 +262,11 @@ public:
 		computations(color_image, cloud);
 	}
 
-	void computations(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+	void computations(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud)
 	{
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = point_cloud;
+
+
 		/*
 		//Load Pointcloud for Evaluation
 		bool loadpointcloud = false;
@@ -382,15 +386,18 @@ public:
 				pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdges(new pcl::PointCloud<pcl::Normal>);
 				pcl::PointCloud<PointLabel>::Ptr labelsWithoutEdges(new pcl::PointCloud<PointLabel>);
 				ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
-				//tim.start();
-//				oneWithoutEdges_.setInputCloud(cloud);
-//				oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
-//				oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
-//				oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
-//				oneWithoutEdges_.compute(*normalsWithoutEdges);
-				//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
-				//runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
-				//return;
+				if (NORMALS_WITHOUT_EDGES)
+				{
+					//tim.start();
+					oneWithoutEdges_.setInputCloud(cloud);
+					oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
+					oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
+					oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
+					oneWithoutEdges_.compute(*normalsWithoutEdges);
+					//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+					//runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
+					//return;
+				}
 //			}
 
 			cv::Mat edge;
@@ -443,7 +450,7 @@ public:
 				one_.setPixelSearchRadius(4,2,2);	// 4,2,2	//call before calling computeMaskManually()!!!
 				//one_.computeMaskManually_increasing(cloud->width);
 				one_.computeMaskManually(cloud->width);
-				one_.computePointAngleLookupTable(16);
+				one_.computePointAngleLookupTable(8);
 				one_.setEdgeImage(edge);
 				one_.setOutputLabels(labels);
 				//one_.setSameDirectionThres(0.94);
@@ -629,9 +636,11 @@ public:
 
 			if(EVALUATION_ONLINE_MODE)
 			{
-				cv::Mat estimate;
 				eval_.setClusterHandler(graph->clusters());
-				eval_.evaluate(cloud, color_image, estimate);
+				eval_.evaluateEdgeRecognition(point_cloud, color_image, edge);
+				eval_.evaluateNormalEstimation(point_cloud, normals);
+				eval_.evaluateNormalEstimation(point_cloud, normalsWithoutEdges);
+				eval_.evaluateSurfaceTypeRecognition(point_cloud, color_image);
 				//eval_.compareClassification(cloud,color_image);
 			}
 

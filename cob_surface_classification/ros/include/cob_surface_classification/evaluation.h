@@ -85,13 +85,16 @@
 
 #define I_CONCAVE 8
 #define I_CONVEX 9
+#define NUMBER_SURFACE_CLASS_TYPES 10
 
 class Evaluation {
 public:
 	Evaluation();
 	virtual ~Evaluation();
 
-	void evaluate(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& estimate);
+	void evaluateSurfaceTypeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image);
+	void evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& edge_estimate);
+	void evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals);
 
 	typedef cob_3d_segmentation::PredefinedSegmentationTypes ST;
     inline void setClusterHandler(ST::CH::Ptr cHdl) { clusterHandler = cHdl; }
@@ -102,29 +105,42 @@ public:
 
 private:
 
-	void generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, cv::Mat& gt_color_image_normalized);
-
 	std::string search_directory;
 	SceneRecording rec;
 
 	ST::CH::Ptr clusterHandler;
 
     std::vector<int> color_table_;
-    std::vector<cv::Vec3b> color_table_sim_;		// color coding as used in the gazebo simulation
+    std::vector<cv::Vec3b> color_table_sim_;			// surface type enumerated color coding as used in the gazebo simulation
 
-	struct count
+	struct Statistics
 	{
-		int countCorrect ;
+		int countCorrect;
 		int countCorrectEdge;
-		int countCorrectPlane ;
-		int countCorrectConc ;
-		int countCorrectConv ;
-		int countCompared ;
-		int countNoColorAssigned ;
-		int countEdge ;
-		int countPlane ;
-		int countConc ;
-		int countConv ;
+		int countCorrectPlane;
+		int countCorrectConc;
+		int countCorrectConv;
+		int countCompared;
+		int countNoColorAssigned;
+		int countEdge;
+		int countPlane;
+		int countConc;
+		int countConv;
+
+		Statistics()
+		{
+			countCorrect = 0;
+			countCorrectEdge = 0;
+			countCorrectPlane = 0;
+			countCorrectConc = 0;
+			countCorrectConv = 0;
+			countCompared = 0;
+			countNoColorAssigned = 0;
+			countEdge = 0;
+			countPlane = 0;
+			countConc = 0;
+			countConv = 0;
+		}
 	} ;
 
 	struct percentages
@@ -136,9 +152,28 @@ private:
 		float overall;
 	};
 
-	float divide(float a, float b);
-	void compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp, Evaluation::count& c);
+	double divide(double a, double b);
+	void compareImagesUsingColor(cv::Mat imOrigin, cv::Mat imComp, Evaluation::Statistics& c);
     void clusterTypesToColorImage(cv::Mat& test_image, unsigned int height,unsigned int width);
+
+    int getSurfaceTypeFromColor(const cv::Vec3b& color);
+
+    // recover surface type encoding from a color encoded real or simulated image
+	void generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, cv::Mat& gt_color_image_normalized);
+
+	// generates a surface type image with color coding similar to the ground truth image
+	void generateSurfaceTypeEstimateImage(cv::Mat& color_image, const int height, const int width);
+
+	bool checkDepthEdge(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, int u, int v);
+
+	void computeGroundTruthNormals(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr gt_normals);
+
+	void computeNormalEstimationError(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const pcl::PointCloud<pcl::Normal>::Ptr& gt_normals,
+			const pcl::PointCloud<pcl::Normal>::Ptr& normals, const int padding, int& number_gt_normals, int& number_normals, int& number_good_normals, double& normal_error);
+
+	// compute the numbers for recall and precision
+	// @param search_radius is half the side length of the search neighborhood for fitting estimates and gt pixels (e.g. an edge pixel is correctly labeled in the estimate if there is an edge pixel within the (2*search_radius+1) neighborhood in the gt_image)
+	void computePerformanceMeasures(const cv::Mat& gt_image, const cv::Mat& estimate, const int search_radius, std::vector<double>& recall, std::vector<double>& precision);
 
 };
 

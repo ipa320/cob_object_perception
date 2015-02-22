@@ -98,7 +98,7 @@ public:
 	};
 
 //#define MEASURE_RUNTIME
-#define USE_GAUSSIAN_NOISE_REDUCTION
+//#define USE_GAUSSIAN_NOISE_REDUCTION
 //#define USE_BILATERAL_NOISE_REDUCTION
 #define USE_ADAPTIVE_SCAN_LINE
 #define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
@@ -478,6 +478,23 @@ public:
 				}
 			}
 		}*/
+		// close 45 degree edges with an additional edge pixel for better neighborhood selection during normal estimation
+		for (int v = max_line_width; v < edge.rows - max_line_width; ++v)
+		{
+			for (int u = max_line_width; u < edge.cols - max_line_width; ++u)
+			{
+				if (edge.at<uchar>(v,u)==0)
+				{
+					if (edge.at<uchar>(v,u+1)!=0 && edge.at<uchar>(v+1,u)!=0 && edge.at<uchar>(v+1,u+1)==0)
+						edge.at<uchar>(v,u)=edge.at<uchar>(v,u+1);
+				}
+				else
+				{
+					if (edge.at<uchar>(v,u+1)==0 && edge.at<uchar>(v+1,u)==0 && edge.at<uchar>(v+1,u+1)!=0)
+						edge.at<uchar>(v,u+1) = edge.at<uchar>(v+1,u+1);
+				}
+			}
+		}
 //		cv::dilate(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
 //		cv::erode(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
 //		for (int v=0; v<z_image.rows; ++v)
