@@ -167,6 +167,7 @@ add_executable(surface_classification
 	ros/src/evaluation.cpp
 	ros/src/simple_object_classification.cpp
 )
+set_target_properties(surface_classification PROPERTIES COMPILE_FLAGS "-std=c++11")
 cmake_policy(POP)
 
 target_link_libraries(surface_classification

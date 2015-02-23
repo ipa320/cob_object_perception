@@ -77,13 +77,14 @@
 
 
 #define EDGE_VIS					false	// visualization of edges
-#define NORMAL_VIS 					false 	// visualisation of normals
+#define NORMAL_VIS 					true 	// visualisation of normals
 #define SEG_VIS 					false 	// visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	// visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	// visualisation of classification
 
 #define PUBLISH_SEGMENTATION		false	//publish segmented point cloud on topic
 
+#include <random>
 
 // ROS includes
 #include <ros/ros.h>
@@ -117,6 +118,8 @@
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/features/integral_image_normal.h>
+#include <pcl/features/normal_3d_omp.h>
 
 
 //internal includes
@@ -264,8 +267,29 @@ public:
 
 	void computations(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud)
 	{
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = point_cloud;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
 
+		// add noise
+		const bool ADD_NOISE = true;
+		if (ADD_NOISE == true)
+		{
+			cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
+			pcl::copyPointCloud(*point_cloud, *cloud);
+			std::default_random_engine generator;
+			std::normal_distribution<double> distribution(1.0,0.005);		// realistic maximum: 0.005
+			for (int i=0; i<cloud->size(); ++i)
+			{
+				if (pcl_isnan(cloud->points[i].z) == false)
+				{
+					double random_factor = distribution(generator);
+					cloud->points[i].x *= random_factor;
+					cloud->points[i].y *= random_factor;
+					cloud->points[i].z *= random_factor;
+				}
+			}
+		}
+		else
+			cloud = point_cloud;
 
 		/*
 		//Load Pointcloud for Evaluation
@@ -384,19 +408,42 @@ public:
 //			if (key=='n')
 //			{
 				pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdges(new pcl::PointCloud<pcl::Normal>);
+				pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdgesV2(new pcl::PointCloud<pcl::Normal>);
+				pcl::PointCloud<pcl::Normal>::Ptr normalsWithoutEdgesV3(new pcl::PointCloud<pcl::Normal>);
 				pcl::PointCloud<PointLabel>::Ptr labelsWithoutEdges(new pcl::PointCloud<PointLabel>);
 				ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 				if (NORMALS_WITHOUT_EDGES)
 				{
-					//tim.start();
+					tim.start();
 					oneWithoutEdges_.setInputCloud(cloud);
 					oneWithoutEdges_.setPixelSearchRadius(4,2,2);	//(8,1,1)   (8,2,2)
 					oneWithoutEdges_.setOutputLabels(labelsWithoutEdges);
 					oneWithoutEdges_.setSkipDistantPointThreshold(8);	//PUnkte mit einem Abstand in der Tiefe von 8 werden nicht mehr zur Nachbarschaft gezählt
 					oneWithoutEdges_.compute(*normalsWithoutEdges);
-					//std::cout << "Normal computation without edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for cross-product normal computation without edges\n";
 					//runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
 					//return;
+
+					// alternative 1: integral image based normal estimation
+					tim.start();
+					pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne2;
+					ne2.setNormalEstimationMethod(ne2.COVARIANCE_MATRIX);
+					ne2.setMaxDepthChangeFactor(0.02f);
+					ne2.setNormalSmoothingSize(10.0f);
+					ne2.setDepthDependentSmoothing(true);
+					ne2.setInputCloud(cloud);
+					ne2.compute(*normalsWithoutEdgesV2);
+					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation" << std::endl;
+
+					// alternative 2: vanilla PCL normal estimation
+					tim.start();
+					pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne3;
+					ne3.setInputCloud(cloud);
+					ne3.setNumberOfThreads(4);
+					ne3.setKSearch(256);
+					//ne3.setRadiusSearch(0.01);
+					ne3.compute(*normalsWithoutEdgesV3);
+					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla normal estimation" << std::endl;
 				}
 //			}
 
@@ -442,10 +489,10 @@ public:
 
 //			if (key=='n')
 //			{
+				tim.start();
 				pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 				pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
 				ST::Graph::Ptr graph(new ST::Graph);
-				//tim.start();
 				one_.setInputCloud(cloud);
 				one_.setPixelSearchRadius(4,2,2);	// 4,2,2	//call before calling computeMaskManually()!!!
 				//one_.computeMaskManually_increasing(cloud->width);
@@ -456,7 +503,7 @@ public:
 				//one_.setSameDirectionThres(0.94);
 				one_.setSkipDistantPointThreshold(8);	//don't consider points in neighborhood with depth distance larger than 8
 				one_.compute(*normals);
-				//std::cout << "Normal computation obeying edges: " << tim.getElapsedTimeInMilliSec() << "\n";
+				std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for normal computation with edges" << std::endl;
 //				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
 //				++number_processed_images_;
 				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
@@ -638,8 +685,14 @@ public:
 			{
 				eval_.setClusterHandler(graph->clusters());
 				eval_.evaluateEdgeRecognition(point_cloud, color_image, edge);
+				std::cout << "Edge-based normals:\n";
 				eval_.evaluateNormalEstimation(point_cloud, normals);
+				std::cout << "Cross-product-based normals:\n";
 				eval_.evaluateNormalEstimation(point_cloud, normalsWithoutEdges);
+				std::cout << "Integral image-based normals:\n";
+				eval_.evaluateNormalEstimation(point_cloud, normalsWithoutEdgesV2);
+				std::cout << "Vanilla normal estimation:\n";
+				eval_.evaluateNormalEstimation(point_cloud, normalsWithoutEdgesV3);
 				eval_.evaluateSurfaceTypeRecognition(point_cloud, color_image);
 				//eval_.compareClassification(cloud,color_image);
 			}

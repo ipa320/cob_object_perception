@@ -373,7 +373,7 @@ void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB
 	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(gt_point_cloud);
 
 	viewerNormals.addPointCloud<pcl::PointXYZRGB>(gt_point_cloud, rgbNormals, "gt_point_cloud");
-	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, gt_normals, 2, 0.005, "gt_normals");
+	//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, gt_normals, 2, 0.005, "gt_normals");
 	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, normals, 2, 0.005, "normals");
 	viewerNormals.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "gt_point_cloud");
 
