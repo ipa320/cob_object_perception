@@ -61,7 +61,7 @@
 
 #define DATA_SOURCE					0			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
 #define DATA_NUMBER_FILES			0			// number of input files if loaded from file
-#define RECORD_MODE					true		// save color image and cloud for usage in EVALUATION_OFFLINE_MODE
+#define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		// computations without record
 #define EVALUATION_OFFLINE_MODE		false		// evaluation of stored pointcloud and image
 #define EVALUATION_ONLINE_MODE		true		// computations plus evaluation of current computations plus record of evaluation
@@ -200,9 +200,9 @@ public:
 			for (int i=1; i<=image_number; ++i)
 			{
 				std::stringstream ss_image, ss_cloud;
-				ss_image << i << "color";
+				ss_image << (i<1000 ? "0" : "") << (i<100 ? "0" : "") << (i<10 ? "0" : "") << i << "color";
 				rec_.loadImage(image_vector[i-1], ss_image.str());
-				ss_cloud << i << "cloud";
+				ss_cloud << (i<1000 ? "0" : "") << (i<100 ? "0" : "") << (i<10 ? "0" : "") << i << "cloud";
 				pointcloud_vector[i-1] = boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGB> >(new pcl::PointCloud<pcl::PointXYZRGB>);
 				rec_.loadCloud(pointcloud_vector[i-1], ss_cloud.str());
 			}
@@ -394,6 +394,8 @@ public:
 				rec_.saveImage(color_image,"color");
 				rec_.saveCloud(point_cloud,"cloud");
 			}
+			else if (key=='q')
+				exit(0);
 			return;
 		}
 

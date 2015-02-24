@@ -106,7 +106,7 @@ void SceneRecording::saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr point
 {
 	//specify path
 	std::stringstream nr;
-	nr << nr_records;
+	nr << (nr_records<1000 ? "0" : "") << (nr_records<100 ? "0" : "") << (nr_records<10 ? "0" : "") << nr_records;
 	std::string pcd_filename = data_storage_path + "scene_recordings/"  + nr.str() + name + ".pcd";
 
 	//save pointcloud

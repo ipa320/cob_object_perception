@@ -1,5 +1,7 @@
 <launch>
 
+	<!-- to be used with robot config: torso = back -->
+
 	<!-- send urdf to param server -->
 	<param name="bottom_plane" textfile="$(find cob_surface_classification)/models/objects/bottom_plane.urdf" />
 	<!-- push urdf to factory and spawn robot in gazebo -->
@@ -13,19 +15,19 @@
 
 
 	<param name="cylinder" textfile="$(find cob_surface_classification)/models/objects/cylinder.urdf" />
-	<node name="spawn_cylinder" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder -urdf -x -1.3 -y -0.05 -z 0.65  -R 0 -P 0 -Y 0 -model cylinder" respawn="false" output="screen" />
+	<node name="spawn_cylinder" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder -urdf -x -1.2 -y 0.4 -z 0.65  -R 0 -P 0 -Y 0 -model cylinder" respawn="false" output="screen" />
 
 	<param name="cone" textfile="$(find cob_surface_classification)/models/objects/cone.urdf" />
 	<node name="spawn_cone" pkg="gazebo_ros" type="spawn_model" args=" -param cone -urdf -x -1.1 -y 0.05 -z 0.65  -R 0 -P 0 -Y 0 -model cone" respawn="false" output="screen" />
 
 	<param name="cylinder_hollow" textfile="$(find cob_surface_classification)/models/objects/cylinder_hollow.urdf" />
-	<node name="spawn_cylinder_hollow" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder_hollow -urdf -x -1.1 -y -0.3 -z 0.65  -R 0 -P 0 -Y 0 -model cylinder_hollow" respawn="false" output="screen" />
+	<node name="spawn_cylinder_hollow" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder_hollow -urdf -x -1.0 -y 0.2 -z 0.65  -R 0 -P 0 -Y 0 -model cylinder_hollow" respawn="false" output="screen" />
 
 	<param name="cylinder_hollow2" textfile="$(find cob_surface_classification)/models/objects/cylinder_hollow.urdf" />
-	<node name="spawn_cylinder_hollow2" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder_hollow2 -urdf -x -1.2 -y 0.4 -z 0.75  -R 0 -P 1.570796 -Y 0 -model cylinder_hollow2" respawn="false" output="screen" />
+	<node name="spawn_cylinder_hollow2" pkg="gazebo_ros" type="spawn_model" args=" -param cylinder_hollow2 -urdf -x -1.3 -y -0.05 -z 0.76  -R 0 -P 1.570796 -Y 0 -model cylinder_hollow2" respawn="false" output="screen" />
 
 	<param name="box_small" textfile="$(find cob_surface_classification)/models/objects/box_small.urdf" />
-	<node name="spawn_box_small" pkg="gazebo_ros" type="spawn_model" args=" -param box_small -urdf -x -1.0 -y 0.21 -z 0.65  -R 0 -P 0 -Y 0 -model box_small" respawn="false" output="screen" />
+	<node name="spawn_box_small" pkg="gazebo_ros" type="spawn_model" args=" -param box_small -urdf -x -1.1 -y -0.3 -z 0.65  -R 0 -P 0 -Y 0 -model box_small" respawn="false" output="screen" />
 
 	<param name="box_flat" textfile="$(find cob_surface_classification)/models/objects/box_flat.urdf" />
 	<node name="spawn_box_flat" pkg="gazebo_ros" type="spawn_model" args=" -param box_flat -urdf -x -1.0 -y -0.6 -z 0.65  -R 0 -P 0 -Y 0 -model box_flat" respawn="false" output="screen" />
