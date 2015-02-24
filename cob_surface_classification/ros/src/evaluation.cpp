@@ -135,7 +135,7 @@ void Evaluation::evaluateSurfaceTypeRecognition(const pcl::PointCloud<pcl::Point
 		exit(0);
 }
 
-void Evaluation::evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& edge_image)
+void Evaluation::evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& edge_image, EdgeDetectionStatistics* edge_detection_statistics)
 {
 	// 1. Computation of the ground truth image (= color normalization of the scene image + depth edges)
 	cv::Mat gt_color_image_normalized;
@@ -155,6 +155,8 @@ void Evaluation::evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>
 	computePerformanceMeasures(gt_color_image_normalized, edge_estimate_image, search_radius, recall, precision);
 
 	// 4. Displays
+	if (edge_detection_statistics != 0)
+		edge_detection_statistics->addStatistics(recall[I_EDGE], precision[I_EDGE]);
 	std::cout << "Results on edge estimation:\n\trecall=" << recall[I_EDGE] << "\tprecision=" << precision[I_EDGE] << "\n\n";
 	cv::imshow("gt image", gt_color_image_normalized);
 	cv::imshow("edge estimate", edge_estimate_image);
@@ -351,7 +353,7 @@ double Evaluation::divide(double a, double b)
 }
 
 
-void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals)
+void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals, NormalEstimationStatistics* ne_statistics)
 {
 	// 1. Estimate ground truth normals from gt_point_cloud
 	pcl::PointCloud<pcl::Normal>::Ptr gt_normals(new pcl::PointCloud<pcl::Normal>);
@@ -364,24 +366,24 @@ void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB
 	computeNormalEstimationError(gt_point_cloud, gt_normals, normals, padding, number_gt_normals, number_normals, number_good_normals, normal_error);
 
 	// 3. Visualize
+	if (ne_statistics != 0)
+		ne_statistics->addStatistics(100.*(double)number_normals/(double)number_gt_normals, normal_error/(double)number_normals, 100.*(double)number_good_normals/(double)number_normals);
 	std::cout << "Coverage of estimated normals on gt_normals: " << 100.*(double)number_normals/(double)number_gt_normals << std::endl;
 	std::cout << "Average normal estimation error: " << normal_error/(double)number_normals << std::endl;
 	std::cout << "Percentage of good normals: " << 100.*(double)number_good_normals/(double)number_normals << "\n" << std::endl;
 
-	pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
-	viewerNormals.setBackgroundColor(0.0, 0.0, 0);
-	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(gt_point_cloud);
-
-	viewerNormals.addPointCloud<pcl::PointXYZRGB>(gt_point_cloud, rgbNormals, "gt_point_cloud");
-	//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, gt_normals, 2, 0.005, "gt_normals");
-	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, normals, 2, 0.005, "normals");
-	viewerNormals.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "gt_point_cloud");
-
-	while (!viewerNormals.wasStopped ())
-	{
-		viewerNormals.spinOnce();
-	}
-	viewerNormals.removePointCloud("gt_point_cloud");
+//	pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
+//	viewerNormals.setBackgroundColor(0.0, 0.0, 0);
+//	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(gt_point_cloud);
+//	viewerNormals.addPointCloud<pcl::PointXYZRGB>(gt_point_cloud, rgbNormals, "gt_point_cloud");
+//	//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, gt_normals, 2, 0.005, "gt_normals");
+//	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, normals, 2, 0.005, "normals");
+//	viewerNormals.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "gt_point_cloud");
+//	while (!viewerNormals.wasStopped ())
+//	{
+//		viewerNormals.spinOnce();
+//	}
+//	viewerNormals.removePointCloud("gt_point_cloud");
 }
 
 void Evaluation::computeGroundTruthNormals(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr gt_normals)

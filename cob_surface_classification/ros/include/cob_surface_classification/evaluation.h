@@ -87,14 +87,70 @@
 #define I_CONVEX 9
 #define NUMBER_SURFACE_CLASS_TYPES 10
 
-class Evaluation {
+struct EdgeDetectionStatistics
+{
+	double recall;
+	double precision;
+	double number_images;
+
+	EdgeDetectionStatistics()
+	{
+		clear();
+	}
+
+	void clear()
+	{
+		recall = 0.;
+		precision = 0.;
+		number_images = 0.;
+	}
+
+	void addStatistics(double recall_val, double precision_val)
+	{
+		recall = (recall*number_images + recall_val)/(number_images+1.);
+		precision = (precision*number_images + precision_val)/(number_images+1.);
+		number_images += 1.;
+	}
+};
+
+struct NormalEstimationStatistics
+{
+	double coverage_gt_normals;		// how many normals are computed w.r.t. the number of ground truth normals
+	double average_angular_error;	// average normal estimation error
+	double percentage_good_normals;	// ratio of sufficiently accurate normals
+	double number_images;
+
+	NormalEstimationStatistics()
+	{
+		clear();
+	}
+
+	void clear()
+	{
+		coverage_gt_normals = 0.;
+		average_angular_error = 0.;
+		percentage_good_normals = 0.;
+		number_images = 0.;
+	}
+
+	void addStatistics(double coverage_gt_normals_val, double average_angular_error_val, double percentage_good_normals_val)
+	{
+		coverage_gt_normals = (coverage_gt_normals*number_images + coverage_gt_normals_val)/(number_images+1.);
+		average_angular_error = (average_angular_error*number_images + average_angular_error_val)/(number_images+1.);
+		percentage_good_normals = (percentage_good_normals*number_images + percentage_good_normals_val)/(number_images+1.);
+		number_images += 1.;
+	}
+};
+
+class Evaluation
+{
 public:
 	Evaluation();
 	virtual ~Evaluation();
 
 	void evaluateSurfaceTypeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image);
-	void evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& edge_estimate);
-	void evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals);
+	void evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& edge_estimate, EdgeDetectionStatistics* edge_detection_statistics = 0);
+	void evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals, NormalEstimationStatistics* ne_statistics = 0);
 
 	typedef cob_3d_segmentation::PredefinedSegmentationTypes ST;
     inline void setClusterHandler(ST::CH::Ptr cHdl) { clusterHandler = cHdl; }

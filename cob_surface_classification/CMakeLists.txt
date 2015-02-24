@@ -183,6 +183,7 @@ add_dependencies(surface_classification ${catkin_EXPORTED_TARGETS})
 #set_target_properties(cob_3d_curvatureSegmentation PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")
 #set_target_properties(surface_classification PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")
 
+add_executable(simulation_scene_generator	common/src/simulation_scene_generator.cpp)
 
 #############
 ## Install ##
