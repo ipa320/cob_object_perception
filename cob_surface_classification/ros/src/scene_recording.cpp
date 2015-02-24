@@ -85,7 +85,7 @@ void SceneRecording::saveImage(const cv::Mat& color_image, std::string name)
 {
 	//specify path
 	std::stringstream nr;
-	nr << nr_records;
+	nr << (nr_records<1000 ? "0" : "") << (nr_records<100 ? "0" : "") << (nr_records<10 ? "0" : "") << nr_records;
 	std::string image_filename = data_storage_path + "scene_recordings/"  + nr.str() + name + ".png";
 
 	// save image

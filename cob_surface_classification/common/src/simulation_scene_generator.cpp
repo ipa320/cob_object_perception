@@ -137,8 +137,9 @@ int main (int argc, char** argv)
 
 	// variant torso back
 	BoundingVolume bounding_volume(-1.8, -0.8, -0.4, 0.6, 0.65, 1.05);
-	BoundingVolume angle_limits(0,0,0,0,0,0);
-	const int number_objects = 5+rand()%20;
+	BoundingVolume angle_limits0(0,0,0,0,0,0);
+	BoundingVolume angle_limits(-1.57,1.57,-1.57,1.57,-1.57,1.57);
+	const int number_objects = 10+rand()%20;
 	ss << "<launch>\n\n\t<!-- to be used with robot config: torso = back -->\n\n";
 
 	ss << "\t<!-- send urdf to param server -->\n"
@@ -153,7 +154,7 @@ int main (int argc, char** argv)
 	for (int i=1; i<=number_objects; ++i)
 	{
 		int object_index = rand()%object_names.size();
-		ss << addObject(object_names[object_index], bounding_volume, angle_limits, i);
+		ss << addObject(object_names[object_index], bounding_volume, (rand()%2==0 ? angle_limits0 : angle_limits), i);
 	}
 
 	ss << "\n</launch>\n";
