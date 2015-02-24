@@ -159,7 +159,7 @@ public:
 		cv::Sobel(y_image, y_dy, -1, 0, 1, kernel_size, kernel_scale);
 		cv::Sobel(z_image, z_dx, -1, 1, 0, kernel_size, kernel_scale);
 		cv::Sobel(z_image, z_dy, -1, 0, 1, kernel_size, kernel_scale);
-		const int kernel_size2 = 7;
+		const int kernel_size2 = 3;		// real: 7
 #ifdef USE_GAUSSIAN_NOISE_REDUCTION
 		cv::GaussianBlur(z_dx, z_dx, cv::Size(kernel_size2,kernel_size2), 0, 0);
 		cv::GaussianBlur(z_dy, z_dy, cv::Size(kernel_size2,kernel_size2), 0, 0);
@@ -478,6 +478,8 @@ public:
 				}
 			}
 		}*/
+//		cv::dilate(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
+//		cv::erode(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
 		// close 45 degree edges with an additional edge pixel for better neighborhood selection during normal estimation
 		for (int v = max_line_width; v < edge.rows - max_line_width; ++v)
 		{
@@ -495,8 +497,6 @@ public:
 				}
 			}
 		}
-//		cv::dilate(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
-//		cv::erode(edge, edge, cv::Mat(), cv::Point(-1,-1), 1);
 //		for (int v=0; v<z_image.rows; ++v)
 //			for (int u=0; u<z_image.cols; ++u)
 //				if (z_image.at<float>(v,u)==0)
