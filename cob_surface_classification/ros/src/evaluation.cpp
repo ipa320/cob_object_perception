@@ -128,11 +128,11 @@ void Evaluation::evaluateSurfaceTypeRecognition(const pcl::PointCloud<pcl::Point
 	for (int i=0; i<recall.size(); ++i)
 		std::cout << i << ":\trecall=" << recall[i] << "\tprecision=" << precision[i] << "\n";
 	std::cout << std::endl;
-	cv::imshow("gt image", gt_color_image_normalized);
-	cv::imshow("surface estimate", surface_estimate_image);
-	int key = cv::waitKey();
-	if (key == 'q')
-		exit(0);
+//	cv::imshow("gt image", gt_color_image_normalized);
+//	cv::imshow("surface estimate", surface_estimate_image);
+//	int key = cv::waitKey();
+//	if (key == 'q')
+//		exit(0);
 }
 
 void Evaluation::evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, const cv::Mat& edge_image, EdgeDetectionStatistics* edge_detection_statistics)

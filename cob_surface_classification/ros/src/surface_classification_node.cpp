@@ -60,7 +60,7 @@
 /*switches for execution of processing steps*/
 
 #define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
-#define DATA_NUMBER_FILES			16			// number of input files if loaded from file
+#define DATA_NUMBER_FILES			100			// number of input files if loaded from file
 #define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		// computations without record
 #define EVALUATION_OFFLINE_MODE		false		// evaluation of stored pointcloud and image
@@ -256,6 +256,33 @@ public:
 		}
 	}
 
+	/*// parameters
+	egde:
+		1. noise reduction:
+			a. Gaussian
+			b. Bilateral
+			c. kernel_size
+		2. Adaptive scan line
+		3. scan line width:
+			a. min_line_width/max_line_width
+			b. depth adaptation of scan line
+		4. min_detectable_edge_angle
+
+	normals:
+		cross-product:
+			1. pixel search radius (neighborhood)
+				a. radius
+				b. ring skip
+				c. pixel skip
+			2. Integral image
+				a. computation method (see/get from original paper)
+				b. depth change factor (maybe chosen as is)
+				c. smoothing range (neighborhood size)
+			3. Vanilla
+				a. neighborhood size
+				b. number of threads (only affects runtime)
+	*/
+
 	~SurfaceClassificationNode()
 	{
 		if (it_ != 0)
@@ -426,6 +453,17 @@ public:
 			{
 				rec_.saveImage(color_image,"color");
 				rec_.saveCloud(point_cloud,"cloud");
+				std::cout << "Saved images with index: " << rec_.getImageRecordCounter()-1 << std::endl;
+			}
+			else if (key == 'm')
+			{
+				rec_.setImageRecordCounter(rec_.getImageRecordCounter()+1);
+				std::cout << "Changed image storage index to: " << rec_.getImageRecordCounter() << std::endl;
+			}
+			else if (key == 'n')
+			{
+				rec_.setImageRecordCounter(rec_.getImageRecordCounter()-1);
+				std::cout << "Changed image storage index to: " << rec_.getImageRecordCounter() << std::endl;
 			}
 			else if (key=='q')
 				exit(0);

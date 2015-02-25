@@ -12,6 +12,7 @@ set(catkin_RUN_PACKAGES # all ROS packages from package.xml (libopencv-dev is sy
   cv_bridge
   std_msgs
   sensor_msgs
+  gazebo_msgs
   message_filters
   image_transport
   cob_3d_mapping_common
@@ -184,6 +185,11 @@ add_dependencies(surface_classification ${catkin_EXPORTED_TARGETS})
 #set_target_properties(surface_classification PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")
 
 add_executable(simulation_scene_generator	common/src/simulation_scene_generator.cpp)
+
+add_executable(simulation_scene_reset	ros/src/simulation_scene_reset.cpp)
+target_link_libraries(simulation_scene_reset
+	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+)
 
 #############
 ## Install ##

@@ -59,7 +59,7 @@
 
 #include "stdlib.h"
 #include <iostream>
-#include <string>
+#include "string.h"
 #include <sstream>
 #include <vector>
 #include <fstream>
@@ -135,16 +135,48 @@ int main (int argc, char** argv)
 {
 	// configuration
 	enum RobotConfig {TORSO_BACK, TORSO_HOME, TORSO_BACK_EXTREME};
-	const RobotConfig config = TORSO_BACK_EXTREME;
+	RobotConfig config = TORSO_BACK;
+	int file_index_start = 17;
+	int number_files_to_generate = 28;
+	if (argc >= 2)
+	{
+		if (strcmp(argv[1], "back")==0)
+			config = TORSO_BACK;
+		else if (strcmp(argv[1], "home")==0)
+			config = TORSO_HOME;
+		else if (strcmp(argv[1], "back_extreme")==0)
+			config = TORSO_BACK_EXTREME;
+	}
+	if (argc >= 3)
+	{
+		std::stringstream ss;
+		ss << argv[2];
+		ss >> file_index_start;
+	}
+	if (argc >= 4)
+	{
+		std::stringstream ss;
+		ss << argv[3];
+		ss >> number_files_to_generate;
+	}
 
-	const int file_index_start = 16;
-	const int number_files_to_generate = 5;
+	std::vector<std::string> config_names;
+	config_names.push_back("torso_back");
+	config_names.push_back("torso_home");
+	config_names.push_back("torso_back_extreme");
+	std::cout << "Generating " << number_files_to_generate << " files starting with index " << file_index_start << " for configuration " << config_names[config] << ". Hit any key to proceed.\n";
+	getchar();
 
 	std::vector<std::string> object_names;
 	object_names.push_back("cone");
+	object_names.push_back("cone");
+	object_names.push_back("cylinder");
 	object_names.push_back("cylinder");
 	object_names.push_back("cylinder_hollow");
+	object_names.push_back("cylinder_hollow");
 	object_names.push_back("box_small");
+	object_names.push_back("box_small");
+	object_names.push_back("box_flat");
 	object_names.push_back("box_flat");
 	object_names.push_back("cup_and_saucer");
 	object_names.push_back("cup_large");
@@ -187,7 +219,7 @@ int main (int argc, char** argv)
 				<< "\t<node name=\"spawn_wall\" pkg=\"gazebo_ros\" type=\"spawn_model\" args=\" -param wall -urdf -x -3.6 -y 0 -z 0.15 -R 0 -P 0 -Y 0 -model wall\" respawn=\"false\" output=\"screen\" />\n\n";
 		preamble = ss.str();
 	}
-	if (config == TORSO_BACK_EXTREME)
+	else if (config == TORSO_BACK_EXTREME)
 	{
 		// variant torso back
 		bounding_volume.setTo(-1.8, -0.8, -0.6, 0.4, 0.15, 0.55);
@@ -214,7 +246,7 @@ int main (int argc, char** argv)
 	{
 		std::stringstream ss;
 		ss << preamble;
-		const int number_objects = 10+rand()%20;
+		const int number_objects = 10+rand()%40;
 		for (int i=1; i<=number_objects; ++i)
 		{
 			int object_index = rand()%object_names.size();
@@ -222,7 +254,7 @@ int main (int argc, char** argv)
 		}
 		ss << "\n</launch>\n";
 
-		std::cout << "File " << file_index << ":\n" << ss.str() << std::endl;
+		//std::cout << "File " << file_index << ":\n" << ss.str() << std::endl;
 
 		std::stringstream filename;
 		filename << "sim_gen_" << (file_index<1000 ? "0" : "") << (file_index<100 ? "0" : "") << (file_index<10 ? "0" : "") << file_index << ".launch";
