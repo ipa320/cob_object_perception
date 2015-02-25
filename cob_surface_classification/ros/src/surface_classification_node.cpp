@@ -60,7 +60,7 @@
 /*switches for execution of processing steps*/
 
 #define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
-#define DATA_NUMBER_FILES			100			// number of input files if loaded from file
+#define DATA_NUMBER_FILES			10			// number of input files if loaded from file
 #define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		// computations without record
 #define EVALUATION_OFFLINE_MODE		false		// evaluation of stored pointcloud and image
@@ -68,7 +68,8 @@
 
 //steps in computation/evaluation_online mode:
 
-#define ALTERNATIVE_NORMAL_COMP		true	// compute the normals without edges (classic procedure)
+#define NORMAL_COMP					false	// compute the normals with cross product + edges
+#define ALTERNATIVE_NORMAL_COMP		false	// compute the normals without edges (classic procedure)
 #define SEG 						false 	// segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	// segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	// segmentation refinement according to curvatures (outdated)
@@ -228,60 +229,33 @@ public:
 
 			std::cout << "Results on edge estimation:\n\trecall=" << edge_detection_statistics_.recall << "\tprecision=" << edge_detection_statistics_.precision << "\n\n";
 
-			std::cout << "Cross-product-based normals with edges:"
-					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_edge_.coverage_gt_normals
-					<< "\nAverage normal estimation error: " << ne_statistics_cross_edge_.average_angular_error
-					<< "\nPercentage of good normals: " << ne_statistics_cross_edge_.percentage_good_normals << "\n" << std::endl;
-
-			std::cout << "Cross-product-based normals:"
-					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_.coverage_gt_normals
-					<< "\nAverage normal estimation error: " << ne_statistics_cross_.average_angular_error
-					<< "\nPercentage of good normals: " << ne_statistics_cross_.percentage_good_normals << "\n" << std::endl;
-
-			std::cout << "Integral image-based normals with edges:"
-					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_edge_.coverage_gt_normals
-					<< "\nAverage normal estimation error: " << ne_statistics_integral_edge_.average_angular_error
-					<< "\nPercentage of good normals: " << ne_statistics_integral_edge_.percentage_good_normals << "\n" << std::endl;
-
-			std::cout << "Integral image-based normals:"
-					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_.coverage_gt_normals
-					<< "\nAverage normal estimation error: " << ne_statistics_integral_.average_angular_error
-					<< "\nPercentage of good normals: " << ne_statistics_integral_.percentage_good_normals << "\n" << std::endl;
-
-			std::cout << "Vanilla normal estimation:"
-					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
-					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
-					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals << "\n" << std::endl;
+//			std::cout << "Cross-product-based normals with edges:"
+//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_edge_.coverage_gt_normals
+//					<< "\nAverage normal estimation error: " << ne_statistics_cross_edge_.average_angular_error
+//					<< "\nPercentage of good normals: " << ne_statistics_cross_edge_.percentage_good_normals << "\n" << std::endl;
+//
+//			std::cout << "Cross-product-based normals:"
+//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_.coverage_gt_normals
+//					<< "\nAverage normal estimation error: " << ne_statistics_cross_.average_angular_error
+//					<< "\nPercentage of good normals: " << ne_statistics_cross_.percentage_good_normals << "\n" << std::endl;
+//
+//			std::cout << "Integral image-based normals with edges:"
+//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_edge_.coverage_gt_normals
+//					<< "\nAverage normal estimation error: " << ne_statistics_integral_edge_.average_angular_error
+//					<< "\nPercentage of good normals: " << ne_statistics_integral_edge_.percentage_good_normals << "\n" << std::endl;
+//
+//			std::cout << "Integral image-based normals:"
+//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_.coverage_gt_normals
+//					<< "\nAverage normal estimation error: " << ne_statistics_integral_.average_angular_error
+//					<< "\nPercentage of good normals: " << ne_statistics_integral_.percentage_good_normals << "\n" << std::endl;
+//
+//			std::cout << "Vanilla normal estimation:"
+//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
+//					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
+//					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals << "\n" << std::endl;
 			exit(0);
 		}
 	}
-
-	/*// parameters
-	egde:
-		1. noise reduction:
-			a. Gaussian
-			b. Bilateral
-			c. kernel_size
-		2. Adaptive scan line
-		3. scan line width:
-			a. min_line_width/max_line_width
-			b. depth adaptation of scan line
-		4. min_detectable_edge_angle
-
-	normals:
-		cross-product:
-			1. pixel search radius (neighborhood)
-				a. radius
-				b. ring skip
-				c. pixel skip
-			2. Integral image
-				a. computation method (see/get from original paper)
-				b. depth change factor (maybe chosen as is)
-				c. smoothing range (neighborhood size)
-			3. Vanilla
-				a. neighborhood size
-				b. number of threads (only affects runtime)
-	*/
 
 	~SurfaceClassificationNode()
 	{
@@ -330,7 +304,7 @@ public:
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
 
 		// add noise
-		const bool ADD_NOISE = true;
+		const bool ADD_NOISE = false;
 		if (ADD_NOISE == true)
 		{
 			cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -518,12 +492,12 @@ public:
 			//for(int i=0; i<10; i++)
 			//{
 
-//			if (key=='n')
-//			{
-				tim.start();
-				pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-				pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
-				ST::Graph::Ptr graph(new ST::Graph);
+			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+			pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
+			ST::Graph::Ptr graph(new ST::Graph);
+			if (NORMAL_COMP) // || key=='n')
+			{
+				//tim.start();
 				one_.setInputCloud(cloud);
 				one_.setPixelSearchRadius(4,2,2);	// 4,2,2	//call before calling computeMaskManually()!!!
 				//one_.computeMaskManually_increasing(cloud->width);
@@ -534,12 +508,12 @@ public:
 				//one_.setSameDirectionThres(0.94);
 				one_.setSkipDistantPointThreshold(8);	//don't consider points in neighborhood with depth distance larger than 8
 				one_.compute(*normals);
-				std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for cross-product normal computation with edges" << std::endl;
+				//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for cross-product normal computation with edges" << std::endl;
 //				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
 //				++number_processed_images_;
 				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
 				//			"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
-//			}
+			}
 			//}timer.stop();
 			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
 
@@ -621,7 +595,7 @@ public:
 
 			//return;
 
-			if(SEG || EVALUATION_ONLINE_MODE || key=='n')
+			if(SEG || key=='n')	// || EVALUATION_ONLINE_MODE
 			{
 				tim.start();
 				seg_.setInputCloud(cloud);
@@ -631,7 +605,7 @@ public:
 				seg_.performInitialSegmentation();
 				seg_.refineSegmentation();
 				double runtime_segmentation = tim.getElapsedTimeInMilliSec();
-				std::cout << "runtime_segmentation: " << runtime_segmentation << std::endl;
+				std::cout << "runtime segmentation: " << runtime_segmentation << std::endl;
 			}
 			if(SEG_WITHOUT_EDGES)
 			{
@@ -727,7 +701,7 @@ public:
 
 			//return;
 
-			if(CLASSIFY|| EVALUATION_ONLINE_MODE)
+			if(CLASSIFY)  //|| EVALUATION_ONLINE_MODE
 			{
 				//classification
 				tim.start();
@@ -770,12 +744,14 @@ public:
 			if(EVALUATION_ONLINE_MODE)
 			{
 				// edge statistics
-				eval_.setClusterHandler(graph->clusters());
 				eval_.evaluateEdgeRecognition(point_cloud, color_image, edge, &edge_detection_statistics_);
 
 				// normal estimation statistics
-				std::cout << "Cross-product-based normals with edges:\n";
-				eval_.evaluateNormalEstimation(point_cloud, normals, &ne_statistics_cross_edge_);
+				if (NORMAL_COMP)
+				{
+					std::cout << "Cross-product-based normals with edges:\n";
+					eval_.evaluateNormalEstimation(point_cloud, normals, &ne_statistics_cross_edge_);
+				}
 				if (ALTERNATIVE_NORMAL_COMP)
 				{
 					std::cout << "Cross-product-based normals:\n";
@@ -789,7 +765,11 @@ public:
 				}
 
 				// surface classification statistics
-				eval_.evaluateSurfaceTypeRecognition(point_cloud, color_image);
+				if (CLASSIFY)
+				{
+					eval_.setClusterHandler(graph->clusters());
+					eval_.evaluateSurfaceTypeRecognition(point_cloud, color_image);
+				}
 			}
 
 

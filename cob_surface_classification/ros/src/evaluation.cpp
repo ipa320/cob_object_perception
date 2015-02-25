@@ -157,12 +157,12 @@ void Evaluation::evaluateEdgeRecognition(const pcl::PointCloud<pcl::PointXYZRGB>
 	// 4. Displays
 	if (edge_detection_statistics != 0)
 		edge_detection_statistics->addStatistics(recall[I_EDGE], precision[I_EDGE]);
-	std::cout << "Results on edge estimation:\n\trecall=" << recall[I_EDGE] << "\tprecision=" << precision[I_EDGE] << "\n\n";
-	cv::imshow("gt image", gt_color_image_normalized);
-	cv::imshow("edge estimate", edge_estimate_image);
-	int key = cv::waitKey();
-	if (key == 'q')
-		exit(0);
+//	std::cout << "Results on edge estimation:\n\trecall=" << recall[I_EDGE] << "\tprecision=" << precision[I_EDGE] << "\n\n";
+//	cv::imshow("gt image", gt_color_image_normalized);
+//	cv::imshow("edge estimate", edge_estimate_image);
+//	int key = cv::waitKey();
+//	if (key == 'q')
+//		exit(0);
 }
 
 void Evaluation::generateGroundTruthImage(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const cv::Mat& gt_color_image, cv::Mat& gt_color_image_normalized)

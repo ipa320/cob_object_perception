@@ -84,6 +84,40 @@ public:
 	typedef pcl::PointCloud<PointInT> PointCloudIn;
 	typedef typename PointCloudIn::ConstPtr PointCloudInConstPtr;
 
+	struct EdgeDetectionConfig
+	{
+		enum NoiseReductionMode { NONE, GAUSSIAN, BILATERAL };
+		NoiseReductionMode noise_reduction_mode;
+		int noise_reduction_kernel_size;	// usually 3, 5 or 7
+		bool use_adaptive_scan_line;
+		double min_detectable_edge_angle;	// in [deg]
+		int scan_line_width_at_2m;		// using linear model with scan line width at 0.5m -> 5 Pixel, scan_line_width is the length of the scan line left and right of the query pixel
+		double scan_line_model_m;
+		double scan_line_model_n;
+
+		EdgeDetectionConfig()
+		{
+			noise_reduction_mode = GAUSSIAN;
+			noise_reduction_kernel_size = 3;
+			use_adaptive_scan_line = true;
+			min_detectable_edge_angle = 45;
+			scan_line_width_at_2m = 15;
+			scan_line_model_n = (20.-scan_line_width_at_2m)/(double)3.0;
+			scan_line_model_m = 10 - 2*scan_line_model_n;
+		}
+
+		EdgeDetectionConfig(NoiseReductionMode noise_reduction_mode_, int noise_reduction_kernel_size_, bool use_adaptive_scan_line_, double min_detectable_edge_angle_, int scan_line_width_at_2m_)
+		{
+			noise_reduction_mode = noise_reduction_mode_;
+			noise_reduction_kernel_size = noise_reduction_kernel_size_;
+			use_adaptive_scan_line = use_adaptive_scan_line_;
+			min_detectable_edge_angle = min_detectable_edge_angle_;
+			scan_line_width_at_2m = scan_line_width_at_2m_;
+			scan_line_model_n = (20.-scan_line_width_at_2m)/(double)3.0;
+			scan_line_model_m = 10 - 2*scan_line_model_n;
+		}
+	};
+
 	EdgeDetection()
 	: PI_FLOAT(3.14159265f), PIBY2_FLOAT(1.5707963f)
 	{
@@ -103,6 +137,7 @@ public:
 #define USE_ADAPTIVE_SCAN_LINE
 #define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
 #define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
+#define USE_OMP
 
 	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const float depth_factor)
 	{
@@ -219,7 +254,7 @@ public:
 				float depth = z_image.at<float>(v,u);
 				if (depth==0.f)
 					continue;
-				float edge_threshold = std::max(0.0f, depth_factor*depth);
+				float edge_threshold = std::max(0.0f, depth_factor*depth);	// todo: adapt to the quadratic model of Holzer 2012, Fig. 3
 				float z_dx_val = z_dx.at<float>(v,u);
 				float z_dy_val = z_dy.at<float>(v,u);
 				if (z_dx_val <= -edge_threshold || z_dx_val >= edge_threshold || z_dy_val <= -edge_threshold || z_dy_val >= edge_threshold)
@@ -241,7 +276,9 @@ public:
 		// x lines
 		cv::Mat x_dx_integralX, z_dx_integralX;
 		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
+#ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
+#endif
 		for (int v = max_line_width+1; v < z_dx.rows - max_line_width - 2; ++v)
 		{
 			int scan_line_width = 10; // width of scan line left or right of a query pixel, measured in [px]
@@ -325,7 +362,9 @@ public:
 		z_dy = z_dy.t();
 		cv::Mat y_dy_integralY, z_dy_integralY;
 		computeIntegralImageX(y_dy, y_dy_integralY, z_dy, z_dy_integralY);
+#ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
+#endif
 		for (int v = max_line_width+1; v < z_dy.rows - max_line_width - 2; ++v)
 		{
 			int scan_line_width = 10; // width of scan line left or right of a query pixel, measured in [px]
