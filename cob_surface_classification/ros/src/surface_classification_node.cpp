@@ -60,7 +60,7 @@
 /*switches for execution of processing steps*/
 
 #define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
-#define DATA_NUMBER_FILES			10			// number of input files if loaded from file
+#define DATA_NUMBER_FILES			100			// number of input files if loaded from file
 #define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		// computations without record
 #define EVALUATION_OFFLINE_MODE		false		// evaluation of stored pointcloud and image
@@ -152,6 +152,24 @@ class SurfaceClassificationNode
 public:
 	typedef cob_3d_segmentation::PredefinedSegmentationTypes ST;
 
+	struct ExperimentConfig
+	{
+		EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
+		double simulated_sensor_noise_sigma;
+
+		ExperimentConfig()
+		{
+			edge_detection_config = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig();
+			simulated_sensor_noise_sigma = 0.;
+		}
+
+		ExperimentConfig(const EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig& edge_detection_config_, double simulated_sensor_noise_sigma_)
+		{
+			edge_detection_config = edge_detection_config_;
+			simulated_sensor_noise_sigma = simulated_sensor_noise_sigma_;
+		}
+	};
+
 	SurfaceClassificationNode(ros::NodeHandle nh)
 	: node_handle_(nh)
 	{
@@ -165,8 +183,6 @@ public:
 		number_processed_images_ = 0;
 
 		rec_.setImageRecordCounter(DATA_NUMBER_FILES+1);
-
-		depth_factor_ = 0.01f;
 
 		it_ = 0;
 		sync_input_ = 0;
@@ -208,51 +224,46 @@ public:
 				rec_.loadCloud(pointcloud_vector[i-1], ss_cloud.str());
 			}
 
-			int index = 0;
-			int counter = 0;
-			edge_detection_statistics_.clear();
-			ne_statistics_cross_edge_.clear();
-			ne_statistics_cross_.clear();
-			ne_statistics_integral_edge_.clear();
-			ne_statistics_integral_.clear();
-			ne_statistics_vanilla_.clear();
-			Timer tim;
-			tim.start();
-			while (counter<image_vector.size())			// 600 runs if runtime is to be measured
+			// do computations
+			std::vector<double> noise_sigmas;
+			noise_sigmas.push_back(0.);	noise_sigmas.push_back(0.0005);	noise_sigmas.push_back(0.001); noise_sigmas.push_back(0.002);	noise_sigmas.push_back(0.005);
+			std::vector<EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NoiseReductionMode> noise_mode;
+			noise_mode.push_back(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE);	noise_mode.push_back(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN);	noise_mode.push_back(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::BILATERAL);
+			std::vector<bool> use_adaptive_scan_line;
+			use_adaptive_scan_line.push_back(true);	use_adaptive_scan_line.push_back(false);
+			std::vector<int> scan_line_width_at_2m;
+			scan_line_width_at_2m.push_back(10); scan_line_width_at_2m.push_back(15); scan_line_width_at_2m.push_back(20);
+			std::vector<double> min_detectable_edge_angle;
+			min_detectable_edge_angle.push_back(35); min_detectable_edge_angle.push_back(45); min_detectable_edge_angle.push_back(60);
+			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
 			{
-				computations(image_vector[index], pointcloud_vector[index]);
-				index = (index+1)%image_number;
-				++counter;
-				//std:cout << "=============================================================> Finished iteration " << counter << std::endl;
+				for (size_t i_noise_mode=0; i_noise_mode<noise_mode.size(); ++i_noise_mode)
+				{
+					for (int i_noise_kernel_size=3; (i_noise_kernel_size<=7 && i_noise_mode>0) || (i_noise_mode==0 && i_noise_kernel_size==3); i_noise_kernel_size+=2)
+					{
+						for (size_t i_adaptive_scan_line=0; i_adaptive_scan_line<use_adaptive_scan_line.size(); ++i_adaptive_scan_line)
+						{
+							for (size_t i_scan_line_width_at_2m=0; i_scan_line_width_at_2m<scan_line_width_at_2m.size(); ++i_scan_line_width_at_2m)
+							{
+								for (size_t i_min_detectable_edge_angle=0; i_min_detectable_edge_angle<min_detectable_edge_angle.size(); ++i_min_detectable_edge_angle)
+								{
+									EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(noise_mode[i_noise_mode], i_noise_kernel_size, use_adaptive_scan_line[i_adaptive_scan_line], min_detectable_edge_angle[i_min_detectable_edge_angle], scan_line_width_at_2m[i_scan_line_width_at_2m]);
+									ExperimentConfig exp_config(edge_detection_config, noise_sigmas[i_noise_sigma]);
+									std::cout << "---------------------------------------------------------------"
+											<< "\nsimulated_sensor_noise_sigma=" << exp_config.simulated_sensor_noise_sigma
+											<< "\nedge_detection_config.noise_reduction_mode=" << exp_config.edge_detection_config.noise_reduction_mode
+											<< "\nedge_detection_config.noise_reduction_kernel_size=" << exp_config.edge_detection_config.noise_reduction_kernel_size
+											<< "\nedge_detection_config.use_adaptive_scan_line=" << exp_config.edge_detection_config.use_adaptive_scan_line
+											<< "\nedge_detection_config.scan_line_width_at_2m=" << exp_config.edge_detection_config.scan_line_width_at_2m
+											<< "\nedge_detection_config.min_detectable_edge_angle=" << exp_config.edge_detection_config.min_detectable_edge_angle
+											<< std::endl;
+									computationsEvaluation(image_vector, pointcloud_vector, exp_config);
+								}
+							}
+						}
+					}
+				}
 			}
-			std::cout << "Total runtime: " << tim.getElapsedTimeInSec() << "s \t Runtime per cycle: " << tim.getElapsedTimeInMilliSec()/(double)counter << "ms\n" << std::endl;
-
-			std::cout << "Results on edge estimation:\n\trecall=" << edge_detection_statistics_.recall << "\tprecision=" << edge_detection_statistics_.precision << "\n\n";
-
-//			std::cout << "Cross-product-based normals with edges:"
-//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_edge_.coverage_gt_normals
-//					<< "\nAverage normal estimation error: " << ne_statistics_cross_edge_.average_angular_error
-//					<< "\nPercentage of good normals: " << ne_statistics_cross_edge_.percentage_good_normals << "\n" << std::endl;
-//
-//			std::cout << "Cross-product-based normals:"
-//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_.coverage_gt_normals
-//					<< "\nAverage normal estimation error: " << ne_statistics_cross_.average_angular_error
-//					<< "\nPercentage of good normals: " << ne_statistics_cross_.percentage_good_normals << "\n" << std::endl;
-//
-//			std::cout << "Integral image-based normals with edges:"
-//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_edge_.coverage_gt_normals
-//					<< "\nAverage normal estimation error: " << ne_statistics_integral_edge_.average_angular_error
-//					<< "\nPercentage of good normals: " << ne_statistics_integral_edge_.percentage_good_normals << "\n" << std::endl;
-//
-//			std::cout << "Integral image-based normals:"
-//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_.coverage_gt_normals
-//					<< "\nAverage normal estimation error: " << ne_statistics_integral_.average_angular_error
-//					<< "\nPercentage of good normals: " << ne_statistics_integral_.percentage_good_normals << "\n" << std::endl;
-//
-//			std::cout << "Vanilla normal estimation:"
-//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
-//					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
-//					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals << "\n" << std::endl;
 			exit(0);
 		}
 	}
@@ -299,18 +310,92 @@ public:
 		computations(color_image, cloud);
 	}
 
-	void computations(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud)
+	void computationsEvaluation(const std::vector<cv::Mat>& image_vector, const std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>& pointcloud_vector, const ExperimentConfig& config)
+	{
+		int index = 0;
+		int counter = 0;
+		edge_detection_statistics_.clear();
+		if (NORMAL_COMP)
+		{
+			ne_statistics_cross_edge_.clear();
+			ne_statistics_cross_.clear();
+			ne_statistics_integral_edge_.clear();
+			ne_statistics_integral_.clear();
+			ne_statistics_vanilla_.clear();
+		}
+		Timer tim;
+		tim.start();
+		const int image_number = image_vector.size();
+		while (counter<image_number)			// 600 runs if runtime is to be measured
+		{
+			computations(image_vector[index], pointcloud_vector[index], config);
+			index = (index+1)%image_number;
+			++counter;
+			//std:cout << "=============================================================> Finished iteration " << counter << std::endl;
+		}
+		std::stringstream ss;
+
+		std::cout << "Total runtime: " << tim.getElapsedTimeInSec() << "s \t Runtime per cycle: " << tim.getElapsedTimeInMilliSec()/(double)counter << "ms\n" << std::endl;
+
+		std::cout << "Results on edge estimation:\n\trecall=" << edge_detection_statistics_.recall << "\tprecision=" << edge_detection_statistics_.precision << "\n\n";
+		ss << "simulated_sensor_noise_sigma:\t" << config.simulated_sensor_noise_sigma
+				<< "\tedge_detection_config.noise_reduction_mode:\t" << config.edge_detection_config.noise_reduction_mode
+				<< "\tedge_detection_config.noise_reduction_kernel_size:\t" << config.edge_detection_config.noise_reduction_kernel_size
+				<< "\tedge_detection_config.use_adaptive_scan_line:\t" << config.edge_detection_config.use_adaptive_scan_line
+				<< "\tedge_detection_config.scan_line_width_at_2m:\t" << config.edge_detection_config.scan_line_width_at_2m
+				<< "\tedge_detection_config.min_detectable_edge_angle:\t" << config.edge_detection_config.min_detectable_edge_angle
+				<< "\trecall:\t" << edge_detection_statistics_.recall
+				<< "\tprecision:\t" << edge_detection_statistics_.precision
+				<< std::endl;
+
+		if (NORMAL_COMP)
+		{
+			std::cout << "Cross-product-based normals with edges:"
+					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_edge_.coverage_gt_normals
+					<< "\nAverage normal estimation error: " << ne_statistics_cross_edge_.average_angular_error
+					<< "\nPercentage of good normals: " << ne_statistics_cross_edge_.percentage_good_normals << "\n" << std::endl;
+
+			std::cout << "Cross-product-based normals:"
+					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_.coverage_gt_normals
+					<< "\nAverage normal estimation error: " << ne_statistics_cross_.average_angular_error
+					<< "\nPercentage of good normals: " << ne_statistics_cross_.percentage_good_normals << "\n" << std::endl;
+
+			std::cout << "Integral image-based normals with edges:"
+					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_edge_.coverage_gt_normals
+					<< "\nAverage normal estimation error: " << ne_statistics_integral_edge_.average_angular_error
+					<< "\nPercentage of good normals: " << ne_statistics_integral_edge_.percentage_good_normals << "\n" << std::endl;
+
+			std::cout << "Integral image-based normals:"
+					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_.coverage_gt_normals
+					<< "\nAverage normal estimation error: " << ne_statistics_integral_.average_angular_error
+					<< "\nPercentage of good normals: " << ne_statistics_integral_.percentage_good_normals << "\n" << std::endl;
+
+			std::cout << "Vanilla normal estimation:"
+					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
+					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
+					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals << "\n" << std::endl;
+		}
+
+		// write results to file
+		std::ofstream file("surface_classification_results.txt", std::ios::out | std::ios::app);
+		if (file.is_open())
+		{
+			file << ss.str();
+		}
+		file.close();
+	}
+
+	void computations(const cv::Mat& color_image, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud, const ExperimentConfig& config = ExperimentConfig())
 	{
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
 
 		// add noise
-		const bool ADD_NOISE = false;
-		if (ADD_NOISE == true)
+		if (config.simulated_sensor_noise_sigma > 0.)
 		{
 			cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
 			pcl::copyPointCloud(*point_cloud, *cloud);
 			std::default_random_engine generator;
-			std::normal_distribution<double> distribution(1.0,0.002);		// realistic maximum: 0.005
+			std::normal_distribution<double> distribution(1.0, config.simulated_sensor_noise_sigma);		// Kinect: ca. 0.002,  realistic maximum: 0.005
 			for (int i=0; i<cloud->size(); ++i)
 			{
 				if (pcl_isnan(cloud->points[i].z) == false)
@@ -443,7 +528,6 @@ public:
 				exit(0);
 			return;
 		}
-
 		//----------------------------------------
 
 		Timer tim;
@@ -453,7 +537,7 @@ public:
 		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
 		{
 			cv::Mat edge;
-			edge_detection_.computeDepthEdges(cloud, edge, depth_factor_);
+			edge_detection_.computeDepthEdges(cloud, edge, config.edge_detection_config);
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
 			// visualization on color image
@@ -479,19 +563,6 @@ public:
 					exit(0);
 			}
 
-//			cv::imshow("edge", edge);
-//			int key2 = cv::waitKey(10);
-//			if (key2 == 'i')
-//				depth_factor_ -= 0.005;
-//			else if (key2 == 'o')
-//				depth_factor_ += 0.005;
-//			std::cout << "depth_factor_ = " << depth_factor_ << std::endl;
-
-			//Timer timer;
-			//timer.start();
-			//for(int i=0; i<10; i++)
-			//{
-
 			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 			pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
 			ST::Graph::Ptr graph(new ST::Graph);
@@ -514,8 +585,6 @@ public:
 				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
 				//			"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
 			}
-			//}timer.stop();
-			//std::cout << timer.getElapsedTimeInMilliSec() << " ms for normalEstimation on the whole image, averaged over 10 iterations\n";
 
 //			if (key=='n')
 //			{
@@ -812,8 +881,6 @@ private:
 	cob_3d_segmentation::DepthSegmentation<ST::Graph, ST::Point, ST::Normal, ST::Label> segWithoutEdges_;
 
 	cob_3d_segmentation::ClusterClassifier<ST::CH, ST::Point, ST::Normal, ST::Label> cc_;
-
-	float depth_factor_;
 
 	//evaluation
 	Evaluation eval_;

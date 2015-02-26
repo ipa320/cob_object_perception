@@ -132,14 +132,12 @@ public:
 	};
 
 //#define MEASURE_RUNTIME
-#define USE_GAUSSIAN_NOISE_REDUCTION
-//#define USE_BILATERAL_NOISE_REDUCTION
 #define USE_ADAPTIVE_SCAN_LINE
 #define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
 #define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
 #define USE_OMP
 
-	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const float depth_factor)
+	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const EdgeDetectionConfig& config = EdgeDetectionConfig())
 	{
 		// compute x,y,z images
 #ifdef MEASURE_RUNTIME
@@ -194,18 +192,21 @@ public:
 		cv::Sobel(y_image, y_dy, -1, 0, 1, kernel_size, kernel_scale);
 		cv::Sobel(z_image, z_dx, -1, 1, 0, kernel_size, kernel_scale);
 		cv::Sobel(z_image, z_dy, -1, 0, 1, kernel_size, kernel_scale);
-		const int kernel_size2 = 3;		// real: 7
-#ifdef USE_GAUSSIAN_NOISE_REDUCTION
-		cv::GaussianBlur(z_dx, z_dx, cv::Size(kernel_size2,kernel_size2), 0, 0);
-		cv::GaussianBlur(z_dy, z_dy, cv::Size(kernel_size2,kernel_size2), 0, 0);
-#endif
-#ifdef USE_BILATERAL_NOISE_REDUCTION
-		//sigma = 0.3(n/2 - 1) + 0.8
-		cv::Mat temp = z_dx.clone();
-		cv::bilateralFilter(temp, z_dx, kernel_size2, 10, 1.4);
-		temp = z_dy.clone();
-		cv::bilateralFilter(temp, z_dy, kernel_size2, 10, 1.4);
-#endif
+		//const int kernel_size2 = 3;		// real: 7
+		if (config.noise_reduction_mode == EdgeDetectionConfig::GAUSSIAN)
+		{
+			cv::GaussianBlur(z_dx, z_dx, cv::Size(config.noise_reduction_kernel_size,config.noise_reduction_kernel_size), 0, 0);
+			cv::GaussianBlur(z_dy, z_dy, cv::Size(config.noise_reduction_kernel_size,config.noise_reduction_kernel_size), 0, 0);
+		}
+		else if (config.noise_reduction_mode == EdgeDetectionConfig::BILATERAL)
+		{
+			//sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8
+			const double sigma_space = 0.3*((config.noise_reduction_kernel_size-1)*0.5 - 1) + 0.8;
+			cv::Mat temp = z_dx.clone();
+			cv::bilateralFilter(temp, z_dx, config.noise_reduction_kernel_size, 10, sigma_space); //1.4);
+			temp = z_dy.clone();
+			cv::bilateralFilter(temp, z_dy, config.noise_reduction_kernel_size, 10, sigma_space); //1.4);
+		}
 #ifdef MEASURE_RUNTIME
 		runtime_sobel_ += tim.getElapsedTimeInMilliSec();
 		tim.start();
@@ -242,6 +243,7 @@ public:
 
 		// depth discontinuities
 		edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
+		const float depth_factor = 0.01f;
 		const int min_line_width = 5;
 		const int max_line_width = 20;
 		const int max_v = z_dx.rows - max_line_width - 2;
@@ -263,16 +265,17 @@ public:
 			}
 		}
 		nonMaximumSuppression(edge, z_dx, z_dy);
-#ifndef USE_ADAPTIVE_SCAN_LINE
 		cv::Mat edge_integral;
-		cv::integral(edge, edge_integral, CV_32S);
-#endif
+		if (config.use_adaptive_scan_line == false)
+			cv::integral(edge, edge_integral, CV_32S);
 		//std::cout << "\t\t\t\tTime for depth discontinuities: " << tim.getElapsedTimeInMilliSec() << "\n";
 
 		//cv::Mat angle_image = cv::Mat::zeros(edge.rows, edge.cols, CV_32FC1);
 
 		// surface discontinuities
-		const float min_detectable_edge_angle = 45.; //35.;	// minimum angle between two planes to consider their intersection an edge, measured in [° degree]
+		const float min_detectable_edge_angle = config.min_detectable_edge_angle; //35.;	// minimum angle between two planes to consider their intersection an edge, measured in [° degree]
+		const float scan_line_model_m = config.scan_line_model_m;
+		const float scan_line_model_n = config.scan_line_model_n;
 		// x lines
 		cv::Mat x_dx_integralX, z_dx_integralX;
 		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
@@ -292,32 +295,33 @@ public:
 					continue;
 
 				// depth dependent scan line width for slope computation (1px width per 0.10m depth)
-				scan_line_width = std::min(int(6.666*depth+1.666), max_line_width);
+				scan_line_width = std::min(int(scan_line_model_m*depth+scan_line_model_n), max_line_width);
 				if (scan_line_width <= min_line_width)
 					scan_line_width = last_line_width;
 				else
 					last_line_width = scan_line_width;
 
-#ifdef USE_ADAPTIVE_SCAN_LINE
 				int scan_line_width_left = scan_line_width;
 				int scan_line_width_right = scan_line_width;
-				if (adaptScanLineWidth(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false)
+				if (config.use_adaptive_scan_line == true)
 				{
-					edge_start_index = -1;
-					max_edge_strength = 0.f;
-					continue;
+					if (adaptScanLineWidth(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false)
+					{
+						edge_start_index = -1;
+						max_edge_strength = 0.f;
+						continue;
+					}
 				}
-#else
-				// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
-				if (edge_integral.at<int>(v+1,u+scan_line_width+1)-edge_integral.at<int>(v+1,u-scan_line_width-2)-edge_integral.at<int>(v,u+scan_line_width+1)+edge_integral.at<int>(v,u-scan_line_width-2) != 0)
+				else
 				{
-					edge_start_index = -1;
-					max_edge_strength = 0.f;
-					continue;
+					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
+					if (edge_integral.at<int>(v+1,u+scan_line_width+1)-edge_integral.at<int>(v+1,u-scan_line_width-2)-edge_integral.at<int>(v,u+scan_line_width+1)+edge_integral.at<int>(v,u-scan_line_width-2) != 0)
+					{
+						edge_start_index = -1;
+						max_edge_strength = 0.f;
+						continue;
+					}
 				}
-				const int& scan_line_width_left = scan_line_width;
-				const int& scan_line_width_right = scan_line_width;
-#endif
 
 //				if (v==190 && u==400)
 //					drawCoordinateSample(u, v, scan_line_width_left, scan_line_width_right, x_image, x_dx, y_image, y_dy, z_image, z_dx);
@@ -378,32 +382,33 @@ public:
 					continue;
 
 				// depth dependent scan line width for slope computation (1px width per 0.10m depth)
-				scan_line_width = std::min(int(6.666*depth+1.666), max_line_width);
+				scan_line_width = std::min(int(scan_line_model_m*depth+scan_line_model_n), max_line_width);
 				if (scan_line_width <= min_line_width)
 					scan_line_width = last_line_width;
 				else
 					last_line_width = scan_line_width;
 
-#ifdef USE_ADAPTIVE_SCAN_LINE
 				int scan_line_height_upper = scan_line_width;
 				int scan_line_height_lower = scan_line_width;
-				if (adaptScanLineHeight(scan_line_height_upper, scan_line_height_lower, edge, v, u, min_line_width) == false)
+				if (config.use_adaptive_scan_line == true)
 				{
-					edge_start_index = -1;
-					max_edge_strength = 0.f;
-					continue;
+					if (adaptScanLineHeight(scan_line_height_upper, scan_line_height_lower, edge, v, u, min_line_width) == false)
+					{
+						edge_start_index = -1;
+						max_edge_strength = 0.f;
+						continue;
+					}
 				}
-#else
-				// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
-				if (edge_integral.at<int>(u+scan_line_width+1,v+1)-edge_integral.at<int>(u-scan_line_width-2,v+1)-edge_integral.at<int>(u+scan_line_width+1,v)+edge_integral.at<int>(u-scan_line_width-2,v) != 0)
+				else
 				{
-					edge_start_index = -1;
-					max_edge_strength = 0.f;
-					continue;
+					// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
+					if (edge_integral.at<int>(u+scan_line_width+1,v+1)-edge_integral.at<int>(u-scan_line_width-2,v+1)-edge_integral.at<int>(u+scan_line_width+1,v)+edge_integral.at<int>(u-scan_line_width-2,v) != 0)
+					{
+						edge_start_index = -1;
+						max_edge_strength = 0.f;
+						continue;
+					}
 				}
-				const int& scan_line_height_upper = scan_line_width;
-				const int& scan_line_height_lower = scan_line_width;
-#endif
 
 				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
 				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
