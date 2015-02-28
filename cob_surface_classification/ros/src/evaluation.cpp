@@ -362,16 +362,17 @@ void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB
 	// 2. Compute error of estimated normals
 	const int padding = 20; 	// todo: link this parameter to max_line_width from edge detection
 	int number_gt_normals = 0, number_normals = 0, number_good_normals = 0;
-	double normal_error = 0;
-	computeNormalEstimationError(gt_point_cloud, gt_normals, normals, padding, number_gt_normals, number_normals, number_good_normals, normal_error);
+	double normal_error = 0., normal_error_deg = 0.;
+	computeNormalEstimationError(gt_point_cloud, gt_normals, normals, padding, number_gt_normals, number_normals, number_good_normals, normal_error, normal_error_deg);
 
 	// 3. Visualize
 	if (ne_statistics != 0)
-		ne_statistics->addStatistics(100.*(double)number_normals/(double)number_gt_normals, normal_error/(double)number_normals, 100.*(double)number_good_normals/(double)number_normals);
+		ne_statistics->addStatistics(100.*(double)number_normals/(double)number_gt_normals, normal_error/(double)number_normals, normal_error_deg/(double)number_normals, 100.*(double)number_good_normals/(double)number_normals);
 //	std::cout << "Coverage of estimated normals on gt_normals: " << 100.*(double)number_normals/(double)number_gt_normals << std::endl;
 //	std::cout << "Average normal estimation error: " << normal_error/(double)number_normals << std::endl;
+//	std::cout << "Average normal estimation error [deg]: " << normal_error_deg/(double)number_normals << std::endl;
 //	std::cout << "Percentage of good normals: " << 100.*(double)number_good_normals/(double)number_normals << "\n" << std::endl;
-
+//
 //	pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
 //	viewerNormals.setBackgroundColor(0.0, 0.0, 0);
 //	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(gt_point_cloud);
@@ -439,12 +440,13 @@ void Evaluation::computeGroundTruthNormals(const pcl::PointCloud<pcl::PointXYZRG
 }
 
 void Evaluation::computeNormalEstimationError(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const pcl::PointCloud<pcl::Normal>::Ptr& gt_normals,
-		const pcl::PointCloud<pcl::Normal>::Ptr& normals, const int padding, int& number_gt_normals, int& number_normals, int& number_good_normals, double& normal_error)
+		const pcl::PointCloud<pcl::Normal>::Ptr& normals, const int padding, int& number_gt_normals, int& number_normals, int& number_good_normals, double& normal_error, double& normal_error_deg)
 {
 	number_gt_normals = 0;
 	number_normals = 0;
 	number_good_normals = 0;
 	normal_error = 0.;
+	normal_error_deg = 0.;
 	for (int v=padding; v<gt_point_cloud->height-padding; ++v)
 	{
 		for (int u=padding; u<gt_point_cloud->width-padding; ++u)
@@ -459,8 +461,9 @@ void Evaluation::computeNormalEstimationError(const pcl::PointCloud<pcl::PointXY
 				{
 					// normal estimation has also found a normal
 					++number_normals;
-					double d = gt_n.dot(n);
+					double d = std::max(-1., std::min(1.,(double)gt_n.dot(n)));
 					normal_error += fabs(1 - d);
+					normal_error_deg += 180./CV_PI*acos(d);
 					if (fabs(d) > 0.97)
 						++number_good_normals;
 				}

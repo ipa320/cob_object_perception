@@ -117,6 +117,7 @@ struct NormalEstimationStatistics
 {
 	double coverage_gt_normals;		// how many normals are computed w.r.t. the number of ground truth normals
 	double average_angular_error;	// average normal estimation error
+	double average_angular_error_deg;	// average normal estimation error in [deg]
 	double percentage_good_normals;	// ratio of sufficiently accurate normals
 	double number_images;
 
@@ -129,14 +130,16 @@ struct NormalEstimationStatistics
 	{
 		coverage_gt_normals = 0.;
 		average_angular_error = 0.;
+		average_angular_error_deg = 0.;
 		percentage_good_normals = 0.;
 		number_images = 0.;
 	}
 
-	void addStatistics(double coverage_gt_normals_val, double average_angular_error_val, double percentage_good_normals_val)
+	void addStatistics(double coverage_gt_normals_val, double average_angular_error_val, double average_angular_error_deg_val, double percentage_good_normals_val)
 	{
 		coverage_gt_normals = (coverage_gt_normals*number_images + coverage_gt_normals_val)/(number_images+1.);
 		average_angular_error = (average_angular_error*number_images + average_angular_error_val)/(number_images+1.);
+		average_angular_error_deg = (average_angular_error_deg*number_images + average_angular_error_deg_val)/(number_images+1.);
 		percentage_good_normals = (percentage_good_normals*number_images + percentage_good_normals_val)/(number_images+1.);
 		number_images += 1.;
 	}
@@ -225,7 +228,7 @@ private:
 	void computeGroundTruthNormals(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr gt_normals);
 
 	void computeNormalEstimationError(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, const pcl::PointCloud<pcl::Normal>::Ptr& gt_normals,
-			const pcl::PointCloud<pcl::Normal>::Ptr& normals, const int padding, int& number_gt_normals, int& number_normals, int& number_good_normals, double& normal_error);
+			const pcl::PointCloud<pcl::Normal>::Ptr& normals, const int padding, int& number_gt_normals, int& number_normals, int& number_good_normals, double& normal_error, double& normal_error_deg);
 
 	// compute the numbers for recall and precision
 	// @param search_radius is half the side length of the search neighborhood for fitting estimates and gt pixels (e.g. an edge pixel is correctly labeled in the estimate if there is an edge pixel within the (2*search_radius+1) neighborhood in the gt_image)

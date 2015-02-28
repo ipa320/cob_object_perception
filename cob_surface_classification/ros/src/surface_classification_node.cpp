@@ -331,17 +331,19 @@ public:
 
 			// normal evaluation with integral image
 			std::vector<NormalEstimationConfig::IntegralNormalEstimationMethod> integral_method;
-			integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX); integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT);
+			integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX); integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT); integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_DEPTH_CHANGE);
+			std::vector<float> smoothing;
+			smoothing.push_back(2.5f); smoothing.push_back(5.f); smoothing.push_back(7.5f); smoothing.push_back(10.f); smoothing.push_back(12.5f); smoothing.push_back(15.f); smoothing.push_back(17.5f); smoothing.push_back(20.f);
 			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
 			{
 				for (size_t i_method=0; i_method<integral_method.size(); ++i_method)
 				{
-					for (float i_smoothing_range=0.f; i_smoothing_range<20.1; i_smoothing_range+=2.5f)
+					for (size_t i_smoothing=0; i_smoothing<smoothing.size(); ++i_smoothing)
 					{
 						EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
 						if (noise_sigmas[i_noise_sigma] == 0.)
 							edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
-						NormalEstimationConfig normal_estimation_config(0, 0, 0, integral_method[i_method], i_smoothing_range);
+						NormalEstimationConfig normal_estimation_config(0, 0, 0, integral_method[i_method], smoothing[i_smoothing]);
 						ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
 						std::cout << "---------------------------------------------------------------"
 								<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
@@ -409,14 +411,12 @@ public:
 		int index = 0;
 		int counter = 0;
 		edge_detection_statistics_.clear();
-		if (NORMAL_COMP)
-		{
-			ne_statistics_cross_edge_.clear();
-			ne_statistics_cross_.clear();
-			ne_statistics_integral_edge_.clear();
-			ne_statistics_integral_.clear();
-			ne_statistics_vanilla_.clear();
-		}
+		ne_statistics_cross_edge_.clear();
+		ne_statistics_cross_.clear();
+		ne_statistics_integral_edge_.clear();
+		ne_statistics_integral_.clear();
+		ne_statistics_vanilla_.clear();
+
 		Timer tim;
 		tim.start();
 		const int image_number = image_vector.size();
@@ -447,6 +447,7 @@ public:
 //			std::cout << "Cross-product-based normals with edges:"
 //					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_edge_.coverage_gt_normals
 //					<< "\nAverage normal estimation error: " << ne_statistics_cross_edge_.average_angular_error
+//					<< "\nAverage normal estimation error [deg]: " << ne_statistics_cross_edge_.average_angular_error_deg
 //					<< "\nPercentage of good normals: " << ne_statistics_cross_edge_.percentage_good_normals << "\n" << std::endl;
 //			ss //<< "simulated_sensor_noise_sigma:\t" << config.simulated_sensor_noise_sigma
 //					<< "\tnormal_estimation_config.cross_pixel_radius:\t" << config.normal_estimation_config.cross_pixel_radius
@@ -455,6 +456,7 @@ public:
 //					<< "\tne_statistics_cross_edge_.coverage_gt_normals:\t" << ne_statistics_cross_edge_.coverage_gt_normals
 //					<< "\tne_statistics_cross_edge_.percentage_good_normals:\t" << ne_statistics_cross_edge_.percentage_good_normals
 //					<< "\tne_statistics_cross_edge_.average_angular_error:\t" << ne_statistics_cross_edge_.average_angular_error
+//					<< "\tne_statistics_cross_edge_.average_angular_error_deg:\t" << ne_statistics_cross_edge_.average_angular_error_deg
 //					<< std::endl;
 		}
 		if (ALTERNATIVE_NORMAL_COMP)
@@ -462,31 +464,43 @@ public:
 //			std::cout << "Cross-product-based normals:"
 //					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_.coverage_gt_normals
 //					<< "\nAverage normal estimation error: " << ne_statistics_cross_.average_angular_error
+//					<< "\nAverage normal estimation error [deg]: " << ne_statistics_cross_.average_angular_error_deg
 //					<< "\nPercentage of good normals: " << ne_statistics_cross_.percentage_good_normals << "\n" << std::endl;
 //			ss << "\tnormal_estimation_config.cross_pixel_radius:\t" << config.normal_estimation_config.cross_pixel_radius
 //					<< "\tnormal_estimation_config.cross_pixel_steps:\t" << config.normal_estimation_config.cross_pixel_steps
 //					<< "\tnormal_estimation_config.cross_circle_steps:\t" << config.normal_estimation_config.cross_circle_steps
-//					<< "\tne_statistics_cross_edge_.coverage_gt_normals:\t" << ne_statistics_cross_.coverage_gt_normals
-//					<< "\tne_statistics_cross_edge_.percentage_good_normals:\t" << ne_statistics_cross_.percentage_good_normals
-//					<< "\tne_statistics_cross_edge_.average_angular_error:\t" << ne_statistics_cross_.average_angular_error
+//					<< "\tne_statistics_cross_.coverage_gt_normals:\t" << ne_statistics_cross_.coverage_gt_normals
+//					<< "\tne_statistics_cross_.percentage_good_normals:\t" << ne_statistics_cross_.percentage_good_normals
+//					<< "\tne_statistics_cross_.average_angular_error:\t" << ne_statistics_cross_.average_angular_error
+//					<< "\tne_statistics_cross_.average_angular_error_deg:\t" << ne_statistics_cross_.average_angular_error_deg
 //					<< std::endl;
 
 			std::cout << "Integral image-based normals with edges:"
 					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_edge_.coverage_gt_normals
 					<< "\nAverage normal estimation error: " << ne_statistics_integral_edge_.average_angular_error
+					<< "\nAverage normal estimation error [deg]: " << ne_statistics_integral_edge_.average_angular_error_deg
 					<< "\nPercentage of good normals: " << ne_statistics_integral_edge_.percentage_good_normals << "\n" << std::endl;
 			ss << "\tnormal_estimation_config.integral_normal_estimation_method:\t" << config.normal_estimation_config.integral_normal_estimation_method
 					<< "\tnormal_estimation_config.integral_normal_smoothing_size:\t" << config.normal_estimation_config.integral_normal_smoothing_size
 					<< "\tne_statistics_integral_edge_.coverage_gt_normals:\t" << ne_statistics_integral_edge_.coverage_gt_normals
 					<< "\tne_statistics_integral_edge_.percentage_good_normals:\t" << ne_statistics_integral_edge_.percentage_good_normals
 					<< "\tne_statistics_integral_edge_.average_angular_error:\t" << ne_statistics_integral_edge_.average_angular_error
+					<< "\tne_statistics_integral_edge_.average_angular_error_deg:\t" << ne_statistics_integral_edge_.average_angular_error_deg
 					<< std::endl;
 
 //			std::cout << "Integral image-based normals:"
 //					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_.coverage_gt_normals
 //					<< "\nAverage normal estimation error: " << ne_statistics_integral_.average_angular_error
+//					<< "\nAverage normal estimation error [deg]: " << ne_statistics_integral_.average_angular_error_deg
 //					<< "\nPercentage of good normals: " << ne_statistics_integral_.percentage_good_normals << "\n" << std::endl;
-//
+//			ss << "\tnormal_estimation_config.integral_normal_estimation_method:\t" << config.normal_estimation_config.integral_normal_estimation_method
+//					<< "\tnormal_estimation_config.integral_normal_smoothing_size:\t" << config.normal_estimation_config.integral_normal_smoothing_size
+//					<< "\tne_statistics_integral_.coverage_gt_normals:\t" << ne_statistics_integral_.coverage_gt_normals
+//					<< "\tne_statistics_integral_.percentage_good_normals:\t" << ne_statistics_integral_.percentage_good_normals
+//					<< "\tne_statistics_integral_.average_angular_error:\t" << ne_statistics_integral_.average_angular_error
+//					<< "\tne_statistics_integral_.average_angular_error_deg:\t" << ne_statistics_integral_.average_angular_error_deg
+//					<< std::endl;
+
 //			std::cout << "Vanilla normal estimation:"
 //					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
 //					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
@@ -734,18 +748,18 @@ public:
 
 					//tim.start();
 					pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne2;
-					ne2.setNormalEstimationMethod(ne2.COVARIANCE_MATRIX);
+					ne2.setNormalEstimationMethod(config.normal_estimation_config.integral_normal_estimation_method);
 					ne2.setMaxDepthChangeFactor(0.02f);
-					ne2.setNormalSmoothingSize(10.0f);
+					ne2.setNormalSmoothingSize(config.normal_estimation_config.integral_normal_smoothing_size);
 					ne2.setDepthDependentSmoothing(true);
 					ne2.setInputCloud(cloud_edge);
 					ne2.compute(*normalsIntegralImageEdge);
 					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation with edges" << std::endl;
-/*
-					tim.start();
+
+/*					//tim.start();
 					ne2.setInputCloud(cloud);
 					ne2.compute(*normalsIntegralImage);
-					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation" << std::endl;
+					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation" << std::endl;
 
 
 					// alternative 2: vanilla PCL normal estimation
@@ -945,10 +959,10 @@ public:
 					//std::cout << "Integral image-based normals with edges:\n";
 					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImageEdge, &ne_statistics_integral_edge_);
 					//std::cout << "Integral image-based normals:\n";
-/*					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImage, &ne_statistics_integral_);
+//					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImage, &ne_statistics_integral_);
 					//std::cout << "Vanilla normal estimation:\n";
-					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
-*/				}
+//					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
+				}
 
 				// surface classification statistics
 				if (CLASSIFY)
