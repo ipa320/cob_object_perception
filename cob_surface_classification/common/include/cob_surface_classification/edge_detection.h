@@ -132,7 +132,6 @@ public:
 	};
 
 //#define MEASURE_RUNTIME
-#define USE_ADAPTIVE_SCAN_LINE
 #define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
 #define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
 #define USE_OMP
