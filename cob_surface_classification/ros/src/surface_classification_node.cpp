@@ -361,56 +361,56 @@ public:
 //				}
 //			}
 
-			// normal evaluation with integral image
-			std::vector<NormalEstimationConfig::IntegralNormalEstimationMethod> integral_method;
-			integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX); integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT); integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_DEPTH_CHANGE);
-			std::vector<float> smoothing;
-			smoothing.push_back(2.5f); smoothing.push_back(5.f); smoothing.push_back(7.5f); smoothing.push_back(10.f); smoothing.push_back(12.5f); smoothing.push_back(15.f); smoothing.push_back(17.5f); smoothing.push_back(20.f);
-			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
-			{
-				for (size_t i_method=0; i_method<integral_method.size(); ++i_method)
-				{
-					for (size_t i_smoothing=0; i_smoothing<smoothing.size(); ++i_smoothing)
-					{
-						EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
-						if (noise_sigmas[i_noise_sigma] == 0.)
-							edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
-						NormalEstimationConfig normal_estimation_config(0, 0, 0, integral_method[i_method], smoothing[i_smoothing], 0);
-						ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
-						std::cout << "---------------------------------------------------------------"
-								<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
+//			// normal evaluation with integral image
+//			std::vector<NormalEstimationConfig::IntegralNormalEstimationMethod> integral_method;
+//			integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX); integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT); integral_method.push_back(NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_DEPTH_CHANGE);
+//			std::vector<float> smoothing;
+//			smoothing.push_back(2.5f); smoothing.push_back(5.f); smoothing.push_back(7.5f); smoothing.push_back(10.f); smoothing.push_back(12.5f); smoothing.push_back(15.f); smoothing.push_back(17.5f); smoothing.push_back(20.f);
+//			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
+//			{
+//				for (size_t i_method=0; i_method<integral_method.size(); ++i_method)
+//				{
+//					for (size_t i_smoothing=0; i_smoothing<smoothing.size(); ++i_smoothing)
+//					{
+//						EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
+//						if (noise_sigmas[i_noise_sigma] == 0.)
+//							edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
+//						NormalEstimationConfig normal_estimation_config(0, 0, 0, integral_method[i_method], smoothing[i_smoothing], 0);
+//						ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
+//						std::cout << "---------------------------------------------------------------"
+//								<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
 //								<< "\nedge_detection_config.noise_reduction_mode:\t" << exp_config.edge_detection_config.noise_reduction_mode
 //								<< "\nedge_detection_config.noise_reduction_kernel_size:\t" << exp_config.edge_detection_config.noise_reduction_kernel_size
 //								<< "\nedge_detection_config.use_adaptive_scan_line:\t" << exp_config.edge_detection_config.use_adaptive_scan_line
 //								<< "\nedge_detection_config.scan_line_width_at_2m:\t" << exp_config.edge_detection_config.scan_line_width_at_2m
 //								<< "\nedge_detection_config.min_detectable_edge_angle:\t" << exp_config.edge_detection_config.min_detectable_edge_angle
-								<< "\nnormal_estimation_config.integral_normal_estimation_method:\t" << exp_config.normal_estimation_config.integral_normal_estimation_method
-								<< "\nnormal_estimation_config.integral_normal_smoothing_size:\t" << exp_config.normal_estimation_config.integral_normal_smoothing_size
-								<< std::endl;
-						computationsEvaluation(image_vector, pointcloud_vector, exp_config);
-					}
-				}
-			}
-
-//			// vanilla normal evaluation with kNN (PCL)
-//			std::vector<int> kneighbors;
-//			kneighbors.push_back(8); kneighbors.push_back(16); kneighbors.push_back(32); kneighbors.push_back(64); kneighbors.push_back(128); kneighbors.push_back(256); kneighbors.push_back(512);
-//			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
-//			{
-//				for (size_t i_kneighbors=0; i_kneighbors<kneighbors.size(); ++i_kneighbors)
-//				{
-//					EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
-//					if (noise_sigmas[i_noise_sigma] == 0.)
-//						edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
-//					NormalEstimationConfig normal_estimation_config(0, 0, 0, NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX, 0, kneighbors[i_kneighbors]);
-//					ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
-//					std::cout << "---------------------------------------------------------------"
-//							<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
-//							<< "\nnormal_estimation_config.vanillapcl_kneighbors:\t" << exp_config.normal_estimation_config.vanillapcl_kneighbors
-//							<< std::endl;
-//					computationsEvaluation(image_vector, pointcloud_vector, exp_config);
+//								<< "\nnormal_estimation_config.integral_normal_estimation_method:\t" << exp_config.normal_estimation_config.integral_normal_estimation_method
+//								<< "\nnormal_estimation_config.integral_normal_smoothing_size:\t" << exp_config.normal_estimation_config.integral_normal_smoothing_size
+//								<< std::endl;
+//						computationsEvaluation(image_vector, pointcloud_vector, exp_config);
+//					}
 //				}
 //			}
+
+			// vanilla normal evaluation with kNN (PCL)
+			std::vector<int> kneighbors;
+			kneighbors.push_back(8); kneighbors.push_back(16); kneighbors.push_back(32); kneighbors.push_back(64); kneighbors.push_back(128); kneighbors.push_back(256); kneighbors.push_back(512); kneighbors.push_back(1024);
+			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
+			{
+				for (size_t i_kneighbors=0; i_kneighbors<kneighbors.size(); ++i_kneighbors)
+				{
+					EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
+					if (noise_sigmas[i_noise_sigma] == 0.)
+						edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
+					NormalEstimationConfig normal_estimation_config(0, 0, 0, NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX, 0, kneighbors[i_kneighbors]);
+					ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
+					std::cout << "---------------------------------------------------------------"
+							<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
+							<< "\nnormal_estimation_config.vanillapcl_kneighbors:\t" << exp_config.normal_estimation_config.vanillapcl_kneighbors
+							<< std::endl;
+					computationsEvaluation(image_vector, pointcloud_vector, exp_config);
+				}
+			}
 
 			exit(0);
 		}
@@ -552,30 +552,30 @@ public:
 //					<< "\tne_statistics_integral_edge_.average_angular_error_deg:\t" << ne_statistics_integral_edge_.average_angular_error_deg
 //					<< std::endl;
 
-			std::cout << "Integral image-based normals:"
-					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_.coverage_gt_normals
-					<< "\nPercentage of good normals: " << ne_statistics_integral_.percentage_good_normals
-					<< "\nAverage normal estimation error: " << ne_statistics_integral_.average_angular_error
-					<< "\nAverage normal estimation error [deg]: " << ne_statistics_integral_.average_angular_error_deg << "\n" << std::endl;
-			ss << "\tnormal_estimation_config.integral_normal_estimation_method:\t" << config.normal_estimation_config.integral_normal_estimation_method
-					<< "\tnormal_estimation_config.integral_normal_smoothing_size:\t" << config.normal_estimation_config.integral_normal_smoothing_size
-					<< "\tne_statistics_integral_.coverage_gt_normals:\t" << ne_statistics_integral_.coverage_gt_normals
-					<< "\tne_statistics_integral_.percentage_good_normals:\t" << ne_statistics_integral_.percentage_good_normals
-					<< "\tne_statistics_integral_.average_angular_error:\t" << ne_statistics_integral_.average_angular_error
-					<< "\tne_statistics_integral_.average_angular_error_deg:\t" << ne_statistics_integral_.average_angular_error_deg
-					<< std::endl;
-
-//			std::cout << "Vanilla normal estimation:"
-//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
-//					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals
-//					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
-//					<< "\nAverage normal estimation error [deg]: " << ne_statistics_vanilla_.average_angular_error_deg << "\n" << std::endl;
-//			ss << "\tnormal_estimation_config.vanillapcl_kneighbors:\t" << config.normal_estimation_config.vanillapcl_kneighbors
-//					<< "\tne_statistics_vanilla_.coverage_gt_normals:\t" << ne_statistics_vanilla_.coverage_gt_normals
-//					<< "\tne_statistics_vanilla_.percentage_good_normals:\t" << ne_statistics_vanilla_.percentage_good_normals
-//					<< "\tne_statistics_vanilla_.average_angular_error:\t" << ne_statistics_vanilla_.average_angular_error
-//					<< "\tne_statistics_vanilla_.average_angular_error_deg:\t" << ne_statistics_vanilla_.average_angular_error_deg
+//			std::cout << "Integral image-based normals:"
+//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_.coverage_gt_normals
+//					<< "\nPercentage of good normals: " << ne_statistics_integral_.percentage_good_normals
+//					<< "\nAverage normal estimation error: " << ne_statistics_integral_.average_angular_error
+//					<< "\nAverage normal estimation error [deg]: " << ne_statistics_integral_.average_angular_error_deg << "\n" << std::endl;
+//			ss << "\tnormal_estimation_config.integral_normal_estimation_method:\t" << config.normal_estimation_config.integral_normal_estimation_method
+//					<< "\tnormal_estimation_config.integral_normal_smoothing_size:\t" << config.normal_estimation_config.integral_normal_smoothing_size
+//					<< "\tne_statistics_integral_.coverage_gt_normals:\t" << ne_statistics_integral_.coverage_gt_normals
+//					<< "\tne_statistics_integral_.percentage_good_normals:\t" << ne_statistics_integral_.percentage_good_normals
+//					<< "\tne_statistics_integral_.average_angular_error:\t" << ne_statistics_integral_.average_angular_error
+//					<< "\tne_statistics_integral_.average_angular_error_deg:\t" << ne_statistics_integral_.average_angular_error_deg
 //					<< std::endl;
+
+			std::cout << "Vanilla normal estimation:"
+					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
+					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals
+					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
+					<< "\nAverage normal estimation error [deg]: " << ne_statistics_vanilla_.average_angular_error_deg << "\n" << std::endl;
+			ss << "\tnormal_estimation_config.vanillapcl_kneighbors:\t" << config.normal_estimation_config.vanillapcl_kneighbors
+					<< "\tne_statistics_vanilla_.coverage_gt_normals:\t" << ne_statistics_vanilla_.coverage_gt_normals
+					<< "\tne_statistics_vanilla_.percentage_good_normals:\t" << ne_statistics_vanilla_.percentage_good_normals
+					<< "\tne_statistics_vanilla_.average_angular_error:\t" << ne_statistics_vanilla_.average_angular_error
+					<< "\tne_statistics_vanilla_.average_angular_error_deg:\t" << ne_statistics_vanilla_.average_angular_error_deg
+					<< std::endl;
 		}
 
 		// write results to file
@@ -818,24 +818,24 @@ public:
 						for (int u=0; u<edge.cols; ++u)
 							if (edge.at<uchar>(v,u) != 0)
 								cloud_edge->points[v*edge.cols+u].z = std::numeric_limits<float>::quiet_NaN();
-*/
+
 					//tim.start();
 					pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne2;
 					ne2.setNormalEstimationMethod(config.normal_estimation_config.integral_normal_estimation_method);
 					ne2.setMaxDepthChangeFactor(0.02f);
 					ne2.setNormalSmoothingSize(config.normal_estimation_config.integral_normal_smoothing_size);
 					ne2.setDepthDependentSmoothing(true);
-//					ne2.setInputCloud(cloud_edge);
-//					ne2.compute(*normalsIntegralImageEdge);
+					ne2.setInputCloud(cloud_edge);
+					ne2.compute(*normalsIntegralImageEdge);
 					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation with edges" << std::endl;
 
 					//tim.start();
 					ne2.setInputCloud(cloud);
 					ne2.compute(*normalsIntegralImage);
 					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation" << std::endl;
+*/
 
-
-/*					// alternative 2: vanilla PCL normal estimation
+					// alternative 2: vanilla PCL normal estimation
 					//tim.start();
 					pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne3;
 					ne3.setInputCloud(cloud);
@@ -843,7 +843,7 @@ public:
 					ne3.setKSearch((int)config.normal_estimation_config.vanillapcl_kneighbors); //256
 					//ne3.setRadiusSearch(0.01);
 					ne3.compute(*normalsVanilla);
-*/					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla normal estimation" << std::endl;
+					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla normal estimation" << std::endl;
 				}
 //			}
 
@@ -1034,9 +1034,9 @@ public:
 					//std::cout << "Integral image-based normals with edges:\n";
 //					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImageEdge, &ne_statistics_integral_edge_);
 					//std::cout << "Integral image-based normals:\n";
-					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImage, &ne_statistics_integral_);
+//					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImage, &ne_statistics_integral_);
 					//std::cout << "Vanilla normal estimation:\n";
-//					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
+					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
 				}
 
 				// surface classification statistics

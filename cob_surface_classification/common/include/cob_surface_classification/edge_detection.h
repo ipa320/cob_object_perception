@@ -146,9 +146,12 @@ public:
 		Timer tim;
 		tim.start();
 #endif
-		cv::Mat x_image = cv::Mat::zeros(pointcloud->height, pointcloud->width, CV_32FC1);
-		cv::Mat y_image = cv::Mat::zeros(pointcloud->height, pointcloud->width, CV_32FC1);
-		cv::Mat z_image = cv::Mat::zeros(pointcloud->height, pointcloud->width, CV_32FC1);
+//		cv::Mat x_image = cv::Mat::zeros(pointcloud->height, pointcloud->width, CV_32FC1);
+//		cv::Mat y_image = cv::Mat::zeros(pointcloud->height, pointcloud->width, CV_32FC1);
+//		cv::Mat z_image = cv::Mat::zeros(pointcloud->height, pointcloud->width, CV_32FC1);
+		cv::Mat x_image(pointcloud->height, pointcloud->width, CV_32FC1);
+		cv::Mat y_image(pointcloud->height, pointcloud->width, CV_32FC1);
+		cv::Mat z_image(pointcloud->height, pointcloud->width, CV_32FC1);
 
 //#pragma omp parallel for //num_threads(2)	// no measurable speed up
 		for (unsigned int v=0; v<pointcloud->height; v++)
@@ -166,6 +169,12 @@ public:
 					*x_ptr = point->x;
 					*y_ptr = point->y;
 					*z_ptr = point->z;
+				}
+				else
+				{
+					*x_ptr = 0.f;
+					*y_ptr = 0.f;
+					*z_ptr = 0.f;
 				}
 				++x_ptr;
 				++y_ptr;
