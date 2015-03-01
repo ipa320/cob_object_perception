@@ -73,6 +73,7 @@
 #include <pcl/point_types_conversion.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/features/normal_3d.h>
 
 #include <opencv/highgui.h>
 
@@ -422,8 +423,7 @@ void Evaluation::computeGroundTruthNormals(const pcl::PointCloud<pcl::PointXYZRG
 				{
 					Eigen::Vector3f n = (p1-p).cross(p2-p);
 					n.normalize();
-					if (n(2) > 0.)
-						n *= -1;
+					pcl::flipNormalTowardsViewpoint<pcl::PointXYZRGB>(gt_point_cloud->at(u,v), gt_point_cloud->sensor_origin_(0), gt_point_cloud->sensor_origin_(1), gt_point_cloud->sensor_origin_(2), n(0), n(1), n(2));
 					gt_normals->at(u,v).normal_x = n(0);
 					gt_normals->at(u,v).normal_y = n(1);
 					gt_normals->at(u,v).normal_z = n(2);

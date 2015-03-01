@@ -69,7 +69,7 @@
 //steps in computation/evaluation_online mode:
 
 #define NORMAL_COMP					false	// compute the normals with cross product + edges
-#define ALTERNATIVE_NORMAL_COMP		true	// compute the normals without edges (classic procedure)
+#define ALTERNATIVE_NORMAL_COMP		false	// compute the normals without edges (classic procedure)
 #define SEG 						false 	// segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	// segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	// segmentation refinement according to curvatures (outdated)
@@ -301,6 +301,35 @@ public:
 //				}
 //			}
 
+			// normal evaluation with normals directly from edge image
+			std::vector<int> scan_line_width_at_2m;
+			scan_line_width_at_2m.push_back(10); scan_line_width_at_2m.push_back(15); scan_line_width_at_2m.push_back(20);
+			std::vector<double> min_detectable_edge_angle;
+			min_detectable_edge_angle.push_back(35); min_detectable_edge_angle.push_back(45); min_detectable_edge_angle.push_back(60);
+			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
+			{
+				for (size_t i_scan_line_width_at_2m=0; i_scan_line_width_at_2m<scan_line_width_at_2m.size(); ++i_scan_line_width_at_2m)
+				{
+					for (size_t i_min_detectable_edge_angle=0; i_min_detectable_edge_angle<min_detectable_edge_angle.size(); ++i_min_detectable_edge_angle)
+					{
+						EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, true, min_detectable_edge_angle[i_min_detectable_edge_angle], scan_line_width_at_2m[i_scan_line_width_at_2m]);
+						if (noise_sigmas[i_noise_sigma] == 0.)
+							edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
+						NormalEstimationConfig normal_estimation_config(0, 0, 0, NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX, 0, 0);
+						ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
+						std::cout << "---------------------------------------------------------------"
+								<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
+								<< "\nedge_detection_config.noise_reduction_mode:\t" << exp_config.edge_detection_config.noise_reduction_mode
+								<< "\nedge_detection_config.noise_reduction_kernel_size:\t" << exp_config.edge_detection_config.noise_reduction_kernel_size
+								<< "\nedge_detection_config.use_adaptive_scan_line:\t" << exp_config.edge_detection_config.use_adaptive_scan_line
+								<< "\nedge_detection_config.scan_line_width_at_2m:\t" << exp_config.edge_detection_config.scan_line_width_at_2m
+								<< "\nedge_detection_config.min_detectable_edge_angle:\t" << exp_config.edge_detection_config.min_detectable_edge_angle
+								<< std::endl;
+						computationsEvaluation(image_vector, pointcloud_vector, exp_config);
+					}
+				}
+			}
+
 //			// normal evaluation with cross-product
 //			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
 //			{
@@ -363,26 +392,25 @@ public:
 //				}
 //			}
 
-			// vanilla normal evaluation with kNN (PCL)
-			std::vector<int> kneighbors;
-			kneighbors.push_back(8); kneighbors.push_back(16); kneighbors.push_back(32); kneighbors.push_back(64); kneighbors.push_back(128); kneighbors.push_back(256); kneighbors.push_back(512);
-			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
-			{
-				for (size_t i_kneighbors=0; i_kneighbors<kneighbors.size(); ++i_kneighbors)
-				{
-					EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
-					if (noise_sigmas[i_noise_sigma] == 0.)
-						edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
-					NormalEstimationConfig normal_estimation_config(0, 0, 0, NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX, 0, kneighbors[i_kneighbors]);
-					ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
-					std::cout << "---------------------------------------------------------------"
-							<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
-							<< "\nnormal_estimation_config.vanillapcl_kneighbors:\t" << exp_config.normal_estimation_config.vanillapcl_kneighbors
-							<< std::endl;
-					computationsEvaluation(image_vector, pointcloud_vector, exp_config);
-				}
-			}
-
+//			// vanilla normal evaluation with kNN (PCL)
+//			std::vector<int> kneighbors;
+//			kneighbors.push_back(8); kneighbors.push_back(16); kneighbors.push_back(32); kneighbors.push_back(64); kneighbors.push_back(128); kneighbors.push_back(256); kneighbors.push_back(512);
+//			for (size_t i_noise_sigma=0; i_noise_sigma<noise_sigmas.size(); ++i_noise_sigma)
+//			{
+//				for (size_t i_kneighbors=0; i_kneighbors<kneighbors.size(); ++i_kneighbors)
+//				{
+//					EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config;
+//					if (noise_sigmas[i_noise_sigma] == 0.)
+//						edge_detection_config.noise_reduction_mode = EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE;
+//					NormalEstimationConfig normal_estimation_config(0, 0, 0, NormalEstimationConfig::IntegralNormalEstimationMethod::COVARIANCE_MATRIX, 0, kneighbors[i_kneighbors]);
+//					ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
+//					std::cout << "---------------------------------------------------------------"
+//							<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
+//							<< "\nnormal_estimation_config.vanillapcl_kneighbors:\t" << exp_config.normal_estimation_config.vanillapcl_kneighbors
+//							<< std::endl;
+//					computationsEvaluation(image_vector, pointcloud_vector, exp_config);
+//				}
+//			}
 
 			exit(0);
 		}
@@ -435,6 +463,7 @@ public:
 		int index = 0;
 		int counter = 0;
 		edge_detection_statistics_.clear();
+		ne_statistics_direct_edge_.clear();
 		ne_statistics_cross_edge_.clear();
 		ne_statistics_cross_.clear();
 		ne_statistics_integral_edge_.clear();
@@ -455,16 +484,27 @@ public:
 
 		std::cout << "Total runtime: " << tim.getElapsedTimeInSec() << "s \t Runtime per cycle: " << tim.getElapsedTimeInMilliSec()/(double)counter << "ms\n" << std::endl;
 
-		//std::cout << "Results on edge estimation:\n\trecall=" << edge_detection_statistics_.recall << "\tprecision=" << edge_detection_statistics_.precision << "\n\n";
-		ss << "simulated_sensor_noise_sigma:\t" << config.simulated_sensor_noise_sigma;
-//				<< "\tedge_detection_config.noise_reduction_mode:\t" << config.edge_detection_config.noise_reduction_mode
-//				<< "\tedge_detection_config.noise_reduction_kernel_size:\t" << config.edge_detection_config.noise_reduction_kernel_size
-//				<< "\tedge_detection_config.use_adaptive_scan_line:\t" << config.edge_detection_config.use_adaptive_scan_line
-//				<< "\tedge_detection_config.scan_line_width_at_2m:\t" << config.edge_detection_config.scan_line_width_at_2m
-//				<< "\tedge_detection_config.min_detectable_edge_angle:\t" << config.edge_detection_config.min_detectable_edge_angle
-//				<< "\tedge.recall:\t" << edge_detection_statistics_.recall
-//				<< "\tedge.precision:\t" << edge_detection_statistics_.precision;
+		std::cout << "Results on edge estimation:\n\trecall=" << edge_detection_statistics_.recall << "\tprecision=" << edge_detection_statistics_.precision << "\n\n";
+		ss << "simulated_sensor_noise_sigma:\t" << config.simulated_sensor_noise_sigma
+				<< "\tedge_detection_config.noise_reduction_mode:\t" << config.edge_detection_config.noise_reduction_mode
+				<< "\tedge_detection_config.noise_reduction_kernel_size:\t" << config.edge_detection_config.noise_reduction_kernel_size
+				<< "\tedge_detection_config.use_adaptive_scan_line:\t" << config.edge_detection_config.use_adaptive_scan_line
+				<< "\tedge_detection_config.scan_line_width_at_2m:\t" << config.edge_detection_config.scan_line_width_at_2m
+				<< "\tedge_detection_config.min_detectable_edge_angle:\t" << config.edge_detection_config.min_detectable_edge_angle
+				<< "\tedge.recall:\t" << edge_detection_statistics_.recall
+				<< "\tedge.precision:\t" << edge_detection_statistics_.precision;
 //				<< std::endl;
+		std::cout << "Direct normals from edge computation:"
+				<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_direct_edge_.coverage_gt_normals
+				<< "\nPercentage of good normals: " << ne_statistics_direct_edge_.percentage_good_normals
+				<< "\nAverage normal estimation error: " << ne_statistics_direct_edge_.average_angular_error
+				<< "\nAverage normal estimation error [deg]: " << ne_statistics_direct_edge_.average_angular_error_deg << "\n" << std::endl;
+		ss << "\tne_statistics_cross_edge_.coverage_gt_normals:\t" << ne_statistics_direct_edge_.coverage_gt_normals
+				<< "\tne_statistics_cross_edge_.percentage_good_normals:\t" << ne_statistics_direct_edge_.percentage_good_normals
+				<< "\tne_statistics_cross_edge_.average_angular_error:\t" << ne_statistics_direct_edge_.average_angular_error
+				<< "\tne_statistics_cross_edge_.average_angular_error_deg:\t" << ne_statistics_direct_edge_.average_angular_error_deg
+				<< std::endl;
+
 
 		if (NORMAL_COMP)
 		{
@@ -525,17 +565,17 @@ public:
 //					<< "\tne_statistics_integral_.average_angular_error_deg:\t" << ne_statistics_integral_.average_angular_error_deg
 //					<< std::endl;
 
-			std::cout << "Vanilla normal estimation:"
-					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
-					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals
-					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
-					<< "\nAverage normal estimation error [deg]: " << ne_statistics_vanilla_.average_angular_error_deg << "\n" << std::endl;
-			ss << "\tnormal_estimation_config.vanillapcl_kneighbors:\t" << config.normal_estimation_config.vanillapcl_kneighbors
-					<< "\tne_statistics_vanilla_.coverage_gt_normals:\t" << ne_statistics_vanilla_.coverage_gt_normals
-					<< "\tne_statistics_vanilla_.percentage_good_normals:\t" << ne_statistics_vanilla_.percentage_good_normals
-					<< "\tne_statistics_vanilla_.average_angular_error:\t" << ne_statistics_vanilla_.average_angular_error
-					<< "\tne_statistics_vanilla_.average_angular_error_deg:\t" << ne_statistics_vanilla_.average_angular_error_deg
-					<< std::endl;
+//			std::cout << "Vanilla normal estimation:"
+//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_vanilla_.coverage_gt_normals
+//					<< "\nPercentage of good normals: " << ne_statistics_vanilla_.percentage_good_normals
+//					<< "\nAverage normal estimation error: " << ne_statistics_vanilla_.average_angular_error
+//					<< "\nAverage normal estimation error [deg]: " << ne_statistics_vanilla_.average_angular_error_deg << "\n" << std::endl;
+//			ss << "\tnormal_estimation_config.vanillapcl_kneighbors:\t" << config.normal_estimation_config.vanillapcl_kneighbors
+//					<< "\tne_statistics_vanilla_.coverage_gt_normals:\t" << ne_statistics_vanilla_.coverage_gt_normals
+//					<< "\tne_statistics_vanilla_.percentage_good_normals:\t" << ne_statistics_vanilla_.percentage_good_normals
+//					<< "\tne_statistics_vanilla_.average_angular_error:\t" << ne_statistics_vanilla_.average_angular_error
+//					<< "\tne_statistics_vanilla_.average_angular_error_deg:\t" << ne_statistics_vanilla_.average_angular_error_deg
+//					<< std::endl;
 		}
 
 		// write results to file
@@ -698,8 +738,9 @@ public:
 		//record if "e" is pressed while "image"-window is activated
 		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
 		{
+			pcl::PointCloud<pcl::Normal>::Ptr normalsEdgeDirect(new pcl::PointCloud<pcl::Normal>);
 			cv::Mat edge;
-			edge_detection_.computeDepthEdges(cloud, edge, config.edge_detection_config);
+			edge_detection_.computeDepthEdges(cloud, edge, config.edge_detection_config, normalsEdgeDirect);
 			//edge_detection_.sobelLaplace(color_image,depth_image);
 
 			// visualization on color image
@@ -814,8 +855,9 @@ public:
 				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(cloud);
 
 				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
-				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
+				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
 				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
+				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsEdgeDirect,2,0.005,"normalsEdgeDirect");
 				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 
 				while (!viewerNormals.wasStopped ())
@@ -977,6 +1019,7 @@ public:
 			{
 				// edge statistics
 				eval_.evaluateEdgeRecognition(point_cloud, color_image, edge, &edge_detection_statistics_);
+				eval_.evaluateNormalEstimation(point_cloud, normalsEdgeDirect, &ne_statistics_direct_edge_);
 
 				// normal estimation statistics
 				if (NORMAL_COMP)
@@ -993,7 +1036,7 @@ public:
 					//std::cout << "Integral image-based normals:\n";
 //					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImage, &ne_statistics_integral_);
 					//std::cout << "Vanilla normal estimation:\n";
-					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
+//					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
 				}
 
 				// surface classification statistics
@@ -1048,6 +1091,7 @@ private:
 	//evaluation
 	Evaluation eval_;
 	EdgeDetectionStatistics edge_detection_statistics_;
+	NormalEstimationStatistics ne_statistics_direct_edge_;
 	NormalEstimationStatistics ne_statistics_cross_edge_;
 	NormalEstimationStatistics ne_statistics_cross_;
 	NormalEstimationStatistics ne_statistics_integral_edge_;

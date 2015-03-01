@@ -137,7 +137,7 @@ public:
 #define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
 #define USE_OMP
 
-	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const EdgeDetectionConfig& config = EdgeDetectionConfig())
+	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const EdgeDetectionConfig& config = EdgeDetectionConfig(), pcl::PointCloud<pcl::Normal>::Ptr& normals = 0)
 	{
 		// compute x,y,z images
 #ifdef MEASURE_RUNTIME
@@ -545,6 +545,83 @@ public:
 //			for (int u=0; u<z_image.cols; ++u)
 //				if (z_image.at<float>(v,u)==0)
 //					edge.at<uchar>(v,u)=0;
+
+		if (normals != 0)
+		{
+			if (config.use_adaptive_scan_line == false)
+				cv::integral(edge, edge_integral, CV_32S);
+			normals->resize(pointcloud->size());
+			normals->header = pointcloud->header;
+			normals->is_dense = pointcloud->is_dense;
+			normals->height = pointcloud->height;
+			normals->width = pointcloud->width;
+			const float bad_point = std::numeric_limits<float>::quiet_NaN();
+#ifdef USE_OMP
+#pragma omp parallel for //num_threads(2)
+#endif
+			for (int v = max_line_width+1; v < z_dx.rows - max_line_width - 2; ++v)
+			{
+				int scan_line_width = 10; // width of scan line left or right of a query pixel, measured in [px]
+				int last_line_width = scan_line_width;
+				for (int u = max_line_width+1; u < z_dx.cols - max_line_width - 2; ++u)
+				{
+					const int idx = v*normals->width + u;
+					const float depth = z_image.at<float>(v, u);
+					if (depth==0.f || edge.at<uchar>(v,u)!=0 || v<=max_line_width || v>=z_dx.rows-max_line_width-2 || u<=max_line_width || u>=z_dx.cols-max_line_width-2)
+					{
+						normals->points[idx].getNormalVector3fMap().setConstant(bad_point);
+						continue;
+					}
+
+					// depth dependent scan line width for slope computation (1px width per 0.10m depth)
+					scan_line_width = std::min(int(scan_line_model_m*depth+scan_line_model_n), max_line_width);
+					if (scan_line_width <= min_line_width)
+						scan_line_width = last_line_width;
+					else
+						last_line_width = scan_line_width;
+
+					int scan_line_width_left = scan_line_width;
+					int scan_line_width_right = scan_line_width;
+					int scan_line_height_upper = scan_line_width;
+					int scan_line_height_lower = scan_line_width;
+					if (config.use_adaptive_scan_line == true)
+					{
+						if (adaptScanLineWidthNormal(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false ||
+							adaptScanLineHeightNormal(scan_line_height_upper, scan_line_height_lower, edge, u, v, min_line_width) == false)
+						{
+							normals->points[idx].getNormalVector3fMap().setConstant(bad_point);
+							continue;
+						}
+					}
+					else
+					{
+						// do not compute if a depth discontinuity is on the line (ATTENTION: opencv uses a different indexing scheme which is basically +1 in x and y direction, so pixel itself is not included in sum)
+						if ((edge_integral.at<int>(v+1,u+scan_line_width+1)-edge_integral.at<int>(v+1,u-scan_line_width-2)-edge_integral.at<int>(v,u+scan_line_width+1)+edge_integral.at<int>(v,u-scan_line_width-2) != 0) ||
+							(edge_integral.at<int>(v+scan_line_width+1,u+1)-edge_integral.at<int>(v-scan_line_width-2,u+1)-edge_integral.at<int>(v+scan_line_width+1,u)+edge_integral.at<int>(v-scan_line_width-2,u) != 0))
+						{
+							normals->points[idx].getNormalVector3fMap().setConstant(bad_point);
+							continue;
+						}
+					}
+
+					// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
+					// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
+					const float avg_dx1 = x_dx_integralX.at<float>(v,u+scan_line_width_right) - x_dx_integralX.at<float>(v,u-scan_line_width_left);
+					const float avg_dz1 = z_dx_integralX.at<float>(v,u+scan_line_width_right) - z_dx_integralX.at<float>(v,u-scan_line_width_left);
+					const float avg_dy2 = y_dy_integralY.at<float>(u,v+scan_line_height_lower) - y_dy_integralY.at<float>(u,v-scan_line_height_upper);
+					const float avg_dz2 = z_dy_integralY.at<float>(u,v+scan_line_height_lower) - z_dy_integralY.at<float>(u,v-scan_line_height_upper);
+
+					const Eigen::Vector3f v1(avg_dx1, 0, avg_dz1);
+					const Eigen::Vector3f v2(0, avg_dy2, avg_dz2);
+					Eigen::Vector3f n = (v2.cross(v1)).normalized();
+					pcl::flipNormalTowardsViewpoint<pcl::PointXYZRGB>(pointcloud->points[idx], pointcloud->sensor_origin_(0), pointcloud->sensor_origin_(1), pointcloud->sensor_origin_(2), n(0), n(1), n(2));
+					normals->points[idx].getNormalVector3fMap() = n;
+				}
+			}
+		}
+
+
+
 #ifdef MEASURE_RUNTIME
 		runtime_edge_ += tim.getElapsedTimeInMilliSec();
 
@@ -866,6 +943,70 @@ private:
 				break;
 			}
 		}
+
+		return true;
+	}
+
+	bool adaptScanLineWidthNormal(int& scan_line_width_left, int& scan_line_width_right, const cv::Mat& edge, const int u, const int v, const int min_line_width)
+	{
+		const int min_distance_to_depth_edge = 2;
+
+		// left scan line
+		const int max_l = scan_line_width_left;
+		for (int du=0; du<=max_l+1+min_distance_to_depth_edge; ++du)
+		{
+			if (edge.at<uchar>(v,u-du)!=0)
+			{
+				scan_line_width_left = du-1-min_distance_to_depth_edge;
+				break;
+			}
+		}
+
+		// right scan line
+		const int max_r = scan_line_width_right;
+		for (int du=0; du<=max_r+1+min_distance_to_depth_edge; ++du)
+		{
+			if (edge.at<uchar>(v,u+du)!=0)
+			{
+				scan_line_width_right = du-1-min_distance_to_depth_edge;
+				break;
+			}
+		}
+
+		if ((scan_line_width_right+scan_line_width_left)<min_line_width)
+			return false;
+
+		return true;
+	}
+
+	bool adaptScanLineHeightNormal(int& scan_line_height_upper, int& scan_line_height_lower, const cv::Mat& edge, const int u, const int v, const int min_line_width)
+	{
+		const int min_distance_to_depth_edge = 2;
+
+		// upper scan line
+		const int max_u = scan_line_height_upper;
+		for (int dv=0; dv<=max_u+1+min_distance_to_depth_edge; ++dv)
+		{
+			if (edge.at<uchar>(v-dv,u)!=0)
+			{
+				scan_line_height_upper = dv-1-min_distance_to_depth_edge;
+				break;
+			}
+		}
+
+		// right scan line
+		const int max_l = scan_line_height_lower;
+		for (int dv=0; dv<=max_l+1+min_distance_to_depth_edge; ++dv)
+		{
+			if (edge.at<uchar>(v+dv,u)!=0)
+			{
+				scan_line_height_lower = dv-1-min_distance_to_depth_edge;
+				break;
+			}
+		}
+
+		if ((scan_line_height_lower+scan_line_height_upper)<min_line_width)
+			return false;
 
 		return true;
 	}
