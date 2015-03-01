@@ -68,8 +68,8 @@
 
 //steps in computation/evaluation_online mode:
 
-#define NORMAL_COMP					true	// compute the normals with cross product + edges
-#define ALTERNATIVE_NORMAL_COMP		false	// compute the normals without edges (classic procedure)
+#define NORMAL_COMP					false	// compute the normals with cross product + edges
+#define ALTERNATIVE_NORMAL_COMP		true	// compute the normals without edges (classic procedure)
 #define SEG 						false 	// segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	// segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	// segmentation refinement according to curvatures (outdated)
@@ -346,11 +346,11 @@ public:
 							ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, noise_sigmas[i_noise_sigma]);
 							std::cout << "---------------------------------------------------------------"
 									<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
-									<< "\nedge_detection_config.noise_reduction_mode:\t" << exp_config.edge_detection_config.noise_reduction_mode
-									<< "\nedge_detection_config.noise_reduction_kernel_size:\t" << exp_config.edge_detection_config.noise_reduction_kernel_size
-									<< "\nedge_detection_config.use_adaptive_scan_line:\t" << exp_config.edge_detection_config.use_adaptive_scan_line
-									<< "\nedge_detection_config.scan_line_width_at_2m:\t" << exp_config.edge_detection_config.scan_line_width_at_2m
-									<< "\nedge_detection_config.min_detectable_edge_angle:\t" << exp_config.edge_detection_config.min_detectable_edge_angle
+//									<< "\nedge_detection_config.noise_reduction_mode:\t" << exp_config.edge_detection_config.noise_reduction_mode
+//									<< "\nedge_detection_config.noise_reduction_kernel_size:\t" << exp_config.edge_detection_config.noise_reduction_kernel_size
+//									<< "\nedge_detection_config.use_adaptive_scan_line:\t" << exp_config.edge_detection_config.use_adaptive_scan_line
+//									<< "\nedge_detection_config.scan_line_width_at_2m:\t" << exp_config.edge_detection_config.scan_line_width_at_2m
+//									<< "\nedge_detection_config.min_detectable_edge_angle:\t" << exp_config.edge_detection_config.min_detectable_edge_angle
 									<< "\nnormal_estimation_config.cross_pixel_radius:\t" << exp_config.normal_estimation_config.cross_pixel_radius
 									<< "\nnormal_estimation_config.cross_pixel_steps:\t" << exp_config.normal_estimation_config.cross_pixel_steps
 									<< "\nnormal_estimation_config.cross_circle_steps:\t" << exp_config.normal_estimation_config.cross_circle_steps
@@ -485,14 +485,14 @@ public:
 		std::cout << "Total runtime: " << tim.getElapsedTimeInSec() << "s \t Runtime per cycle: " << tim.getElapsedTimeInMilliSec()/(double)counter << "ms\n" << std::endl;
 
 		std::cout << "Results on edge estimation:\n\trecall=" << edge_detection_statistics_.recall << "\tprecision=" << edge_detection_statistics_.precision << "\n\n";
-		ss << "simulated_sensor_noise_sigma:\t" << config.simulated_sensor_noise_sigma
-				<< "\tedge_detection_config.noise_reduction_mode:\t" << config.edge_detection_config.noise_reduction_mode
-				<< "\tedge_detection_config.noise_reduction_kernel_size:\t" << config.edge_detection_config.noise_reduction_kernel_size
-				<< "\tedge_detection_config.use_adaptive_scan_line:\t" << config.edge_detection_config.use_adaptive_scan_line
-				<< "\tedge_detection_config.scan_line_width_at_2m:\t" << config.edge_detection_config.scan_line_width_at_2m
-				<< "\tedge_detection_config.min_detectable_edge_angle:\t" << config.edge_detection_config.min_detectable_edge_angle
-				<< "\tedge.recall:\t" << edge_detection_statistics_.recall
-				<< "\tedge.precision:\t" << edge_detection_statistics_.precision;
+		ss << "simulated_sensor_noise_sigma:\t" << config.simulated_sensor_noise_sigma;
+//				<< "\tedge_detection_config.noise_reduction_mode:\t" << config.edge_detection_config.noise_reduction_mode
+//				<< "\tedge_detection_config.noise_reduction_kernel_size:\t" << config.edge_detection_config.noise_reduction_kernel_size
+//				<< "\tedge_detection_config.use_adaptive_scan_line:\t" << config.edge_detection_config.use_adaptive_scan_line
+//				<< "\tedge_detection_config.scan_line_width_at_2m:\t" << config.edge_detection_config.scan_line_width_at_2m
+//				<< "\tedge_detection_config.min_detectable_edge_angle:\t" << config.edge_detection_config.min_detectable_edge_angle
+//				<< "\tedge.recall:\t" << edge_detection_statistics_.recall
+//				<< "\tedge.precision:\t" << edge_detection_statistics_.precision;
 //				<< std::endl;
 //		std::cout << "Direct normals from edge computation:"
 //				<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_direct_edge_.coverage_gt_normals
@@ -525,19 +525,19 @@ public:
 		}
 		if (ALTERNATIVE_NORMAL_COMP)
 		{
-//			std::cout << "Cross-product-based normals:"
-//					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_.coverage_gt_normals
-//					<< "\nAverage normal estimation error: " << ne_statistics_cross_.average_angular_error
-//					<< "\nAverage normal estimation error [deg]: " << ne_statistics_cross_.average_angular_error_deg
-//					<< "\nPercentage of good normals: " << ne_statistics_cross_.percentage_good_normals << "\n" << std::endl;
-//			ss << "\tnormal_estimation_config.cross_pixel_radius:\t" << config.normal_estimation_config.cross_pixel_radius
-//					<< "\tnormal_estimation_config.cross_pixel_steps:\t" << config.normal_estimation_config.cross_pixel_steps
-//					<< "\tnormal_estimation_config.cross_circle_steps:\t" << config.normal_estimation_config.cross_circle_steps
-//					<< "\tne_statistics_cross_.coverage_gt_normals:\t" << ne_statistics_cross_.coverage_gt_normals
-//					<< "\tne_statistics_cross_.percentage_good_normals:\t" << ne_statistics_cross_.percentage_good_normals
-//					<< "\tne_statistics_cross_.average_angular_error:\t" << ne_statistics_cross_.average_angular_error
-//					<< "\tne_statistics_cross_.average_angular_error_deg:\t" << ne_statistics_cross_.average_angular_error_deg
-//					<< std::endl;
+			std::cout << "Cross-product-based normals:"
+					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_cross_.coverage_gt_normals
+					<< "\nAverage normal estimation error: " << ne_statistics_cross_.average_angular_error
+					<< "\nAverage normal estimation error [deg]: " << ne_statistics_cross_.average_angular_error_deg
+					<< "\nPercentage of good normals: " << ne_statistics_cross_.percentage_good_normals << "\n" << std::endl;
+			ss << "\tnormal_estimation_config.cross_pixel_radius:\t" << config.normal_estimation_config.cross_pixel_radius
+					<< "\tnormal_estimation_config.cross_pixel_steps:\t" << config.normal_estimation_config.cross_pixel_steps
+					<< "\tnormal_estimation_config.cross_circle_steps:\t" << config.normal_estimation_config.cross_circle_steps
+					<< "\tne_statistics_cross_.coverage_gt_normals:\t" << ne_statistics_cross_.coverage_gt_normals
+					<< "\tne_statistics_cross_.percentage_good_normals:\t" << ne_statistics_cross_.percentage_good_normals
+					<< "\tne_statistics_cross_.average_angular_error:\t" << ne_statistics_cross_.average_angular_error
+					<< "\tne_statistics_cross_.average_angular_error_deg:\t" << ne_statistics_cross_.average_angular_error_deg
+					<< std::endl;
 
 //			std::cout << "Integral image-based normals with edges:"
 //					<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_integral_edge_.coverage_gt_normals
@@ -799,7 +799,7 @@ public:
 				ST::Graph::Ptr graphWithoutEdges(new ST::Graph);
 				if (ALTERNATIVE_NORMAL_COMP)
 				{
-/*					//tim.start();
+					//tim.start();
 					oneWithoutEdges_.setInputCloud(cloud);
 					oneWithoutEdges_.setPixelSearchRadius(config.normal_estimation_config.cross_pixel_radius,config.normal_estimation_config.cross_pixel_steps,config.normal_estimation_config.cross_circle_steps);	//4,2,2 //(8,1,1)   (8,2,2)
 					oneWithoutEdges_.computeMaskManually(cloud->width);
@@ -810,7 +810,7 @@ public:
 					//runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
 					//return;
 
-					// alternative 1: integral image based normal estimation
+/*					// alternative 1: integral image based normal estimation
 					// edge based option:
 					pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_edge(new pcl::PointCloud<pcl::PointXYZRGB>);
 					pcl::copyPointCloud(*cloud, *cloud_edge);
@@ -834,7 +834,7 @@ public:
 					ne2.compute(*normalsIntegralImage);
 					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation" << std::endl;
 
-*/
+
 					// alternative 2: vanilla PCL normal estimation
 					//tim.start();
 					pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne3;
@@ -843,7 +843,7 @@ public:
 					ne3.setKSearch((int)config.normal_estimation_config.vanillapcl_kneighbors); //256
 					//ne3.setRadiusSearch(0.01);
 					ne3.compute(*normalsVanilla);
-					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla normal estimation" << std::endl;
+*/					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla normal estimation" << std::endl;
 				}
 //			}
 
@@ -1030,7 +1030,7 @@ public:
 				if (ALTERNATIVE_NORMAL_COMP)
 				{
 					//std::cout << "Cross-product-based normals:\n";
-//					eval_.evaluateNormalEstimation(point_cloud, normalsCrossProduct, &ne_statistics_cross_);
+					eval_.evaluateNormalEstimation(point_cloud, normalsCrossProduct, &ne_statistics_cross_);
 					//std::cout << "Integral image-based normals with edges:\n";
 //					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImageEdge, &ne_statistics_integral_edge_);
 					//std::cout << "Integral image-based normals:\n";
