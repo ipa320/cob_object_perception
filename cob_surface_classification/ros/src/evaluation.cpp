@@ -369,23 +369,23 @@ void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB
 	// 3. Visualize
 	if (ne_statistics != 0)
 		ne_statistics->addStatistics(100.*(double)number_normals/(double)number_gt_normals, normal_error/(double)number_normals, normal_error_deg/(double)number_normals, 100.*(double)number_good_normals/(double)number_normals);
-//	std::cout << "Coverage of estimated normals on gt_normals: " << 100.*(double)number_normals/(double)number_gt_normals << std::endl;
-//	std::cout << "Average normal estimation error: " << normal_error/(double)number_normals << std::endl;
-//	std::cout << "Average normal estimation error [deg]: " << normal_error_deg/(double)number_normals << std::endl;
-//	std::cout << "Percentage of good normals: " << 100.*(double)number_good_normals/(double)number_normals << "\n" << std::endl;
-//
-//	pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
-//	viewerNormals.setBackgroundColor(0.0, 0.0, 0);
-//	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(gt_point_cloud);
-//	viewerNormals.addPointCloud<pcl::PointXYZRGB>(gt_point_cloud, rgbNormals, "gt_point_cloud");
-//	//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, gt_normals, 2, 0.005, "gt_normals");
-//	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, normals, 2, 0.005, "normals");
-//	viewerNormals.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "gt_point_cloud");
-//	while (!viewerNormals.wasStopped ())
-//	{
-//		viewerNormals.spinOnce();
-//	}
-//	viewerNormals.removePointCloud("gt_point_cloud");
+	std::cout << "Coverage of estimated normals on gt_normals: " << 100.*(double)number_normals/(double)number_gt_normals << std::endl;
+	std::cout << "Average normal estimation error: " << normal_error/(double)number_normals << std::endl;
+	std::cout << "Average normal estimation error [deg]: " << normal_error_deg/(double)number_normals << std::endl;
+	std::cout << "Percentage of good normals: " << 100.*(double)number_good_normals/(double)number_normals << "\n" << std::endl;
+
+	pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
+	viewerNormals.setBackgroundColor(0.0, 0.0, 0);
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(gt_point_cloud);
+	viewerNormals.addPointCloud<pcl::PointXYZRGB>(gt_point_cloud, rgbNormals, "gt_point_cloud");
+	//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, gt_normals, 2, 0.005, "gt_normals");
+	viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(gt_point_cloud, normals, 2, 0.005, "normals");
+	viewerNormals.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "gt_point_cloud");
+	while (!viewerNormals.wasStopped ())
+	{
+		viewerNormals.spinOnce();
+	}
+	viewerNormals.removePointCloud("gt_point_cloud");
 }
 
 void Evaluation::computeGroundTruthNormals(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& gt_point_cloud, pcl::PointCloud<pcl::Normal>::Ptr gt_normals)
