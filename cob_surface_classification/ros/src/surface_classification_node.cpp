@@ -485,7 +485,7 @@ public:
 		Timer tim;
 		tim.start();
 		const int image_number = image_vector.size();
-		while (counter<600)//image_number)			// 600 runs if runtime is to be measured
+		while (counter<image_number)			// 600 runs if runtime is to be measured
 		{
 			computations(image_vector[index], pointcloud_vector[index], config);
 			index = (index+1)%image_number;
@@ -504,8 +504,8 @@ public:
 				<< "\tedge_detection_config.scan_line_width_at_2m:\t" << config.edge_detection_config.scan_line_width_at_2m
 				<< "\tedge_detection_config.min_detectable_edge_angle:\t" << config.edge_detection_config.min_detectable_edge_angle
 				<< "\tedge.recall:\t" << edge_detection_statistics_.recall
-				<< "\tedge.precision:\t" << edge_detection_statistics_.precision
-				<< std::endl;
+				<< "\tedge.precision:\t" << edge_detection_statistics_.precision;
+//				<< std::endl;
 //		std::cout << "Direct normals from edge computation:"
 //				<< "\nCoverage of estimated normals on gt_normals: " << ne_statistics_direct_edge_.coverage_gt_normals
 //				<< "\nPercentage of good normals: " << ne_statistics_direct_edge_.percentage_good_normals
@@ -754,7 +754,7 @@ public:
 			cv::Mat edge;
 			edge_detection_.computeDepthEdges(cloud, edge, config.edge_detection_config, normalsEdgeDirect);
 			//edge_detection_.sobelLaplace(color_image,depth_image);
-return; //todo: remove
+//return; //todo: remove
 			// visualization on color image
 			if (EDGE_VIS)
 			{
@@ -1031,7 +1031,7 @@ return; //todo: remove
 			{
 				// edge statistics
 				eval_.evaluateEdgeRecognition(point_cloud, color_image, edge, &edge_detection_statistics_);
-				//eval_.evaluateNormalEstimation(point_cloud, normalsEdgeDirect, &ne_statistics_direct_edge_);
+				eval_.evaluateNormalEstimation(point_cloud, normalsEdgeDirect, &ne_statistics_direct_edge_);
 
 				// normal estimation statistics
 				if (NORMAL_COMP)
