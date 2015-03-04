@@ -1,0 +1,87 @@
+edge_image:
+===========
+with OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	10
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 17.4149s 	 Runtime per cycle: 29.0248ms
+
+without OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	10
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 25.6779s 	 Runtime per cycle: 42.7965ms
+
+with OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	15
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 18.8334s 	 Runtime per cycle: 31.389ms
+
+without OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	15
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 28.1607s 	 Runtime per cycle: 46.9345ms
+
+
+
+normal_estimation_direct_edge:
+==============================
+with OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	10
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 27.1281s 	 Runtime per cycle: 45.2135ms
+
+without OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	10
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 42.7407s 	 Runtime per cycle: 71.2346ms
+
+with OMP, 100 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	10
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 26.3848s 	 Runtime per cycle: 43.9746ms
+
+with OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	15
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 30.422s 	 Runtime per cycle: 50.7034ms
+
+without OMP, 15 images, 600 iterations
+simulated_sensor_noise_sigma:	0
+edge_detection_config.noise_reduction_mode:	1
+edge_detection_config.noise_reduction_kernel_size:	3
+edge_detection_config.use_adaptive_scan_line:	1
+edge_detection_config.scan_line_width_at_2m:	15
+edge_detection_config.min_detectable_edge_angle:	45
+Total runtime: 46.8923s 	 Runtime per cycle: 78.1538ms
+

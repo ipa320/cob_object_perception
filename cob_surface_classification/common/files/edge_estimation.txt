@@ -628,3 +628,8 @@ simulated_sensor_noise_sigma:	0.005	edge_detection_config.noise_reduction_mode:	
 simulated_sensor_noise_sigma:	0.005	edge_detection_config.noise_reduction_mode:	2	edge_detection_config.noise_reduction_kernel_size:	7	edge_detection_config.use_adaptive_scan_line:	0	edge_detection_config.scan_line_width_at_2m:	20	edge_detection_config.min_detectable_edge_angle:	35	recall:	81.1829	precision:	79.5285
 simulated_sensor_noise_sigma:	0.005	edge_detection_config.noise_reduction_mode:	2	edge_detection_config.noise_reduction_kernel_size:	7	edge_detection_config.use_adaptive_scan_line:	0	edge_detection_config.scan_line_width_at_2m:	20	edge_detection_config.min_detectable_edge_angle:	45	recall:	80.6878	precision:	82.2219
 simulated_sensor_noise_sigma:	0.005	edge_detection_config.noise_reduction_mode:	2	edge_detection_config.noise_reduction_kernel_size:	7	edge_detection_config.use_adaptive_scan_line:	0	edge_detection_config.scan_line_width_at_2m:	20	edge_detection_config.min_detectable_edge_angle:	60	recall:	79.9313	precision:	84.619
+
+
+
+only with depth edges (no surface discontinuities) + direct normal estimation:
+simulated_sensor_noise_sigma:	0	edge_detection_config.noise_reduction_mode:	1	edge_detection_config.noise_reduction_kernel_size:	3	edge_detection_config.use_adaptive_scan_line:	1	edge_detection_config.scan_line_width_at_2m:	15	edge_detection_config.min_detectable_edge_angle:	45	edge.recall:	66.6523	edge.precision:	95.18	ne_statistics_cross_edge_.coverage_gt_normals:	96.8316	ne_statistics_cross_edge_.percentage_good_normals:	84.9415	ne_statistics_cross_edge_.average_angular_error:	0.0603882	ne_statistics_cross_edge_.average_angular_error_deg:	8.60079
