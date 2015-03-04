@@ -60,7 +60,7 @@
 /*switches for execution of processing steps*/
 
 #define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
-#define DATA_NUMBER_FILES			2			// number of input files if loaded from file
+#define DATA_NUMBER_FILES			15			// number of input files if loaded from file
 #define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION_OFFLINE_MODE
 #define COMPUTATION_MODE			true		// computations without record
 #define EVALUATION_OFFLINE_MODE		false		// evaluation of stored pointcloud and image
@@ -68,8 +68,8 @@
 
 //steps in computation/evaluation_online mode:
 
-#define NORMAL_COMP					true	// compute the normals with cross product + edges
-#define ALTERNATIVE_NORMAL_COMP		true	// compute the normals without edges (classic procedure)
+#define NORMAL_COMP					false	// compute the normals with cross product + edges
+#define ALTERNATIVE_NORMAL_COMP		false	// compute the normals without edges (classic procedure)
 #define SEG 						false 	// segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	// segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	// segmentation refinement according to curvatures (outdated)
@@ -77,7 +77,7 @@
 #define SIMPLE_OBJECT_CLASSIFICATION false	// simple object classification and localization (for symmetric simple objects made of one cluster)
 
 
-#define EDGE_VIS					false	// visualization of edges
+#define EDGE_VIS					true	// visualization of edges
 #define NORMAL_VIS 					false 	// visualisation of normals
 #define SEG_VIS 					false 	// visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	// visualisation of segmentation without edge image
@@ -329,10 +329,10 @@ public:
 //					}
 //				}
 //			}
-			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::NONE, 3, true, 45., 15);
-			NormalEstimationConfig normal_estimation_config(0, 0, 0, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 0, 0);
-			//NormalEstimationConfig normal_estimation_config(8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 0, 0);
-			ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, 0.00);
+			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, true, 45., 15);
+			//NormalEstimationConfig normal_estimation_config(0, 0, 0, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 0, 0);
+			NormalEstimationConfig normal_estimation_config(8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 10, 128);
+			ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, 0.0);
 			std::cout << "---------------------------------------------------------------"
 					<< "\nsimulated_sensor_noise_sigma:\t" << exp_config.simulated_sensor_noise_sigma
 					<< "\nedge_detection_config.noise_reduction_mode:\t" << exp_config.edge_detection_config.noise_reduction_mode
@@ -424,14 +424,6 @@ public:
 //					computationsEvaluation(image_vector, pointcloud_vector, exp_config);
 //				}
 //			}
-
-			// 1x gazebo scene
-			// color image+edge, bad normals, good normals
-			// 2x no noise (bad: cross, integral, good: cross+e, integral+e)   images:  2, 12, 28, 42*, 75*, 84, 89
-			// 2x 0.002 noise (bad: vanilla, integral, good: fast ne, integral+e)   images: 2, 12, 28*, 42, 73*, 75, 84, 89
-			// 1x 0.005 noise (bad: vanilla, good: fast ne)    images: 72*
-			// 2x real (integral, fast ne)    images:
-
 			exit(0);
 		}
 	}
@@ -493,13 +485,12 @@ public:
 		Timer tim;
 		tim.start();
 		const int image_number = image_vector.size();
-		while (counter<image_number)			// 600 runs if runtime is to be measured
+		while (counter<600)//image_number)			// 600 runs if runtime is to be measured
 		{
-			config.normal_estimation_config.vanillapcl_kneighbors = counter;
 			computations(image_vector[index], pointcloud_vector[index], config);
 			index = (index+1)%image_number;
 			++counter;
-			std:cout << "=============================================================> Finished iteration " << counter << std::endl;
+			//std:cout << "=============================================================> Finished iteration " << counter << std::endl;
 		}
 		std::stringstream ss;
 
@@ -759,11 +750,17 @@ public:
 		//record if "e" is pressed while "image"-window is activated
 		if(COMPUTATION_MODE || (EVALUATION_ONLINE_MODE && key == 1048677))
 		{
-			pcl::PointCloud<pcl::Normal>::Ptr normalsEdgeDirect=0;//(new pcl::PointCloud<pcl::Normal>);
+			pcl::PointCloud<pcl::Normal>::Ptr normalsEdgeDirect(new pcl::PointCloud<pcl::Normal>);
 			cv::Mat edge;
 			edge_detection_.computeDepthEdges(cloud, edge, config.edge_detection_config, normalsEdgeDirect);
+return; //todo: remove
+			if (NORMAL_VIS && normalsEdgeDirect!=0)
+			{
+				std::cout << "Fast edge-aware normal estimation:" << std::endl;
+				displayPointCloud(cloud, normalsEdgeDirect);
+			}
 			//edge_detection_.sobelLaplace(color_image,depth_image);
-//return; //todo: remove
+
 			// visualization on color image
 			if (EDGE_VIS)
 			{
@@ -812,6 +809,8 @@ public:
 //				++number_processed_images_;
 				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
 				//			"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
+				if (NORMAL_VIS)
+					displayPointCloud(cloud, normals);
 			}
 
 //			if (key=='n')
@@ -834,6 +833,8 @@ public:
 					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for cross-product normal computation\n";
 					//runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
 					//return;
+					if (NORMAL_VIS)
+						displayPointCloud(cloud, normalsCrossProduct);
 
 					// alternative 1: integral image based normal estimation
 					// edge based option:
@@ -853,44 +854,50 @@ public:
 					ne2.setInputCloud(cloud_edge);
 					ne2.compute(*normalsIntegralImageEdge);
 					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation with edges" << std::endl;
+					if (NORMAL_VIS)
+						displayPointCloud(cloud, normalsIntegralImageEdge);
 
 					tim.start();
 					ne2.setInputCloud(cloud);
 					ne2.compute(*normalsIntegralImage);
 					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation" << std::endl;
+					if (NORMAL_VIS)
+						displayPointCloud(cloud, normalsIntegralImage);
 
 
-//					// alternative 2: vanilla PCL normal estimation
-//					//tim.start();
-//					pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne3;
-//					ne3.setInputCloud(cloud);
-//					ne3.setNumberOfThreads(0);
-//					ne3.setKSearch((int)config.normal_estimation_config.vanillapcl_kneighbors); //256
-//					//ne3.setRadiusSearch(0.01);
-//					ne3.compute(*normalsVanilla);
-//					//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla normal estimation" << std::endl;
+					// alternative 2: vanilla PCL normal estimation
+					tim.start();
+					pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne3;
+					ne3.setInputCloud(cloud);
+					ne3.setNumberOfThreads(0);
+					ne3.setKSearch((int)config.normal_estimation_config.vanillapcl_kneighbors); //256
+					//ne3.setRadiusSearch(0.01);
+					ne3.compute(*normalsVanilla);
+					std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla normal estimation" << std::endl;
+					if (NORMAL_VIS)
+						displayPointCloud(cloud, normalsVanilla);
 				}
 //			}
 //return; // todo: remove
-			if(NORMAL_VIS || key=='n')
-			{
-				// visualize normals
-				pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
-				viewerNormals.setBackgroundColor (0.0, 0.0, 0);
-				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(cloud);
-
-				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
-				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
-				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
-				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsEdgeDirect,2,0.005,"normalsEdgeDirect");
-				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
-
-				while (!viewerNormals.wasStopped ())
-				{
-					viewerNormals.spinOnce();
-				}
-				viewerNormals.removePointCloud("cloud");
-			}
+//			if(NORMAL_VIS || key=='n')
+//			{
+//				// visualize normals
+//				pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
+//				viewerNormals.setBackgroundColor (0.0, 0.0, 0);
+//				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(cloud);
+//
+//				viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
+//				viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
+//				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsWithoutEdges,2,0.005,"normalsWithoutEdges");
+//				//viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normalsEdgeDirect,2,0.005,"normalsEdgeDirect");
+//				viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
+//
+//				while (!viewerNormals.wasStopped ())
+//				{
+//					viewerNormals.spinOnce();
+//				}
+//				viewerNormals.removePointCloud("cloud");
+//			}
 
 			//return;
 
@@ -1044,12 +1051,13 @@ public:
 			{
 				// edge statistics
 				eval_.evaluateEdgeRecognition(point_cloud, color_image, edge, &edge_detection_statistics_);
-				//eval_.evaluateNormalEstimation(point_cloud, normalsEdgeDirect, &ne_statistics_direct_edge_);
+				std::cout << "Fast edge-aware normal estimation:\n";
+				eval_.evaluateNormalEstimation(point_cloud, normalsEdgeDirect, &ne_statistics_direct_edge_);
 
 				// normal estimation statistics
 				if (NORMAL_COMP)
 				{
-					//std::cout << "Cross-product-based normals with edges:\n";
+					std::cout << "Cross-product-based normals with edges:\n";
 					eval_.evaluateNormalEstimation(point_cloud, normals, &ne_statistics_cross_edge_);
 				}
 				if (ALTERNATIVE_NORMAL_COMP)
@@ -1060,8 +1068,8 @@ public:
 					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImageEdge, &ne_statistics_integral_edge_);
 					std::cout << "Integral image-based normals:\n";
 					eval_.evaluateNormalEstimation(point_cloud, normalsIntegralImage, &ne_statistics_integral_);
-					//std::cout << "Vanilla normal estimation:\n";
-//					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
+					std::cout << "Vanilla normal estimation:\n";
+					eval_.evaluateNormalEstimation(point_cloud, normalsVanilla, &ne_statistics_vanilla_);
 				}
 
 				// surface classification statistics
@@ -1164,6 +1172,24 @@ private:
 			pointcloud_sub_.unsubscribe();
 		}
 		ROS_INFO("[surface_classification] %i subscribers on camera topics [OK]", sub_counter_);
+	}
+
+	void displayPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, const pcl::PointCloud<pcl::Normal>::Ptr& normals)
+	{
+		// visualize normals
+		pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
+		viewerNormals.setBackgroundColor(0.0, 0.0, 0);
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbNormals(cloud);
+
+		viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgbNormals, "cloud");
+		viewerNormals.addPointCloudNormals<pcl::PointXYZRGB,pcl::Normal>(cloud, normals,2,0.005,"normals");
+		viewerNormals.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
+
+		while (!viewerNormals.wasStopped ())
+		{
+			viewerNormals.spinOnce();
+		}
+		viewerNormals.removePointCloud("cloud");
 	}
 };
 

@@ -250,16 +250,17 @@ public:
 //		std::cout << "\t\t\t\ttoy example: " << 1000*(stop1-start1) << "\n";
 
 		// depth discontinuities
-		edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
+		//edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
+		edge.create(z_image.rows, z_image.cols, CV_8UC1);
 		const float depth_factor = 0.01f;
 		const int min_line_width = 5;
 		const int max_line_width = 20;
 		const int max_v = z_dx.rows - max_line_width - 2;
 		const int max_u = z_dx.cols - max_line_width - 2;
 //#pragma omp parallel for num_threads(2)	// no speed up because threading overhead eats up the multi core computation
-		for (int v = max_line_width+1; v < max_v; ++v)
+		for (int v = 0; v < z_dx.rows; ++v)
 		{
-			for (int u = max_line_width+1; u < max_u; ++u)
+			for (int u = 0; u < z_dx.cols; ++u)
 			{
 				float depth = z_image.at<float>(v,u);
 				if (depth==0.f)
@@ -270,6 +271,8 @@ public:
 				if (z_dx_val <= -edge_threshold || z_dx_val >= edge_threshold || z_dy_val <= -edge_threshold || z_dy_val >= edge_threshold)
 					//edge.at<uchar>(v, u) = 254;
 					edge.at<uchar>(v,u) = (uchar)std::min<float>(255.f, 50.f*(1.+sqrt(z_dx_val*z_dx_val + z_dy_val*z_dy_val)));		// store a proportional measure for the edge strength
+				else
+					edge.at<uchar>(v,u) = 0;
 			}
 		}
 		nonMaximumSuppression(edge, z_dx, z_dy);
@@ -287,16 +290,18 @@ public:
 		// x lines
 		cv::Mat x_dx_integralX, z_dx_integralX;
 		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
+		cv::Mat distance_map_horizontal;
+		computeDistanceMapHorizontal(edge, distance_map_horizontal);
 #ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
 #endif
-		for (int v = max_line_width+1; v < z_dx.rows - max_line_width - 2; ++v)
+		for (int v = max_line_width+1; v < max_v; ++v)
 		{
 			int scan_line_width = 10; // width of scan line left or right of a query pixel, measured in [px]
 			int last_line_width = scan_line_width;
 			int edge_start_index = -1;
 			float max_edge_strength = 0;
-			for (int u = max_line_width+1; u < z_dx.cols - max_line_width - 2; ++u)
+			for (int u = max_line_width+1; u < max_u; ++u)
 			{
 				const float depth = z_image.at<float>(v, u);
 				if (depth==0.f)
@@ -313,7 +318,8 @@ public:
 				int scan_line_width_right = scan_line_width;
 				if (config.use_adaptive_scan_line == true)
 				{
-					if (adaptScanLineWidth(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false)
+					//if (adaptScanLineWidth(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false)
+					if (adaptScanLine(scan_line_width_left, scan_line_width_right, distance_map_horizontal, u, v, min_line_width) == false)
 					{
 						edge_start_index = -1;
 						max_edge_strength = 0.f;
@@ -345,7 +351,7 @@ public:
 				const float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
 				const float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
 				const float diff = fabs(alpha_left - alpha_right);
-				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
+				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) * 1./180. * CV_PI || diff > (180.+min_detectable_edge_angle) * 1./180. * CV_PI))
 				{
 					if (edge_start_index == -1)
 						edge_start_index = u;
@@ -374,16 +380,20 @@ public:
 		z_dy = z_dy.t();
 		cv::Mat y_dy_integralY, z_dy_integralY;
 		computeIntegralImageX(y_dy, y_dy_integralY, z_dy, z_dy_integralY);
+		cv::Mat distance_map_vertical;
+		computeDistanceMapVertical(edge, distance_map_vertical);
+		const int max_uy = z_dy.cols - max_line_width - 2;
+		const int max_vy = z_dy.rows - max_line_width - 2;
 #ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
 #endif
-		for (int v = max_line_width+1; v < z_dy.rows - max_line_width - 2; ++v)
+		for (int v = max_line_width+1; v < max_vy; ++v)
 		{
 			int scan_line_width = 10; // width of scan line left or right of a query pixel, measured in [px]
 			int last_line_width = scan_line_width;
 			int edge_start_index = -1;
 			float max_edge_strength = 0;
-			for (int u = max_line_width+1; u < z_dy.cols - max_line_width - 2; ++u)
+			for (int u = max_line_width+1; u < max_uy; ++u)
 			{
 				const float depth = z_image.at<float>(u, v);
 				if (depth==0.f)
@@ -400,7 +410,8 @@ public:
 				int scan_line_height_lower = scan_line_width;
 				if (config.use_adaptive_scan_line == true)
 				{
-					if (adaptScanLineHeight(scan_line_height_upper, scan_line_height_lower, edge, v, u, min_line_width) == false)
+					//if (adaptScanLineHeight(scan_line_height_upper, scan_line_height_lower, edge, v, u, min_line_width) == false)
+					if (adaptScanLine(scan_line_height_upper, scan_line_height_lower, distance_map_vertical, v, u, min_line_width) == false)
 					{
 						edge_start_index = -1;
 						max_edge_strength = 0.f;
@@ -429,7 +440,7 @@ public:
 				const float alpha_left = fast_atan2f_1(-avg_dz_l, -avg_dx_l);
 				const float alpha_right = fast_atan2f_1(avg_dz_r, avg_dx_r);
 				const float diff = fabs(alpha_left - alpha_right);
-				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) / 180. * CV_PI || diff > (180.+min_detectable_edge_angle) / 180. * CV_PI))
+				if (diff!=0 && (diff < (180.-min_detectable_edge_angle) * 1./180. * CV_PI || diff > (180.+min_detectable_edge_angle) * 1./180. * CV_PI))
 				{
 					if (edge_start_index == -1)
 						edge_start_index = u;
@@ -556,6 +567,8 @@ public:
 
 		if (normals != 0)
 		{
+			computeDistanceMapHorizontal(edge, distance_map_horizontal);
+			computeDistanceMapVertical(edge, distance_map_vertical);
 			if (config.use_adaptive_scan_line == false)
 				cv::integral(edge, edge_integral, CV_32S);
 			normals->resize(pointcloud->size());
@@ -563,19 +576,20 @@ public:
 			normals->is_dense = pointcloud->is_dense;
 			normals->height = pointcloud->height;
 			normals->width = pointcloud->width;
+			const int width = normals->width;
 			const float bad_point = std::numeric_limits<float>::quiet_NaN();
 #ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
 #endif
-			for (int v = max_line_width+1; v < z_dx.rows - max_line_width - 2; ++v)
+			for (int v = max_line_width+1; v < max_v; ++v)
 			{
 				int scan_line_width = 10; // width of scan line left or right of a query pixel, measured in [px]
 				int last_line_width = scan_line_width;
-				for (int u = max_line_width+1; u < z_dx.cols - max_line_width - 2; ++u)
+				for (int u = max_line_width+1; u < max_u; ++u)
 				{
-					const int idx = v*normals->width + u;
+					const int idx = v*width + u;
 					const float depth = z_image.at<float>(v, u);
-					if (depth==0.f || edge.at<uchar>(v,u)!=0 || v<=max_line_width || v>=z_dx.rows-max_line_width-2 || u<=max_line_width || u>=z_dx.cols-max_line_width-2)
+					if (depth==0.f || edge.at<uchar>(v,u)!=0 || v<=max_line_width || v>=max_v || u<=max_line_width || u>=max_u)
 					{
 						normals->points[idx].getNormalVector3fMap().setConstant(bad_point);
 						continue;
@@ -594,8 +608,10 @@ public:
 					int scan_line_height_lower = scan_line_width;
 					if (config.use_adaptive_scan_line == true)
 					{
-						if (adaptScanLineWidthNormal(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false ||
-							adaptScanLineHeightNormal(scan_line_height_upper, scan_line_height_lower, edge, u, v, min_line_width) == false)
+//						if (adaptScanLineWidthNormal(scan_line_width_left, scan_line_width_right, edge, u, v, min_line_width) == false ||
+//							adaptScanLineHeightNormal(scan_line_height_upper, scan_line_height_lower, edge, u, v, min_line_width) == false)
+						if (adaptScanLineNormal(scan_line_width_left, scan_line_width_right, distance_map_horizontal, u, v, min_line_width) == false ||
+							adaptScanLineNormal(scan_line_height_upper, scan_line_height_lower, distance_map_vertical, u, v, min_line_width) == false)
 						{
 							normals->points[idx].getNormalVector3fMap().setConstant(bad_point);
 							continue;
@@ -627,7 +643,6 @@ public:
 				}
 			}
 		}
-
 
 
 #ifdef MEASURE_RUNTIME
@@ -809,6 +824,32 @@ private:
 		return (CV_PI/2.0 - (x + 1./6.*x*x2 + 3./40.*x*x4));
 	}
 
+	/* Assumes that float is in the IEEE 754 single precision floating point format
+	 * and that int is 32 bits.
+	 * http://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Approximations_that_depend_on_the_floating_point_representation */
+	float fast_sqrt(float z)
+	{
+	    int val_int = *(int*)&z; /* Same bits, but as an int */
+	    /*
+	     * To justify the following code, prove that
+	     *
+	     * ((((val_int / 2^m) - b) / 2) + b) * 2^m = ((val_int - 2^m) / 2) + ((b + 1) / 2) * 2^m)
+	     *
+	     * where
+	     *
+	     * b = exponent bias
+	     * m = number of mantissa bits
+	     *
+	     * .
+	     */
+
+	    val_int -= 1 << 23; /* Subtract 2^m. */
+	    val_int >>= 1; /* Divide by 2. */
+	    val_int += 1 << 29; /* Add ((b + 1) / 2) * 2^m. */
+
+	    return *(float*)&val_int; /* Interpret again as float */
+	}
+
 	// creates an integral image within x-direction (i.e. line-wise, horizontally) for two source images
 	void computeIntegralImageX(const cv::Mat& srcX, cv::Mat& dstX, const cv::Mat& srcZ, cv::Mat& dstZ)
 	{
@@ -887,6 +928,152 @@ private:
 				dstZprev_ptr++;
 			}
 		}
+	}
+
+	void computeDistanceMapHorizontal(const cv::Mat& edge, cv::Mat& distance_map)
+	{
+		distance_map.create(edge.rows, edge.cols, CV_32SC2);
+		for (int v=0; v<edge.rows; ++v)
+		{
+			distance_map.at<cv::Vec2i>(v,0).val[0] = 0;
+			for (int u=1; u<edge.cols; ++u)
+			{
+				if (edge.at<uchar>(v,u)!=0)
+					distance_map.at<cv::Vec2i>(v,u).val[0] = 0;
+				else
+					distance_map.at<cv::Vec2i>(v,u).val[0] = distance_map.at<cv::Vec2i>(v,u-1).val[0] + 1;
+			}
+			distance_map.at<cv::Vec2i>(v,edge.cols-1).val[1] = 0;
+			for (int u=edge.cols-2; u>=0; --u)
+			{
+				if (edge.at<uchar>(v,u)!=0)
+					distance_map.at<cv::Vec2i>(v,u).val[1] = 0;
+				else
+					distance_map.at<cv::Vec2i>(v,u).val[1] = distance_map.at<cv::Vec2i>(v,u+1).val[1] + 1;
+			}
+//			int* data = distance_map.ptr<int>(v);
+//			const uchar* edge_ptr = edge.ptr<uchar>(v) + 1;
+//			*data = 0;
+//			data += 2;
+//			for (int u=1; u<edge.cols; ++u)
+//			{
+//				if (*edge_ptr != 0)
+//					*data = 0;
+//				else
+//					*data = *(data-2) + 1;
+//				data+=2;
+//				++edge_ptr;
+//			}
+//			--data;
+//			edge_ptr-=2;
+//			*data = 0;
+//			*data -= 2;
+//			for (int u=edge.cols-2; u>=0; --u)
+//			{
+//				if (*edge_ptr != 0)
+//					*data = 0;
+//				else
+//					*data = *(data+2) + 1;
+//				data-=2;
+//				--edge_ptr;
+//			}
+		}
+	}
+
+	void computeDistanceMapVertical(const cv::Mat& edge, cv::Mat& distance_map)
+	{
+		distance_map.create(edge.rows, edge.cols, CV_32SC2);
+//		for (int u=0; u<edge.cols; ++u)
+//			distance_map.at<cv::Vec2i>(0,u).val[0] = 0;
+//		for (int v=1; v<edge.rows; ++v)
+//		{
+//			for (int u=0; u<edge.cols; ++u)
+//			{
+//				if (edge.at<uchar>(v,u)!=0)
+//					distance_map.at<cv::Vec2i>(v,u).val[0] = 0;
+//				else
+//					distance_map.at<cv::Vec2i>(v,u).val[0] = distance_map.at<cv::Vec2i>(v-1,u).val[0] + 1;
+//			}
+//		}
+//		for (int u=edge.cols-1; u>=0; --u)
+//			distance_map.at<cv::Vec2i>(edge.rows-1,u).val[1] = 0;
+//		for (int v=edge.rows-2; v>=0; --v)
+//		{
+//			for (int u=edge.cols-1; u>=0; --u)
+//			{
+//				if (edge.at<uchar>(v,u)!=0)
+//					distance_map.at<cv::Vec2i>(v,u).val[1] = 0;
+//				else
+//					distance_map.at<cv::Vec2i>(v,u).val[1] = distance_map.at<cv::Vec2i>(v+1,u).val[1] + 1;
+//			}
+//		}
+
+		const int width = edge.cols;
+		int* data = distance_map.ptr<int>(0);
+		int* data_prev = distance_map.ptr<int>(0);
+		const uchar* edge_ptr = edge.ptr<uchar>(1);
+		for (int u=0; u<width; ++u, data+=2)
+			*data = 0;
+		for (int v=1; v<edge.rows; ++v)
+		{
+			for (int u=0; u<width; ++u)
+			{
+				if (*edge_ptr!=0)
+					*data = 0;
+				else
+					*data = *data_prev + 1;
+				data+=2;
+				data_prev+=2;
+				++edge_ptr;
+			}
+		}
+		data = distance_map.ptr<int>(edge.rows-1)+2*width-1;
+		data_prev = distance_map.ptr<int>(edge.rows-1)+2*width-1;
+		edge_ptr = edge.ptr<uchar>(edge.rows-1)-1;
+		for (int u=edge.cols-1; u>=0; --u, data-=2)
+			*data = 0;
+		for (int v=edge.rows-2; v>=0; --v)
+		{
+			for (int u=edge.cols-1; u>=0; --u)
+			{
+				if (*edge_ptr!=0)
+					*data = 0;
+				else
+					*data = *data_prev + 1;
+				data -= 2;
+				data_prev -= 2;
+				--edge_ptr;
+			}
+		}
+	}
+
+	// scan_line_length_1 = left or above,  scan_line_length_2 = right or below
+	bool adaptScanLine(int& scan_line_length_1, int& scan_line_length_2, const cv::Mat& distance_map, const int u, const int v, const int min_line_width)
+	{
+		const int max_1 = scan_line_length_1;
+		const int max_2 = scan_line_length_2;
+		const cv::Vec2i& free_dist = distance_map.at<cv::Vec2i>(v,u);
+		scan_line_length_1 = std::min(scan_line_length_1, free_dist.val[0]-1-MIN_DISTANCE_TO_DEPTH_EDGE);
+		scan_line_length_2 = std::min(scan_line_length_2, free_dist.val[1]-1-MIN_DISTANCE_TO_DEPTH_EDGE);
+
+		if ((scan_line_length_1<min_line_width || MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX*scan_line_length_1<max_1) ||
+			(scan_line_length_2<min_line_width || MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX*scan_line_length_2<max_2))
+			return false;
+		return true;
+	}
+
+	// scan_line_length_1 = left or above,  scan_line_length_2 = right or below
+	bool adaptScanLineNormal(int& scan_line_length_1, int& scan_line_length_2, const cv::Mat& distance_map, const int u, const int v, const int min_line_width)
+	{
+		const int max_1 = scan_line_length_1;
+		const int max_2 = scan_line_length_2;
+		const cv::Vec2i& free_dist = distance_map.at<cv::Vec2i>(v,u);
+		scan_line_length_1 = std::min(scan_line_length_1, free_dist.val[0]-1-MIN_DISTANCE_TO_DEPTH_EDGE);
+		scan_line_length_2 = std::min(scan_line_length_2, free_dist.val[1]-1-MIN_DISTANCE_TO_DEPTH_EDGE);
+
+		if ((scan_line_length_1+scan_line_length_2)<min_line_width)
+			return false;
+		return true;
 	}
 
 	bool adaptScanLineWidth(int& scan_line_width_left, int& scan_line_width_right, const cv::Mat& edge, const int u, const int v, const int min_line_width)
