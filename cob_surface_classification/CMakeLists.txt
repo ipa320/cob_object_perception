@@ -19,6 +19,7 @@ set(catkin_RUN_PACKAGES # all ROS packages from package.xml (libopencv-dev is sy
   cob_3d_segmentation
   cob_3d_features
   cob_object_detection_msgs
+  dynamic_reconfigure
 )
 
 set(catkin_BUILD_PACKAGES 
@@ -104,6 +105,10 @@ generate_messages(
 #  actionlib_msgs  # Or other packages containing msgs
 )
 
+generate_dynamic_reconfigure_options(
+  cfg/NormalEstimation.cfg
+)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -178,7 +183,7 @@ target_link_libraries(surface_classification
 )
 
 add_dependencies(cob_3d_curvatureSegmentation ${catkin_EXPORTED_TARGETS})
-add_dependencies(surface_classification ${catkin_EXPORTED_TARGETS})
+add_dependencies(surface_classification ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 
 # set build flags for targets
 #set_target_properties(cob_3d_curvatureSegmentation PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DBOOST_FILESYSTEM_VERSION=2")
