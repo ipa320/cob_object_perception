@@ -86,32 +86,41 @@ public:
 
 	struct EdgeDetectionConfig
 	{
-		enum NoiseReductionMode { NONE, GAUSSIAN, BILATERAL };
-		NoiseReductionMode noise_reduction_mode;
-		int noise_reduction_kernel_size;	// usually 3, 5 or 7
-		bool use_adaptive_scan_line;
-		double min_detectable_edge_angle;	// in [deg]
-		int scan_line_width_at_2m;		// using linear model with scan line width at 0.5m -> 5 Pixel, scan_line_width is the length of the scan line left and right of the query pixel
-		double scan_line_model_m;
-		double scan_line_model_n;
+		enum NoiseReductionMode { NONE, GAUSSIAN, BILATERAL };	// noise suppression mode on differentiated images
+		NoiseReductionMode noise_reduction_mode;	// noise suppression mode on differentiated images
+		int noise_reduction_kernel_size;	// kernel size of noise reduction filter, usually 3, 5 or 7
+		float depth_step_factor;			// factor for depth dependent depth edge (step) verification, corresponds to minimum depth step in [m] at 1m distance (default ~ 0.01 - 0.02)
+		double min_detectable_edge_angle;	// minimum angle of surrounding surfaces around an edge, in [deg]
+		bool use_adaptive_scan_line;		// use fixed width scan line at certain depth (false) or adapt scan line width to surrounding edges, i.e. not crossing edges (true, default)
+		int min_scan_line_width;		// minimum scan line width used for surface slope approximation, in [pixels] (typically around 5pix)
+		int max_scan_line_width;		// maximum scan line width used for surface slope approximation, in [pixels] (typically between 20 and 40pix)
+		int scan_line_width_at_2m;		// scan_line_width is the length of the scan line left and right of the query pixel at 2m distance (using linear model with scan line width at 0.5m of 5 pixels)
+		double scan_line_model_m;		// computed value from scan_line_width_at_2m (slope in linear model)
+		double scan_line_model_n;		// computed value from scan_line_width_at_2m (offset in linear model)
 
 		EdgeDetectionConfig()
 		{
 			noise_reduction_mode = GAUSSIAN;
 			noise_reduction_kernel_size = 3;
-			use_adaptive_scan_line = true;
+			depth_step_factor = 0.01f;
 			min_detectable_edge_angle = 45;
+			use_adaptive_scan_line = true;
+			min_scan_line_width = 5;
+			max_scan_line_width = 20;
 			scan_line_width_at_2m = 15;
 			scan_line_model_n = (20.-scan_line_width_at_2m)/(double)3.0;
 			scan_line_model_m = 10 - 2*scan_line_model_n;
 		}
 
-		EdgeDetectionConfig(NoiseReductionMode noise_reduction_mode_, int noise_reduction_kernel_size_, bool use_adaptive_scan_line_, double min_detectable_edge_angle_, int scan_line_width_at_2m_)
+		EdgeDetectionConfig(const NoiseReductionMode noise_reduction_mode_, const int noise_reduction_kernel_size_, const float depth_step_factor_, const double min_detectable_edge_angle_, const bool use_adaptive_scan_line_, const int min_scan_line_width_, const int max_scan_line_width_, const int scan_line_width_at_2m_)
 		{
 			noise_reduction_mode = noise_reduction_mode_;
 			noise_reduction_kernel_size = noise_reduction_kernel_size_;
-			use_adaptive_scan_line = use_adaptive_scan_line_;
+			depth_step_factor = depth_step_factor_;
 			min_detectable_edge_angle = min_detectable_edge_angle_;
+			use_adaptive_scan_line = use_adaptive_scan_line_;
+			min_scan_line_width = min_scan_line_width_;
+			max_scan_line_width = max_scan_line_width_;
 			scan_line_width_at_2m = scan_line_width_at_2m_;
 			scan_line_model_n = (20.-scan_line_width_at_2m)/(double)3.0;
 			scan_line_model_m = 10 - 2*scan_line_model_n;
@@ -252,9 +261,9 @@ public:
 		// depth discontinuities
 		//edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
 		edge.create(z_image.rows, z_image.cols, CV_8UC1);
-		const float depth_factor = 0.01f;
-		const int min_line_width = 5;
-		const int max_line_width = 20;
+		const float depth_factor = config.depth_step_factor;
+		const int min_line_width = config.min_scan_line_width;
+		const int max_line_width = config.max_scan_line_width;
 		const int max_v = z_dx.rows - max_line_width - 2;
 		const int max_u = z_dx.cols - max_line_width - 2;
 //#pragma omp parallel for num_threads(2)	// no speed up because threading overhead eats up the multi core computation
@@ -264,7 +273,10 @@ public:
 			{
 				float depth = z_image.at<float>(v,u);
 				if (depth==0.f)
+				{
+					edge.at<uchar>(v,u) = 0;
 					continue;
+				}
 				float edge_threshold = std::max(0.0f, depth_factor*depth);	// todo: adapt to the quadratic model of Holzer 2012, Fig. 3
 				float z_dx_val = z_dx.at<float>(v,u);
 				float z_dy_val = z_dy.at<float>(v,u);
@@ -291,7 +303,8 @@ public:
 		cv::Mat x_dx_integralX, z_dx_integralX;
 		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
 		cv::Mat distance_map_horizontal;
-		computeDistanceMapHorizontal(edge, distance_map_horizontal);
+		if (config.use_adaptive_scan_line == true)
+			computeDistanceMapHorizontal(edge, distance_map_horizontal);
 #ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
 #endif
@@ -381,7 +394,8 @@ public:
 		cv::Mat y_dy_integralY, z_dy_integralY;
 		computeIntegralImageX(y_dy, y_dy_integralY, z_dy, z_dy_integralY);
 		cv::Mat distance_map_vertical;
-		computeDistanceMapVertical(edge, distance_map_vertical);
+		if (config.use_adaptive_scan_line == true)
+			computeDistanceMapVertical(edge, distance_map_vertical);
 		const int max_uy = z_dy.cols - max_line_width - 2;
 		const int max_vy = z_dy.rows - max_line_width - 2;
 #ifdef USE_OMP
@@ -567,10 +581,13 @@ public:
 
 		if (normals != 0)
 		{
-			computeDistanceMapHorizontal(edge, distance_map_horizontal);
-			computeDistanceMapVertical(edge, distance_map_vertical);
 			if (config.use_adaptive_scan_line == false)
 				cv::integral(edge, edge_integral, CV_32S);
+			else
+			{
+				computeDistanceMapHorizontal(edge, distance_map_horizontal);
+				computeDistanceMapVertical(edge, distance_map_vertical);
+			}
 			normals->resize(pointcloud->size());
 			normals->header = pointcloud->header;
 			normals->is_dense = pointcloud->is_dense;

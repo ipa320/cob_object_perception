@@ -369,10 +369,10 @@ void Evaluation::evaluateNormalEstimation(const pcl::PointCloud<pcl::PointXYZRGB
 	// 3. Visualize
 	if (ne_statistics != 0)
 		ne_statistics->addStatistics(100.*(double)number_normals/(double)number_gt_normals, normal_error/(double)number_normals, normal_error_deg/(double)number_normals, 100.*(double)number_good_normals/(double)number_normals);
-	std::cout << "Coverage of estimated normals on gt_normals: " << 100.*(double)number_normals/(double)number_gt_normals << std::endl;
-	std::cout << "Average normal estimation error: " << normal_error/(double)number_normals << std::endl;
-	std::cout << "Average normal estimation error [deg]: " << normal_error_deg/(double)number_normals << std::endl;
-	std::cout << "Percentage of good normals: " << 100.*(double)number_good_normals/(double)number_normals << "\n" << std::endl;
+//	std::cout << "Coverage of estimated normals on gt_normals: " << 100.*(double)number_normals/(double)number_gt_normals << std::endl;
+//	std::cout << "Average normal estimation error: " << normal_error/(double)number_normals << std::endl;
+//	std::cout << "Average normal estimation error [deg]: " << normal_error_deg/(double)number_normals << std::endl;
+//	std::cout << "Percentage of good normals: " << 100.*(double)number_good_normals/(double)number_normals << "\n" << std::endl;
 
 //	pcl::visualization::PCLVisualizer viewerNormals("Cloud and Normals");
 //	viewerNormals.setBackgroundColor(0.0, 0.0, 0);
