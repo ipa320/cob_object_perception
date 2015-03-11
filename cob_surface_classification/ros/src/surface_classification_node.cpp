@@ -676,6 +676,7 @@ public:
 //return; //todo: remove
 
 			// visualization on color image
+			bool visualize_normals = visualize_normals_;
 			if (visualize_edges_==true)
 			{
 				cv::Mat color_image_edge = color_image.clone();
@@ -698,15 +699,17 @@ public:
 //				std::stringstream ss;
 //				ss << "edge_images/" << (nr_records<1000 ? "0" : "") << (nr_records<100 ? "0" : "") << (nr_records<10 ? "0" : "") << nr_records << "edge.png";
 //				cv::imwrite(ss.str(), color_image_edge);
-				cv::imshow("color_image", color_image);
-				cv::imshow("color with edge", color_image_edge);
+				cv::imshow("color image", color_image);
+				cv::imshow("color image with edges", color_image_edge);
 				int quit = cv::waitKey(10);
 				if (quit=='s')
 					cv::imwrite("color_image_edge.png",color_image_edge);
+				if (quit=='n')
+					visualize_normals = true;
 				if (quit=='q')
 					exit(0);
 			}
-			if (visualize_normals_==true && normalsEdgeDirect!=0)
+			if (visualize_normals==true && normalsEdgeDirect!=0)
 				displayPointCloud(cloud, normalsEdgeDirect, "fast edge-aware normal estimation");
 
 			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
@@ -730,7 +733,7 @@ public:
 //				++number_processed_images_;
 				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
 				//			"\n\t\t\t\truntime_normal_edge: " << runtime_normal_edge_/(double)number_processed_images_ << std::endl;
-				if (visualize_normals_==true)
+				if (visualize_normals==true)
 					displayPointCloud(cloud, normals, "edge-aware cross-product normal computation");
 			}
 
@@ -752,7 +755,7 @@ public:
 				//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for cross-product normal computation\n";
 				//runtime_normal_original_ += tim.getElapsedTimeInMilliSec();
 				//return;
-				if (visualize_normals_==true)
+				if (visualize_normals==true)
 					displayPointCloud(cloud, normalsCrossProduct, "cross-product normal computation");
 			}
 			if (config.normal_estimation_config.normalEstimationIntegralImageEdgeAwareEnabled())
@@ -775,7 +778,7 @@ public:
 				ne2.setInputCloud(cloud_edge);
 				ne2.compute(*normalsIntegralImageEdge);
 				//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation with edges" << std::endl;
-				if (visualize_normals_==true)
+				if (visualize_normals==true)
 					displayPointCloud(cloud, normalsIntegralImageEdge, "edge-aware integral image normal estimation");
 			}
 			if (config.normal_estimation_config.normalEstimationIntegralImageEnabled())
@@ -789,7 +792,7 @@ public:
 				ne2.setInputCloud(cloud);
 				ne2.compute(*normalsIntegralImage);
 				//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for integral image normal estimation" << std::endl;
-				if (visualize_normals_==true)
+				if (visualize_normals==true)
 					displayPointCloud(cloud, normalsIntegralImage, "integral image normal estimation");
 			}
 			if (config.normal_estimation_config.normalEstimationVanillaPCLEnabled())
@@ -803,7 +806,7 @@ public:
 				//ne3.setRadiusSearch(0.01);
 				ne3.compute(*normalsVanilla);
 				//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for vanilla PCL normal estimation" << std::endl;
-				if (visualize_normals_==true)
+				if (visualize_normals==true)
 					displayPointCloud(cloud, normalsVanilla, "vanilla PCL normal estimation");
 			}
 

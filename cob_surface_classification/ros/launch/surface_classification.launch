@@ -32,6 +32,8 @@
    <remap from="colorimage_in" to="/cam3d/rgb/image_raw"/>
    <!--remap from="pointcloud_in" to="/camera/depth/points"/-->
    <!--remap from="colorimage_in" to="/cam3d/rgb/image_color"/-->
+   
+   <param name="visualize_edge_detection" value="True" />
   </node>
 
 </launch>

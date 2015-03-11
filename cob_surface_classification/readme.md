@@ -1,12 +1,14 @@
 # ReadMe: Fast, edge-aware normal estimation
 
-This is a brief explanation how to use/display the 3d egde detection and edge-aware normal estimation algorithms.
+This is a brief explanation how to use/display the 3d egde detection and edge-aware normal estimation algorithms presented in IROS 2015 submission
+Fast and Accurate Normal Estimation by Efficient 3d Edge Detection (Richard Bormann, Joshua Hampp and Martin Hägele).
 
 Prerequisites
 =============
 You need to clone this repository into your catkin workspace as well as the following repositories:
 - https://github.com/ipa-rmb/cob_environment_perception
 - https://github.com/ipa-rmb/cob_perception_common
+
 Then build everything.
 
 Usage
@@ -34,6 +36,8 @@ You may change the parameters of the algorithm at runtime using rqt_reconfigure
 ```bash
 rosrun rqt_reconfigure rqt_reconfigure
 ```
+at entry "surface classification".
 
+A window "color image with edges" will display the live 3d edge detection results with color coded depth edges (blue) and surface discontinuities (green). If you like to display the normals as well, activate the edge display window (i.e. click into it) and press key 'n'. You may change the normal estimation method to any other by changing the value of parameter 'ne_normal_estimation_method' in rqt_reconfigure.
 
 
