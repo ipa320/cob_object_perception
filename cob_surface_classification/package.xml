@@ -1,13 +1,9 @@
 <package>
   <name>cob_surface_classification</name>
   <version>0.1.0</version>
-  <description>
-
-     Image processing tool for the categorization of surface shapes.
-
-  </description>
+  <description>Image processing tool for the categorization of surface shapes.</description>
   <author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann, Carolin Eckard</author>
-  <maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
+  <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
   <license>LGPL</license>
   <url>http://ros.org/wiki/cob_surface_classification</url>
 
