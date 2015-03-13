@@ -5,11 +5,20 @@ Fast and Accurate Normal Estimation by Efficient 3d Edge Detection (Richard Borm
 
 Prerequisites
 =============
+Please install the following ROS packages:
+```bash
+sudo apt-get install ros-indigo-cob-common ros-indigo-cob-script-server libcgal-dev libwxgtk3.0-dev libdmtx-dev libmagick++-dev scons libfftw3-dev
+```
+
 You need to clone this repository into your catkin workspace as well as the following repositories:
 - https://github.com/ipa-rmb/cob_environment_perception
 - https://github.com/ipa-rmb/cob_perception_common
+- https://github.com/ipa-rmb/cob_perception_data
 
-Then build everything.
+Then build everything using one core with
+```bash
+catkin_make -j1
+```
 
 Usage
 =====
