@@ -116,7 +116,7 @@ protected:
 	void attributeLearningDatabaseTestFarhadi();
 	void attributeLearningDatabaseTestHandcrafted();
 	void attributeLearningDatabaseTestCimpoi();
-	void attributeLearningDatabaseTestAutomatedClass();
+//	void attributeLearningDatabaseTestAutomatedClass();
 
 	void crossValidationVerbalClassDescription();
 

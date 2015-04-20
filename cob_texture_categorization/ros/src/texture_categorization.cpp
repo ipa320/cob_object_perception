@@ -104,7 +104,7 @@ node_handle_(nh)
 	if (true)
 	{
 		// live processing
-	//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/scale0-05/"; // path to save data
+	//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
 		std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/handcrafted/";
 //		std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_generator/cimpoi2014_rgb/";
 //		std::string gmm_filename = feature_files_path + "gmm_model.yml";
@@ -222,8 +222,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 {
 	// === using the farhadi attributes that are learned from base features
 	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
-	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/ipa_database_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/";
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/farhadi2009/features/ipa_texture_database/ipa_database_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/farhadi2009/features/ipa_texture_database/";
 
 	// attribute learning
 	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
@@ -256,10 +256,10 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
 //	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
 //	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
-	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
-//	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
-//	std::string feature_files_path = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
+	std::string data_file_name = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/handcrafted/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/handcrafted/"; // path to save data
+//	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/handcrafted/ipa_database_handcrafted_2fb.txt";		//Pfad zu Speicherort der Featurevektoren
+//	std::string feature_files_path = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/handcrafted/"; // path to save data
 
 	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
@@ -346,9 +346,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 //	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";			// path to database
 	std::string path_database = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/texture_database/";
 //	std::string path_database = "/home/rmb-dh/datasetTextur/test_data/";			// path to database
-//	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		// path to save data
-	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/scale0-05/"; // path to save data
-//	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/"; // path to save data
+//	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/data/handcrafted/";		// path to save data
+	std::string feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
 
 	// compute 16 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
@@ -391,11 +390,11 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 
 	std::string feature_files_path = "";	// path to save data
 	if (method == HANDCRAFTED_RAW || method == HANDCRAFTED_LEARNED)
-		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/";
+		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/handcrafted/";
 	else if (method == FARHADI)
-		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/farhadi2009/features/ipa_texture_database/";
+		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/farhadi2009/features/ipa_texture_database/";
 	else if (method == CIMPOI)
-		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/cimpoi2014_rgb/";
+		feature_files_path = "/home/rbormann/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/";
 	else
 		return;
 
@@ -451,12 +450,12 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 		//ml.cross_validation_with_generated_attributes(folds, computed_attribute_matrices, class_label_matrix, data_hierarchy, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
 }
 
-
+/*
 void TextCategorizationNode::attributeLearningDatabaseTestAutomatedClass()
 {
 	AttributeLearning al;
-	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb_tomato.txt";
-	std::string data_file_name_orig = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/feature_files/ipa_database_handcrafted_2fb.txt";
+	std::string data_file_name = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/handcrafted/ipa_database_handcrafted_2fb_tomato.txt";
+	std::string data_file_name_orig = "/home/rmb-dh/git/care-o-bot/cob_object_perception/cob_texture_categorization/common/files/data/handcrafted/ipa_database_handcrafted_2fb.txt";
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, orig;
 	create_train_data::DataHierarchyType data_hierarchy;
 	int a=16, b=17;
@@ -474,7 +473,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestAutomatedClass()
 //	compute_textures test;
 //	test.compute_textures_all();
 }
-
+*/
 
 struct segment_position{
 	int segment;
@@ -1455,7 +1454,7 @@ void TextCategorizationNode::inputCallbackNoCam()
 //	std::string path_traindata = "/media/SAMSUNG/rmb/datasetTextur/A_Klassification_Data/train_data/";			//Pfad zu Trainingsdaten
 //	std::string path_testdata = "/media/SAMSUNG/rmb/datasetTextur/A_Klassification_Data/test_data/";			//Pfad zu Testdaten
 	std::string path_database = "/media/SAMSUNG/rmb/datasetTextur/texture_database/";							// path to database
-	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/feature_files/";		//Pfad zu Speicherort der Featurevektoren
+	std::string path_save_location = "/media/SAMSUNG/rmb/datasetTextur/data/handcrafted/";		//Pfad zu Speicherort der Featurevektoren
 
 //	create_train_data testdata = create_train_data();									// Berechnet den Featurevektor und den einen Labelvektor zum Testen
 //	testdata.compute_data(path_testdata, path_save_location, 146, 2);
