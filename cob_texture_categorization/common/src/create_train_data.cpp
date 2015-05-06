@@ -94,47 +94,56 @@ std::vector<std::string> create_train_data::get_texture_classes()
 	return texture_classes_;
 }
 
-void create_train_data::compute_data_handcrafted(std::string path_database_images, std::string path_save, int number_pictures, int mode)
+void create_train_data::compute_data_handcrafted(std::string path_database_images, std::string path_save, std::string label_file, int mode)
 {
 	// load labeled ground truth attributes with relation to each image file
+	std::vector<std::string> image_filenames;
 	std::map<std::string, std::vector<float> > filenames_gt_attributes;
-	std::string path_filenames_gt_attributes = path_save + "ipa_database_filename_attributes.txt";
-	load_filenames_gt_attributes(path_filenames_gt_attributes, filenames_gt_attributes);
+	create_train_data::DataHierarchyType data_sample_hierarchy;
+	std::string path_filenames_gt_attributes = path_save + label_file;
+	load_filenames_gt_attributes(path_filenames_gt_attributes, texture_classes_, image_filenames, filenames_gt_attributes, data_sample_hierarchy);
+	int number_pictures = image_filenames.size();
 
-	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
+	//create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);			// matrix of computed attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 23, CV_32FC1); // matrix of computed base features
 
-	std::cout<<"BEGIN" << std::endl;
-	double sample_index=0;
+	std::cout << "Computing image features ... " << std::endl;
 	std::stringstream accumulated_error_string;
 	std::vector<int> errors;
-	for(int class_index=0;class_index<(int)texture_classes_.size();class_index++)
+	for(int class_index=0;class_index<(int)texture_classes_.size(); ++class_index)
 	{
 		std::string path = path_database_images + texture_classes_[class_index];
-		const char *p;
-		p=path.c_str();
-
-		DIR *pDIR;
-		struct dirent *entry;
-		if ((pDIR = opendir(p)))
+		for (int object_index=0; object_index<data_sample_hierarchy[class_index].size(); ++object_index)
 		{
-			while ((entry = readdir(pDIR)))
+			for (int image_index=0; image_index<data_sample_hierarchy[class_index][object_index].size(); ++image_index)
 			{
-				//if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 )
-				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
-				{
-					std::string str = path + "/";
-					std::string name = entry->d_name;
-					str.append(name);
-					std::cout << str << ":   ";
+				int sample_index = data_sample_hierarchy[class_index][object_index][image_index];
+				std::string name = image_filenames[sample_index];
+				std::string image_filename = path + "/" + name;
+//		const char *p;
+//		p=path.c_str();
+//
+//		DIR *pDIR;
+//		struct dirent *entry;
+//		if ((pDIR = opendir(p)))
+//		{
+//			while ((entry = readdir(pDIR)))
+//			{
+//				//if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 )
+//				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
+//				{
+//					std::string str = path + "/";
+//					std::string name = entry->d_name;
+//					str.append(name);
+//					std::cout << str << ":   ";
 
 					if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
 					{
-						std::cout << "\ngt:\t";
+						std::cout << name << "\ngt:\t";
 						for (unsigned int i=0, j=0; i<filenames_gt_attributes[name].size(); ++i)
 							//if (i!=13)	// one attribute (3d roughness) is currently not implemented here, so just leave it out from gt
 						{
@@ -150,29 +159,29 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 						accumulated_error_string << "Error: no entry for file '" << name << "' in filenames_gt_attributes." << std::endl;
 					}
 
-					// create data sample hierarchy
-					// determine object number
-					int start_pos = name.find("_")+1;
-					int end_pos = name.find("_", start_pos);
-					std::stringstream object_number_ss;
-					object_number_ss << name.substr(start_pos, end_pos-start_pos);
-					unsigned int object_number = 0;
-					object_number_ss >> object_number;
-//					std::cout << "Object number ss: " << object_number_ss.str() << ",  " << object_number << std::endl;
-					// determine sample number
-					start_pos = end_pos+1;
-					end_pos = name.find(".", start_pos);
-					std::stringstream sample_number_ss;
-					sample_number_ss << name.substr(start_pos, end_pos-start_pos);
-					unsigned int sample_number = 0;
-					sample_number_ss >> sample_number;
-//					std::cout << "Sample number ss: " << sample_number_ss.str() << ",  " << sample_number << std::endl;
-					// create entry in hierarchy
-					if (data_sample_hierarchy[class_index].size() < object_number)
-						data_sample_hierarchy[class_index].resize(object_number);
-					if (data_sample_hierarchy[class_index][object_number-1].size() < sample_number)
-						data_sample_hierarchy[class_index][object_number-1].resize(sample_number, -1);
-					data_sample_hierarchy[class_index][object_number-1][sample_number-1] = sample_index;
+//					// create data sample hierarchy
+//					// determine object number
+//					int start_pos = name.find("_")+1;
+//					int end_pos = name.find("_", start_pos);
+//					std::stringstream object_number_ss;
+//					object_number_ss << name.substr(start_pos, end_pos-start_pos);
+//					unsigned int object_number = 0;
+//					object_number_ss >> object_number;
+////					std::cout << "Object number ss: " << object_number_ss.str() << ",  " << object_number << std::endl;
+//					// determine sample number
+//					start_pos = end_pos+1;
+//					end_pos = name.find(".", start_pos);
+//					std::stringstream sample_number_ss;
+//					sample_number_ss << name.substr(start_pos, end_pos-start_pos);
+//					unsigned int sample_number = 0;
+//					sample_number_ss >> sample_number;
+////					std::cout << "Sample number ss: " << sample_number_ss.str() << ",  " << sample_number << std::endl;
+//					// create entry in hierarchy
+//					if (data_sample_hierarchy[class_index].size() < object_number)
+//						data_sample_hierarchy[class_index].resize(object_number);
+//					if (data_sample_hierarchy[class_index][object_number-1].size() < sample_number)
+//						data_sample_hierarchy[class_index][object_number-1].resize(sample_number, -1);
+//					data_sample_hierarchy[class_index][object_number-1][sample_number-1] = sample_index;
 
 					// definition of raw features:
 
@@ -234,7 +243,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					// 17. checked: (raw[21])
 					// raw[21]: --> max(1, min(5, a*raw[21]+b))
 
-					cv::Mat image = cv::imread(str);
+					cv::Mat image = cv::imread(image_filename);
 //					cv::Mat temp;		// hack: downsizing image
 //					cv::resize(image, temp, cv::Size(), 0.25, 0.25, cv::INTER_AREA);
 //					image = temp;
@@ -267,7 +276,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					computed_attribute_matrix.at<float>(sample_index, 15) = results.lined; // 18: lined
 					computed_attribute_matrix.at<float>(sample_index, 16) = results.checked; // 19: checked
 					std::cout << "comp:\t";
-					for (int i = 0; i < 17; i++)
+					for (int i = 0; i < computed_attribute_matrix.cols; i++)
 					{
 						if (computed_attribute_matrix.at<float>(sample_index, i) != computed_attribute_matrix.at<float>(sample_index, i))
 						{
@@ -278,10 +287,10 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 					}
 					std::cout << std::endl;
 					sample_index++;
-					std::cout << "\n\t\tFeature computation completed: " << (sample_index / number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
-				}
+					std::cout << "\n\t\tFeature computation completed: " << (sample_index / (double)number_pictures) * 100 << "%   Picnum " << sample_index << std::endl;
+//				}
 			}
-			closedir(pDIR);
+//			closedir(pDIR);
 		}
 	}
 
@@ -292,7 +301,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 
 	std::cout << "Errors:\n" << accumulated_error_string.str() << std::endl;
 
-	std::cout << "Finished reading " << sample_index << " data samples." << std::endl;
+	std::cout << "Finished reading " << image_filenames.size() << " data samples." << std::endl;
 
 	//	Save computed attributes, class labels and ground truth attributes
 	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_sample_hierarchy, mode);
@@ -345,7 +354,8 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	// load labeled ground truth attributes with relation to each image file
 	std::map<std::string, std::vector<float> > filenames_gt_attributes;
 	std::string path_filenames_gt_attributes = path_save + "ipa_database_filename_attributes.txt";
-	load_filenames_gt_attributes(path_filenames_gt_attributes, filenames_gt_attributes);
+// todo: adapt
+	//	load_filenames_gt_attributes(path_filenames_gt_attributes, filenames_gt_attributes);
 
 	create_train_data::DataHierarchyType data_sample_hierarchy(texture_classes_.size());			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
@@ -472,7 +482,7 @@ void create_train_data::load_texture_database_features(std::string path, cv::Mat
 	fs.release();
 
 	// load class-object-sample hierarchy
-	std::string database_hierarchy_file = path + "ipa_database_hierarchy_2fb.txt";
+	std::string database_hierarchy_file = path + "ipa_database_hierarchy.txt";
 	load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
 
 	std::cout << "Texture database features loaded." << std::endl;
@@ -553,10 +563,14 @@ void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyT
 	file.close();
 }
 
-void create_train_data::load_filenames_gt_attributes(std::string filename, std::map<std::string, std::vector<float> >& filenames_gt_attributes)
+void create_train_data::load_filenames_gt_attributes(std::string filename, std::vector<std::string>& class_names, std::vector<std::string>& image_filenames, std::map<std::string, std::vector<float> >& filenames_gt_attributes, DataHierarchyType& data_sample_hierarchy)
 {
+	class_names.clear();
+	image_filenames.clear();
+	filenames_gt_attributes.clear();
+	data_sample_hierarchy.clear();
+
 	const int attribute_number = 17;
-	DataHierarchyType data_sample_hierarchy;
 	std::ifstream file(filename.c_str(), std::ios::in);
 	if (file.is_open() == true)
 	{
@@ -567,21 +581,46 @@ void create_train_data::load_filenames_gt_attributes(std::string filename, std::
 		{
 			std::string class_name;
 			file >> class_name;
+			class_names.push_back(class_name);
 			unsigned int object_number=0;
 			file >> object_number;
 			data_sample_hierarchy[i].resize(object_number);
-			for (unsigned int j=0; j<data_sample_hierarchy[i].size(); ++j)
+			for (unsigned int j=0; j<object_number; ++j)
 			{
 				unsigned int sample_number=0;
 				file >> sample_number;
 				data_sample_hierarchy[i][j].resize(sample_number);
-				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
+				for (unsigned int k=0; k<sample_number; ++k)
 				{
+					// filename
 					std::string image_filename;
 					file >> image_filename;
+					image_filenames.push_back(image_filename);
+					data_sample_hierarchy[i][j][k] = image_filenames.size()-1;
+					// ground truth labels
 					filenames_gt_attributes[image_filename].resize(attribute_number);
-					for (int l=0; l<attribute_number; ++l)
-						file >> filenames_gt_attributes[image_filename][l];	// ground truth attribute vector
+					while (true)
+					{
+						std::string tag;
+						file >> tag;
+						if (tag.compare("labels_ipa17:") == 0)
+						{
+							for (int l=0; l<attribute_number; ++l)
+								file >> filenames_gt_attributes[image_filename][l];	// ground truth attribute vector
+						}
+						else if (tag.compare("base_farhadi9688:") == 0)
+						{
+							std::string buffer;
+							std::getline(file, buffer);
+							break;
+						}
+						else
+						{
+							std::cout << "Error: create_train_data::load_filenames_gt_attributes: Unknown tag found." << std::endl;
+							getchar();
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -589,4 +628,6 @@ void create_train_data::load_filenames_gt_attributes(std::string filename, std::
 	else
 		std::cout << "Error: could not open file " << filename << "." << std::endl;
 	file.close();
+
+	std::cout << "Found " << image_filenames.size() << " image files in database distributed into " << class_names.size() << " classes." << std::endl;
 }

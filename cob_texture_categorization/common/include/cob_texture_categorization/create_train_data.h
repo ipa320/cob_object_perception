@@ -25,7 +25,7 @@ public:
 
 	std::vector<std::string> get_texture_classes();
 
-	void compute_data_handcrafted(std::string path_database_images, std::string path_save, int number_pictures, int mode=0);
+	void compute_data_handcrafted(std::string path_database_images, std::string path_save, std::string label_file, int mode=0);
 	void compute_data_cimpoi(std::string path_database_images, std::string path_save, int number_pictures, int mode=0, bool generateGMM=false, IfvFeatures::FeatureType feature_type=IfvFeatures::DENSE_MULTISCALE_SIFT);
 
 	void save_texture_database_features(std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, int mode=0);
@@ -34,7 +34,7 @@ public:
 	void save_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy, int number_samples);
 	void load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy);
 
-	void load_filenames_gt_attributes(std::string filename, std::map<std::string, std::vector<float> >& filenames_gt_attributes);
+	void load_filenames_gt_attributes(std::string filename, std::vector<std::string>& class_names, std::vector<std::string>& image_filenames, std::map<std::string, std::vector<float> >& filenames_gt_attributes, DataHierarchyType& data_sample_hierarchy);
 
 private:
 	std::vector<std::string> texture_classes_;
