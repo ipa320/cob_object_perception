@@ -291,7 +291,7 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 
 	// write screen outputs to file
 	std::string logfilename = "texture_categorization/screen_output_classification.txt";
-	std::ofstream file(logfilename, std::ios::out);
+	std::ofstream file(logfilename.c_str(), std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else
@@ -594,7 +594,7 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 
 	// write screen outputs to file
 	std::string logfilename = "texture_categorization/screen_output_classification.txt";
-	std::ofstream file(logfilename, std::ios::out);
+	std::ofstream file(logfilename.c_str(), std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else
@@ -721,7 +721,7 @@ void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels, cv:
 
 	// write screen outputs to file
 	std::string logfilename = "texture_categorization/screen_output_classification.txt";
-	std::ofstream file(logfilename, std::ios::out);
+	std::ofstream file(logfilename.c_str(), std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else

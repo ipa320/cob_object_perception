@@ -9,6 +9,7 @@
 #define ATTRIBUTE_LEARNING_H_
 
 #include "cob_texture_categorization/create_train_data.h"
+#include "cob_texture_categorization/ml_params.h"
 
 #include <cv.h>
 #include <ml.h>
@@ -19,7 +20,7 @@
 class AttributeLearning
 {
 public:
-	enum CrossValidationMode {LEAVE_OUT_ONE_OBJECT_PER_CLASS = 0, LEAVE_OUT_ONE_CLASS = 1};
+	//enum CrossValidationMode {LEAVE_OUT_ONE_OBJECT_PER_CLASS = 0, LEAVE_OUT_ONE_CLASS = 1};
 
 	AttributeLearning() {};
 
@@ -37,10 +38,10 @@ public:
 	// return_set_data: if true, all the training index sets, testing data and testing labels of all folds are returned
 	// return_computed_attribute_matrices: if true, a vector of size folds that contains all the computed attributes from each fold of the cross validation is returned
 	// computed_attribute_matrices: is a return vector of size folds that contains all the computed attributes from each fold of the cross validation, the order of samples is the same as in feature_matrix and attribute_matrix
-	void crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, CrossValidationMode cross_validation_mode);
-	void crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, CrossValidationMode cross_validation_mode, std::vector<cv::Mat>& computed_attribute_matrices);
-	void crossValidation(unsigned int folds, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, CrossValidationMode cross_validation_mode,
-
+	void crossValidation(const CrossValidationParams& cross_validation_params, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy);
+	void crossValidation(const CrossValidationParams& cross_validation_params, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
+			std::vector<cv::Mat>& computed_attribute_matrices);
+	void crossValidation(const CrossValidationParams& cross_validation_params, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
 			bool return_set_data, const cv::Mat& class_label_matrix, std::vector< std::vector<int> >& preselected_train_indices, std::vector<cv::Mat>& attribute_matrix_test_data, std::vector<cv::Mat>& class_label_matrix_test_data,
 			bool return_computed_attribute_matrices, std::vector<cv::Mat>& computed_attribute_matrices);
 
