@@ -290,11 +290,12 @@ void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const 
 	screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
 
 	// write screen outputs to file
-	std::ofstream file("screen_output_classification.txt", std::ios::out);
+	std::string logfilename = "texture_categorization/screen_output_classification.txt";
+	std::ofstream file(logfilename, std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else
-		std::cout << "Error: could not write screen output to file.";
+		std::cout << "Error: could not write screen output to file " << logfilename << "." << std::endl;
 	file.close();
 }
 
@@ -592,11 +593,12 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 	screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
 
 	// write screen outputs to file
-	std::ofstream file("screen_output_classification.txt", std::ios::out);
+	std::string logfilename = "texture_categorization/screen_output_classification.txt";
+	std::ofstream file(logfilename, std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else
-		std::cout << "Error: could not write screen output to file.";
+		std::cout << "Error: could not write screen output to file " << logfilename << "." << std::endl;
 	file.close();
 }
 
@@ -718,11 +720,12 @@ void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels, cv:
 	screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
 
 	// write screen outputs to file
-	std::ofstream file("screen_output_classification.txt", std::ios::out);
+	std::string logfilename = "texture_categorization/screen_output_classification.txt";
+	std::ofstream file(logfilename, std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else
-		std::cout << "Error: could not write screen output to file.";
+		std::cout << "Error: could not write screen output to file " << logfilename << "." << std::endl;
 	file.close();
 }
 

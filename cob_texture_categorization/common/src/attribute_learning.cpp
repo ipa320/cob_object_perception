@@ -509,11 +509,12 @@ void AttributeLearning::crossValidation(unsigned int folds, const cv::Mat& featu
 	screen_output << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%" << std::endl;
 
 	// write screen outputs to file
-	std::ofstream file("screen_output_attribute_learning.txt", std::ios::out);
+	std::string logfilename = "texture_categorization/screen_output_attribute_learning.txt";
+	std::ofstream file(logfilename, std::ios::out);
 	if (file.is_open() == true)
 		file << screen_output.str();
 	else
-		std::cout << "Error: could not write screen output to file.";
+		std::cout << "Error: could not write screen output to file " << logfilename << "." << std::endl;
 	file.close();
 }
 
