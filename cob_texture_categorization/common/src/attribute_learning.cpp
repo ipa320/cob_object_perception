@@ -477,7 +477,7 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 							++below05_ctr;
 					}
 
-					screen_output << "value: " << test_labels.at<float>(r, 0) << "\t predicted: " << response.at<float>(0,0)*feature_scaling_factor << "\t abs difference: " << absdiff << std::endl;
+					screen_output << "value: " << test_labels.at<float>(r, 0)*feature_scaling_factor << "\t predicted: " << response.at<float>(0,0)*feature_scaling_factor << "\t abs difference: " << absdiff << std::endl;
 				}
 
 				sumAbsErrors[attribute_index] += sumAbsError;

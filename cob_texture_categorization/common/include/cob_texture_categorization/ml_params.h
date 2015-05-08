@@ -139,11 +139,11 @@ public:
 
 		if (cross_validation_mode_ == LEAVE_OUT_ONE_OBJECT_PER_CLASS)
 		{
-			ss << folds_ << "-fold leave out one object per class cross-validation:\n---------------------------------------------------------\n\n";
+			ss << folds_ << "-fold leave out one object per class cross-validation:\n---------------------------------------------------------\n";
 		}
 		else if (cross_validation_mode_ == LEAVE_OUT_ONE_CLASS)
 		{
-			ss << folds_ << "-fold leave out one class cross-validation:\n----------------------------------------------\n\n";
+			ss << folds_ << "-fold leave out one class cross-validation:\n----------------------------------------------\n";
 		}
 		else
 		{
