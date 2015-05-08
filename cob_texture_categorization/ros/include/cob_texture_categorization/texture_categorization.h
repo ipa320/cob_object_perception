@@ -10,7 +10,7 @@
 
 // ROS includes
 #include <ros/ros.h>
-//#include <ros/package.h>
+#include <ros/package.h>
 //#include <tf/tf.h>
 
 // ROS message includes
@@ -109,7 +109,7 @@ protected:
 	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
 
-	void inputCallbackNoCam();
+//	void inputCallbackNoCam();
 
 	void attributeLearningGeneratedDatabaseTestHandcrafted();
 
