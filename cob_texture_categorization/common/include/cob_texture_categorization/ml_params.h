@@ -70,7 +70,7 @@ public:
 
 		if (classification_method_ == SVM)
 		{
-			ss << "\nClassification method: SVM\n";
+			ss << "Classification method: SVM\n";
 			ss << "CvSVMParams:"
 					<< "\n\t.svm_type: " << svm_params_.svm_type
 					<< "\n\t.kernel_type: " << svm_params_.kernel_type
@@ -84,7 +84,7 @@ public:
 		}
 		else if (classification_method_ == NEURAL_NETWORK)
 		{
-			ss << "\nClassification method: Neural Network\n";
+			ss << "Classification method: Neural Network\n";
 			ss << "CvANN_MLP_TrainParams:"
 					<< "\n\t.train_method: " << nn_params_.train_method
 					<< "\n\t.bp_dw_scale: " << nn_params_.bp_dw_scale
@@ -123,14 +123,16 @@ public:
 	// cross validation paramters
 	CrossValidationMode cross_validation_mode_;
 	unsigned int folds_;
+	unsigned int number_classes_;		// number of different labels
 
 	// sets of machine learning parameters (for testing one or multiple ML configurations - cross validation will be run as many times as MLParams provided)
 	std::vector<MLParams> ml_configurations_;
 
-	CrossValidationParams(CrossValidationMode cross_validation_mode, unsigned int folds)
+	CrossValidationParams(CrossValidationMode cross_validation_mode, unsigned int folds, unsigned int number_classes)
 	{
 		cross_validation_mode_ = cross_validation_mode;
 		folds_ = folds;
+		number_classes_ = number_classes;
 	}
 
 	std::string configurationToString() const

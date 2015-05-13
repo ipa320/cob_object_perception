@@ -203,7 +203,7 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 		std::vector< std::vector<double> > absErrors(attribute_matrix.cols);	// first index = attribute index
 		std::vector<int> numberSamples(attribute_matrix.cols, 0);
 		std::vector<int> below05(attribute_matrix.cols, 0), below1(attribute_matrix.cols, 0);	// number of attributes estimated with less absolute error than 0.5, 1.0
-		std::stringstream screen_output;
+		std::stringstream screen_output, output_summary;
 
 		if (return_set_data == true)
 		{
@@ -504,10 +504,9 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 					}
 				}
 			}
-			// End Neural Network
 		}
 
-		std::cout << "=== Total result over " << cross_validation_params.folds_ << "-fold cross validation ===" << std::endl;		screen_output << "=== Total result over " << cross_validation_params.folds_ << "-fold cross validation ===" << std::endl;
+		std::cout << "=== Total result over " << cross_validation_params.folds_ << "-fold cross validation ===" << std::endl;		output_summary << "=== Total result over " << cross_validation_params.folds_ << "-fold cross validation ===" << std::endl;
 		double total_mean = 0., total_below05 = 0., total_below1 = 0.;
 		for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
 		{
@@ -522,25 +521,31 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 			stddev /= (double)(absErrors[attribute_index].size() - 1.);
 			stddev = sqrt(stddev);
 			std::cout << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
-			screen_output << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
+			output_summary << "Attribute " << attribute_index+1 << ":\tmean abs error: " << mean << " \t+/- " << stddev << "\t\t<0.5: " << 100*below05[attribute_index]/n << "%\t\t<1.0: " << 100*below1[attribute_index]/n << "%" << std::endl;
 			total_below05 += 100*below05[attribute_index]/n;
 			total_below1 += 100*below1[attribute_index]/n;
 		}
 		std::cout << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%" << std::endl;
-		screen_output << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%" << std::endl;
+		output_summary << "total          \tmean abs error: " << total_mean/(double)attribute_matrix.cols << "\t           \t\t<0.5: " << total_below05/(double)attribute_matrix.cols << "%\t\t<1.0: " << total_below1/(double)attribute_matrix.cols << "%\n\n" << std::endl;
 
 		// write screen outputs to file
 		std::stringstream logfilename;
 		logfilename << "texture_categorization/screen_output_attribute_learning_" << ml_configuration_index << ".txt";
 		std::ofstream file(logfilename.str().c_str(), std::ios::out);
 		if (file.is_open() == true)
-		{
-			file << cross_validation_params.configurationToString() << std::endl;
-			file << ml_params.configurationToString() << std::endl;
-			file << screen_output.str();
-		}
+			file << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl << output_summary.str() << std::endl << screen_output.str();
 		else
 			std::cout << "Error: could not write screen output to file " << logfilename.str() << "." << std::endl;
+		file.close();
+
+		// write summary to file
+		std::stringstream summary_filename;
+		summary_filename << "texture_categorization/screen_output_attribute_learning_summary.txt";
+		file.open(summary_filename.str().c_str(), std::ios::app);
+		if (file.is_open() == true)
+			file << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl << output_summary.str();
+		else
+			std::cout << "Error: could not write summary to file " << summary_filename.str() << "." << std::endl;
 		file.close();
 	}
 }

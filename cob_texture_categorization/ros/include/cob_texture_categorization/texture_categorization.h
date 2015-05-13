@@ -120,6 +120,10 @@ protected:
 
 	void crossValidationVerbalClassDescription();
 
+	// defines a set of Neural Network configurations for cross-validation
+	void setNNConfigurations(CrossValidationParams& cvp, const std::string& experiment_key);
+	// defines a set of SVM configurations for cross-validation
+	void setSVMConfigurations(CrossValidationParams& cvp, const std::string& experiment_key);
 
 	std::set<int> considered_classes_;	// considered classes may limit the amount of classes used from a database for training and recognition
 

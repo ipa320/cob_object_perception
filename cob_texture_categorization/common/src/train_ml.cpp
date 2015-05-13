@@ -18,285 +18,321 @@ train_ml::train_ml()
 }
 
 
-void train_ml::cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
+void train_ml::cross_validation(const CrossValidationParams& cross_validation_params, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
 			const std::vector< std::vector<int> >& preselected_train_indices, const std::vector<cv::Mat>& feature_matrix_test_data, const std::vector<cv::Mat>& label_matrix_test_data,
 			const std::vector<cv::Mat>& feature_matrices)
 {
-	const int number_classes = 57;
-	std::vector<int> true_predictions, false_predictions, true_predictions_rank(number_classes, 0);
+	const int number_classes = cross_validation_params.number_classes_;
 	create_train_data data_object;
-	std::vector<std::string> texture_classes = data_object.get_texture_classes();
-	std::stringstream screen_output;
+	const std::vector<std::string> texture_classes = data_object.get_texture_classes();
 
-	bool use_preselected_set_distribution = (preselected_train_indices.size()==(size_t)folds && feature_matrix_test_data.size()==(size_t)folds && label_matrix_test_data.size()==(size_t)folds && feature_matrices.size()==(size_t)folds);
-	if (use_preselected_set_distribution == true)
+	// iterate over (possibly multiple) machine learning techniques or configurations
+	for (size_t ml_configuration_index = 0; ml_configuration_index<cross_validation_params.ml_configurations_.size(); ++ml_configuration_index)
 	{
-		std::cout << "Using the provided pre-selected sets for training and testing." << std::endl;		screen_output << "Using the provided pre-selected sets for training and testing." << std::endl;
-	}
-	else
-	{
-		std::cout << "Computing the individual training and testing sets for each fold." << std::endl;		screen_output << "Computing the individual training and testing sets for each fold." << std::endl;
-	}
+		const MLParams& ml_params = cross_validation_params.ml_configurations_[ml_configuration_index];
 
-	srand(0);	// random seed --> keep reproducible
-	for (int fold=0; fold<folds; ++fold)
-	{
-		std::cout << "=== fold " << fold+1 << " ===" << std::endl;		screen_output << "=== fold " << fold+1 << " ===" << std::endl;
+		std::vector<int> true_predictions, false_predictions, true_predictions_rank(number_classes, 0);
+		std::stringstream screen_output, output_summary;
 
-		// === distribute data into training and test set ===
-		std::vector<int> train_indices, test_indices;
-		cv::Mat feature_matrix_reference = feature_matrix;
-		if (use_preselected_set_distribution==true)
+		bool use_preselected_set_distribution = (preselected_train_indices.size()==(size_t)cross_validation_params.folds_ && feature_matrix_test_data.size()==(size_t)cross_validation_params.folds_ && label_matrix_test_data.size()==(size_t)cross_validation_params.folds_ && feature_matrices.size()==(size_t)cross_validation_params.folds_);
+		if (use_preselected_set_distribution == true)
 		{
-			// just take the provided training indices for this fold
-			feature_matrix_reference = feature_matrices[fold];
-			if (feature_matrix_test_data[fold].empty()==true || feature_matrix_test_data[fold].cols!=feature_matrix_reference.cols || label_matrix_test_data[fold].empty()==true || label_matrix_test_data[fold].cols!=label_matrix.cols || feature_matrix_test_data[fold].rows!=label_matrix_test_data[fold].rows)
-				std::cout << "Error: provided pre-computed test data and label matrices are not suitable." << std::endl;
-			train_indices = preselected_train_indices[fold];
-			test_indices.resize(feature_matrix_test_data[fold].rows);
+			std::cout << "Using the provided pre-selected sets for training and testing." << std::endl;		screen_output << "Using the provided pre-selected sets for training and testing." << std::endl;
 		}
 		else
 		{
-			// select one object per class for testing
-			for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
+			std::cout << "Computing the individual training and testing sets for each fold." << std::endl;		screen_output << "Computing the individual training and testing sets for each fold." << std::endl;
+		}
+
+		srand(0);	// random seed --> keep reproducible
+		for (int fold=0; fold<cross_validation_params.folds_; ++fold)
+		{
+			std::cout << "=== fold " << fold+1 << " ===" << std::endl;		screen_output << "=== fold " << fold+1 << " ===" << std::endl;
+
+			// === distribute data into training and test set ===
+			std::vector<int> train_indices, test_indices;
+			cv::Mat feature_matrix_reference = feature_matrix;
+			if (use_preselected_set_distribution==true)
 			{
-				int object_number = data_sample_hierarchy[class_index].size();
-				int test_object = (int)(object_number * (double)rand()/((double)RAND_MAX+1.0));
-	//			std::cout << "object_number=" << object_number << "   test_object=" << test_object << std::endl;
-				for (int object_index=0; object_index<object_number; ++object_index)
+				// just take the provided training indices for this fold
+				feature_matrix_reference = feature_matrices[fold];
+				if (feature_matrix_test_data[fold].empty()==true || feature_matrix_test_data[fold].cols!=feature_matrix_reference.cols || label_matrix_test_data[fold].empty()==true || label_matrix_test_data[fold].cols!=label_matrix.cols || feature_matrix_test_data[fold].rows!=label_matrix_test_data[fold].rows)
+					std::cout << "Error: provided pre-computed test data and label matrices are not suitable." << std::endl;
+				train_indices = preselected_train_indices[fold];
+				test_indices.resize(feature_matrix_test_data[fold].rows);
+			}
+			else
+			{
+				// select one object per class for testing
+				for (unsigned int class_index=0; class_index<data_sample_hierarchy.size(); ++class_index)
 				{
-					if (object_index == test_object)
-						for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
-							test_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
-					else
-						for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
-							train_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
+					int object_number = data_sample_hierarchy[class_index].size();
+					int test_object = (int)(object_number * (double)rand()/((double)RAND_MAX+1.0));
+		//			std::cout << "object_number=" << object_number << "   test_object=" << test_object << std::endl;
+					for (int object_index=0; object_index<object_number; ++object_index)
+					{
+						if (object_index == test_object)
+							for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
+								test_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
+						else
+							for (unsigned int s=0; s<data_sample_hierarchy[class_index][object_index].size(); ++s)
+								train_indices.push_back(data_sample_hierarchy[class_index][object_index][s]);
+					}
 				}
 			}
-		}
-		assert(test_indices.size() + train_indices.size() == (unsigned int)feature_matrix_reference.rows);
+			assert(test_indices.size() + train_indices.size() == (unsigned int)feature_matrix_reference.rows);
 
-		// create training and test data matrices
-		cv::Mat training_data(train_indices.size(), feature_matrix_reference.cols, feature_matrix_reference.type());
-		cv::Mat training_labels(train_indices.size(), 1, label_matrix.type());
-		cv::Mat test_data(test_indices.size(), feature_matrix_reference.cols, feature_matrix_reference.type());
-		cv::Mat test_labels(test_indices.size(), 1, label_matrix.type());
-		for (unsigned int r=0; r<train_indices.size(); ++r)
-		{
-			for (int c=0; c<feature_matrix_reference.cols; ++c)
-				training_data.at<float>(r,c) = feature_matrix_reference.at<float>(train_indices[r],c);
-			training_labels.at<float>(r) = label_matrix.at<float>(train_indices[r]);
-		}
-		if (use_preselected_set_distribution==true)
-		{
-			test_data = feature_matrix_test_data[fold];
-			test_labels = label_matrix_test_data[fold];
-		}
-		else
-		{
-			for (unsigned int r=0; r<test_indices.size(); ++r)
+			// create training and test data matrices
+			cv::Mat training_data(train_indices.size(), feature_matrix_reference.cols, feature_matrix_reference.type());
+			cv::Mat training_labels(train_indices.size(), 1, label_matrix.type());
+			cv::Mat test_data(test_indices.size(), feature_matrix_reference.cols, feature_matrix_reference.type());
+			cv::Mat test_labels(test_indices.size(), 1, label_matrix.type());
+			for (unsigned int r=0; r<train_indices.size(); ++r)
 			{
 				for (int c=0; c<feature_matrix_reference.cols; ++c)
-					test_data.at<float>(r,c) = feature_matrix_reference.at<float>(test_indices[r],c);
-				test_labels.at<float>(r) = label_matrix.at<float>(test_indices[r]);
+					training_data.at<float>(r,c) = feature_matrix_reference.at<float>(train_indices[r],c);
+				training_labels.at<float>(r) = label_matrix.at<float>(train_indices[r]);
 			}
-		}
-
-		// === train ml classifier ===
-
-//	std::cout<<"Value:"<<test_data_label.at<float>(3,0)<<std::endl;
-//	K-Nearest-Neighbor
-
-//	cv::Mat test;
-//	CvKNearest knn(training_data, training_label, cv::Mat(), false, 32);
-//	knn.train(training_data,training_label,test,false,32,false );
-//
-//	cv::Mat result;
-//	cv::Mat neighbor_results;
-//	cv::Mat dist;
-//	knn.find_nearest(train_data, 1, &result,0,&neighbor_results, &dist);
-
-// 	End K-Nearest-Neighbor
-
-//	Decision Tree
-
-//    CvDTreeParams params = CvDTreeParams(25, // max depth
-//                                             5, // min sample count
-//                                             0, // regression accuracy: N/A here
-//                                             false, // compute surrogate split, no missing data
-//                                             15, // max number of categories (use sub-optimal algorithm for larger numbers)
-//                                             15, // the number of cross-validation folds
-//                                             false, // use 1SE rule => smaller tree
-//                                             false, // throw away the pruned tree branches
-//                                             NULL // the array of priors
-//                                            );
-//    CvDTree dtree;
-//    dtree.train(training_data, CV_ROW_SAMPLE, training_label, cv::Mat(), cv::Mat(),cv::Mat(),cv::Mat(), params);
-//
-//    CvDTreeNode *node;
-//
-//    cv::Mat result(train_data.rows,1,CV_32FC1);
-//    	for(int i=0;i<train_data.rows;i++)
-//    	{
-//    		cv::Mat inputvec(1,train_data.cols, CV_32FC1);
-//    		for(int j=0;j<train_data.cols;j++)
-//    		{
-//    			inputvec.at<float>(0,j)=train_data.at<float>(i,j);
-//    		}
-//    		node = dtree.predict(inputvec);
-//    		result.at<float>(i,0)= (*node).class_idx;
-//    	}
-
-//	End Dicision Tree
-
-//		// BayesClassifier
-//		CvNormalBayesClassifier bayesmod;
-//		bayesmod.train(training_data, training_labels);
-
-//		// Random trees
-//		float* priors = 0;
-//		//CvRTParams rtree_params(78, 6, 0.0, false,28, priors, false,23,28,1.0, 0 );
-//		CvRTParams rtree_params(100, 0.0005*training_data.rows, 0.f, false, number_classes, priors, false, training_data.cols, 100, FLT_EPSILON, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS);
-//		cv::Mat var_type = cv::Mat::ones(training_data.cols+1, 1, CV_8U) * CV_VAR_NUMERICAL;
-//		var_type.at<int>(training_data.cols) = CV_VAR_CATEGORICAL;
-//		CvRTrees rtree;
-//		rtree.train(training_data, CV_ROW_SAMPLE, training_labels, cv::Mat(), cv::Mat(), var_type, cv::Mat(), rtree_params);
-//		// End Random trees
-
-//		// SVM
-//		CvSVM svm;
-//		CvTermCriteria criteria;
-//		criteria.max_iter = 1000;//1000;	// 1000
-//		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
-//		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-//		CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::POLY, 2., 1.0, 1., 1.0, 0.0, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
-//		//CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::RBF, 0., 0.2, 1., 1.0, 0.0, 0., 0, criteria);
-//		svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
-
-		// Neural Network
-		cv::Mat input;
-		training_data.convertTo(input, CV_32F);
-		cv::Mat output=cv::Mat::zeros(training_data.rows, number_classes, CV_32FC1);
-		cv::Mat labels;
-		training_labels.convertTo(labels, CV_32F);
-		for(int i=0; i<training_data.rows; ++i)
-			output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
-
-		cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-		layers.row(0) = cv::Scalar(training_data.cols);
-		layers.row(1) = cv::Scalar(400);	//400
-		layers.row(2) = cv::Scalar(number_classes);
-
-		CvANN_MLP mlp;
-		CvANN_MLP_TrainParams params;
-		CvTermCriteria criteria;
-
-		criteria.max_iter = 400;
-		criteria.epsilon  = 0.0001f;
-		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-
-		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
-		params.bp_dw_scale     = 0.1f;
-		params.bp_moment_scale = 0.1f;
-		params.term_crit       = criteria;
-
-		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
-		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
-		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
-
-
-		// === apply ml classifier to predict test set ===
-		int t = 0, f = 0;
-		std::vector<int> true_predictions_rank_fold(true_predictions_rank.size(), 0);
-		for(int i = 0; i < test_data.rows ; i++)
-		{
-			cv::Mat response(1, number_classes, CV_32FC1);
-			cv::Mat sample = test_data.row(i);
-
-			int correct_prediction_at_rank = 0;
-			mlp.predict(sample, response);
-			std::multimap<float, int, std::greater<float> > prediction_order;
-			for (int j = 0; j < number_classes; j++)
-				prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), j));
-			for (std::multimap<float, int, std::greater<float> >::iterator it=prediction_order.begin(); it!=prediction_order.end(); ++it, ++correct_prediction_at_rank)
-				if (it->second == test_labels.at<float>(i, 0))
-					break;
-			true_predictions_rank_fold[correct_prediction_at_rank]++;
-
-			int predicted_class = prediction_order.begin()->second;	// Neural Network
-//			int predicted_class = svm.predict(sample);	// SVM
-//			int predicted_class = rtree.predict(sample);	// Random Tree
-//			int predicted_class = bayesmod.predict(sample);	// Normal Bayes Classifier
-
-			if (predicted_class == test_labels.at<float>(i, 0))
-				t++;
+			if (use_preselected_set_distribution==true)
+			{
+				test_data = feature_matrix_test_data[fold];
+				test_labels = label_matrix_test_data[fold];
+			}
 			else
-				f++;
+			{
+				for (unsigned int r=0; r<test_indices.size(); ++r)
+				{
+					for (int c=0; c<feature_matrix_reference.cols; ++c)
+						test_data.at<float>(r,c) = feature_matrix_reference.at<float>(test_indices[r],c);
+					test_labels.at<float>(r) = label_matrix.at<float>(test_indices[r]);
+				}
+			}
 
-			std::cout << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
-			screen_output << "value: " << test_labels.at<float>(i, 0) << " (" << texture_classes[test_labels.at<float>(i, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
+			// === train classifier ===
+
+//			// K-Nearest-Neighbor
+//			cv::Mat test;
+//			CvKNearest knn(training_data, training_label, cv::Mat(), false, 32);
+//			knn.train(training_data,training_label,test,false,32,false );
+//			cv::Mat result;
+//			cv::Mat neighbor_results;
+//			cv::Mat dist;
+//			knn.find_nearest(train_data, 1, &result,0,&neighbor_results, &dist);
+//			// End K-Nearest-Neighbor
+//
+//			// Decision Tree
+//			CvDTreeParams params = CvDTreeParams(25, // max depth
+//					5, // min sample count
+//					0, // regression accuracy: N/A here
+//					false, // compute surrogate split, no missing data
+//					15, // max number of categories (use sub-optimal algorithm for larger numbers)
+//					15, // the number of cross-validation folds
+//					false, // use 1SE rule => smaller tree
+//					false, // throw away the pruned tree branches
+//					NULL // the array of priors
+//					);
+//			CvDTree dtree;
+//			dtree.train(training_data, CV_ROW_SAMPLE, training_label, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params);
+//			CvDTreeNode *node;
+//			cv::Mat result(train_data.rows, 1, CV_32FC1);
+//			for (int i = 0; i < train_data.rows; i++)
+//			{
+//				cv::Mat inputvec(1, train_data.cols, CV_32FC1);
+//				for (int j = 0; j < train_data.cols; j++)
+//				{
+//					inputvec.at<float>(0, j) = train_data.at<float>(i, j);
+//				}
+//				node = dtree.predict(inputvec);
+//				result.at<float>(i, 0) = (*node).class_idx;
+//			}
+//			// End Dicision Tree
+//
+//			// BayesClassifier
+//			CvNormalBayesClassifier bayesmod;
+//			bayesmod.train(training_data, training_labels);
+//
+//			// Random trees
+//			float* priors = 0;
+//			//CvRTParams rtree_params(78, 6, 0.0, false,28, priors, false,23,28,1.0, 0 );
+//			CvRTParams rtree_params(100, 0.0005*training_data.rows, 0.f, false, number_classes, priors, false, training_data.cols, 100, FLT_EPSILON, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS);
+//			cv::Mat var_type = cv::Mat::ones(training_data.cols+1, 1, CV_8U) * CV_VAR_NUMERICAL;
+//			var_type.at<int>(training_data.cols) = CV_VAR_CATEGORICAL;
+//			CvRTrees rtree;
+//			rtree.train(training_data, CV_ROW_SAMPLE, training_labels, cv::Mat(), cv::Mat(), var_type, cv::Mat(), rtree_params);
+//			// End Random trees
+//
+//			// SVM
+//			CvSVM svm;
+//			CvTermCriteria criteria;
+//			criteria.max_iter = 1000;//1000;	// 1000
+//			criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
+//			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+//			CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::POLY, 2., 1.0, 1., 1.0, 0.0, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+//			//CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::RBF, 0., 0.2, 1., 1.0, 0.0, 0., 0, criteria);
+//			svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), svm_params);
+//
+//			// Neural Network
+//			cv::Mat input;
+//			training_data.convertTo(input, CV_32F);
+//			cv::Mat output=cv::Mat::zeros(training_data.rows, number_classes, CV_32FC1);
+//			cv::Mat labels;
+//			training_labels.convertTo(labels, CV_32F);
+//			for(int i=0; i<training_data.rows; ++i)
+//				output.at<float>(i,(int)labels.at<float>(i,0)) = 1.f;		//change.at<float>(i,0);
+//
+//			cv::Mat layers = cv::Mat(3,1,CV_32SC1);
+//			layers.row(0) = cv::Scalar(training_data.cols);
+//			layers.row(1) = cv::Scalar(400);	//400
+//			layers.row(2) = cv::Scalar(number_classes);
+//
+//			CvANN_MLP mlp;
+//			CvANN_MLP_TrainParams params;
+//			CvTermCriteria criteria;
+//
+//			criteria.max_iter = 400;
+//			criteria.epsilon  = 0.0001f;
+//			criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+//
+//			params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
+//			params.bp_dw_scale     = 0.1f;
+//			params.bp_moment_scale = 0.1f;
+//			params.term_crit       = criteria;
+//
+//			mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
+//			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
+//			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+
+			CvSVM svm;
+			CvANN_MLP mlp;
+			// SVM
+			if (ml_params.classification_method_ == MLParams::SVM)
+			{
+				svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), ml_params.svm_params_);
+			}
+			//	Neural Network
+			else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+			{
+				cv::Mat output=cv::Mat::zeros(training_data.rows, number_classes, CV_32FC1);
+				for(int i=0; i<training_data.rows; ++i)
+					output.at<float>(i,(int)training_labels.at<float>(i,0)) = 1.f;
+
+				cv::Mat layers = cv::Mat(2+ml_params.nn_hidden_layers_.size(), 1, CV_32SC1);
+				layers.row(0) = cv::Scalar(training_data.cols);
+				for (size_t k=0; k<ml_params.nn_hidden_layers_.size(); ++k)
+					layers.row(k+1) = cv::Scalar(ml_params.nn_hidden_layers_[k]);
+				layers.row(ml_params.nn_hidden_layers_.size()+1) = cv::Scalar(number_classes);
+
+				mlp.create(layers, ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
+				int iterations = mlp.train(training_data, output, cv::Mat(), cv::Mat(), ml_params.nn_params_);
+				std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+			}
+
+			// === apply ml classifier to predict test set ===
+			int t = 0, f = 0;
+			std::vector<int> true_predictions_rank_fold(true_predictions_rank.size(), 0);
+			for(int r = 0; r < test_data.rows ; r++)
+			{
+				cv::Mat response(1, number_classes, CV_32FC1);
+				cv::Mat sample = test_data.row(r);
+
+				int predicted_class = 0;
+				int correct_prediction_at_rank = 0;
+				if (ml_params.classification_method_ == MLParams::SVM)
+					predicted_class = svm.predict(sample);
+				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+				{
+					mlp.predict(sample, response);
+					std::multimap<float, int, std::greater<float> > prediction_order;
+					for (int j = 0; j < number_classes; j++)
+						prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), j));
+					for (std::multimap<float, int, std::greater<float> >::iterator it=prediction_order.begin(); it!=prediction_order.end(); ++it, ++correct_prediction_at_rank)
+						if (it->second == test_labels.at<float>(r, 0))
+							break;
+					true_predictions_rank_fold[correct_prediction_at_rank]++;
+					predicted_class = prediction_order.begin()->second;
+				}
+//				int predicted_class = rtree.predict(sample);	// Random Tree
+//				int predicted_class = bayesmod.predict(sample);	// Normal Bayes Classifier
+
+				if (predicted_class == test_labels.at<float>(r, 0))
+					t++;
+				else
+					f++;
+
+				std::cout << "value: " << test_labels.at<float>(r, 0) << " (" << texture_classes[test_labels.at<float>(r, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
+				screen_output << "value: " << test_labels.at<float>(r, 0) << " (" << texture_classes[test_labels.at<float>(r, 0)] << ")\tpredicted: " << predicted_class << " (" << texture_classes[predicted_class] << ")\tcorrect prediction at rank: " << correct_prediction_at_rank << std::endl;
+			}
+
+			std::cout << "Ranking distribution of correct predictions:" << std::endl;	screen_output << "Ranking distribution of correct predictions:" << std::endl;
+			for (size_t i=0; i<true_predictions_rank.size(); ++i)
+			{
+				true_predictions_rank[i] += true_predictions_rank_fold[i];
+				std::cout << true_predictions_rank_fold[i] << "\t";	screen_output << true_predictions_rank_fold[i] << "\t";
+			}
+			std::cout << std::endl;		screen_output << std::endl;
+
+			true_predictions.push_back(t);
+			false_predictions.push_back(f);
+			double sum = t + f;
+			double percentage = t*(100.0 / sum);
+			std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
+			screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
 		}
 
-		std::cout << "Ranking distribution of correct predictions:" << std::endl;	screen_output << "Ranking distribution of correct predictions:" << std::endl;
+		std::cout << "=== Total result over " << cross_validation_params.folds_ << "-fold cross validation ===" << std::endl;
+		output_summary << "=== Total result over " << cross_validation_params.folds_ << "-fold cross validation ===" << std::endl;
+
+		std::cout << "Ranking distribution of correct predictions:" << std::endl << "numbers:\t";	output_summary << "Ranking distribution of correct predictions:" << std::endl << "numbers:\t";
+		double total_number_samples = 0;
+		for (size_t i=0; i<true_predictions_rank.size(); ++i)
+			total_number_samples += true_predictions_rank[i];
 		for (size_t i=0; i<true_predictions_rank.size(); ++i)
 		{
-			true_predictions_rank[i] += true_predictions_rank_fold[i];
-			std::cout << true_predictions_rank_fold[i] << "\t";	screen_output << true_predictions_rank_fold[i] << "\t";
+			std::cout << true_predictions_rank[i] << "\t";	output_summary << true_predictions_rank[i] << "\t";
 		}
-		std::cout << std::endl;		screen_output << std::endl;
+		std::cout << std::endl << "percentages:\t";		output_summary << std::endl << "percentages:\t";
+		for (size_t i=0; i<true_predictions_rank.size(); ++i)
+		{
+			std::cout << 100*(double)true_predictions_rank[i]/total_number_samples << "\t";	output_summary << 100*(double)true_predictions_rank[i]/total_number_samples << "\t";
+		}
+		std::cout << std::endl << "accumulated %:\t";		output_summary << std::endl << "accumulated %:\t";
+		double sum = 0.;
+		for (size_t i=0; i<true_predictions_rank.size(); ++i)
+		{
+			sum += (double)true_predictions_rank[i];
+			std::cout << 100*sum/total_number_samples << "\t";	output_summary << 100*sum/total_number_samples << "\t";
+		}
+		std::cout << std::endl;		output_summary << std::endl;
 
-		true_predictions.push_back(t);
-		false_predictions.push_back(f);
-		double sum = t + f;
-		double percentage = t*(100.0 / sum);
-		std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
-		screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << percentage << "%" << std::endl;
+		int t=0, f=0;
+		for (unsigned int i=0; i<true_predictions.size(); ++i)
+		{
+			t += true_predictions[i];
+			f += false_predictions[i];
+		}
+		std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
+		output_summary << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%\n\n" << std::endl;
 
-		// End Neural Network
+		// write screen outputs to file
+		std::stringstream logfilename;
+		logfilename << "texture_categorization/screen_output_classification_" << ml_configuration_index << ".txt";
+		std::ofstream file(logfilename.str().c_str(), std::ios::out);
+		if (file.is_open() == true)
+			file << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl << output_summary.str() << std::endl << screen_output.str();
+		else
+			std::cout << "Error: could not write screen output to file " << logfilename.str() << "." << std::endl;
+		file.close();
+
+		// write summary to file
+		std::stringstream summary_filename;
+		summary_filename << "texture_categorization/screen_output_classification_summary.txt";
+		file.open(summary_filename.str().c_str(), std::ios::app);
+		if (file.is_open() == true)
+			file << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl << output_summary.str();
+		else
+			std::cout << "Error: could not write summary to file " << summary_filename.str() << "." << std::endl;
+		file.close();
 	}
-
-	std::cout << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
-	screen_output << "=== Total result over " << folds << "-fold cross validation ===" << std::endl;
-
-	std::cout << "Ranking distribution of correct predictions:" << std::endl << "numbers:\t";	screen_output << "Ranking distribution of correct predictions:" << std::endl << "numbers:\t";
-	double total_number_samples = 0;
-	for (size_t i=0; i<true_predictions_rank.size(); ++i)
-		total_number_samples += true_predictions_rank[i];
-	for (size_t i=0; i<true_predictions_rank.size(); ++i)
-	{
-		std::cout << true_predictions_rank[i] << "\t";	screen_output << true_predictions_rank[i] << "\t";
-	}
-	std::cout << std::endl << "percentages:\t";		screen_output << std::endl << "percentages:\t";
-	for (size_t i=0; i<true_predictions_rank.size(); ++i)
-	{
-		std::cout << 100*(double)true_predictions_rank[i]/total_number_samples << "\t";	screen_output << 100*(double)true_predictions_rank[i]/total_number_samples << "\t";
-	}
-	std::cout << std::endl << "accumulated %:\t";		screen_output << std::endl << "accumulated %:\t";
-	double sum = 0.;
-	for (size_t i=0; i<true_predictions_rank.size(); ++i)
-	{
-		sum += (double)true_predictions_rank[i];
-		std::cout << 100*sum/total_number_samples << "\t";	screen_output << 100*sum/total_number_samples << "\t";
-	}
-	std::cout << std::endl;		screen_output << std::endl;
-
-	int t=0, f=0;
-	for (unsigned int i=0; i<true_predictions.size(); ++i)
-	{
-		t += true_predictions[i];
-		f += false_predictions[i];
-	}
-	std::cout << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
-	screen_output << "true: " << t << "\tfalse: " << f << "\tcorrectly classified: " << t*100.0/(double)(t+f) << "%" << std::endl;
-
-	// write screen outputs to file
-	std::string logfilename = "texture_categorization/screen_output_classification.txt";
-	std::ofstream file(logfilename.c_str(), std::ios::out);
-	if (file.is_open() == true)
-		file << screen_output.str();
-	else
-		std::cout << "Error: could not write screen output to file " << logfilename << "." << std::endl;
-	file.close();
 }
 
 
