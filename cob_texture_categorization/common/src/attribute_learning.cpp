@@ -39,10 +39,32 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 				cv::Mat class_label_matrix_row(1, 1, CV_32FC1);
 				for (unsigned int k=0; k<sample_number; ++k)
 				{
-					for (int l=0; l<attribute_number; ++l)
-						file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// attribute vector
-					for (int f=0; f<feature_number; ++f)
-						file >> feature_matrix_row.at<float>(0, f);		// base feature vector
+					// filename
+					std::string image_filename;
+					file >> image_filename;
+					// read data
+					while (true)
+					{
+						std::string tag;
+						file >> tag;
+						if (tag.compare("labels_ipa17:") == 0)
+						{
+							for (int l=0; l<attribute_number; ++l)
+								file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+						}
+						else if (tag.compare("base_farhadi9688:") == 0)
+						{
+							for (int f=0; f<feature_number; ++f)
+								file >> feature_matrix_row.at<float>(0, f);		// base feature vector
+							break;
+						}
+						else
+						{
+							std::cout << "Error: create_train_data::loadTextureDatabaseBaseFeatures: Unknown tag found." << std::endl;
+							getchar();
+							break;
+						}
+					}
 					class_label_matrix_row.at<float>(0, 0) = (float)i;
 					data_sample_hierarchy[i][j][k] = sample_index;				// class label (index)
 					feature_matrix.push_back(feature_matrix_row);
@@ -221,6 +243,7 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 
 		create_train_data data_object;
 		std::vector<std::string> texture_classes = data_object.get_texture_classes();
+		std::cout << "\n\n" << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl;
 
 		srand(0);	// random seed --> keep reproducible
 		for (unsigned int fold=0; fold<cross_validation_params.folds_; ++fold)
@@ -457,12 +480,12 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 						class_label_matrix_test_data[fold].at<float>(r, 0) = class_label_matrix.at<float>(test_indices[r],0);
 					}
 
-					float resp = std::max(0.f, response.at<float>(0,0));
-					float lab = test_labels.at<float>(r, 0);
-					float absdiff = fabs(resp - lab) * feature_scaling_factor;
+					float resp = std::max(0.f, response.at<float>(0,0)) * feature_scaling_factor;
+					float lab = test_labels.at<float>(r, 0) * feature_scaling_factor;
+					float absdiff = fabs(resp - lab);
 					if (attribute_index == 1 || attribute_index == 2)
 					{
-						if (lab == 0.f && resp != 0.f)
+						if (lab == 0.f && resp > 0.5f)
 							absdiff = 1.01f;				// if no dominant color was labeled but a color detected, set maximum distance
 						else
 							absdiff = std::min(absdiff, 1.01f);		// cut distances above 1 to treat color distances equally then (any other wrong color shall be similarly wrong)

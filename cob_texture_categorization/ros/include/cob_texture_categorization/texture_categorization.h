@@ -111,11 +111,11 @@ protected:
 
 //	void inputCallbackNoCam();
 
-	void attributeLearningGeneratedDatabaseTestHandcrafted();
 
-	void attributeLearningDatabaseTestFarhadi();
 	void attributeLearningDatabaseTestHandcrafted();
+	void attributeLearningDatabaseTestFarhadi();
 	void attributeLearningDatabaseTestCimpoi();
+	void attributeLearningGeneratedDatabaseTestHandcrafted();
 //	void attributeLearningDatabaseTestAutomatedClass();
 
 	void crossValidationVerbalClassDescription();
