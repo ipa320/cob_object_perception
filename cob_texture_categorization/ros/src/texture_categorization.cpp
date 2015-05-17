@@ -287,12 +287,12 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
 //	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
-	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_sift/"; 		// path to save data
+	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_rgb/"; 		// path to save data
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
 
 	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-	database_data.compute_data_cimpoi(path_database, feature_files_path, "ipa_database.txt", 0, true, IfvFeatures::DENSE_MULTISCALE_SIFT);
+	database_data.compute_data_cimpoi(path_database, feature_files_path, "ipa_database.txt", 0, true, IfvFeatures::RGB_PATCHES);
 	return;
 
 	// attribute cross-validation

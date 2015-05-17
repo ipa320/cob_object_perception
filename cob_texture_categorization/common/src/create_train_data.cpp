@@ -271,7 +271,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 {
 	// parameters
 	const int number_gaussian_centers = 256;
-	const double image_resize_factor = 1.0;	//0.25 //0.05
+	const double image_resize_factor = 0.25;	//0.25 //0.05
 	const int feature_samples_per_image = 500;	//1000	//200
 
 	// read out database files, their hierarchy, and load labeled ground truth attributes to each image file
@@ -321,7 +321,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 				// ground truth attributes
 				if (filenames_gt_attributes.find(name) != filenames_gt_attributes.end())
 				{
-					std::cout << name << "\ngt:\t";
+					std::cout << image_filename << "\ngt:\t";
 					for (unsigned int i=0; i<filenames_gt_attributes[name].size(); ++i)
 					{
 							ground_truth_attribute_matrix.at<float>(sample_index, i) = filenames_gt_attributes[name][i];
