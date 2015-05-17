@@ -314,10 +314,10 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-	al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+	al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy);//, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
 	//////al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
 	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-
+return;
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	//ml.cross_validation(cvp.folds_, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
 	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
@@ -514,6 +514,11 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
 		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.9, 0.));
 		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.8, 0.));
+	}
+	else if (experiment_key.compare("attributes_cimpoi2014_sift")==0)
+	{
+		for (double nu=0.2; nu<0.91; nu+=0.1)
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
 	}
 	else if (experiment_key.compare("classes_handcrafted")==0)
 	{

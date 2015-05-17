@@ -158,11 +158,11 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 	cv::Mat image_float, octave_base_image;
 	image.convertTo(image_float, CV_32F, 1./255., 0);
 	octave_base_image = image_float;
-	for (int scale=-1; scale<9; ++scale)
+	for (int scale=0; scale<9; ++scale)
 	{
 		// smooth and resize image according to scale
 		cv::Mat smoothed_image;
-		if (scale != -1)
+		if (scale != 0)
 		{
 			double sigma = pow(2., (double)((((scale-1)%images_per_octave) + 1.)/(double)images_per_octave));
 			cv::GaussianBlur(octave_base_image, smoothed_image, cv::Size(0,0), sigma, sigma);
