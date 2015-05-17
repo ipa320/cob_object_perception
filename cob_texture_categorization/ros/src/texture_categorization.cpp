@@ -118,8 +118,8 @@ node_handle_(nh)
 	{
 		// database tests
 	//	attributeLearningDatabaseTestHandcrafted();
-		attributeLearningDatabaseTestFarhadi();
-	//	attributeLearningDatabaseTestCimpoi();
+	//	attributeLearningDatabaseTestFarhadi();
+		attributeLearningDatabaseTestCimpoi();
 	//	attributeLearningGeneratedDatabaseTestHandcrafted();
 	//	crossValidationVerbalClassDescription();
 	}
@@ -156,7 +156,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 	std::string path_database = package_path + "/common/files/texture_database/";			// path to database			//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
 	std::string feature_files_path = package_path + "/common/files/data/handcrafted/"; 		// path to save data
 
-	// compute 16/17 texture attributes on the ipa texture database
+	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
 //	database_data.compute_data_handcrafted(path_database, feature_files_path, "ipa_database.txt");
 //	return;
@@ -281,6 +281,50 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 }
 
 
+void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
+{
+	// === using the 47 texture attributes of Cimpoi
+	std::string package_path = ros::package::getPath("cob_texture_categorization");
+	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
+//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
+	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_sift/"; 		// path to save data
+//	std::string feature_files_path = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
+
+	// compute 17 texture attributes on the ipa texture database
+	create_train_data database_data;									// computes feature and label matrices of the provided database
+	database_data.compute_data_cimpoi(path_database, feature_files_path, "ipa_database.txt", 0, true, IfvFeatures::DENSE_MULTISCALE_SIFT);
+	return;
+
+	// attribute cross-validation
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	train_ml ml;
+	AttributeLearning al;
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+//	// train classifier with whole database
+//	al.train(base_feature_matrix, ground_truth_attribute_matrix);
+//	al.save_SVMs(feature_files_path);
+//	//return;
+
+	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
+	setSVMConfigurations(cvp, "attributes_cimpoi2014_sift");
+
+	std::vector< std::vector<int> > preselected_train_indices;
+	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
+	al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+	//////al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
+	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+
+	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
+	//ml.cross_validation(cvp.folds_, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
+	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	ml.cross_validation(cvp, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+}
+
+
 void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 {
 	// === using the hand crafted attributes
@@ -289,7 +333,7 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 //	std::string data_file_name = package_path + "/common/files/data/texture_generator/handcrafted/ipa_database_handcrafted.txt";		//Pfad zu Speicherort der Featurevektoren
 	std::string feature_files_path = package_path + "/common/files/data/texture_generator/handcrafted/"; // path to save data
 
-	// compute 16 texture attributes on the ipa texture database
+	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data(1);									// computes feature and label matrices of the provided database
 //	database_data.compute_data_handcrafted(path_database, feature_files_path, 1700);
 //	database_data.compute_data_cimpoi(path_database, feature_files_path, 1700, 0, true, IfvFeatures::RGB_PATCHES);
@@ -349,49 +393,6 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 //	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 //	ml.cross_validation(cvp.folds_, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
 	ml.cross_validation(cvp, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
-}
-
-
-void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
-{
-	// === using the 47 texture attributes of Cimpoi
-	std::string package_path = ros::package::getPath("cob_texture_categorization");
-	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
-//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
-	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_rgb/"; 		// path to save data
-//	std::string feature_files_path = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
-
-	// compute 16 texture attributes on the ipa texture database
-	create_train_data database_data;									// computes feature and label matrices of the provided database
-	//database_data.compute_data_cimpoi(path_database, feature_files_path, 1281, 0, true, IfvFeatures::RGB_PATCHES);
-	//return;
-
-	// attribute cross-validation
-	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
-	create_train_data::DataHierarchyType data_hierarchy;
-	train_ml ml;
-	AttributeLearning al;
-	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
-	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
-	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
-
-	// train classifier with whole database
-	al.train(base_feature_matrix, ground_truth_attribute_matrix);
-	al.save_SVMs(feature_files_path);
-	//return;
-
-	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
-	std::vector< std::vector<int> > preselected_train_indices;
-	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-	al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-	//////al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
-	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-
-	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
-	//ml.cross_validation(cvp.folds_, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
-	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-	ml.cross_validation(cvp, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
 }
 
 
