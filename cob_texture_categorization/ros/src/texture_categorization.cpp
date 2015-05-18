@@ -292,8 +292,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 
 	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-	database_data.compute_data_cimpoi(path_database, feature_files_path, "ipa_database.txt", 0, true, IfvFeatures::RGB_PATCHES);
-	return;
+//	database_data.compute_data_cimpoi(path_database, feature_files_path, "ipa_database.txt", 0, true, IfvFeatures::RGB_PATCHES);
+//	return;
 
 	// attribute cross-validation
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
@@ -310,7 +310,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 //	//return;
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
-	setSVMConfigurations(cvp, "attributes_cimpoi2014_sift");
+	setSVMConfigurations(cvp, "attributes_cimpoi2014_rgb");
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
@@ -516,6 +516,11 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.8, 0.));
 	}
 	else if (experiment_key.compare("attributes_cimpoi2014_sift")==0)
+	{
+		for (double nu=0.2; nu<0.91; nu+=0.1)
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+	}
+	else if (experiment_key.compare("attributes_cimpoi2014_rgb")==0)
 	{
 		for (double nu=0.2; nu<0.91; nu+=0.1)
 			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
