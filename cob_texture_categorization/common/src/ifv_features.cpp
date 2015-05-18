@@ -209,7 +209,7 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 		vl_dsift_process(dsift, smoothed_image_ptr);
 		int number_keypoints = vl_dsift_get_keypoint_num(dsift);
 		//std::cout << "number_keypoints" << number_keypoints << std::endl;
-		cv::Mat const_features = cv::Mat(number_keypoints, vl_dsift_get_descriptor_size(dsift), CV_32FC1, (void*)vl_dsift_get_descriptors(dsift));
+		const cv::Mat const_features = cv::Mat(number_keypoints, vl_dsift_get_descriptor_size(dsift), CV_32FC1, (void*)vl_dsift_get_descriptors(dsift));
 		cv::Mat scale_features = const_features.clone();
 
 		// remove low contrast descriptors
@@ -273,33 +273,34 @@ void IfvFeatures::generateGMM(const cv::Mat& feature_set, const int number_clust
 
 	float* data = (float*)feature_set.ptr();
 
-	// init with kmeans
-	std::cout << "Starting kmeans clustering ..." << std::endl;
-	// Use float data and the L2 distance for clustering
-	VlKMeans* kmeans = vl_kmeans_new(VL_TYPE_FLOAT, VlDistanceL2);
-	// Use Lloyd algorithm
-	vl_kmeans_set_algorithm(kmeans, VlKMeansLloyd);
-	// Initialize the cluster centers by randomly sampling the data
-	vl_kmeans_init_centers_with_rand_data(kmeans, data, data_dimension, number_data, number_clusters);
-	// Run at most 100 iterations of cluster refinement using Lloyd algorithm
-	vl_kmeans_set_max_num_iterations(kmeans, 100);
-	vl_kmeans_refine_centers(kmeans, data, number_data);
+//	// init with kmeans  --  already part of gmm computations
+//	std::cout << "Starting kmeans clustering ..." << std::endl;
+//	// Use float data and the L2 distance for clustering
+//	VlKMeans* kmeans = vl_kmeans_new(VL_TYPE_FLOAT, VlDistanceL2);
+//	// Use Lloyd algorithm
+//	vl_kmeans_set_algorithm(kmeans, VlKMeansLloyd);
+//	// Initialize the cluster centers by randomly sampling the data
+//	vl_kmeans_init_centers_with_rand_data(kmeans, data, data_dimension, number_data, number_clusters);
+//	// Run at most 100 iterations of cluster refinement using Lloyd algorithm
+//	vl_kmeans_set_max_num_iterations(kmeans, 100);
+//	vl_kmeans_refine_centers(kmeans, data, number_data);
 
 	// create a new instance of a GMM object for float data
 	if (gmm_ != 0)
 		vl_gmm_delete(gmm_);
 	gmm_ = vl_gmm_new(VL_TYPE_FLOAT, data_dimension, number_clusters);
+	vl_gmm_set_verbosity(gmm_, 1);
 	// set the maximum number of EM iterations to 100
 	vl_gmm_set_max_num_iterations(gmm_, 100);
 	// set the initialization to kmeans selection
 	vl_gmm_set_initialization(gmm_, VlGMMKMeans);
-	vl_gmm_set_kmeans_init_object(gmm_, kmeans);
+	vl_gmm_set_kmeans_init_object(gmm_, NULL); //kmeans);
 	// cluster the data, i.e. learn the GMM
 	std::cout << "Starting GMM clustering ..." << std::endl;
 	vl_gmm_cluster(gmm_, data, number_data);
 	std::cout << "Clustering finished." << std::endl;
 
-	vl_kmeans_delete(kmeans);
+//	vl_kmeans_delete(kmeans);
 }
 
 
