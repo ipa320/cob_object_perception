@@ -117,13 +117,13 @@ node_handle_(nh)
 	else
 	{
 		// database tests
-		attributeLearningDatabaseTestHandcrafted();
+	//	attributeLearningDatabaseTestHandcrafted();
 	//	attributeLearningDatabaseTestFarhadi();
 	//	attributeLearningDatabaseTestCimpoi();
 	//	attributeLearningGeneratedDatabaseTestHandcrafted();
 	//	crossValidationVerbalClassDescription();
 
-	//	attributeLearningDTD();
+		attributeLearningDTDDatabaseTestHandcrafted();
 	}
 }
 
@@ -167,6 +167,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 	// attribute cross-validation
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
+	std::vector<std::string> image_filenames;
 	train_ml ml;
 	AttributeLearning al;
 	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
@@ -179,7 +180,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 //		for (int c=0; c<16; ++c)
 //			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 //	// experiments on gt data
@@ -304,10 +305,11 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	// attribute cross-validation
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
+	std::vector<std::string> image_filenames;
 	train_ml ml;
 	AttributeLearning al;
 	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 //	// train classifier with whole database
@@ -349,6 +351,7 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 	// attribute cross-validation
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
+	std::vector<std::string> image_filenames;
 	train_ml ml;
 	AttributeLearning al;
 	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
@@ -360,7 +363,7 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 //		for (int c=0; c<16; ++c)
 //			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 //	// train classifier with whole database
@@ -427,6 +430,7 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	train_ml ml;
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
+	std::vector<std::string> image_filenames;
 	if (method == FARHADI)
 	{
 		std::string data_file_name = feature_files_path + database_identifier + "_database.txt";
@@ -442,7 +446,7 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 //			for (int c=0; c<16; ++c)
 //				ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 		// option 2: computed with this program
-		database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
+		database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
 	}
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
@@ -473,15 +477,57 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 }
 
 
-void TextCategorizationNode::attributeLearningDTD()
+void TextCategorizationNode::scaleNormalizeHandcraftedAttributes(const cv::Mat& source, cv::Mat& rescaled)
 {
-	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
-	std::string package_path = ros::package::getPath("cob_texture_categorization");
-	std::string path_database = package_path + "/common/files/texture_database_dtd-r1.0.1/images/";			// path to database
-	std::string feature_files_path = package_path + "/common/files/data/handcrafted/"; 		// path to save data
+	// rescale handcrafted attributes to [0,1] range
+	rescaled = cv::Mat(source.rows, source.cols, source.type());
+	for (unsigned int r=0; r<source.rows; ++r)
+	{
+		for (int attribute_index=0; attribute_index<source.cols; ++attribute_index)
+		{
+			const double feature_scaling_factor = (attribute_index==1 || attribute_index==2) ? 12.0 : 5.0;
+			rescaled.at<float>(r, attribute_index) = source.at<float>(r, attribute_index)/feature_scaling_factor;
+		}
+	}
+}
 
+void TextCategorizationNode::attributeLearningDTDDatabaseTestHandcrafted()
+{
+	// === using the hand crafted attributes
+	const std::string database_identifier = "dtd";		// "ipa", "dtd"	// defines the database to be used
+	const std::string package_path = ros::package::getPath("cob_texture_categorization");
+	const std::string path_database_main = package_path + "/common/files/texture_database_dtd-r1.0.1/";
+	const std::string path_database = path_database_main + "images/";			// path to database			//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
+	const std::string path_to_cross_validation_sets = path_database_main + "labels/";
+	const std::string feature_files_path = package_path + "/common/files/data/handcrafted/"; 		// path to save data
+
+	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data(2);
-	database_data.create_dtd_database_file(path_database, feature_files_path, "dtd_database.txt");
+//	database_data.create_dtd_database_file(path_database, feature_files_path, "dtd_database.txt");		// initial setup of the dtd_database.txt file
+//	database_data.compute_data_handcrafted(path_database, feature_files_path, database_identifier);			// computes feature and label matrices of the provided database
+//	return;
+
+	// attribute cross-validation
+	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, computed_attribute_matrix_rescaled, class_label_matrix;
+	create_train_data::DataHierarchyType data_hierarchy;
+	std::vector<std::string> image_filenames;
+	train_ml ml;
+	AttributeLearning al;
+	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
+	scaleNormalizeHandcraftedAttributes(computed_attribute_matrix, computed_attribute_matrix_rescaled);
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+	CrossValidationParams cvp(CrossValidationParams::DTD_SPLITS, 10, 47);
+	setSVMConfigurations(cvp, "attributes_handcrafted_cimpoi47");
+
+	al.crossValidationDTD(cvp, path_to_cross_validation_sets, computed_attribute_matrix_rescaled, ground_truth_attribute_matrix, data_hierarchy, image_filenames);
+
+//	std::vector< std::vector<int> > preselected_train_indices;
+//	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
+//	////al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
+//	al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 }
 
 void TextCategorizationNode::setNNConfigurations(CrossValidationParams& cvp, const std::string& experiment_key)
@@ -521,6 +567,23 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 		for (size_t gamma_index=0; gamma_index<values.size(); ++gamma_index)
 			for (double nu=0.1; nu<0.91; nu+=0.1)
 				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
+	}
+	else if (experiment_key.compare("attributes_handcrafted_cimpoi47")==0)
+	{
+		for (double nu=0.1; nu<0.91; nu+=0.1)
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVC, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+//		std::vector<double> values; values.push_back(0.01); values.push_back(0.05); values.push_back(0.1); values.push_back(0.5); values.push_back(1.0);
+//		for (size_t gamma_index=0; gamma_index<values.size(); ++gamma_index)
+//			for (double nu=0.1; nu<0.91; nu+=0.1)
+//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVC, CvSVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
+
+//		std::vector<double> C_values; C_values.push_back(0.01); C_values.push_back(0.05); C_values.push_back(0.1); C_values.push_back(0.5); C_values.push_back(1.0); C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
+//		std::vector<double> gamma_values; gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
+//		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+//		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
+//			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
+//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("attributes_farhadi2009")==0)
 	{

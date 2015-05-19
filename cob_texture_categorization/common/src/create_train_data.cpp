@@ -147,9 +147,9 @@ std::vector<std::string> create_train_data::get_texture_classes()
 void create_train_data::compute_data_handcrafted(std::string path_database_images, std::string path_save, const std::string& database_identifier)
 {
 	std::string label_file;
-	if (database_identifier.compare("ipa"))
+	if (database_identifier.compare("ipa") == 0)
 		label_file = "ipa_database.txt";
-	else if (database_identifier.compare("dtd"))
+	else if (database_identifier.compare("dtd") == 0)
 		label_file = "dtd_database.txt";
 
 	// load labeled ground truth attributes with relation to each image file
@@ -317,7 +317,7 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 	std::cout << "Finished reading " << image_filenames.size() << " data samples." << std::endl;
 
 	//	Save computed attributes, class labels and ground truth attributes
-	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_sample_hierarchy, database_identifier);
+	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_sample_hierarchy, image_filenames, database_identifier);
 
 	std::cout << "Feature computation on database completed." << std::endl;
 }
@@ -331,9 +331,9 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	const int feature_samples_per_image = 500;	//1000	//200
 
 	std::string label_file;
-	if (database_identifier.compare("ipa"))
+	if (database_identifier.compare("ipa") == 0)
 		label_file = "ipa_database.txt";
-	else if (database_identifier.compare("dtd"))
+	else if (database_identifier.compare("dtd") == 0)
 		label_file = "dtd_database.txt";
 
 	// read out database files, their hierarchy, and load labeled ground truth attributes to each image file
@@ -414,13 +414,13 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	std::cout << "Finished reading " << image_filenames.size() << " data samples." << std::endl;
 
 	//	Save computed attributes, class labels and ground truth attributes
-	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, cv::Mat(), class_label_matrix, data_sample_hierarchy, database_identifier);
+	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, cv::Mat(), class_label_matrix, data_sample_hierarchy, image_filenames, database_identifier);
 
 	std::cout << "Feature computation on database completed." << std::endl;
 }
 
 
-void create_train_data::save_texture_database_features(std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
+void create_train_data::save_texture_database_features(const std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, const std::vector<std::string>& image_filenames, const std::string& database_identifier)
 {
 	//	Save computed attributes, class labels and ground truth attributes
 	const std::string database_file = path + database_identifier + "_database.yml";
@@ -433,10 +433,10 @@ void create_train_data::save_texture_database_features(std::string path, const c
 
 	// store hierarchy and check validity of hierarchical data structure
 	const std::string database_hierarchy_file = path + database_identifier + "_database_hierarchy.txt";
-	save_data_hierarchy(database_hierarchy_file, data_sample_hierarchy, class_label_matrix.rows);
+	save_data_hierarchy(database_hierarchy_file, data_sample_hierarchy, image_filenames, class_label_matrix.rows);
 }
 
-void create_train_data::load_texture_database_features(std::string path, cv::Mat& base_feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
+void create_train_data::load_texture_database_features(std::string path, cv::Mat& base_feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, std::vector<std::string>& image_filenames, const std::string& database_identifier)
 {
 	// load computed attributes, class labels and ground truth attributes
 	const std::string database_file = path + database_identifier + "_database.yml";
@@ -450,12 +450,12 @@ void create_train_data::load_texture_database_features(std::string path, cv::Mat
 
 	// load class-object-sample hierarchy
 	std::string database_hierarchy_file = path + database_identifier + "_database_hierarchy.txt";
-	load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
+	load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy, image_filenames);
 
 	std::cout << "Texture database features loaded." << std::endl;
 }
 
-void create_train_data::save_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy, int number_samples)
+void create_train_data::save_data_hierarchy(const std::string filename, DataHierarchyType& data_sample_hierarchy, const std::vector<std::string>& image_filenames, const int number_samples)
 {
 	// store hierarchy and check validity of hierarchical data structure
 	std::ofstream file(filename.c_str(), std::ios::out);
@@ -481,7 +481,7 @@ void create_train_data::save_data_hierarchy(std::string filename, DataHierarchyT
 				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
 				{
 //					std::cout << "          I" << k+1 << ": " << data_sample_hierarchy[i][j][k] << std::endl;
-					file << "\t\t" << data_sample_hierarchy[i][j][k] << std::endl;
+					file << "\t\t" << data_sample_hierarchy[i][j][k] << "\t" << image_filenames[data_sample_hierarchy[i][j][k]] << std::endl;
 				}
 			}
 		}
@@ -498,7 +498,7 @@ void create_train_data::save_data_hierarchy(std::string filename, DataHierarchyT
 	assert(count == number_samples);
 }
 
-void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy)
+void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyType& data_sample_hierarchy, std::vector<std::string>& image_filenames)
 {
 	std::ifstream file(filename.c_str(), std::ios::in);
 	if (file.is_open() == true)
@@ -521,6 +521,9 @@ void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyT
 				for (unsigned int k=0; k<data_sample_hierarchy[i][j].size(); ++k)
 				{
 					file >> data_sample_hierarchy[i][j][k];
+					std::string filename;
+					file >> filename;
+					image_filenames.push_back(filename);
 				}
 			}
 		}

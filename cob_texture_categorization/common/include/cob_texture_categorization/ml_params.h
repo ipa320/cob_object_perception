@@ -118,7 +118,7 @@ public:
 class CrossValidationParams
 {
 public:
-	enum CrossValidationMode {LEAVE_OUT_ONE_OBJECT_PER_CLASS = 0, LEAVE_OUT_ONE_CLASS = 1};
+	enum CrossValidationMode {LEAVE_OUT_ONE_OBJECT_PER_CLASS = 0, LEAVE_OUT_ONE_CLASS = 1, DTD_SPLITS = 2};
 
 	// cross validation paramters
 	CrossValidationMode cross_validation_mode_;
@@ -140,17 +140,13 @@ public:
 		std::stringstream ss;
 
 		if (cross_validation_mode_ == LEAVE_OUT_ONE_OBJECT_PER_CLASS)
-		{
 			ss << folds_ << "-fold leave out one object per class cross-validation:\n---------------------------------------------------------\n";
-		}
 		else if (cross_validation_mode_ == LEAVE_OUT_ONE_CLASS)
-		{
 			ss << folds_ << "-fold leave out one class cross-validation:\n----------------------------------------------\n";
-		}
+		else if (cross_validation_mode_ == DTD_SPLITS)
+			ss << folds_ << "-fold cross-validation with official DTD sets:\n-------------------------------------------------\n";
 		else
-		{
 			std::cout << "Warning: CrossValidationParams::configurationToString: unsupported cross-validation method " << cross_validation_mode_ << "." << std::endl;
-		}
 
 		return ss.str();
 	}
