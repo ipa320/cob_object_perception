@@ -23,7 +23,7 @@
 
 create_train_data::create_train_data(int database)
 {
-	if (database==0)
+	if (database==0)		// IPA database
 	{
 		texture_classes_.push_back("Alufoil");				//0
 		texture_classes_.push_back("Asphalt");
@@ -87,6 +87,56 @@ create_train_data::create_train_data(int database)
 	{
 		texture_classes_.push_back("generated");
 	}
+	else if (database==2)		// DTD database
+	{
+		texture_classes_.push_back("banded");		// 0
+		texture_classes_.push_back("blotchy");
+		texture_classes_.push_back("braided");
+		texture_classes_.push_back("bubbly");
+		texture_classes_.push_back("bumpy");
+		texture_classes_.push_back("chequered");
+		texture_classes_.push_back("cobwebbed");
+		texture_classes_.push_back("cracked");
+		texture_classes_.push_back("crosshatched");
+		texture_classes_.push_back("crystalline");
+		texture_classes_.push_back("dotted");		// 10
+		texture_classes_.push_back("fibrous");
+		texture_classes_.push_back("flecked");
+		texture_classes_.push_back("freckled");
+		texture_classes_.push_back("frilly");
+		texture_classes_.push_back("gauzy");
+		texture_classes_.push_back("grid");
+		texture_classes_.push_back("grooved");
+		texture_classes_.push_back("honeycombed");
+		texture_classes_.push_back("interlaced");
+		texture_classes_.push_back("knitted");		// 20
+		texture_classes_.push_back("lacelike");
+		texture_classes_.push_back("lined");
+		texture_classes_.push_back("marbled");
+		texture_classes_.push_back("matted");
+		texture_classes_.push_back("meshed");
+		texture_classes_.push_back("paisley");
+		texture_classes_.push_back("perforated");
+		texture_classes_.push_back("pitted");
+		texture_classes_.push_back("pleated");
+		texture_classes_.push_back("polka-dotted");		// 30
+		texture_classes_.push_back("porous");
+		texture_classes_.push_back("potholed");
+		texture_classes_.push_back("scaly");
+		texture_classes_.push_back("smeared");
+		texture_classes_.push_back("spiralled");
+		texture_classes_.push_back("sprinkled");
+		texture_classes_.push_back("stained");
+		texture_classes_.push_back("stratified");
+		texture_classes_.push_back("striped");
+		texture_classes_.push_back("studded");		// 40
+		texture_classes_.push_back("swirly");
+		texture_classes_.push_back("veined");
+		texture_classes_.push_back("waffled");
+		texture_classes_.push_back("woven");
+		texture_classes_.push_back("wrinkled");
+		texture_classes_.push_back("zigzagged");
+	}
 }
 
 std::vector<std::string> create_train_data::get_texture_classes()
@@ -94,17 +144,23 @@ std::vector<std::string> create_train_data::get_texture_classes()
 	return texture_classes_;
 }
 
-void create_train_data::compute_data_handcrafted(std::string path_database_images, std::string path_save, std::string label_file, int mode)
+void create_train_data::compute_data_handcrafted(std::string path_database_images, std::string path_save, const std::string& database_identifier)
 {
+	std::string label_file;
+	if (database_identifier.compare("ipa"))
+		label_file = "ipa_database.txt";
+	else if (database_identifier.compare("dtd"))
+		label_file = "dtd_database.txt";
+
 	// load labeled ground truth attributes with relation to each image file
 	std::vector<std::string> image_filenames;		// a list of all available database image filenames
 	std::map<std::string, std::vector<float> > filenames_gt_attributes;		// corresponding ground truth attributes to each file
 	create_train_data::DataHierarchyType data_sample_hierarchy;			// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 	std::string path_filenames_gt_attributes = path_save + label_file;
-	load_filenames_gt_attributes(path_filenames_gt_attributes, texture_classes_, image_filenames, filenames_gt_attributes, data_sample_hierarchy);
+	load_filenames_gt_attributes(path_filenames_gt_attributes, texture_classes_, image_filenames, filenames_gt_attributes, data_sample_hierarchy, database_identifier);
 	const int number_pictures = image_filenames.size();
 
-	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
+	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, filenames_gt_attributes.begin()->second.size(), CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat computed_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);			// matrix of computed attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 23, CV_32FC1); // matrix of computed base features
@@ -261,30 +317,36 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 	std::cout << "Finished reading " << image_filenames.size() << " data samples." << std::endl;
 
 	//	Save computed attributes, class labels and ground truth attributes
-	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_sample_hierarchy, mode);
+	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_sample_hierarchy, database_identifier);
 
 	std::cout << "Feature computation on database completed." << std::endl;
 }
 
 
-void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, std::string label_file, int mode, bool generateGMM, IfvFeatures::FeatureType feature_type)
+void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, const std::string& database_identifier, bool generateGMM, IfvFeatures::FeatureType feature_type)
 {
 	// parameters
 	const int number_gaussian_centers = 256;
 	const double image_resize_factor = 0.25;	//0.25 //0.05
 	const int feature_samples_per_image = 500;	//1000	//200
 
+	std::string label_file;
+	if (database_identifier.compare("ipa"))
+		label_file = "ipa_database.txt";
+	else if (database_identifier.compare("dtd"))
+		label_file = "dtd_database.txt";
+
 	// read out database files, their hierarchy, and load labeled ground truth attributes to each image file
 	std::vector<std::string> image_filenames;		// a list of all available database image filenames
 	std::map<std::string, std::vector<float> > filenames_gt_attributes;		// corresponding ground truth attributes to each file
 	create_train_data::DataHierarchyType data_sample_hierarchy;		// data_sample_hierarchy[class_index][object_index][sample_index] = entry_index in feature data matrix
 	std::string path_filenames_gt_attributes = path_save + label_file;
-	load_filenames_gt_attributes(path_filenames_gt_attributes, texture_classes_, image_filenames, filenames_gt_attributes, data_sample_hierarchy);
+	load_filenames_gt_attributes(path_filenames_gt_attributes, texture_classes_, image_filenames, filenames_gt_attributes, data_sample_hierarchy, database_identifier);
 	const int number_pictures = image_filenames.size();
 
 	// compute or load GMM
 	IfvFeatures ifv;
-	std::string gmm_filename = path_save + "gmm_model.yml";
+	std::string gmm_filename = path_save + database_identifier + "_gmm_model.yml";
 	srand(0);		// keep random numbers reproducible
 	if (generateGMM == true)
 	{
@@ -301,7 +363,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 		ifv.loadGenerativeModel(gmm_filename);
 
 	// compute features for each image file
-	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, 17, CV_32FC1);	// matrix of labeled ground truth attributes
+	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, filenames_gt_attributes.begin()->second.size(), CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
 	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 2*ifv.getFeatureDimension(feature_type)*number_gaussian_centers, CV_32FC1); // matrix of computed base features
 
@@ -352,22 +414,17 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	std::cout << "Finished reading " << image_filenames.size() << " data samples." << std::endl;
 
 	//	Save computed attributes, class labels and ground truth attributes
-	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, cv::Mat(), class_label_matrix, data_sample_hierarchy, mode);
+	save_texture_database_features(path_save, base_feature_matrix, ground_truth_attribute_matrix, cv::Mat(), class_label_matrix, data_sample_hierarchy, database_identifier);
 
 	std::cout << "Feature computation on database completed." << std::endl;
 }
 
 
-void create_train_data::save_texture_database_features(std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, int mode)
+void create_train_data::save_texture_database_features(std::string path, const cv::Mat& base_feature_matrix, const cv::Mat& ground_truth_attribute_matrix, const cv::Mat& computed_attribute_matrix, const cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
 {
 	//	Save computed attributes, class labels and ground truth attributes
-	std::string data = "ipa_database.yml";
-	if (mode == 1)
-		data = "train_data.yml";
-	else if (mode == 2)
-		data = "test_data.yml";
-	std::string path_data = path + data;
-	cv::FileStorage fs(path_data, cv::FileStorage::WRITE);
+	const std::string database_file = path + database_identifier + "_database.yml";
+	cv::FileStorage fs(database_file, cv::FileStorage::WRITE);
 	fs << "base_feature_matrix" << base_feature_matrix;
 	fs << "ground_truth_attribute_matrix" << ground_truth_attribute_matrix;
 	fs << "computed_attribute_matrix" << computed_attribute_matrix;
@@ -375,14 +432,14 @@ void create_train_data::save_texture_database_features(std::string path, const c
 	fs.release();
 
 	// store hierarchy and check validity of hierarchical data structure
-	std::string filename = path + "ipa_database_hierarchy.txt";
-	save_data_hierarchy(filename, data_sample_hierarchy, class_label_matrix.rows);
+	const std::string database_hierarchy_file = path + database_identifier + "_database_hierarchy.txt";
+	save_data_hierarchy(database_hierarchy_file, data_sample_hierarchy, class_label_matrix.rows);
 }
 
-void create_train_data::load_texture_database_features(std::string path, cv::Mat& base_feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy)
+void create_train_data::load_texture_database_features(std::string path, cv::Mat& base_feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& computed_attribute_matrix, cv::Mat& class_label_matrix, DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
 {
 	// load computed attributes, class labels and ground truth attributes
-	std::string database_file = path + "ipa_database.yml";
+	const std::string database_file = path + database_identifier + "_database.yml";
 	std::cout << "Reading file " << database_file << std::endl;
 	cv::FileStorage fs(database_file, cv::FileStorage::READ);
 	fs["base_feature_matrix"] >> base_feature_matrix;
@@ -392,7 +449,7 @@ void create_train_data::load_texture_database_features(std::string path, cv::Mat
 	fs.release();
 
 	// load class-object-sample hierarchy
-	std::string database_hierarchy_file = path + "ipa_database_hierarchy.txt";
+	std::string database_hierarchy_file = path + database_identifier + "_database_hierarchy.txt";
 	load_data_hierarchy(database_hierarchy_file, data_sample_hierarchy);
 
 	std::cout << "Texture database features loaded." << std::endl;
@@ -473,14 +530,20 @@ void create_train_data::load_data_hierarchy(std::string filename, DataHierarchyT
 	file.close();
 }
 
-void create_train_data::load_filenames_gt_attributes(std::string filename, std::vector<std::string>& class_names, std::vector<std::string>& image_filenames, std::map<std::string, std::vector<float> >& filenames_gt_attributes, DataHierarchyType& data_sample_hierarchy)
+void create_train_data::load_filenames_gt_attributes(std::string filename, std::vector<std::string>& class_names, std::vector<std::string>& image_filenames, std::map<std::string, std::vector<float> >& filenames_gt_attributes, DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
 {
 	class_names.clear();
 	image_filenames.clear();
 	filenames_gt_attributes.clear();
 	data_sample_hierarchy.clear();
 
-	const int attribute_number = 17;
+	int attribute_number = 0;
+	if (database_identifier.compare("ipa") == 0)
+		attribute_number = 17;
+	else if (database_identifier.compare("dtd") == 0)
+		attribute_number = 47;
+	else
+		std::cout << "Error: create_train_data::load_filenames_gt_attributes: unsupported mode selected.";
 	std::ifstream file(filename.c_str(), std::ios::in);
 	if (file.is_open() == true)
 	{
@@ -514,23 +577,43 @@ void create_train_data::load_filenames_gt_attributes(std::string filename, std::
 					{
 						std::string tag;
 						file >> tag;
-						if (tag.compare("labels_ipa17:") == 0)
+						if (database_identifier.compare("ipa") == 0)
 						{
-							for (int l=0; l<attribute_number; ++l)
-								file >> filenames_gt_attributes[image_filename][l];	// ground truth attribute vector
+							if (tag.compare("labels_ipa17:") == 0)
+							{
+								for (int l=0; l<attribute_number; ++l)
+									file >> filenames_gt_attributes[image_filename][l];	// ground truth attribute vector
+							}
+							else if (tag.compare("base_farhadi9688:") == 0)
+							{
+								std::string buffer;
+								std::getline(file, buffer);
+								break;
+							}
+							else
+							{
+								std::cout << "Error: create_train_data::load_filenames_gt_attributes: Unknown tag found." << std::endl;
+								getchar();
+								break;
+							}
 						}
-						else if (tag.compare("base_farhadi9688:") == 0)
+						else if (database_identifier.compare("dtd") == 0)
 						{
-							std::string buffer;
-							std::getline(file, buffer);
-							break;
+							if (tag.compare("labels_cimpoi47:") == 0)
+							{
+								for (int l=0; l<attribute_number; ++l)
+									file >> filenames_gt_attributes[image_filename][l];	// ground truth attribute vector
+								break;
+							}
+							else
+							{
+								std::cout << "Error: create_train_data::load_filenames_gt_attributes: Unknown tag found." << std::endl;
+								getchar();
+								break;
+							}
 						}
 						else
-						{
-							std::cout << "Error: create_train_data::load_filenames_gt_attributes: Unknown tag found." << std::endl;
-							getchar();
-							break;
-						}
+							std::cout << "Error: create_train_data::load_filenames_gt_attributes: unsupported mode selected.";
 					}
 				}
 			}
@@ -541,4 +624,60 @@ void create_train_data::load_filenames_gt_attributes(std::string filename, std::
 	file.close();
 
 	std::cout << "Found " << image_filenames.size() << " image files in database distributed into " << class_names.size() << " classes." << std::endl;
+}
+
+
+void create_train_data::create_dtd_database_file(std::string path_database_images, std::string path_save, std::string label_file)
+{
+	// generate a list of all available database image filenames
+	std::map<std::string, std::vector<std::string> > classwise_image_filenames;
+	for(int class_index=0;class_index<(int)texture_classes_.size(); ++class_index)
+	{
+		std::string path = path_database_images + texture_classes_[class_index];
+		const char *p;
+		p=path.c_str();
+
+		DIR *pDIR;
+		struct dirent *entry;
+		if ((pDIR = opendir(p)))
+		{
+			while ((entry = readdir(pDIR)))
+			{
+				if (entry->d_type == 0x8) //File: 0x8, Folder: 0x4
+				{
+					std::string str = path + "/";
+					std::string name = entry->d_name;
+					str.append(name);
+					classwise_image_filenames[texture_classes_[class_index]].push_back(name);
+				}
+			}
+		}
+	}
+	std::string filename = path_save + label_file;
+	std::ofstream file(filename.c_str(), std::ios::out);
+	if (file.is_open()==true)
+	{
+		file << classwise_image_filenames.size() << std::endl;	// class_number
+		size_t class_index = 0;
+		for (std::map<std::string, std::vector<std::string> >::iterator class_it = classwise_image_filenames.begin(); class_it!=classwise_image_filenames.end(); ++class_it, ++class_index)
+		{
+			file << class_it->first << "\t" << class_it->second.size() << std::endl;	// class_name and object_number
+			std::sort(class_it->second.begin(), class_it->second.end());
+			for (size_t i=0; i<class_it->second.size(); ++i)
+			{
+				file << "\t1\n";	// only one sample per object
+				file << "\t\t" << class_it->second[i] << std::endl;
+				file << "\t\t\tlabels_cimpoi47:\t";
+				for (size_t j=0; j<class_index; ++j)
+					file << "0\t";
+				file << "1\t";
+				for (size_t j=class_index+1; j<47; ++j)
+					file << "0\t";
+				file << std::endl;
+			}
+		}
+	}
+	else
+		std::cout << "Error: create_train_data::load_dtd_filenames_gt_attributes: could not open file " << filename << "." << std::endl;
+	file.close();
 }

@@ -117,11 +117,13 @@ node_handle_(nh)
 	else
 	{
 		// database tests
-	//	attributeLearningDatabaseTestHandcrafted();
+		attributeLearningDatabaseTestHandcrafted();
 	//	attributeLearningDatabaseTestFarhadi();
-		attributeLearningDatabaseTestCimpoi();
+	//	attributeLearningDatabaseTestCimpoi();
 	//	attributeLearningGeneratedDatabaseTestHandcrafted();
 	//	crossValidationVerbalClassDescription();
+
+	//	attributeLearningDTD();
 	}
 }
 
@@ -152,13 +154,14 @@ void TextCategorizationNode::init()
 void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 {
 	// === using the hand crafted attributes
+	const std::string database_identifier = "dtd";		// "ipa", "dtd"	// defines the database to be used
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
-	std::string path_database = package_path + "/common/files/texture_database/";			// path to database			//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
+	std::string path_database = package_path + "/common/files/texture_database_dtd-r1.0.1/images/";			// path to database			//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
 	std::string feature_files_path = package_path + "/common/files/data/handcrafted/"; 		// path to save data
 
 	// compute 17 texture attributes on the ipa texture database
-	create_train_data database_data;									// computes feature and label matrices of the provided database
-//	database_data.compute_data_handcrafted(path_database, feature_files_path, "ipa_database.txt");
+	create_train_data database_data;
+//	database_data.compute_data_handcrafted(path_database, feature_files_path, database_identifier);			// computes feature and label matrices of the provided database
 //	return;
 
 	// attribute cross-validation
@@ -176,7 +179,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 //		for (int c=0; c<16; ++c)
 //			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 //	// experiments on gt data
@@ -244,11 +247,12 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 {
 	// === using the farhadi attributes that are learned from base features
+	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
 	std::string feature_files_path = package_path + "/common/files/data/farhadi2009/"; 		// path to save data
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/farhadi2009/features/ipa_texture_database/";
-	std::string data_file_name = feature_files_path + "ipa_database.txt";		//Pfad zu Speicherort der Featurevektoren
+//	std::string data_file_name = feature_files_path + "ipa_database.txt";		//Pfad zu Speicherort der Featurevektoren
 //	std::string data_file_name = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/farhadi2009/features/ipa_texture_database/ipa_database.txt";		//Pfad zu Speicherort der Featurevektoren
 
 	// attribute learning
@@ -256,7 +260,8 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 	AttributeLearning al;
 	cv::Mat base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix;
 	create_train_data::DataHierarchyType data_hierarchy;
-	al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, 17, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+	const std::string feature_filename = feature_files_path + database_identifier + "_database.txt";
+	al.loadTextureDatabaseBaseFeatures(feature_filename, 9688, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
@@ -284,6 +289,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 {
 	// === using the 47 texture attributes of Cimpoi
+	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
 //	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
@@ -292,7 +298,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 
 	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-//	database_data.compute_data_cimpoi(path_database, feature_files_path, "ipa_database.txt", 0, true, IfvFeatures::RGB_PATCHES);
+//	database_data.compute_data_cimpoi(path_database, feature_files_path, database_identifier, 0, true, IfvFeatures::RGB_PATCHES);
 //	return;
 
 	// attribute cross-validation
@@ -301,7 +307,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	train_ml ml;
 	AttributeLearning al;
 	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 //	// train classifier with whole database
@@ -328,6 +334,7 @@ return;
 void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 {
 	// === using the hand crafted attributes
+	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string path_database = package_path + "/common/files/data/texture_generator/";
 //	std::string data_file_name = package_path + "/common/files/data/texture_generator/handcrafted/ipa_database_handcrafted.txt";		//Pfad zu Speicherort der Featurevektoren
@@ -353,7 +360,7 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 //		for (int c=0; c<16; ++c)
 //			ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 	// option 2: computed with this program
-	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 //	// train classifier with whole database
@@ -365,7 +372,7 @@ void TextCategorizationNode::attributeLearningGeneratedDatabaseTestHandcrafted()
 	std::string generated_attributes_file_name = feature_files_path + "all_generated_attributes.txt";//"ipa_database_generated_class_attributes.txt";
 	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
 	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
-	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy, database_identifier);
 	cv::Mat train_ = generated_attributes_17, labels_ = generated_attributes_class_label_matrix, training_data, labels;
 //	for (int r=0; r<labels_.rows; ++r)
 //		if (considered_classes_.find(labels_.at<float>(r)) != considered_classes_.end())
@@ -401,6 +408,7 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	enum Method {HANDCRAFTED_RAW, HANDCRAFTED_LEARNED, FARHADI, CIMPOI};
 	Method method = FARHADI;
 
+	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string feature_files_path = "";	// path to save data
 	if (method == HANDCRAFTED_RAW || method == HANDCRAFTED_LEARNED)
@@ -421,8 +429,8 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	create_train_data::DataHierarchyType data_hierarchy;
 	if (method == FARHADI)
 	{
-		std::string data_file_name = feature_files_path + "ipa_database.txt";
-		al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, 17, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+		std::string data_file_name = feature_files_path + database_identifier + "_database.txt";
+		al.loadTextureDatabaseBaseFeatures(data_file_name, 9688, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
 	}
 	else
 	{
@@ -434,7 +442,7 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 //			for (int c=0; c<16; ++c)
 //				ground_truth_attribute_matrix.at<float>(r,c) = temp.at<float>(r,c+(c<13 ? 0 : 1));
 		// option 2: computed with this program
-		database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy);
+		database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, database_identifier);
 	}
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
@@ -453,7 +461,7 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	std::string generated_attributes_file_name = feature_files_path + "ipa_database_generated_class_attributes.txt";
 	cv::Mat generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix;
 	create_train_data::DataHierarchyType generated_attributes_data_hierarchy;
-	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, 17, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
+	al.loadTextureDatabaseBaseFeatures(generated_attributes_file_name, 16, generated_attributes_16, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy, database_identifier);
 	// do the cross validation
 	// todo: change file name to not overwrite 20fold data ml.save_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
 	ml.load_computed_attribute_matrices(feature_files_path, computed_attribute_matrices);
@@ -462,6 +470,18 @@ void TextCategorizationNode::crossValidationVerbalClassDescription()
 	else
 		ml.cross_validation_with_generated_attributes(cvp.folds_, computed_attribute_matrices, class_label_matrix, data_hierarchy, generated_attributes_17, generated_attributes_class_label_matrix, generated_attributes_data_hierarchy);
 		//ml.cross_validation_with_generated_attributes(cvp.folds_, computed_attribute_matrices, class_label_matrix, data_hierarchy, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+}
+
+
+void TextCategorizationNode::attributeLearningDTD()
+{
+	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
+	std::string package_path = ros::package::getPath("cob_texture_categorization");
+	std::string path_database = package_path + "/common/files/texture_database_dtd-r1.0.1/images/";			// path to database
+	std::string feature_files_path = package_path + "/common/files/data/handcrafted/"; 		// path to save data
+
+	create_train_data database_data(2);
+	database_data.create_dtd_database_file(path_database, feature_files_path, "dtd_database.txt");
 }
 
 void TextCategorizationNode::setNNConfigurations(CrossValidationParams& cvp, const std::string& experiment_key)

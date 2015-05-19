@@ -6,12 +6,21 @@
 #include "highgui.h"
 
 
-void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, const int feature_number, const int attribute_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filename, const int feature_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
 {
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
 	//const int attribute_number = 17;			// label = attributes
 	//const int feature_number = 9688;		// feature = base feature
 	//const int total_sample_number = 1281;
+
+	int attribute_number = 0;
+	if (database_identifier.compare("ipa") == 0)
+		attribute_number = 17;
+	else if (database_identifier.compare("dtd") == 0)
+		attribute_number = 47;
+	else
+		std::cout << "Error: create_train_data::load_filenames_gt_attributes: unsupported mode selected.";
+
 	feature_matrix = cv::Mat();		//create(total_sample_number, feature_number, CV_32FC1);
 	ground_truth_attribute_matrix = cv::Mat();		//.create(total_sample_number, attribute_number, CV_32FC1);
 	class_label_matrix = cv::Mat();		//.create(total_sample_number, 1, CV_32FC1);
@@ -47,23 +56,43 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 					{
 						std::string tag;
 						file >> tag;
-						if (tag.compare("labels_ipa17:") == 0)
+						if (database_identifier.compare("ipa") == 0)
 						{
-							for (int l=0; l<attribute_number; ++l)
-								file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+							if (tag.compare("labels_ipa17:") == 0)
+							{
+								for (int l=0; l<attribute_number; ++l)
+									file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+							}
+							else if (tag.compare("base_farhadi9688:") == 0)
+							{
+								for (int f=0; f<feature_number; ++f)
+									file >> feature_matrix_row.at<float>(0, f);		// base feature vector
+								break;
+							}
+							else
+							{
+								std::cout << "Error: create_train_data::load_filenames_gt_attributes: Unknown tag found." << std::endl;
+								getchar();
+								break;
+							}
 						}
-						else if (tag.compare("base_farhadi9688:") == 0)
+						else if (database_identifier.compare("dtd") == 0)
 						{
-							for (int f=0; f<feature_number; ++f)
-								file >> feature_matrix_row.at<float>(0, f);		// base feature vector
-							break;
+							if (tag.compare("labels_cimpoi47:") == 0)
+							{
+								for (int l=0; l<attribute_number; ++l)
+									file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+								break;
+							}
+							else
+							{
+								std::cout << "Error: AttributeLearning::loadTextureDatabaseBaseFeatures: Unknown tag found." << std::endl;
+								getchar();
+								break;
+							}
 						}
 						else
-						{
-							std::cout << "Error: create_train_data::loadTextureDatabaseBaseFeatures: Unknown tag found." << std::endl;
-							getchar();
-							break;
-						}
+							std::cout << "Error: create_train_data::load_filenames_gt_attributes: unsupported mode selected.";
 					}
 					class_label_matrix_row.at<float>(0, 0) = (float)i;
 					data_sample_hierarchy[i][j][k] = sample_index;				// class label (index)
