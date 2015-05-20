@@ -517,8 +517,10 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 	}
 	else if (experiment_key.compare("attributes_cimpoi2014_sift")==0)
 	{
-		for (double nu=0.9; nu>0.1; nu-=0.1)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+//		for (double nu=0.9; nu>0.09; nu-=0.4)
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+		for (double nu=0.9; nu>0.09; nu-=0.4)
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., nu, 0.));
 	}
 	else if (experiment_key.compare("classes_handcrafted")==0)
 	{
