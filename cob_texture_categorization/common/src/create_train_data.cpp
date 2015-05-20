@@ -327,14 +327,19 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 {
 	// parameters
 	const int number_gaussian_centers = 256;
-	const double image_resize_factor = 0.25;	//0.25 //0.05
 	const int feature_samples_per_image = 500;	//1000	//200
-
 	std::string label_file;
+	double image_resize_factor = 0.;
 	if (database_identifier.compare("ipa") == 0)
+	{
 		label_file = "ipa_database.txt";
+		image_resize_factor = 0.25;
+	}
 	else if (database_identifier.compare("dtd") == 0)
+	{
 		label_file = "dtd_database.txt";
+		image_resize_factor = 1.0;
+	}
 
 	// read out database files, their hierarchy, and load labeled ground truth attributes to each image file
 	std::vector<std::string> image_filenames;		// a list of all available database image filenames

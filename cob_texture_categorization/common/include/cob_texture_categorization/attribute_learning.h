@@ -61,7 +61,8 @@ public:
 	void loadDTDDatabaseCrossValidationSets(const std::string& path_to_cross_validation_sets, const std::vector<std::string>& image_filenames, const int fold,
 					const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, cv::Mat& feature_matrix_train, cv::Mat& attribute_matrix_train,
 					cv::Mat& feature_matrix_validation, cv::Mat& attribute_matrix_validation, cv::Mat& feature_matrix_test, cv::Mat& attribute_matrix_test);
-	void crossValidationDTD(const CrossValidationParams& cross_validation_params, const std::string& path_to_cross_validation_sets, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, const std::vector<std::string>& image_filenames);
+	double computeAveragePrecision(const std::vector<double>& recall, const std::vector<double>& precision);
+	void crossValidationDTD(CrossValidationParams& cross_validation_params, const std::string& path_to_cross_validation_sets, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, const std::vector<std::string>& image_filenames);
 
 private:
 	cv::Mat attribute_display_mat_;
