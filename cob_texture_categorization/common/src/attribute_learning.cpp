@@ -1,17 +1,27 @@
 #include "cob_texture_categorization/attribute_learning.h"
 
 #include <fstream>
+#include "stdint.h"
 
 #include "ml.h"
 #include "highgui.h"
 
 
-void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, const int feature_number, const int attribute_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy)
+void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filename, const int feature_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
 {
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
 	//const int attribute_number = 17;			// label = attributes
 	//const int feature_number = 9688;		// feature = base feature
 	//const int total_sample_number = 1281;
+
+	int attribute_number = 0;
+	if (database_identifier.compare("ipa") == 0)
+		attribute_number = 17;
+	else if (database_identifier.compare("dtd") == 0)
+		attribute_number = 47;
+	else
+		std::cout << "Error: create_train_data::load_filenames_gt_attributes: unsupported mode selected.";
+
 	feature_matrix = cv::Mat();		//create(total_sample_number, feature_number, CV_32FC1);
 	ground_truth_attribute_matrix = cv::Mat();		//.create(total_sample_number, attribute_number, CV_32FC1);
 	class_label_matrix = cv::Mat();		//.create(total_sample_number, 1, CV_32FC1);
@@ -47,23 +57,43 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(std::string filename, co
 					{
 						std::string tag;
 						file >> tag;
-						if (tag.compare("labels_ipa17:") == 0)
+						if (database_identifier.compare("ipa") == 0)
 						{
-							for (int l=0; l<attribute_number; ++l)
-								file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+							if (tag.compare("labels_ipa17:") == 0)
+							{
+								for (int l=0; l<attribute_number; ++l)
+									file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+							}
+							else if (tag.compare("base_farhadi9688:") == 0)
+							{
+								for (int f=0; f<feature_number; ++f)
+									file >> feature_matrix_row.at<float>(0, f);		// base feature vector
+								break;
+							}
+							else
+							{
+								std::cout << "Error: create_train_data::load_filenames_gt_attributes: Unknown tag found." << std::endl;
+								getchar();
+								break;
+							}
 						}
-						else if (tag.compare("base_farhadi9688:") == 0)
+						else if (database_identifier.compare("dtd") == 0)
 						{
-							for (int f=0; f<feature_number; ++f)
-								file >> feature_matrix_row.at<float>(0, f);		// base feature vector
-							break;
+							if (tag.compare("labels_cimpoi47:") == 0)
+							{
+								for (int l=0; l<attribute_number; ++l)
+									file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+								break;
+							}
+							else
+							{
+								std::cout << "Error: AttributeLearning::loadTextureDatabaseBaseFeatures: Unknown tag found." << std::endl;
+								getchar();
+								break;
+							}
 						}
 						else
-						{
-							std::cout << "Error: create_train_data::loadTextureDatabaseBaseFeatures: Unknown tag found." << std::endl;
-							getchar();
-							break;
-						}
+							std::cout << "Error: create_train_data::load_filenames_gt_attributes: unsupported mode selected.";
 					}
 					class_label_matrix_row.at<float>(0, 0) = (float)i;
 					data_sample_hierarchy[i][j][k] = sample_index;				// class label (index)
@@ -408,46 +438,13 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 
 				CvSVM svm;
 				CvANN_MLP mlp;
-				// SVM
 				if (ml_params.classification_method_ == MLParams::SVM)
-				{
-//					CvTermCriteria criteria;
-//					criteria.max_iter = 1000;//1000;	// 1000
-//					criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
-//					criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-//					CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+				{	// SVM
 					svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), ml_params.svm_params_);
 				}
-				//	Neural Network
-				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
-				{
-//					cv::Mat input;
-//					training_data.convertTo(input, CV_32F);
-//					cv::Mat output=cv::Mat::zeros(training_data.rows, 1, CV_32FC1);
-//					cv::Mat labels;
-//					training_labels.convertTo(labels, CV_32F);
-//					for(int i=0; i<training_data.rows; ++i)
-//						output.at<float>(i,0) = labels.at<float>(i,0);
-//
-//					cv::Mat layers = cv::Mat(3,1,CV_32SC1);
-//					layers.row(0) = cv::Scalar(training_data.cols);
-//					layers.row(1) = cv::Scalar(10);
-//					layers.row(2) = cv::Scalar(1);
-//
-//					CvANN_MLP_TrainParams params;
-//					CvTermCriteria criteria;
-//					criteria.max_iter = 100;//100;
-//					criteria.epsilon  = 0.00001f; // farhadi:0.0001f, handcrafted:0.00001f;
-//					criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-//
-//					params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
-//					params.bp_dw_scale     = 0.1f;
-//					params.bp_moment_scale = 0.1f;
-//					params.term_crit       = criteria;
-//
-//					mlp.create(layers, CvANN_MLP::SIGMOID_SYM, /*alpha*/ 0.6, 1.0);
-//					int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 
+				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+				{	//	Neural Network
 					cv::Mat layers = cv::Mat(2+ml_params.nn_hidden_layers_.size(), 1, CV_32SC1);
 					layers.row(0) = cv::Scalar(training_data.cols);
 					for (size_t k=0; k<ml_params.nn_hidden_layers_.size(); ++k)
@@ -724,4 +721,182 @@ void AttributeLearning::displayAttributes(const cv::Mat& attribute_matrix, const
 		ss << "attribute_distribution/" << texture_classes[display_class] << "_" << display_class << ".png";
 		cv::imwrite(ss.str(), attribute_display_mat_);
 	}
+}
+
+
+size_t AttributeLearning::sampleIndexFromFilename(const std::string& filename, const std::vector<std::string>& indexed_filenames)
+{
+	size_t i=0;
+	for (; i<indexed_filenames.size(); ++i)
+		if (indexed_filenames[i].compare(filename)==0)
+			return i;
+	return SIZE_MAX;
+}
+
+void AttributeLearning::loadDTDDatabaseCrossValidationSet(const std::string& path_to_cross_validation_sets, const std::string& set_type, const std::vector<std::string>& image_filenames, const int fold,
+		const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, cv::Mat& feature_matrix_set, cv::Mat& attribute_matrix_set)
+{
+	// read out set filenames and map them to sample numbers (= line indices of the feature_matrix)
+	std::vector<int> set_indices;
+	std::stringstream set_filename;
+	set_filename << path_to_cross_validation_sets << set_type << fold+1 << ".txt";
+	std::ifstream file(set_filename.str().c_str(), std::ios::in);
+	if (file.is_open()==true)
+	{
+		while (file.eof()==false)
+		{
+			std::string filename;
+			file >> filename;
+			size_t sample_index = sampleIndexFromFilename(filename, image_filenames);
+			if (sample_index == SIZE_MAX)
+				break;
+			set_indices.push_back(sample_index);
+		}
+		file.close();
+	}
+	else
+		std::cout << "Error: AttributeLearning::loadDTDDatabaseCrossValidationSet: could not open file " << set_filename.str() << std::endl;
+
+	// create the set feature and attributes matrices
+	feature_matrix_set = cv::Mat((int)set_indices.size(), feature_matrix.cols, feature_matrix.type());
+	attribute_matrix_set = cv::Mat((int)set_indices.size(), attribute_matrix.cols, attribute_matrix.type());
+	for (size_t set_index=0; set_index<set_indices.size(); ++set_index)
+	{
+		for (int j=0; j<feature_matrix.cols; ++j)
+			feature_matrix_set.at<float>(set_index, j) = feature_matrix.at<float>(set_indices[set_index], j);
+		for (int j=0; j<attribute_matrix.cols; ++j)
+			attribute_matrix_set.at<float>(set_index, j) = attribute_matrix.at<float>(set_indices[set_index], j);
+	}
+}
+
+void AttributeLearning::loadDTDDatabaseCrossValidationSets(const std::string& path_to_cross_validation_sets, const std::vector<std::string>& image_filenames, const int fold,
+		const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, cv::Mat& feature_matrix_train, cv::Mat& attribute_matrix_train,
+		cv::Mat& feature_matrix_validation, cv::Mat& attribute_matrix_validation, cv::Mat& feature_matrix_test, cv::Mat& attribute_matrix_test)
+{
+	loadDTDDatabaseCrossValidationSet(path_to_cross_validation_sets, "train", image_filenames, fold, feature_matrix, attribute_matrix, feature_matrix_train, attribute_matrix_train);
+	loadDTDDatabaseCrossValidationSet(path_to_cross_validation_sets, "val", image_filenames, fold, feature_matrix, attribute_matrix, feature_matrix_validation, attribute_matrix_validation);
+	loadDTDDatabaseCrossValidationSet(path_to_cross_validation_sets, "test", image_filenames, fold, feature_matrix, attribute_matrix, feature_matrix_test, attribute_matrix_test);
+}
+
+double AttributeLearning::computeAveragePrecision(const std::vector<double>& recall, const std::vector<double>& precision)
+{
+	// create a 10 bin histogram on recall and store maximum precision for each bin
+	std::vector<double> max_precision_histogram(10, 0.);
+	std::vector<bool> max_precision_histogram_bin_set(10, false);
+	for (size_t i=0; i<recall.size(); ++i)
+	{
+		int bin = (int)(recall[i]*10);	// histogram bin on the recall axis
+		max_precision_histogram_bin_set[bin] = true;
+		if (precision[i] > max_precision_histogram[bin])
+			max_precision_histogram[bin] = precision[i];
+	}
+
+	// fill up the first and last bins with a copy of the nearest set bin, interpolate gaps
+	for (size_t i=0; i<max_precision_histogram_bin_set.size(); ++i)
+	{
+		if (max_precision_histogram_bin_set[i] == false)
+		{
+			// search left neighbor
+			int left_neighbor_index = -1;
+			for (int j=i-1; j>=0; --j)
+			{
+				if (max_precision_histogram_bin_set[j] == true)
+				{
+					left_neighbor_index = j;
+					break;
+				}
+			}
+		}
+	}
+}
+
+void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validation_params, const std::string& path_to_cross_validation_sets, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, const std::vector<std::string>& image_filenames)
+{
+	std::stringstream screen_output, output_summary;
+	srand(0);	// random seed --> keep reproducible
+	// train and evaluate classifier for each attribute with the given training set
+	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
+	{
+		std::cout << "\nAttribute " << attribute_index+1 << ":\n";
+		std::vector<double> recall_vector, precision_vector;
+		double max_accuracy = 0.;
+
+		// iterate over (possibly multiple) machine learning techniques or configurations
+		for (size_t ml_configuration_index = 0; ml_configuration_index<cross_validation_params.ml_configurations_.size(); ++ml_configuration_index)
+		{
+			MLParams& ml_params = cross_validation_params.ml_configurations_[ml_configuration_index];
+
+			double recall=0., precision=0., accuracy=0.;
+			for (unsigned int fold=0; fold<cross_validation_params.folds_; ++fold)
+			{
+				//std::cout << "Attribute " << attribute_index+1 << ": fold " << fold << ":\n";
+
+				// obtain official train/val/test splits
+				cv::Mat feature_matrix_train, feature_matrix_validation, feature_matrix_test;
+				cv::Mat attribute_matrix_train, attribute_matrix_validation, attribute_matrix_test;
+				loadDTDDatabaseCrossValidationSets(path_to_cross_validation_sets, image_filenames, fold, feature_matrix, attribute_matrix, feature_matrix_train, attribute_matrix_train, feature_matrix_validation, attribute_matrix_validation, feature_matrix_test, attribute_matrix_test);
+
+				// train classifier
+				CvSVM svm;
+				CvANN_MLP mlp;
+				if (ml_params.classification_method_ == MLParams::SVM)
+				{	// SVM
+					cv::Mat weights(1,2,CV_32FC1);
+					weights.at<float>(0) = 47/46;
+					weights.at<float>(1) = 47/1;
+					CvMat weights_mat = weights;
+					ml_params.svm_params_.class_weights = &weights_mat;
+					svm.train(feature_matrix_train, attribute_matrix_train.col(attribute_index), cv::Mat(), cv::Mat(), ml_params.svm_params_);
+				}
+				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+				{	//	Neural Network
+					cv::Mat layers = cv::Mat(2+ml_params.nn_hidden_layers_.size(), 1, CV_32SC1);
+					layers.row(0) = cv::Scalar(feature_matrix_train.cols);
+					for (size_t k=0; k<ml_params.nn_hidden_layers_.size(); ++k)
+						layers.row(k+1) = cv::Scalar(ml_params.nn_hidden_layers_[k]);
+					layers.row(ml_params.nn_hidden_layers_.size()+1) = cv::Scalar(1);
+
+					mlp.create(layers, ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
+					int iterations = mlp.train(feature_matrix_train, attribute_matrix_train.col(attribute_index), cv::Mat(), cv::Mat(), ml_params.nn_params_);
+					std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+				}
+
+				// validate classification performance
+				int tp=0, fp=0, fn=0, tn=0;
+				for (int r=0; r<feature_matrix_validation.rows ; ++r)
+				{
+					cv::Mat response(1, 1, CV_32FC1);
+					cv::Mat sample = feature_matrix_validation.row(r);
+					if (ml_params.classification_method_ == MLParams::SVM)
+						response.at<float>(0,0) = svm.predict(sample);	// SVM
+					else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+						mlp.predict(sample, response);		// neural network
+
+					// statistics
+					int label = (attribute_matrix_validation.at<float>(r, attribute_index) < 0.5f ? 0 : 1);
+					int prediction = (response.at<float>(0,0) < 0.5f ? 0 : 1);
+					if (label==1 && prediction==1) tp++;
+					else if (label==0 && prediction==1) fp++;
+					else if (label==1 && prediction==0) fn++;
+					else if (label==0 && prediction==0) tn++;
+				}
+
+				// statistics
+				recall += (double)tp/(double)(tp+fn);
+				precision += (tp+fp==0 ? 0. : (double)tp/(double)(tp+fp));
+				accuracy += 0.5*(double)(tp)/(double)(tp+fn) + 0.5*(double)(tn)/(double)(fp+tn);
+			} // folds
+
+			// statistics
+			recall /= (double)cross_validation_params.folds_;  precision /= (double)cross_validation_params.folds_;  accuracy /= (double)cross_validation_params.folds_;
+			std::cout << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";
+			recall_vector.push_back(recall);
+			precision_vector.push_back(precision);
+			if (accuracy > max_accuracy) max_accuracy = accuracy;
+		} // ml_configurations
+
+		// compute average precision
+		computeAveragePrecision(recall_vector, precision_vector);
+
+	} // attribute_index
 }

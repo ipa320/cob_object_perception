@@ -120,6 +120,9 @@ protected:
 
 	void crossValidationVerbalClassDescription();
 
+	void scaleNormalizeHandcraftedAttributes(const cv::Mat& source, cv::Mat& rescaled);
+	void attributeLearningDTDDatabaseTest();
+
 	// defines a set of Neural Network configurations for cross-validation
 	void setNNConfigurations(CrossValidationParams& cvp, const std::string& experiment_key);
 	// defines a set of SVM configurations for cross-validation
