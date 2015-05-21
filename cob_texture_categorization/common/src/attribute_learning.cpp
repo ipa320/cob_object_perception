@@ -790,6 +790,9 @@ double AttributeLearning::computeAveragePrecision(const std::vector<double>& rec
 		if (precision[i] > max_precision_histogram[bin])
 			max_precision_histogram[bin] = precision[i];
 	}
+	std::cout << "AP diagram before:\t";
+	for (size_t i=0; i<max_precision_histogram.size(); ++i)
+		std::cout << max_precision_histogram[i] << "\t";
 
 	// fill up the first and last bins with a copy of the nearest set bin, interpolate gaps
 	for (size_t i=0; i<max_precision_histogram_bin_set.size(); ++i)
@@ -806,8 +809,40 @@ double AttributeLearning::computeAveragePrecision(const std::vector<double>& rec
 					break;
 				}
 			}
+			// search right neighbor
+			int right_neighbor_index = -1;
+			for (int j=i+1; j<(int)max_precision_histogram_bin_set.size(); ++j)
+			{
+				if (max_precision_histogram_bin_set[j] == true)
+				{
+					right_neighbor_index = j;
+					break;
+				}
+			}
+			// interpolate value
+			double interpolated_value = 0.;
+			if (left_neighbor_index!=-1 && right_neighbor_index!=-1)	// gap, i.e. both neighbors exist
+				interpolated_value = (double)(i-left_neighbor_index)/(double)(right_neighbor_index-left_neighbor_index)*max_precision_histogram[left_neighbor_index] +
+									 (double)(right_neighbor_index-i)/(double)(right_neighbor_index-left_neighbor_index)*max_precision_histogram[right_neighbor_index];
+			else if (left_neighbor_index==-1 && right_neighbor_index!=-1)	// left border, only right neighbor exists
+				interpolated_value = max_precision_histogram[right_neighbor_index];
+			else if (left_neighbor_index!=-1 && right_neighbor_index==-1)	// right border, only left neighbor exists
+				interpolated_value = max_precision_histogram[left_neighbor_index];
+			max_precision_histogram[i] = interpolated_value;
 		}
 	}
+
+	std::cout << "\nAP diagram after:\t";
+	for (size_t i=0; i<max_precision_histogram.size(); ++i)
+		std::cout << max_precision_histogram[i] << "\t";
+	std::cout << std::endl;
+
+	// compute AP
+	double average_precision = 0.;
+	for (size_t i=0; i<max_precision_histogram.size(); ++i)
+		average_precision += 0.1*max_precision_histogram[i];
+
+	return average_precision;
 }
 
 void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validation_params, const std::string& path_to_cross_validation_sets, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, const std::vector<std::string>& image_filenames)
@@ -817,7 +852,7 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 	// train and evaluate classifier for each attribute with the given training set
 	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
 	{
-		std::cout << "\nAttribute " << attribute_index+1 << ":\n";
+		std::cout << "\nAttribute " << attribute_index+1 << ":\n";  screen_output << "\nAttribute " << attribute_index+1 << ":\n";
 		std::vector<double> recall_vector, precision_vector;
 		double max_accuracy = 0.;
 
@@ -835,6 +870,9 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 				cv::Mat feature_matrix_train, feature_matrix_validation, feature_matrix_test;
 				cv::Mat attribute_matrix_train, attribute_matrix_validation, attribute_matrix_test;
 				loadDTDDatabaseCrossValidationSets(path_to_cross_validation_sets, image_filenames, fold, feature_matrix, attribute_matrix, feature_matrix_train, attribute_matrix_train, feature_matrix_validation, attribute_matrix_validation, feature_matrix_test, attribute_matrix_test);
+				// merge train + validation sets (as they did in cimpoi 2014)
+				cv::vconcat(feature_matrix_train, feature_matrix_validation, feature_matrix_train);
+				cv::vconcat(attribute_matrix_train, attribute_matrix_validation, attribute_matrix_train);
 
 				// train classifier
 				CvSVM svm;
@@ -863,10 +901,10 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 
 				// validate classification performance
 				int tp=0, fp=0, fn=0, tn=0;
-				for (int r=0; r<feature_matrix_validation.rows ; ++r)
+				for (int r=0; r<feature_matrix_test.rows ; ++r)
 				{
 					cv::Mat response(1, 1, CV_32FC1);
-					cv::Mat sample = feature_matrix_validation.row(r);
+					cv::Mat sample = feature_matrix_test.row(r);
 					if (ml_params.classification_method_ == MLParams::SVM)
 						response.at<float>(0,0) = svm.predict(sample);	// SVM
 					else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
@@ -889,14 +927,29 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 
 			// statistics
 			recall /= (double)cross_validation_params.folds_;  precision /= (double)cross_validation_params.folds_;  accuracy /= (double)cross_validation_params.folds_;
-			std::cout << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";
+			std::cout << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";  screen_output << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";
 			recall_vector.push_back(recall);
 			precision_vector.push_back(precision);
 			if (accuracy > max_accuracy) max_accuracy = accuracy;
 		} // ml_configurations
 
 		// compute average precision
-		computeAveragePrecision(recall_vector, precision_vector);
-
+		double average_precision = computeAveragePrecision(recall_vector, precision_vector);
+		std::cout << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;  output_summary << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;
 	} // attribute_index
+
+	// write screen outputs to file
+	std::stringstream logfilename;
+	logfilename << "texture_categorization/screen_output_attribute_learning_dtd.txt";
+	std::ofstream file(logfilename.str().c_str(), std::ios::out);
+	if (file.is_open() == true)
+	{
+		file << cross_validation_params.configurationToString() << std::endl << output_summary.str() << std::endl;
+		for (size_t ml_configuration_index = 0; ml_configuration_index<cross_validation_params.ml_configurations_.size(); ++ml_configuration_index)
+			file << cross_validation_params.ml_configurations_[ml_configuration_index].configurationToString() << std::endl;
+		file << screen_output.str();
+	}
+	else
+		std::cout << "Error: could not write screen output to file " << logfilename.str() << "." << std::endl;
+	file.close();
 }
