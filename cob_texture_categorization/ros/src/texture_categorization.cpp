@@ -499,7 +499,7 @@ void TextCategorizationNode::attributeLearningDTDDatabaseTest()
 	const std::string path_database_main = package_path + "/common/files/texture_database_dtd-r1.0.1/";
 	const std::string path_database = path_database_main + "images/";			// path to database			//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
 	const std::string path_to_cross_validation_sets = path_database_main + "labels/";
-	const std::string feature_files_path = package_path + "/common/files/data/handcrafted/"; 		// path to save data
+	const std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_sift/"; 		// path to save data
 
 	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data(2);
@@ -520,9 +520,10 @@ void TextCategorizationNode::attributeLearningDTDDatabaseTest()
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
 	CrossValidationParams cvp(CrossValidationParams::DTD_SPLITS, 10, 47);
-	setSVMConfigurations(cvp, "attributes_handcrafted_cimpoi47");
+	//setSVMConfigurations(cvp, "attributes_handcrafted_cimpoi47");
+	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, 0.001, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., 10., 0., 0.));
 
-	al.crossValidationDTD(cvp, path_to_cross_validation_sets, computed_attribute_matrix_rescaled, ground_truth_attribute_matrix, data_hierarchy, image_filenames);
+	al.crossValidationDTD(cvp, path_to_cross_validation_sets, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, image_filenames);
 
 //	std::vector< std::vector<int> > preselected_train_indices;
 //	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
@@ -581,10 +582,10 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 		std::vector<double> C_values; C_values.push_back(0.01); C_values.push_back(0.05); C_values.push_back(0.1); C_values.push_back(0.5); C_values.push_back(1.0); C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
 		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
 			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
-		std::vector<double> gamma_values; gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0); gamma_values.push_back(5.0); gamma_values.push_back(10.0);
-		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
-			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+//		std::vector<double> gamma_values; gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0); gamma_values.push_back(5.0); gamma_values.push_back(10.0);
+//		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
+//			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
+//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("attributes_farhadi2009")==0)
 	{
