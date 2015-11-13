@@ -1,0 +1,35 @@
+TargetSegmentationImageResolutionWidth: 320
+TargetSegmentationImageResolutionHeight: 240
+
+TargetScreenResolutionWidth: 1360
+TargetScreenResolutionHeight: 768
+
+# the following numbers define the size of the bounding box of considered points in the point cloud
+# double
+ConsideredVolumeX: 0.2
+ConsideredVolumeY: 100.0
+ConsideredVolumeZ: 1.2
+
+# float
+VoxelFilterLeafSizeX: 0.01
+VoxelFilterLeafSizeY: 0.01
+VoxelFilterLeafSizeZ: 0.01
+
+PlaneSearchMaxIterations: 100
+PlaneSearchDistanceThreshold: 0.02
+PlaneSearchAbortRemainingPointsFraction: 0.3
+PlaneSearchAbortMinimumPlaneSize: 1000
+
+ClusterSearchToleranceValue: 0.05
+ClusterSearchMinClusterSize: 50
+ClusterSearchMaxClusterSize: 25000
+
+ConsideredClusterCenterVolumeX: 0.3
+ConsideredClusterCenterVolumeY: 0.3
+ConsideredClusterCenterVolumeZ: 1.0
+
+DisplayFontColorB: 255
+DisplayFontColorG: 0
+DisplayFontColorR: 0
+
+TrackingInfluenceFactorOldData: 0.6

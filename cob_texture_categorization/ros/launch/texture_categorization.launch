@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <!--include file="$(find autopnp_tool_change)/ros/launch/fiducials/fiducials.launch"/-->
+
+  <node ns="texture_categorization" name="texture_categorization" pkg="cob_texture_categorization" type="texture_categorization_node" output="screen">
+    <remap from="pointcloud_in" to="/cam3d/depth/points_xyzrgb"/>
+    <remap from="colorimage_in" to="/cam3d/rgb/image"/>
+    <!--remap from="input_marker_detections" to="/fiducials/detect_fiducials"/-->
+    <remap from="input_color_camera_info" to="/camera/rgb/camera_info"/> 
+  </node>
+
+</launch>

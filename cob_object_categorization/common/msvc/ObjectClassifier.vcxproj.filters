@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\src\AbstractBlobDetector.cpp" />
+    <ClCompile Include="..\src\BlobFeature.cpp" />
+    <ClCompile Include="..\src\BlobList.cpp" />
+    <ClCompile Include="..\src\DetectorCore.cpp" />
+    <ClCompile Include="..\src\ICP.cpp" />
+    <ClCompile Include="..\src\JBKUtils.cpp" />
+    <ClCompile Include="..\src\Math3d.cpp" />
+    <ClCompile Include="..\src\ObjectClassifier.cpp" />
+    <ClCompile Include="..\src\ObjectClassifierMain.cpp" />
+    <ClCompile Include="..\src\OpenCVUtils.cpp" />
+    <ClCompile Include="..\src\SharedImageJBK.cpp" />
+    <ClCompile Include="..\src\SharedImageSequence.cpp" />
+    <ClCompile Include="..\src\ThreeDUtils.cpp" />
+    <ClCompile Include="..\src\timer.cpp" />
+    <ClCompile Include="..\src\pcl\gfpfh.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\object_categorization\AbstractBlobDetector.h" />
+    <ClInclude Include="..\include\object_categorization\DetectorCore.h" />
+    <ClInclude Include="..\include\object_categorization\GlobalDefines.h" />
+    <ClInclude Include="..\include\object_categorization\ICP.h" />
+    <ClInclude Include="..\include\object_categorization\JBKUtils.h" />
+    <ClInclude Include="..\include\object_categorization\Math3d.h" />
+    <ClInclude Include="..\include\object_categorization\ObjectClassifier.h" />
+    <ClInclude Include="..\include\object_categorization\OpenCVUtils.h" />
+    <ClInclude Include="..\include\object_categorization\SharedImage.h" />
+    <ClInclude Include="..\include\object_categorization\SharedImageGlobalConstants.h" />
+    <ClInclude Include="..\include\object_categorization\SharedImageJBK.h" />
+    <ClInclude Include="..\include\object_categorization\SharedImageSequence.h" />
+    <ClInclude Include="..\include\object_categorization\StopWatch.h" />
+    <ClInclude Include="..\include\object_categorization\timer.h" />
+  </ItemGroup>
+</Project>

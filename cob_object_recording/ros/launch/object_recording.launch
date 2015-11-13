@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <!-- setup the openni version, if true, the old openni stack is used, otherwise openni2 is used -->
+  <arg name="use_old_openni_version" default="true"/>
+
+  <include file="$(find cob_object_recording)/ros/launch/fiducials/fiducials.launch"/>
+
+  <node ns="object_recording" name="object_recording" pkg="cob_object_recording" type="object_recording" output="screen">
+    <!--group if="$(arg use_old_openni_version)">
+      <remap from="input_pointcloud" to="/cam3d/depth_registered/points"/>
+      <remap from="input_color_image" to="/cam3d/rgb/image_color"/>
+    </group>
+    <group unless="$(arg use_old_openni_version)">
+      <remap from="input_pointcloud" to="/cam3d/depth/points_xyzrgb"/>
+      <remap from="input_color_image" to="/cam3d/rgb/image"/>
+    </group-->
+    <remap from="input_pointcloud" to="/cam3d/depth_registered/points"/>
+    <remap from="input_color_image" to="/cam3d/rgb/image_color"/>
+    <remap from="input_marker_detections" to="/fiducials/detect_fiducials"/>
+    <remap from="input_color_camera_info" to="/cam3d/rgb/camera_info"/>
+  </node>
+
+</launch>

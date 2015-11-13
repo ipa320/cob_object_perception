@@ -1,0 +1,30 @@
+all: installed
+
+TARBALL = build/zxing-2.1.tar.gz
+TARBALL_URL = https://github.com/ipa320/thirdparty/raw/master/zxing-2.1.tar.gz
+# originally from http://zxing.googlecode.com/files/ZXing-2.1.zip
+SOURCE_DIR = build/zxing-2.1
+UNPACK_CMD = tar xzf
+MD5SUM_FILE = zxing-2.1.tar.gz.md5sum
+
+include $(shell rospack find mk)/download_unpack_build.mk
+
+installed: $(SOURCE_DIR)/unpacked
+	cd $(SOURCE_DIR)/core && ant &&  cd ../javase && ant && cd ../cpp && scons lib 
+	
+	# copy to common
+	mkdir -p common
+	mkdir -p common/lib
+	mkdir -p common/include
+	#&& ln -s `pwd`/core/src ../../../include &&
+	cp $(SOURCE_DIR)/cpp/build/libzxing.a common/lib
+	cp -r $(SOURCE_DIR)/cpp/build/core/src/zxing common/include
+	#mkdir tmp
+	#cd $(SOURCE_DIR)/cpp/build/core/src && find -name '*.h'
+	cd common/include && rm `find -type f -not -name '*.h' -not -name 'README'`
+	touch ROS_NOBUILD
+clean:
+	rm -rf common $(SOURCE_DIR) $(TARBALL)
+	rm -rf ROS_NOBUILD
+wipe: clean
+	-rm -rf build

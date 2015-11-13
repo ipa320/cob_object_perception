@@ -1,0 +1,654 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<tagset>
+  <image>
+    <imageName>ryoungt_13.08.2002/tPICT0042.JPG</imageName>
+    <resolution x="960" y="1280" />
+    <taggedRectangles>
+      <taggedRectangle x="612.0" y="1167.0" width="131.0" height="28.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>BEWARE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="588.0" y="1204.0" width="176.0" height="24.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ALLIGATOR</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="628.0" y="1239.0" width="101.0" height="23.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>TEETH</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/vPICT0012.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="529.0" y="488.0" width="238.0" height="32.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>WRIGLEY'S</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="511.0" y="528.0" width="282.0" height="36.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>DOUBLEMINT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="527.0" y="570.0" width="152.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>CHEWING</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="698.0" y="571.0" width="73.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>GUM</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/vPICT0017.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="130.0" y="98.0" width="331.0" height="58.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ESPRESSO</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="138.0" y="306.0" width="517.0" height="56.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ESPRESSOCHOC</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="142.0" y="506.0" width="143.0" height="52.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HOT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="301.0" y="509.0" width="156.0" height="48.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>MILK</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="151.0" y="704.0" width="393.0" height="44.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>CHOCOMILK</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="803.0" y="108.0" width="79.0" height="60.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>52</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="804.0" y="310.0" width="64.0" height="50.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>53</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="793.0" y="505.0" width="72.0" height="57.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>54</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="789.0" y="693.0" width="71.0" height="51.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>55</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="976.0" y="98.0" width="138.0" height="101.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="970.0" y="297.0" width="138.0" height="97.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="953.0" y="504.0" width="140.0" height="96.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="948.0" y="694.0" width="128.0" height="88.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/tPICT0037.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="80.0" y="494.0" width="1046.0" height="292.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ROSE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="84.0" y="822.0" width="361.0" height="99.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Builders</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="478.0" y="844.0" width="79.0" height="83.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>&amp;</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="593.0" y="834.0" width="523.0" height="87.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Contractors</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/PICT0094.JPG</imageName>
+    <resolution x="640" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="190.0" y="38.0" width="258.0" height="91.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>EXIT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="87.0" y="159.0" width="472.0" height="97.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>SERVICE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="29.0" y="299.0" width="579.0" height="99.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>VEHICLES</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/PICT0095.JPG</imageName>
+    <resolution x="640" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="34.0" y="323.0" width="108.0" height="42.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>YOU</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="169.0" y="317.0" width="105.0" height="44.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ARE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="87.0" y="379.0" width="146.0" height="44.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HERE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="378.0" y="442.0" width="107.0" height="29.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>STUDENT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="494.0" y="444.0" width="140.0" height="26.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Residence</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/fdPICT0011.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="470.0" y="58.0" width="478.0" height="100.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>POSTPAK</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="468.0" y="173.0" width="478.0" height="100.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>POSTPAK</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="550.0" y="486.0" width="335.0" height="107.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>POST</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="477.0" y="613.0" width="453.0" height="111.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>OFFICE</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/dPICT0093.JPG</imageName>
+    <resolution x="640" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="408.0" y="186.0" width="90.0" height="117.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>6</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="370.0" y="140.0" width="91.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>University</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="462.0" y="139.0" width="23.0" height="16.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>of</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="486.0" y="139.0" width="52.0" height="16.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Essex</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="369.0" y="160.0" width="34.0" height="14.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Gas</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="408.0" y="158.0" width="68.0" height="18.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Station</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="481.0" y="160.0" width="25.0" height="17.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>No</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/dPICT0050.JPG</imageName>
+    <resolution x="640" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="187.0" y="149.0" width="33.0" height="38.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>5</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="34.0" y="238.0" width="400.0" height="66.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>SPRINKLER</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="109.0" y="314.0" width="226.0" height="54.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>VALVE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="35.0" y="378.0" width="392.0" height="60.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>CHAMBER</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="-2.0" y="427.0" width="28.0" height="15.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ION</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/dPICT0051.JPG</imageName>
+    <resolution x="611" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="47.0" y="189.0" width="42.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>The</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="43.0" y="210.0" width="206.0" height="49.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Linen</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="276.0" y="210.0" width="275.0" height="63.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Factory</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/dpct0018.jpg</imageName>
+    <resolution x="1191" y="473" />
+    <taggedRectangles>
+      <taggedRectangle x="177.0" y="241.0" width="324.0" height="56.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>BELFAST</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="525.0" y="239.0" width="159.0" height="57.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>CITY</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="711.0" y="237.0" width="352.0" height="55.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HOSPITAL</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_13.08.2002/dpct0024.jpg</imageName>
+    <resolution x="881" y="685" />
+    <taggedRectangles>
+      <taggedRectangle x="149.0" y="346.0" width="396.0" height="62.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>REMINDER</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>sml_01.08.2002/IMG_1198.JPG</imageName>
+    <resolution x="1600" y="1200" />
+    <taggedRectangles>
+      <taggedRectangle x="195.0" y="369.0" width="328.0" height="69.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Chairman</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="543.0" y="374.0" width="69.0" height="58.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>of</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="626.0" y="372.0" width="102.0" height="61.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>the</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="750.0" y="368.0" width="360.0" height="79.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Organising</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="1127.0" y="366.0" width="366.0" height="74.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Committee</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="1173.0" y="701.0" width="328.0" height="82.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Secretary</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/wPict0023.jpg</imageName>
+    <resolution x="526" y="538" />
+    <taggedRectangles>
+      <taggedRectangle x="97.0" y="52.0" width="19.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Dr</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="115.0" y="53.0" width="49.0" height="18.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Oetker</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="73.0" y="93.0" width="360.0" height="105.0" offset="21.42857142857155" rotation="0.0" userName="admin">
+        <tag>Ristorante</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="121.0" y="191.0" width="102.0" height="23.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>PIZZA</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="236.0" y="180.0" width="155.0" height="27.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>SPECIALE</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/PICTs0030.JPG</imageName>
+    <resolution x="640" y="480" />
+    <taggedRectangles>
+      <taggedRectangle x="136.0" y="12.0" width="99.0" height="38.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>FUN</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="257.0" y="13.0" width="216.0" height="39.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>FASHION</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="151.0" y="54.0" width="98.0" height="24.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>LADIES</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="257.0" y="57.0" width="123.0" height="21.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>LINGERIE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="391.0" y="58.0" width="69.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>SHOP</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="17.0" y="99.0" width="82.0" height="19.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>01206</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="108.0" y="98.0" width="98.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>368166</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="224.0" y="99.0" width="169.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>FUNFASHION</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="415.0" y="100.0" width="114.0" height="20.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HOTMAIL</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="537.0" y="100.0" width="57.0" height="21.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>COM</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/PICT0049.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="534.0" y="680.0" width="58.0" height="54.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>11</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="740.0" y="156.0" width="242.0" height="59.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>COURT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="365.0" y="157.0" width="333.0" height="58.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HARWICH</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="266.0" y="676.0" width="227.0" height="57.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HOUSE</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/PICT0024.JPG</imageName>
+    <resolution x="960" y="1280" />
+    <taggedRectangles>
+      <taggedRectangle x="263.0" y="802.0" width="626.0" height="97.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>REPAIRS</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="215.0" y="631.0" width="351.0" height="100.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>SHOE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="454.0" y="479.0" width="378.0" height="92.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>WAIT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="202.0" y="125.0" width="464.0" height="103.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>WHILE</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="421.0" y="305.0" width="279.0" height="95.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>YOU</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/PICT0006.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="1135.0" y="355.0" width="104.0" height="223.0" offset="16.0" rotation="0.0" userName="admin">
+        <tag>1</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="728.0" y="737.0" width="271.0" height="88.0" offset="4.0" rotation="0.0" userName="admin">
+        <tag>Enter</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="92.0" y="329.0" width="923.0" height="307.0" offset="8.0" rotation="0.0" userName="admin">
+        <tag>Gallery</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="355.0" y="731.0" width="327.0" height="93.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Please</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/Pict0046.jpg</imageName>
+    <resolution x="671" y="501" />
+    <taggedRectangles>
+      <taggedRectangle x="368.0" y="158.0" width="124.0" height="71.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>aid</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="218.0" y="267.0" width="109.0" height="59.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>aid</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="311.0" y="350.0" width="327.0" height="59.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>available</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="21.0" y="344.0" width="162.0" height="71.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>dept</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="155.0" y="160.0" width="179.0" height="67.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>First</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="23.0" y="265.0" width="160.0" height="59.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>First</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="365.0" y="268.0" width="103.0" height="58.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>for</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="21.0" y="422.0" width="165.0" height="60.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>from</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="227.0" y="349.0" width="54.0" height="58.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>is</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="501.0" y="267.0" width="134.0" height="59.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>this</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/bPICT0010.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="1049.0" y="416.0" width="142.0" height="148.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>2</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="959.0" y="849.0" width="87.0" height="32.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>3RD</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="923.0" y="879.0" width="166.0" height="33.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>EDITION</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="164.0" y="360.0" width="552.0" height="138.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>graphic</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="126.0" y="496.0" width="1002.0" height="312.0" offset="-2.0" rotation="0.0" userName="admin">
+        <tag>JAVA</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="731.0" y="845.0" width="116.0" height="76.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>JFC</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="252.0" y="847.0" width="330.0" height="84.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>Mastering</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="600.0" y="851.0" width="106.0" height="66.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>the</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/bPICT0012.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="526.0" y="569.0" width="151.0" height="23.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>CHEWING</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="514.0" y="525.0" width="276.0" height="37.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>DOUBLEMINT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="696.0" y="571.0" width="74.0" height="22.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>GUM</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="534.0" y="490.0" width="230.0" height="26.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>WRIGLEY'S</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/bPICT0017.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="957.0" y="505.0" width="132.0" height="90.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="947.0" y="688.0" width="131.0" height="103.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="974.0" y="296.0" width="132.0" height="90.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="979.0" y="96.0" width="132.0" height="97.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>20p</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="810.0" y="108.0" width="66.0" height="57.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>52</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="803.0" y="311.0" width="64.0" height="51.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>53</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="798.0" y="505.0" width="63.0" height="50.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>54</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="792.0" y="692.0" width="61.0" height="50.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>55</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="150.0" y="699.0" width="395.0" height="49.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>CHOCOMILK</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="133.0" y="96.0" width="328.0" height="53.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ESPRESSO</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="137.0" y="305.0" width="517.0" height="53.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>ESPRESSOCHOC</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="142.0" y="505.0" width="140.0" height="54.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>HOT</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="301.0" y="506.0" width="154.0" height="52.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>MILK</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+  <image>
+    <imageName>ryoungt_05.08.2002/bPICT0021.JPG</imageName>
+    <resolution x="1280" y="960" />
+    <taggedRectangles>
+      <taggedRectangle x="156.0" y="497.0" width="315.0" height="42.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>EXCLUSIVELY</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="482.0" y="498.0" width="94.0" height="34.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>for</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="452.0" y="553.0" width="153.0" height="38.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>USERS</tag>
+        <segmentation />
+      </taggedRectangle>
+      <taggedRectangle x="126.0" y="556.0" width="313.0" height="41.0" offset="0.0" rotation="0.0" userName="admin">
+        <tag>WHEELCHAIR</tag>
+        <segmentation />
+      </taggedRectangle>
+    </taggedRectangles>
+  </image>
+</tagset>
+
