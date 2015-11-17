@@ -1,4 +1,4 @@
-<package>
+<package format="2">
 	<name>cob_object_perception</name>
 	<version>0.1.0</version>
 	<description>This meta-package includes open source software for object recognition. Objects may be marker patterns or written text</description>
@@ -8,14 +8,16 @@
 	<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
 	<buildtool_depend>catkin</buildtool_depend>
 
-	<run_depend>cob_fiducials</run_depend>
-	<run_depend>cob_marker</run_depend>
-	<run_depend>cob_object_categorization</run_depend>
-	<run_depend>cob_object_detection_fake</run_depend>
-	<run_depend>cob_object_recording</run_depend>
-	<run_depend>cob_read_text</run_depend>
-	<run_depend>libvlfeat</run_depend>
-	<run_depend>libzxing</run_depend>
+	<exec_depend>cob_fiducials</exec_depend>
+	<exec_depend>cob_marker</exec_depend>
+	<exec_depend>cob_object_categorization</exec_depend>
+	<exec_depend>cob_object_detection_fake</exec_depend>
+	<exec_depend>cob_object_recording</exec_depend>
+	<exec_depend>cob_read_text</exec_depend>
+	<exec_depend>cob_surface_classification</exec_depend>
+	<exec_depend>cob_texture_categorization</exec_depend>
+	<exec_depend>libvlfeat</exec_depend>
+	<exec_depend>libzxing</exec_depend>
 
 	<export>
 		<metapackage />

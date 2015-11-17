@@ -200,7 +200,7 @@ target_link_libraries(simulation_scene_reset
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
-install(TARGETS cob_3d_curvatureSegmentation surface_classification 
+install(TARGETS cob_3d_curvatureSegmentation surface_classification simulation_scene_generator simulation_scene_reset
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
