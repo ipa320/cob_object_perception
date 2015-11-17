@@ -56,11 +56,11 @@ void IfvFeatures::computeImprovedFisherVector(const cv::Mat& original_image, con
 	projectToPrincipalComponents(dense_features, dense_features_pc_subspace);
 
 	// compute Improved Fisher Vector
-	vl_fisher_encode((void*)fisher_vector_encoding.ptr(), VL_TYPE_FLOAT, vl_gmm_get_means(gmm_), dense_features.cols, number_clusters, vl_gmm_get_covariances(gmm_), vl_gmm_get_priors(gmm_), (void*)dense_features_pc_subspace.ptr(), dense_features_pc_subspace.rows, VL_FISHER_FLAG_IMPROVED);
+	vl_fisher_encode((void*)fisher_vector_encoding.ptr(), VL_TYPE_FLOAT, vl_gmm_get_means(gmm_), dense_features_pc_subspace.cols, number_clusters, vl_gmm_get_covariances(gmm_), vl_gmm_get_priors(gmm_), (void*)dense_features_pc_subspace.ptr(), dense_features_pc_subspace.rows, VL_FISHER_FLAG_IMPROVED);
 }
 
 
-void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters, FeatureType feature_type)
+void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters, FeatureType feature_type, const int pca_retained_components)
 {
 	cv::Mat feature_subset(image_filenames.size()*feature_samples_per_image, getFeatureDimension(feature_type), CV_32FC1);
 	for (size_t i=0; i<image_filenames.size(); ++i)
@@ -119,7 +119,7 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 	}
 
 	// conduct PCA on data to remove correlation (GMM is only employing diagonal covariance matrices)
-	generatePCA(feature_subset);
+	generatePCA(feature_subset, pca_retained_components);
 	cv::Mat feature_subset_pc_subspace;
 	projectToPrincipalComponents(feature_subset, feature_subset_pc_subspace);
 	std::cout << "feature_subset_pc_subspace size: " << feature_subset_pc_subspace.rows << ", " << feature_subset_pc_subspace.cols << std::endl;
@@ -158,11 +158,11 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 	cv::Mat image_float, octave_base_image;
 	image.convertTo(image_float, CV_32F, 1./255., 0);
 	octave_base_image = image_float;
-	for (int scale=-1; scale<9; ++scale)
+	for (int scale=0; scale<9; ++scale)
 	{
 		// smooth and resize image according to scale
 		cv::Mat smoothed_image;
-		if (scale != -1)
+		if (scale != 0)
 		{
 			double sigma = pow(2., (double)((((scale-1)%images_per_octave) + 1.)/(double)images_per_octave));
 			cv::GaussianBlur(octave_base_image, smoothed_image, cv::Size(0,0), sigma, sigma);
@@ -209,7 +209,7 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 		vl_dsift_process(dsift, smoothed_image_ptr);
 		int number_keypoints = vl_dsift_get_keypoint_num(dsift);
 		//std::cout << "number_keypoints" << number_keypoints << std::endl;
-		cv::Mat const_features = cv::Mat(number_keypoints, vl_dsift_get_descriptor_size(dsift), CV_32FC1, (void*)vl_dsift_get_descriptors(dsift));
+		const cv::Mat const_features = cv::Mat(number_keypoints, vl_dsift_get_descriptor_size(dsift), CV_32FC1, (void*)vl_dsift_get_descriptors(dsift));
 		cv::Mat scale_features = const_features.clone();
 
 		// remove low contrast descriptors
@@ -254,9 +254,9 @@ void IfvFeatures::computeDenseRGBPatches(const cv::Mat& image, cv::Mat& features
 }
 
 
-void IfvFeatures::generatePCA(const cv::Mat& data)
+void IfvFeatures::generatePCA(const cv::Mat& data, const int pca_retained_components)
 {
-	pca_(data, cv::noArray(), CV_PCA_DATA_AS_ROW);
+	pca_(data, cv::noArray(), CV_PCA_DATA_AS_ROW, pca_retained_components);
 }
 
 
@@ -273,33 +273,34 @@ void IfvFeatures::generateGMM(const cv::Mat& feature_set, const int number_clust
 
 	float* data = (float*)feature_set.ptr();
 
-	// init with kmeans
-	std::cout << "Starting kmeans clustering ..." << std::endl;
-	// Use float data and the L2 distance for clustering
-	VlKMeans* kmeans = vl_kmeans_new(VL_TYPE_FLOAT, VlDistanceL2);
-	// Use Lloyd algorithm
-	vl_kmeans_set_algorithm(kmeans, VlKMeansLloyd);
-	// Initialize the cluster centers by randomly sampling the data
-	vl_kmeans_init_centers_with_rand_data(kmeans, data, data_dimension, number_data, number_clusters);
-	// Run at most 100 iterations of cluster refinement using Lloyd algorithm
-	vl_kmeans_set_max_num_iterations(kmeans, 100);
-	vl_kmeans_refine_centers(kmeans, data, number_data);
+//	// init with kmeans  --  already part of gmm computations
+//	std::cout << "Starting kmeans clustering ..." << std::endl;
+//	// Use float data and the L2 distance for clustering
+//	VlKMeans* kmeans = vl_kmeans_new(VL_TYPE_FLOAT, VlDistanceL2);
+//	// Use Lloyd algorithm
+//	vl_kmeans_set_algorithm(kmeans, VlKMeansLloyd);
+//	// Initialize the cluster centers by randomly sampling the data
+//	vl_kmeans_init_centers_with_rand_data(kmeans, data, data_dimension, number_data, number_clusters);
+//	// Run at most 100 iterations of cluster refinement using Lloyd algorithm
+//	vl_kmeans_set_max_num_iterations(kmeans, 100);
+//	vl_kmeans_refine_centers(kmeans, data, number_data);
 
 	// create a new instance of a GMM object for float data
 	if (gmm_ != 0)
 		vl_gmm_delete(gmm_);
 	gmm_ = vl_gmm_new(VL_TYPE_FLOAT, data_dimension, number_clusters);
+	vl_gmm_set_verbosity(gmm_, 1);
 	// set the maximum number of EM iterations to 100
 	vl_gmm_set_max_num_iterations(gmm_, 100);
 	// set the initialization to kmeans selection
 	vl_gmm_set_initialization(gmm_, VlGMMKMeans);
-	vl_gmm_set_kmeans_init_object(gmm_, kmeans);
+	vl_gmm_set_kmeans_init_object(gmm_, NULL); //kmeans);
 	// cluster the data, i.e. learn the GMM
 	std::cout << "Starting GMM clustering ..." << std::endl;
 	vl_gmm_cluster(gmm_, data, number_data);
 	std::cout << "Clustering finished." << std::endl;
 
-	vl_kmeans_delete(kmeans);
+//	vl_kmeans_delete(kmeans);
 }
 
 

@@ -10,6 +10,7 @@
 
 //#include "cob_texture_categorization/texture_categorization.h"
 #include "cob_texture_categorization/create_train_data.h"
+#include "cob_texture_categorization/ml_params.h"
 
 #include <ml.h>
 
@@ -23,7 +24,7 @@ public:
 	train_ml();
 
 	// do a leave out one object per class cross validation on class prediction
-	void cross_validation(int folds, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
+	void cross_validation(const CrossValidationParams& cross_validation_params, const cv::Mat& feature_matrix, const cv::Mat& label_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy,
 			const std::vector< std::vector<int> >& preselected_train_indices=std::vector< std::vector<int> >(), const std::vector<cv::Mat>& feature_matrix_test_data=std::vector<cv::Mat>(),
 			const std::vector<cv::Mat>& label_matrix_test_data=std::vector<cv::Mat>(), const std::vector<cv::Mat>& feature_matrices=std::vector<cv::Mat>());
 

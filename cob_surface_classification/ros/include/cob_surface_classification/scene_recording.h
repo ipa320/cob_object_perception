@@ -82,16 +82,27 @@
 #include <opencv/highgui.h>
 
 
-class Scene_recording {
+class SceneRecording {
 public:
-	Scene_recording();
-	virtual ~Scene_recording();
-	void saveImage(cv::Mat color_image, std::string name);
+	SceneRecording();
+	virtual ~SceneRecording();
+	void saveImage(const cv::Mat& color_image, std::string name);
+	void loadImage(cv::Mat& color_image, std::string name);
 	void saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr pointcloud, std::string name);
+	void loadCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, std::string name);
 	void saveText(std::string txt, std::string name);
 
 	inline void setPath(std::string p) { data_storage_path = p; }
 
+	inline int getImageRecordCounter()
+	{
+		return nr_records;
+	}
+
+	inline void setImageRecordCounter(int number)
+	{
+		nr_records = number;
+	}
 
 private:
 	std::string data_storage_path;

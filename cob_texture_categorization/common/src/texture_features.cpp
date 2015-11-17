@@ -2305,7 +2305,7 @@ void texture_features::distance_to_edge_histogram(const cv::Mat& detected_edges,
 	std::cout << "acc=" << acc << "\tvalue=" << value/acc << std::endl;
 }
 
-#define DEBUG_OUTPUTS
+//#define DEBUG_OUTPUTS
 
 // todo: working on this
 void texture_features::compute_texture_features(const cv::Mat& img, struct feature_results& results, cv::Mat* raw_features)
@@ -2984,7 +2984,9 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	const int number_magnitude_mask_pixels = cv::sum(magnitude_mask!=0).val[0]/255.;
 //	// todo: use this ratio?
 	double gradient_pixel_ratio = (number_inv_mask_pixels>0 ? (double)number_magnitude_mask_pixels/(double)number_inv_mask_pixels : 0.);
+#ifdef DEBUG_OUTPUTS
 	std::cout << "gradient_pixel_ratio=" << gradient_pixel_ratio << std::endl;
+#endif
 
 	// map gradient directions to [0, M_PI] range
 	for(int v=0;v<theta.rows;v++)
