@@ -371,10 +371,7 @@ unsigned long FiducialModelAruco::LoadParameters(std::string directory_and_filen
 					aruco_parameters.m_line_width_height = marker_size;
 					vec_aruco_parameters.push_back(aruco_parameters);
 				}
-				else
-				{
-					m_marker_size = marker_size;
-				}
+				m_marker_size = marker_size;
 
 //************************************************************************************
 //	END FiducialDetector->Fiducial

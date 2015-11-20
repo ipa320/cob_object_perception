@@ -22,9 +22,9 @@ installed: $(SOURCE_DIR)/unpacked
 	#mkdir tmp
 	#cd $(SOURCE_DIR)/cpp/build/core/src && find -name '*.h'
 	cd common/include && rm `find -type f -not -name '*.h' -not -name 'README'`
-	touch ROS_NOBUILD
+	#touch ROS_NOBUILD
 clean:
 	rm -rf common $(SOURCE_DIR) $(TARBALL)
-	rm -rf ROS_NOBUILD
+	#rm -rf ROS_NOBUILD
 wipe: clean
 	-rm -rf build

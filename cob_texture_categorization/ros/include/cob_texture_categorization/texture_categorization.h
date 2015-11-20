@@ -10,7 +10,7 @@
 
 // ROS includes
 #include <ros/ros.h>
-//#include <ros/package.h>
+#include <ros/package.h>
 //#include <tf/tf.h>
 
 // ROS message includes
@@ -109,17 +109,24 @@ protected:
 	void calibrationCallback(const sensor_msgs::CameraInfo::ConstPtr& calibration_msg);
 
 
-	void inputCallbackNoCam();
+//	void inputCallbackNoCam();
 
-	void attributeLearningGeneratedDatabaseTestHandcrafted();
 
-	void attributeLearningDatabaseTestFarhadi();
 	void attributeLearningDatabaseTestHandcrafted();
+	void attributeLearningDatabaseTestFarhadi();
 	void attributeLearningDatabaseTestCimpoi();
-	void attributeLearningDatabaseTestAutomatedClass();
+	void attributeLearningGeneratedDatabaseTestHandcrafted();
+//	void attributeLearningDatabaseTestAutomatedClass();
 
 	void crossValidationVerbalClassDescription();
 
+	void scaleNormalizeHandcraftedAttributes(const cv::Mat& source, cv::Mat& rescaled);
+	void attributeLearningDTDDatabaseTest();
+
+	// defines a set of Neural Network configurations for cross-validation
+	void setNNConfigurations(CrossValidationParams& cvp, const std::string& experiment_key);
+	// defines a set of SVM configurations for cross-validation
+	void setSVMConfigurations(CrossValidationParams& cvp, const std::string& experiment_key);
 
 	std::set<int> considered_classes_;	// considered classes may limit the amount of classes used from a database for training and recognition
 

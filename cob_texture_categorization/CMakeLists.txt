@@ -9,6 +9,7 @@ set(catkin_RUN_PACKAGES # all ROS packages from package.xml (libopencv-dev is sy
   sensor_msgs
   message_filters
   image_transport
+  libvlfeat
   cob_surface_classification
 )
 
@@ -42,9 +43,7 @@ find_package(OpenCV REQUIRED)	# name identical to FindOpenCV.cmake in cmake_modu
 catkin_package(
 INCLUDE_DIRS
 	common/include
-	/home/rmb/opt/vlfeat-0.9.19
 LIBRARIES
-	
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
@@ -60,7 +59,6 @@ DEPENDS
 include_directories(
 	common/include
 	ros/include
-	/home/rmb/opt/vlfeat-0.9.19
 	${catkin_INCLUDE_DIRS} # same name as find_package
 	${OpenCV_INCLUDE_DIRS}
 #	${PCL_INCLUDE_DIRS}
@@ -72,10 +70,9 @@ ros/src/texture_categorization.cpp common/src/create_lbp.cpp common/src/get_mapp
 common/src/attribute_learning.cpp common/src/ifv_features.cpp
 )
 
-find_library(VL_LIBRARY vl /home/rmb/opt/vlfeat-0.9.19/bin/glnxa64)
 target_link_libraries(texture_categorization_node
-	${VL_LIBRARY}
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${OpenCV_LIBRARIES}
 )
 
 add_executable(texture_generator common/src/texture_generator.cpp
@@ -84,6 +81,7 @@ add_executable(texture_generator common/src/texture_generator.cpp
 )
 target_link_libraries(texture_generator
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${OpenCV_LIBRARIES}
 )
 
 add_dependencies(texture_categorization_node ${catkin_EXPORTED_TARGETS})

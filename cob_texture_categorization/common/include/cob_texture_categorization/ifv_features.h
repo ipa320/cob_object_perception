@@ -27,7 +27,7 @@ public:
 	void computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type);
 	void computeImprovedFisherVector(const cv::Mat& original_image, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type);
 
-	void constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor=1.0, const int feature_samples_per_image=1000, const int number_clusters = 256, FeatureType feature_type = DENSE_MULTISCALE_SIFT);
+	void constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor=1.0, const int feature_samples_per_image=1000, const int number_clusters = 256, FeatureType feature_type = DENSE_MULTISCALE_SIFT, const int pca_retained_components = 80);
 
 	// computes dense SIFT features at multiple scales
 	// features = matrix with one feature per row
@@ -38,7 +38,7 @@ public:
 	void computeDenseRGBPatches(const cv::Mat& image, cv::Mat& features);
 
 	// computes a pca on the data
-	void generatePCA(const cv::Mat& data);
+	void generatePCA(const cv::Mat& data, const int pca_retained_component);
 
 	// maps data to the principal components
 	void projectToPrincipalComponents(const cv::Mat& data, cv::Mat& mapping);

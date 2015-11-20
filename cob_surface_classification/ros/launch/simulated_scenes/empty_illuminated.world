@@ -1,0 +1,79 @@
+<?xml version="1.0" ?>
+<sdf version='1.4'>
+  <world name='default'>
+
+    <!-- global light source -->
+
+    <light type="directional" name="light_zm">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>1.0 1.0 1.0 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.00</quadratic>
+      </attenuation>
+      <direction>0 0 -1.0</direction>
+    </light>
+
+    <light type="directional" name="light_xm">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>1.0 1.0 1.0 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.00</quadratic>
+      </attenuation>
+      <direction>-1.0 0 0</direction>
+    </light>
+
+    <light type="directional" name="light_ym">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 10 0 0 0 0</pose>
+      <diffuse>1.0 1.0 1.0 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.00</quadratic>
+      </attenuation>
+      <direction>0 -1.0 0</direction>
+    </light>
+    
+    <light type="directional" name="light_yp">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 -10 0 0 0 0</pose>
+      <diffuse>1.0 1.0 1.0 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.00</quadratic>
+      </attenuation>
+      <direction>0 1.0 0</direction>
+    </light>
+    
+    <!-- A ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+  
+    <!--include>
+      <uri>model://sun</uri>
+    </include-->
+    
+    <gui>
+      <camera name='user_camera'>
+        <pose>3 0 4 0 0.7 3.14</pose>
+      </camera>
+    </gui>
+
+  </world>
+</sdf>

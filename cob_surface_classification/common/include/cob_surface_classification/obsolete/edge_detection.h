@@ -119,7 +119,7 @@ public:
 		windowY_ = y;
 	}
 
-	void computeDepthEdges(cv::Mat depth_image, PointCloudInConstPtr pointcloud, cv::Mat& edgeImage);
+	void computeDepthEdges(cv::Mat depth_image, PointCloudInConstPtr pointcloud, cv::Mat& edgeImage, const float depth_factor=0.02f);
 
 	void sobelLaplace(cv::Mat& color_image, cv::Mat& depth_image);
 

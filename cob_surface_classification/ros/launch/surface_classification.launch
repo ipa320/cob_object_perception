@@ -25,13 +25,15 @@
   <node ns="surface_classification" name="surface_classification" pkg="cob_surface_classification" type="surface_classification" output="screen"><!-- launch-prefix="gdb -ex run args" -->
    <!--remap from="pointcloud_in" to="object_segmentation_pass_through/output"/-->
    <!--remap from="pointcloud_in" to="/cob_3d_mapping_filters/point_cloud2_filtered_speckle"/-->
-   <remap from="pointcloud_in" to="/cam3d/depth/points_xyzrgb"/>
+   <!--remap from="pointcloud_in" to="/cam3d/depth/points_xyzrgb"/-->
    <!--remap from="pointcloud_in" to="/cam3d/depth/points"/-->
-   <!--remap from="pointcloud_in" to="/cam3d/depth_registered/points"/-->
+   <remap from="pointcloud_in" to="/cam3d/depth_registered/points"/>
    <!--remap from="colorimage_in" to="/cam3d/rgb/image"/-->
-   <remap from="colorimage_in" to="/cam3d/rgb/image"/>
-   <!--<remap from="pointcloud_in" to="/camera/depth/points"/>-->
-  <!-- <remap from="colorimage_in" to="/camera/rgb/image_color"/>-->
+   <remap from="colorimage_in" to="/cam3d/rgb/image_raw"/>
+   <!--remap from="pointcloud_in" to="/camera/depth/points"/-->
+   <!--remap from="colorimage_in" to="/cam3d/rgb/image_color"/-->
+   
+   <param name="visualize_edge_detection" value="True" />
   </node>
 
 </launch>
