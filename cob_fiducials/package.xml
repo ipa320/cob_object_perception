@@ -1,47 +1,32 @@
-<package>
+<package format="2">
 	<name>cob_fiducials</name>
 	<version>0.1.0</version>
 
-        <description>
-	        Fiducial recognition. Implementation of different 2D tags like PI-tag from Bergamasco et al. for recognition with a single 2D camera.
-        </description>
-        <author>Jan Fischer</author>
-        <maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-        <license>LGPL</license>
-        <url>http://ros.org/wiki/cob_fiducials</url>
-
-        <buildtool_depend>catkin</buildtool_depend>
-
-  		<build_depend>libopencv-dev</build_depend>
-        <build_depend>cmake_modules</build_depend>
-        <build_depend>roscpp</build_depend>
-        <build_depend>sensor_msgs</build_depend>
-        <build_depend>tf</build_depend>
-        <build_depend>image_transport</build_depend>
-        <build_depend>cv_bridge</build_depend>
-        <build_depend>visualization_msgs</build_depend>
-        <build_depend>cob_vision_utils</build_depend>
-        <build_depend>cob_object_detection_msgs</build_depend>
-        <build_depend>std_srvs</build_depend>
-
-        <build_depend>tinyxml</build_depend>
-        <build_depend>boost</build_depend>
-        <build_depend>libpcl-all-dev</build_depend>
-
-  		<run_depend>libopencv-dev</run_depend>
-        <run_depend>roscpp</run_depend>
-        <run_depend>sensor_msgs</run_depend>
-        <run_depend>tf</run_depend>
-        <run_depend>image_transport</run_depend>
-        <run_depend>cv_bridge</run_depend>
-        <run_depend>visualization_msgs</run_depend>
-        <run_depend>cob_vision_utils</run_depend>
-        <run_depend>cob_object_detection_msgs</run_depend>
-        <run_depend>std_srvs</run_depend>
-        
-        <run_depend>tinyxml</run_depend>
-        <run_depend>boost</run_depend>
-        <run_depend>libpcl-all</run_depend>
+		<description>
+			Fiducial recognition. Implementation of different 2D tags like PI-tag from Bergamasco et al. for recognition with a single 2D camera.
+		</description>
+		<author>Jan Fischer</author>
+		<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
+		<license>LGPL</license>
+		<url>http://ros.org/wiki/cob_fiducials</url>
+		
+		<buildtool_depend>catkin</buildtool_depend>
+		
+		<depend>libopencv-dev</depend>
+		<depend>cmake_modules</depend>
+		<depend>roscpp</depend>
+		<depend>sensor_msgs</depend>
+		<depend>tf</depend>
+		<depend>image_transport</depend>
+		<depend>cv_bridge</depend>
+		<depend>visualization_msgs</depend>
+		<depend>cob_vision_utils</depend>
+		<depend>cob_object_detection_msgs</depend>
+		<depend>std_srvs</depend>
+		
+		<depend>tinyxml</depend>
+		<depend>boost</depend>
+		<depend>libpcl-all-dev</depend>
 
 </package>
 

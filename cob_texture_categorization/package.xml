@@ -1,40 +1,29 @@
-<package>
-  <name>cob_texture_categorization</name>
-  <version>0.1.0</version>
-  <description>
+<package format="2">
+	<name>cob_texture_categorization</name>
+	<version>0.1.0</version>
+	<description>
 
-     Image processing tool for the categorization of textures.
+		Image processing tool for the categorization of textures.
 
-  </description>
-  <author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann, Daniel Hundsdörfer</author>
-  <maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-  <license>LGPL</license>
-  <url>http://ros.org/wiki/cob_texture_categorization</url>
+	</description>
+	<author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann, Daniel Hundsdörfer</author>
+	<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
+	<license>LGPL</license>
+	<url>http://ros.org/wiki/cob_texture_categorization</url>
 
-  <buildtool_depend>catkin</buildtool_depend>
+	<buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>libopencv-dev</build_depend>
-  <build_depend>pcl_ros</build_depend>
-  <build_depend>cmake_modules</build_depend> <!-- needed for tinyxml, boost opencv, or eigen -->
-  <build_depend>roscpp</build_depend>
-  <build_depend>roslib</build_depend>
-  <build_depend>cv_bridge</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>message_filters</build_depend>
-  <build_depend>image_transport</build_depend>
-  <build_depend>libpcl-all-dev</build_depend>
-  <build_depend>libvlfeat</build_depend>
-  <build_depend>cob_surface_classification</build_depend>
+	<depend>libopencv-dev</depend>
+	<depend>pcl_ros</depend>
+	<depend>cmake_modules</depend> <!-- needed for tinyxml, boost opencv, or eigen -->
+	<depend>roscpp</depend>
+	<depend>roslib</depend>
+	<depend>cv_bridge</depend>
+	<depend>sensor_msgs</depend>
+	<depend>message_filters</depend>
+	<depend>image_transport</depend>
+	<depend>libpcl-all-dev</depend>
+	<depend>libvlfeat</depend>
+	<depend>cob_surface_classification</depend>
 
-  <run_depend>libopencv-dev</run_depend>
-  <run_depend>pcl_ros</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>roslib</run_depend>
-  <run_depend>cv_bridge</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>message_filters</run_depend>
-  <run_depend>image_transport</run_depend>
-  <run_depend>libpcl-all</run_depend>
-  <run_depend>libvlfeat</run_depend>
-  <run_depend>cob_surface_classification</run_depend>
 </package>
