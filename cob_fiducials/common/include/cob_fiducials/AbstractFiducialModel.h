@@ -104,6 +104,8 @@ private:
 protected:
 	std::map<int, AbstractFiducialParameters> m_general_fiducial_parameters;	///< map of marker id to some general parameters like offsets
 
+	double m_image_size_factor;		// width of current image divided by reference width of 640px
+
 	struct SharpnessLogData
 	{
 		int pixel_count;

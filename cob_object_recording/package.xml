@@ -1,44 +1,31 @@
-<package>
-  <name>cob_object_recording</name>
-  <version>0.1.0</version>
-  <description>
+<package format="2">
+	<name>cob_object_recording</name>
+	<version>0.1.0</version>
+	<description>
 
-     handy tool to record image data from an object from euqally spaces views. For its usage it is necesarry to print out a mrker board, which is available from the cob_fiducials package in the cob_object_perception meta-package
+		handy tool to record image data from an object from euqally spaces views. For its usage it is necesarry to print out a mrker board, which is available from the cob_fiducials package in the cob_object_perception meta-package
 
-  </description>
-  <author>Richard Bormann</author>
-  <maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-  <license>LGPL</license>
-  <url>http://ros.org/wiki/cob_object_recording</url>
+	</description>
+	<author>Richard Bormann</author>
+	<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
+	<license>LGPL</license>
+	<url>http://ros.org/wiki/cob_object_recording</url>
 
-  <buildtool_depend>catkin</buildtool_depend>
+	<buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>cmake_modules</build_depend>
-  <build_depend>pcl_ros</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>roslib</build_depend>
-  <build_depend>dynamic_reconfigure</build_depend>
-  <build_depend>cv_bridge</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>std_srvs</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>message_filters</build_depend>
-  <build_depend>image_transport</build_depend>
-  <build_depend>visualization_msgs</build_depend>
-  <build_depend>cob_object_detection_msgs</build_depend>
-
-  <run_depend>pcl_ros</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>roslib</run_depend>
-  <run_depend>dynamic_reconfigure</run_depend>
-  <run_depend>cv_bridge</run_depend>
-  <run_depend>std_msgs</run_depend>
-  <run_depend>std_srvs</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>message_filters</run_depend>
-  <run_depend>image_transport</run_depend>
-  <run_depend>visualization_msgs</run_depend>
-  <run_depend>cob_object_detection_msgs</run_depend>
+	<depend>cmake_modules</depend>
+	<depend>pcl_ros</depend>
+	<depend>roscpp</depend>
+	<depend>roslib</depend>
+	<depend>dynamic_reconfigure</depend>
+	<depend>cv_bridge</depend>
+	<depend>std_msgs</depend>
+	<depend>std_srvs</depend>
+	<depend>sensor_msgs</depend>
+	<depend>message_filters</depend>
+	<depend>image_transport</depend>
+	<depend>visualization_msgs</depend>
+	<depend>cob_object_detection_msgs</depend>
 
 </package>
 

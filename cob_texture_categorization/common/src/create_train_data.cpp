@@ -327,7 +327,8 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 {
 	// parameters
 	const int number_gaussian_centers = 256;
-	const int feature_samples_per_image = 500;	//1000	//200
+	const int feature_samples_per_image = 100;	//500	//1000	//200
+	const int pca_retained_components = 80;		// keep 80 dimensions of the 128 dimensional feature descriptors
 	std::string label_file;
 	double image_resize_factor = 0.;
 	if (database_identifier.compare("ipa") == 0)
@@ -361,7 +362,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 			image_filenames_full_path[i] = path_database_images + image_filenames[i];
 
 		// compute and store GMM
-		ifv.constructGenerativeModel(image_filenames_full_path, image_resize_factor, feature_samples_per_image, number_gaussian_centers, feature_type);
+		ifv.constructGenerativeModel(image_filenames_full_path, image_resize_factor, feature_samples_per_image, number_gaussian_centers, feature_type, pca_retained_components);
 		ifv.saveGenerativeModel(gmm_filename);
 	}
 	else
@@ -370,7 +371,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	// compute features for each image file
 	cv::Mat ground_truth_attribute_matrix = cv::Mat::zeros(number_pictures, filenames_gt_attributes.begin()->second.size(), CV_32FC1);	// matrix of labeled ground truth attributes
 	cv::Mat class_label_matrix = cv::Mat::zeros(number_pictures, 1, CV_32FC1);			// matrix of correct classes
-	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 2*ifv.getFeatureDimension(feature_type)*number_gaussian_centers, CV_32FC1); // matrix of computed base features
+	cv::Mat base_feature_matrix = cv::Mat::zeros(number_pictures, 2*pca_retained_components /*ifv.getFeatureDimension(feature_type)*/ *number_gaussian_centers, CV_32FC1); // matrix of computed base features
 
 	srand(0);		// keep random numbers reproducible
 	std::cout << "Computing image features ... " << std::endl;

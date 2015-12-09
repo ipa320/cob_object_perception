@@ -56,11 +56,11 @@ void IfvFeatures::computeImprovedFisherVector(const cv::Mat& original_image, con
 	projectToPrincipalComponents(dense_features, dense_features_pc_subspace);
 
 	// compute Improved Fisher Vector
-	vl_fisher_encode((void*)fisher_vector_encoding.ptr(), VL_TYPE_FLOAT, vl_gmm_get_means(gmm_), dense_features.cols, number_clusters, vl_gmm_get_covariances(gmm_), vl_gmm_get_priors(gmm_), (void*)dense_features_pc_subspace.ptr(), dense_features_pc_subspace.rows, VL_FISHER_FLAG_IMPROVED);
+	vl_fisher_encode((void*)fisher_vector_encoding.ptr(), VL_TYPE_FLOAT, vl_gmm_get_means(gmm_), dense_features_pc_subspace.cols, number_clusters, vl_gmm_get_covariances(gmm_), vl_gmm_get_priors(gmm_), (void*)dense_features_pc_subspace.ptr(), dense_features_pc_subspace.rows, VL_FISHER_FLAG_IMPROVED);
 }
 
 
-void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters, FeatureType feature_type)
+void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters, FeatureType feature_type, const int pca_retained_components)
 {
 	cv::Mat feature_subset(image_filenames.size()*feature_samples_per_image, getFeatureDimension(feature_type), CV_32FC1);
 	for (size_t i=0; i<image_filenames.size(); ++i)
@@ -119,7 +119,7 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 	}
 
 	// conduct PCA on data to remove correlation (GMM is only employing diagonal covariance matrices)
-	generatePCA(feature_subset);
+	generatePCA(feature_subset, pca_retained_components);
 	cv::Mat feature_subset_pc_subspace;
 	projectToPrincipalComponents(feature_subset, feature_subset_pc_subspace);
 	std::cout << "feature_subset_pc_subspace size: " << feature_subset_pc_subspace.rows << ", " << feature_subset_pc_subspace.cols << std::endl;
@@ -254,9 +254,9 @@ void IfvFeatures::computeDenseRGBPatches(const cv::Mat& image, cv::Mat& features
 }
 
 
-void IfvFeatures::generatePCA(const cv::Mat& data)
+void IfvFeatures::generatePCA(const cv::Mat& data, const int pca_retained_components)
 {
-	pca_(data, cv::noArray(), CV_PCA_DATA_AS_ROW);
+	pca_(data, cv::noArray(), CV_PCA_DATA_AS_ROW, pca_retained_components);
 }
 
 

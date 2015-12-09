@@ -2,17 +2,14 @@ cmake_minimum_required(VERSION 2.4.6)
 project(cob_read_text)
 
 set(catkin_RUN_PACKAGES 
-  roscpp
-  sensor_msgs
-  cv_bridge
-  std_msgs
-  image_transport
-  pcl_ros 
-  geometry_msgs
-  sensor_msgs
-  cob_read_text_data
-  cob_tesseract_data
-  image_view
+	roscpp
+	sensor_msgs
+	cv_bridge
+	std_msgs
+	image_transport
+	pcl_ros 
+	geometry_msgs
+	image_view
 )
 
 set(catkin_BUILD_PACKAGES 

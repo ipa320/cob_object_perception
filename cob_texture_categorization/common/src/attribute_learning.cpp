@@ -6,6 +6,10 @@
 #include "ml.h"
 #include "highgui.h"
 
+extern "C"
+{
+	#include <vl/svm.h>
+}
 
 void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filename, const int feature_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
 {
@@ -778,7 +782,54 @@ void AttributeLearning::loadDTDDatabaseCrossValidationSets(const std::string& pa
 	loadDTDDatabaseCrossValidationSet(path_to_cross_validation_sets, "test", image_filenames, fold, feature_matrix, attribute_matrix, feature_matrix_test, attribute_matrix_test);
 }
 
-double AttributeLearning::computeAveragePrecision(const std::vector<double>& recall, const std::vector<double>& precision)
+double AttributeLearning::computeAveragePrecision(const std::vector<float>& ground_truth_labels, const std::vector<float>& prediction_scores, float& max_f_score)
+{
+	std::multimap<float, float, std::greater<float> > prediction_score_label_map;		// maps from prediction score to correct label (for average precision computation)
+	std::multimap<float, float, std::greater<float> >::iterator it;
+
+	if (ground_truth_labels.size() != prediction_scores.size())
+		std::cout << "Warning: AttributeLearning::computeAveragePrecision: sizes of provided sets do not match." << std::endl;
+
+	// sort w.r.t. predictions scores
+	int number_positive_labels=0;
+	for (size_t i=0; i<prediction_scores.size(); ++i)
+	{
+		prediction_score_label_map.insert(std::pair<float,float>(prediction_scores[i], ground_truth_labels[i]));
+		if (ground_truth_labels[i] > 0)
+			++number_positive_labels;
+	}
+
+	// iterate through prediction scores with classification border corresponding to each current score
+	double ap = 0.;		// average precision
+	int tp=0, fp=0;		// true/false positives
+	max_f_score = 0.f;
+	for (it = prediction_score_label_map.begin(); it != prediction_score_label_map.end(); ++it)
+	{
+		// update tp/fp
+		if (it->second > 0)		// this positive prediction is indeed labeled positive --> recall increases by one tp
+		{
+			++tp;
+			ap += (double)tp/(double)(tp+fp);		// compute precision on recall change
+		}
+		else
+			++fp;
+
+		// f measure
+		double r = (double)tp/(double)number_positive_labels;
+		double p = (double)tp/(double)(tp+fp);
+		float f_score = 2*p*r/(p+r);
+		if (f_score > max_f_score)
+			max_f_score = f_score;
+
+		if (it->first < -1e10 || it->first > 1e10)
+			std::cout << "score,label: " << it->first << "\t" << it->second << "\ttp,fp,r,p: " << tp << "\t" << fp << "\t" << r << "\t" << p << "\tf,ap,max_f: " << f_score << "\t" << ap << "\t" << max_f_score << std::endl;
+	}
+	ap /= (double)number_positive_labels;
+
+	return ap;
+}
+
+double AttributeLearning::computeAveragePrecisionPascal11(const std::vector<double>& recall, const std::vector<double>& precision)
 {
 	// create a 10 bin histogram on recall and store maximum precision for each bin
 	std::vector<double> max_precision_histogram(10, 0.);
@@ -847,21 +898,26 @@ double AttributeLearning::computeAveragePrecision(const std::vector<double>& rec
 
 void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validation_params, const std::string& path_to_cross_validation_sets, const cv::Mat& feature_matrix, const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, const std::vector<std::string>& image_filenames)
 {
-	std::stringstream screen_output, output_summary;
 	srand(0);	// random seed --> keep reproducible
-	// train and evaluate classifier for each attribute with the given training set
-	for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
+	// iterate over (possibly multiple) machine learning techniques or configurations
+	for (size_t ml_configuration_index = 0; ml_configuration_index<cross_validation_params.ml_configurations_.size(); ++ml_configuration_index)
 	{
-		std::cout << "\nAttribute " << attribute_index+1 << ":\n";  screen_output << "\nAttribute " << attribute_index+1 << ":\n";
-		std::vector<double> recall_vector, precision_vector;
-		double max_accuracy = 0.;
+		MLParams& ml_params = cross_validation_params.ml_configurations_[ml_configuration_index];
+		std::cout << std::endl << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl;
 
-		// iterate over (possibly multiple) machine learning techniques or configurations
-		for (size_t ml_configuration_index = 0; ml_configuration_index<cross_validation_params.ml_configurations_.size(); ++ml_configuration_index)
+		// train and evaluate classifier for each attribute with the given training set
+		std::stringstream screen_output, output_summary;
+		output_summary << "\t\tmAP [%]\t+/-\tmax f [%]\t+/-\n";
+		double mean_average_precision_total = 0., mean_max_f_score_total = 0.;
+		for (int attribute_index=0; attribute_index<attribute_matrix.cols; ++attribute_index)
 		{
-			MLParams& ml_params = cross_validation_params.ml_configurations_[ml_configuration_index];
+			std::cout << "\nAttribute " << attribute_index+1 << ":\n\tmAP [%]\t+/-\tmax f [%]\t+/-\n";  screen_output << "\nAttribute " << attribute_index+1 << ":\n\tmAP [%]\t+/-\tmax f [%]\t+/-\n";
+//			std::vector<double> recall_vector, precision_vector;
+//			double max_accuracy = 0.;
 
-			double recall=0., precision=0., accuracy=0.;
+//			double recall=0., precision=0., accuracy=0.;
+			cv::Mat average_precision_values = cv::Mat::zeros(1, cross_validation_params.folds_, CV_64FC1);
+			cv::Mat max_f_score_values = cv::Mat::zeros(1, cross_validation_params.folds_, CV_64FC1);
 			for (unsigned int fold=0; fold<cross_validation_params.folds_; ++fold)
 			{
 				//std::cout << "Attribute " << attribute_index+1 << ": fold " << fold << ":\n";
@@ -875,16 +931,39 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 				cv::vconcat(attribute_matrix_train, attribute_matrix_validation, attribute_matrix_train);
 
 				// train classifier
+				VlSvm* vlsvm = 0;
+				cv::Mat w;
+				double bias;
 				CvSVM svm;
 				CvANN_MLP mlp;
 				if (ml_params.classification_method_ == MLParams::SVM)
 				{	// SVM
-					cv::Mat weights(1,2,CV_32FC1);
-					weights.at<float>(0) = 47/46;
-					weights.at<float>(1) = 47/1;
-					CvMat weights_mat = weights;
-					ml_params.svm_params_.class_weights = &weights_mat;
+//					cv::Mat weights(1,2,CV_32FC1);
+//					weights.at<float>(0) = 47/46;
+//					weights.at<float>(1) = 47/1;
+//					CvMat weights_mat = weights;
+//					ml_params.svm_params_.class_weights = &weights_mat;
 					svm.train(feature_matrix_train, attribute_matrix_train.col(attribute_index), cv::Mat(), cv::Mat(), ml_params.svm_params_);
+//					cv::Mat x, y;
+//					feature_matrix_train.convertTo(x, CV_64FC1);
+//					attribute_matrix_train.col(attribute_index).convertTo(y, CV_64FC1, 2., -1.);
+//					double C = 10.;
+//					double lambda = 1/(C*x.rows);
+//					vlsvm = vl_svm_new(VlSvmSolverSdca, (double*)(x.ptr()), x.cols, x.rows, (double*)(y.ptr()), lambda);
+//					vl_svm_set_max_num_iterations(vlsvm, 100*x.rows);
+//					vl_svm_set_epsilon(vlsvm, 0.001);
+//					vl_svm_set_bias_multiplier(vlsvm, 1.);
+//					vl_svm_train(vlsvm);
+//
+//					const double* const w_ptr = vl_svm_get_model(vlsvm);
+//					for (int k=0; k<100; ++k)
+//						std::cout << w_ptr[k] << "\t";
+//					std::cout << bias << std::endl;
+//
+//					bias = vl_svm_get_bias(vlsvm);
+//
+//					const cv::Mat wd = cv::Mat(1, x.cols, CV_64FC1, (void*)vl_svm_get_model(vlsvm));
+//					wd.convertTo(w, CV_32FC1);
 				}
 				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
 				{	//	Neural Network
@@ -900,56 +979,92 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 				}
 
 				// validate classification performance
-				int tp=0, fp=0, fn=0, tn=0;
+//				int tp=0, fp=0, fn=0, tn=0;
+				std::vector<float> labels, prediction_scores;
 				for (int r=0; r<feature_matrix_test.rows ; ++r)
 				{
 					cv::Mat response(1, 1, CV_32FC1);
 					cv::Mat sample = feature_matrix_test.row(r);
 					if (ml_params.classification_method_ == MLParams::SVM)
-						response.at<float>(0,0) = svm.predict(sample);	// SVM
+					{
+						response.at<float>(0,0) = -svm.predict(sample, true);	// SVM
+						//response.at<float>(0,0) = (float)(sample.dot(w) + bias);	// vlsvm
+					}
 					else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
 						mlp.predict(sample, response);		// neural network
 
 					// statistics
-					int label = (attribute_matrix_validation.at<float>(r, attribute_index) < 0.5f ? 0 : 1);
-					int prediction = (response.at<float>(0,0) < 0.5f ? 0 : 1);
-					if (label==1 && prediction==1) tp++;
-					else if (label==0 && prediction==1) fp++;
-					else if (label==1 && prediction==0) fn++;
-					else if (label==0 && prediction==0) tn++;
+					int label = (attribute_matrix_validation.at<float>(r, attribute_index) < 0.5f ? -1 : 1);
+					labels.push_back(label);
+					float prediction_score = response.at<float>(0,0);
+					prediction_scores.push_back(prediction_score);
+
+//					int prediction = (response.at<float>(0,0) < 0.0f ? -1 : 1);
+//					if (label==1 && prediction==1) tp++;
+//					else if (label==-1 && prediction==1) fp++;
+//					else if (label==1 && prediction==-1) fn++;
+//					else if (label==-1 && prediction==-1) tn++;
 				}
 
 				// statistics
-				recall += (double)tp/(double)(tp+fn);
-				precision += (tp+fp==0 ? 0. : (double)tp/(double)(tp+fp));
-				accuracy += 0.5*(double)(tp)/(double)(tp+fn) + 0.5*(double)(tn)/(double)(fp+tn);
+				float max_f_score = 0.f;
+				double ap = computeAveragePrecision(labels, prediction_scores, max_f_score);
+				std::cout << "fold" << fold+1 << ":\t" << std::fixed << std::setprecision(2) << 100.*ap << "\t\t" << 100.*max_f_score << std::endl;  screen_output << "fold" << fold+1 << ":\t" << std::fixed << std::setprecision(2) << 100.*ap << "\t\t" << 100.*max_f_score << std::endl;
+				std::cout.unsetf(std::ios_base::floatfield);  screen_output.unsetf(std::ios_base::floatfield);
+				average_precision_values.at<double>(fold) = ap;
+				max_f_score_values.at<double>(fold) = max_f_score;
+
+//				recall += (double)tp/(double)(tp+fn);
+//				precision += (tp+fp==0 ? 0. : (double)tp/(double)(tp+fp));
+//				accuracy += 0.5*(double)(tp)/(double)(tp+fn) + 0.5*(double)(tn)/(double)(fp+tn);
+//				std::cout << "fold " << fold << ":\t" << std::fixed << std::setprecision(2) << 100.*recall/(double)(fold+1.) << "\t" << 100.*precision/(double)(fold+1.) << "\t" << 100.*accuracy/(double)(fold+1.) << "\n";
 			} // folds
 
 			// statistics
-			recall /= (double)cross_validation_params.folds_;  precision /= (double)cross_validation_params.folds_;  accuracy /= (double)cross_validation_params.folds_;
-			std::cout << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";  screen_output << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";
-			recall_vector.push_back(recall);
-			precision_vector.push_back(precision);
-			if (accuracy > max_accuracy) max_accuracy = accuracy;
-		} // ml_configurations
+			cv::Scalar mean_average_precision_attribute, mean_max_f_score_attribute, std_average_precision_attribute, std_max_f_score_attribute;
+			cv::meanStdDev(average_precision_values, mean_average_precision_attribute, std_average_precision_attribute);
+			cv::meanStdDev(max_f_score_values, mean_max_f_score_attribute, std_max_f_score_attribute);
+			std::cout << "Total:\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_attribute.val[0] << "\t" << 100.*std_average_precision_attribute.val[0] << "\t" << 100.*mean_max_f_score_attribute.val[0] << "\t" << 100.*std_max_f_score_attribute.val[0] << std::endl;
+			screen_output << "Total:\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_attribute.val[0] << "\t" << 100.*std_average_precision_attribute.val[0] << "\t" << 100.*mean_max_f_score_attribute.val[0] << "\t" << 100.*std_max_f_score_attribute.val[0] << std::endl;
+			output_summary << "Attribute" << attribute_index+1 << ":\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_attribute.val[0] << "\t" << 100.*std_average_precision_attribute.val[0] << "\t" << 100.*mean_max_f_score_attribute.val[0] << "\t" << 100.*std_max_f_score_attribute.val[0] << std::endl;
+			std::cout.unsetf(std::ios_base::floatfield);  screen_output.unsetf(std::ios_base::floatfield);  output_summary.unsetf(std::ios_base::floatfield);
+
+			mean_average_precision_total += mean_average_precision_attribute.val[0];
+			mean_max_f_score_total += mean_max_f_score_attribute.val[0];
+
+//			recall /= (double)cross_validation_params.folds_;  precision /= (double)cross_validation_params.folds_;  accuracy /= (double)cross_validation_params.folds_;
+//			std::cout << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";  screen_output << "\t" << std::fixed << std::setprecision(2) << 100*recall << "\t" << 100*precision << "\t" << 100*accuracy << "\n";
+//			recall_vector.push_back(recall);
+//			precision_vector.push_back(precision);
+//			if (accuracy > max_accuracy) max_accuracy = accuracy;
+		} // attribute_index
 
 		// compute average precision
-		double average_precision = computeAveragePrecision(recall_vector, precision_vector);
-		std::cout << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;  output_summary << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;
-	} // attribute_index
+		mean_average_precision_total /= (double)attribute_matrix.cols;
+		mean_max_f_score_total /= (double)attribute_matrix.cols;
+		std::cout << "Total:\t\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_total << "\t\t" << 100.*mean_max_f_score_total << std::endl;  output_summary << "Total:\t\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_total << "\t\t" << 100.*mean_max_f_score_total << std::endl;
 
-	// write screen outputs to file
-	std::stringstream logfilename;
-	logfilename << "texture_categorization/screen_output_attribute_learning_dtd.txt";
-	std::ofstream file(logfilename.str().c_str(), std::ios::out);
-	if (file.is_open() == true)
-	{
-		file << cross_validation_params.configurationToString() << std::endl << output_summary.str() << std::endl;
-		for (size_t ml_configuration_index = 0; ml_configuration_index<cross_validation_params.ml_configurations_.size(); ++ml_configuration_index)
-			file << cross_validation_params.ml_configurations_[ml_configuration_index].configurationToString() << std::endl;
-		file << screen_output.str();
-	}
-	else
-		std::cout << "Error: could not write screen output to file " << logfilename.str() << "." << std::endl;
-	file.close();
+//		double average_precision = computeAveragePrecisionPascal11(recall_vector, precision_vector);
+//		std::cout << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;  output_summary << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;
+
+		// write screen outputs to file
+		std::stringstream logfilename;
+		logfilename << "texture_categorization/screen_output_attribute_learning_" << ml_configuration_index << ".txt";
+		std::ofstream file(logfilename.str().c_str(), std::ios::out);
+		if (file.is_open() == true)
+			file << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl << output_summary.str() << std::endl << screen_output.str();
+		else
+			std::cout << "Error: could not write screen output to file " << logfilename.str() << "." << std::endl;
+		file.close();
+
+		// write summary to file
+		std::stringstream summary_filename;
+		summary_filename << "texture_categorization/screen_output_attribute_learning_summary.txt";
+		file.open(summary_filename.str().c_str(), std::ios::app);
+		if (file.is_open() == true)
+			file << cross_validation_params.configurationToString() << std::endl << ml_params.configurationToString() << std::endl << output_summary.str();
+		else
+			std::cout << "Error: could not write summary to file " << summary_filename.str() << "." << std::endl;
+		file.close();
+	} // ml_configurations
 }
