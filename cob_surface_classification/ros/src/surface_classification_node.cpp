@@ -60,7 +60,7 @@
 /*switches for execution of processing steps*/
 
 #define DATA_SOURCE					0			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
-#define DATA_NUMBER_FILES			100			// number of input files if loaded from file
+#define DATA_NUMBER_FILES			1			// number of input files if loaded from file
 #define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION
 #define COMPUTATION_MODE			true		// computations without record
 #define EVALUATION					false		// computations plus evaluation of current computations
@@ -117,6 +117,8 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/features/integral_image_normal.h>
 #include <pcl/features/normal_3d_omp.h>
+
+//#include <pcl/features/normal_3d_fast_edge_aware.h>
 
 
 //internal includes
@@ -241,8 +243,8 @@ public:
 	SurfaceClassificationNode(ros::NodeHandle nh)
 	: node_handle_(nh)
 	{
-		visualize_edges_ = false;
-		visualize_normals_ = false;
+		visualize_edges_ = true;
+		visualize_normals_ = true;
 
 		runtime_total_ = 0.;
 		runtime_depth_image_ = 0.;
@@ -302,10 +304,13 @@ public:
 			}
 
 			// do computations
-			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::BILATERAL, 5, 0.01f, 45., true, 5, 20, 15);
+			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, 0.01f, 45., true, 5, 20, 15);
 			NormalEstimationConfig normal_estimation_config(NormalEstimationConfig::FAST_EDGE_BASED, 8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 10, 128);
-			ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, 0.0);
+			ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, 0.00);
 			evaluationComputations(image_vector, pointcloud_vector, exp_config);
+
+			// hack: remove if needed
+			return;
 
 			// or run systematic parameter grid evaluation
 			evaluationSetup(image_vector, pointcloud_vector);
@@ -673,6 +678,25 @@ public:
 			cv::Mat edge;
 			if (config.normal_estimation_config.normal_estimation_method==0 || config.normal_estimation_config.normalEstimationEdgeDetectionEnabled()==true)
 				edge_detection_.computeDepthEdges(cloud, edge, config.edge_detection_config, normalsEdgeDirect);
+
+//			normalsEdgeDirect->clear();
+//			pcl::EdgeDetectionConfig cfg;
+//			cfg.noise_reduction_mode = (pcl::EdgeDetectionConfig::NoiseReductionMode)config.edge_detection_config.noise_reduction_mode;
+//			cfg.noise_reduction_kernel_size = config.edge_detection_config.noise_reduction_kernel_size;
+//			cfg.depth_step_factor = config.edge_detection_config.depth_step_factor;
+//			cfg.min_detectable_edge_angle = config.edge_detection_config.min_detectable_edge_angle;
+//			cfg.use_adaptive_scan_line = config.edge_detection_config.use_adaptive_scan_line;
+//			cfg.min_scan_line_width = config.edge_detection_config.min_scan_line_width;
+//			cfg.max_scan_line_width = config.edge_detection_config.max_scan_line_width;
+//			cfg.scan_line_width_at_2m = config.edge_detection_config.scan_line_width_at_2m;
+//			pcl::FastEdgeAwareNormalEstimation<pcl::PointXYZRGB, pcl::Normal> feane;
+//			if (config.normal_estimation_config.normal_estimation_method==0 || config.normal_estimation_config.normalEstimationEdgeDetectionEnabled()==true)
+//			{
+//				feane.setEdgeDetectionConfig(cfg);
+//				feane.setInputCloud(cloud);
+//				feane.compute(*normalsEdgeDirect);
+//			}
+
 //return; //todo: remove
 
 			// visualization on color image
@@ -699,7 +723,8 @@ public:
 //				std::stringstream ss;
 //				ss << "edge_images/" << (nr_records<1000 ? "0" : "") << (nr_records<100 ? "0" : "") << (nr_records<10 ? "0" : "") << nr_records << "edge.png";
 //				cv::imwrite(ss.str(), color_image_edge);
-				cv::imshow("color image", color_image);
+
+				//cv::imshow("color image", color_image);
 				cv::imshow("color image with edges", color_image_edge);
 				int quit = cv::waitKey(10);
 				if (quit=='s')

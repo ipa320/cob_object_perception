@@ -128,7 +128,7 @@ public:
 	};
 
 	EdgeDetection()
-	: PI_FLOAT(3.14159265f), PIBY2_FLOAT(1.5707963f)
+	: pi_float_(3.14159265f), pi_by_2_float_(1.5707963f)
 	{
 		runtime_total_ = 0.;
 		runtime_depth_image_ = 0.;
@@ -143,7 +143,7 @@ public:
 //#define MEASURE_RUNTIME
 #define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
 #define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
-#define USE_OMP
+//#define USE_OMP
 
 	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const EdgeDetectionConfig& config = EdgeDetectionConfig(), pcl::PointCloud<pcl::Normal>::Ptr& normals = 0)
 	{
@@ -162,13 +162,13 @@ public:
 		cv::Mat z_image(pointcloud->height, pointcloud->width, CV_32FC1);
 
 //#pragma omp parallel for //num_threads(2)	// no measurable speed up
-		for (unsigned int v=0; v<pointcloud->height; v++)
+		for (unsigned int v=0; v<pointcloud->height; ++v)
 		{
 			float* x_ptr = (float*)x_image.ptr(v);
 			float* y_ptr = (float*)y_image.ptr(v);
 			float* z_ptr = (float*)z_image.ptr(v);
 			const pcl::PointXYZRGB* point = &(pointcloud->points[v*pointcloud->width]);
-			for (unsigned int u=0; u<pointcloud->width; u++)
+			for (unsigned int u=0; u<pointcloud->width; ++u)
 			{
 				// point cloud matrix indices: row y, column x!
 				//const pcl::PointXYZRGB& point = pointcloud->at(u,v);
@@ -262,10 +262,6 @@ public:
 		//edge = cv::Mat::zeros(z_image.rows, z_image.cols, CV_8UC1);
 		edge.create(z_image.rows, z_image.cols, CV_8UC1);
 		const float depth_factor = config.depth_step_factor;
-		const int min_line_width = config.min_scan_line_width;
-		const int max_line_width = config.max_scan_line_width;
-		const int max_v = z_dx.rows - max_line_width - 2;
-		const int max_u = z_dx.cols - max_line_width - 2;
 //#pragma omp parallel for num_threads(2)	// no speed up because threading overhead eats up the multi core computation
 		for (int v = 0; v < z_dx.rows; ++v)
 		{
@@ -296,6 +292,10 @@ public:
 		//cv::Mat angle_image = cv::Mat::zeros(edge.rows, edge.cols, CV_32FC1);
 
 		// surface discontinuities
+		const int min_line_width = config.min_scan_line_width;
+		const int max_line_width = config.max_scan_line_width;
+		const int max_v = z_dx.rows - max_line_width - 2;
+		const int max_u = z_dx.cols - max_line_width - 2;
 		const float min_detectable_edge_angle = config.min_detectable_edge_angle; //35.;	// minimum angle between two planes to consider their intersection an edge, measured in [° degree]
 		const float scan_line_model_m = config.scan_line_model_m;
 		const float scan_line_model_n = config.scan_line_model_n;
@@ -304,7 +304,7 @@ public:
 		computeIntegralImageX(x_dx, x_dx_integralX, z_dx, z_dx_integralX);
 		cv::Mat distance_map_horizontal;
 		if (config.use_adaptive_scan_line == true)
-			computeDistanceMapHorizontal(edge, distance_map_horizontal);
+			computeEdgeDistanceMapHorizontal(edge, distance_map_horizontal);
 #ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
 #endif
@@ -354,7 +354,7 @@ public:
 //					drawCoordinateSample(u, v, scan_line_width_left, scan_line_width_right, x_image, x_dx, y_image, y_dy, z_image, z_dx);
 
 				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
-				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
+				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value of a cell is included in the sum of the integral image's cell)
 				const float avg_dx_l = x_dx_integralX.at<float>(v,u-1) - x_dx_integralX.at<float>(v,u-scan_line_width_left);
 				const float avg_dx_r = x_dx_integralX.at<float>(v,u+scan_line_width_right) - x_dx_integralX.at<float>(v,u+1);
 				const float avg_dz_l = z_dx_integralX.at<float>(v,u-1) - z_dx_integralX.at<float>(v,u-scan_line_width_left);
@@ -395,7 +395,7 @@ public:
 		computeIntegralImageX(y_dy, y_dy_integralY, z_dy, z_dy_integralY);
 		cv::Mat distance_map_vertical;
 		if (config.use_adaptive_scan_line == true)
-			computeDistanceMapVertical(edge, distance_map_vertical);
+			computeEdgeDistanceMapVertical(edge, distance_map_vertical);
 		const int max_uy = z_dy.cols - max_line_width - 2;
 		const int max_vy = z_dy.rows - max_line_width - 2;
 #ifdef USE_OMP
@@ -444,7 +444,7 @@ public:
 				}
 
 				// get average differences in x and z direction (ATTENTION: the integral images provide just the sum, not divided by number of elements, however, further processing only needs the sum, not the real average)
-				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value a cell is included in the sum of the integral image's cell)
+				// remark: the indexing of the integral image here differs from the OpenCV definition (here: the value of a cell is included in the sum of the integral image's cell)
 				const float avg_dx_l = y_dy_integralY.at<float>(v,u-1) - y_dy_integralY.at<float>(v,u-scan_line_height_upper);
 				const float avg_dx_r = y_dy_integralY.at<float>(v,u+scan_line_height_lower) - y_dy_integralY.at<float>(v,u+1);
 				const float avg_dz_l = z_dy_integralY.at<float>(v,u-1) - z_dy_integralY.at<float>(v,u-scan_line_height_upper);
@@ -585,8 +585,8 @@ public:
 				cv::integral(edge, edge_integral, CV_32S);
 			else
 			{
-				computeDistanceMapHorizontal(edge, distance_map_horizontal);
-				computeDistanceMapVertical(edge, distance_map_vertical);
+				computeEdgeDistanceMapHorizontal(edge, distance_map_horizontal);
+				computeEdgeDistanceMapVertical(edge, distance_map_vertical);
 			}
 			normals->resize(pointcloud->size());
 			normals->header = pointcloud->header;
@@ -602,6 +602,7 @@ public:
 			{
 				int scan_line_width = 10; // width of scan line left or right of a query pixel, measured in [px]
 				int last_line_width = scan_line_width;
+
 				for (int u = max_line_width+1; u < max_u; ++u)
 				{
 					const int idx = v*width + u;
@@ -651,6 +652,23 @@ public:
 					const float avg_dz1 = z_dx_integralX.at<float>(v,u+scan_line_width_right) - z_dx_integralX.at<float>(v,u-scan_line_width_left);
 					const float avg_dy2 = y_dy_integralY.at<float>(u,v+scan_line_height_lower) - y_dy_integralY.at<float>(u,v-scan_line_height_upper);
 					const float avg_dz2 = z_dy_integralY.at<float>(u,v+scan_line_height_lower) - z_dy_integralY.at<float>(u,v-scan_line_height_upper);
+
+					// 120,235
+					// 134,262
+
+//					if ((abs(u-120)<1 /*&& abs(v-235)<2*/) || (abs(u-134)<2 && abs(v-262)<2))
+//					{
+//						std::cout << u << "," << v << ": "
+//								<< "  scan_line_width_left=" << scan_line_width_left
+//								<< "  scan_line_width_right=" << scan_line_width_right
+//								<< "  scan_line_height_upper=" << scan_line_height_upper
+//								<< "  scan_line_height_lower=" << scan_line_height_lower
+//								<< "  avg_dx1=" << avg_dx1
+//								<< "  avg_dz1=" << avg_dz1
+//								<< "  avg_dy2=" << avg_dy2
+//								<< "  avg_dz2=" << avg_dz2
+//								<< std::endl;
+//					}
 
 					const Eigen::Vector3f v1(avg_dx1, 0, avg_dz1);
 					const Eigen::Vector3f v2(0, avg_dy2, avg_dz2);
@@ -778,16 +796,16 @@ private:
 
 	// from https://gist.github.com/volkansalma/2972237
 	//  or  http://lists.apple.com/archives/perfoptimization-dev/2005/Jan/msg00051.html
-	const float PI_FLOAT; // = 3.14159265f;
-	const float PIBY2_FLOAT; // = 1.5707963f;
+	const float pi_float_; // = 3.14159265f;
+	const float pi_by_2_float_; // = 1.5707963f;
 	// |error| < 0.005
 	float fast_atan2f_1(float y, float x)
 	{
 		if (x == 0.0f)
 		{
-			if (y > 0.0f) return PIBY2_FLOAT;
+			if (y > 0.0f) return pi_by_2_float_;
 			if (y == 0.0f) return 0.0f;
-			return -PIBY2_FLOAT;
+			return -pi_by_2_float_;
 		}
 		float atan;
 		float z = y/x;
@@ -796,14 +814,14 @@ private:
 			atan = z/(1.0f + 0.28f*z*z);
 			if (x < 0.0f)
 			{
-				if (y < 0.0f) return atan - PI_FLOAT;
-				return atan + PI_FLOAT;
+				if (y < 0.0f) return atan - pi_float_;
+				return atan + pi_float_;
 			}
 		}
 		else
 		{
-			atan = PIBY2_FLOAT - z/(z*z + 0.28f);
-			if ( y < 0.0f ) return atan - PI_FLOAT;
+			atan = pi_by_2_float_ - z/(z*z + 0.28f);
+			if ( y < 0.0f ) return atan - pi_float_;
 		}
 		return atan;
 	}
@@ -947,7 +965,8 @@ private:
 		}
 	}
 
-	void computeDistanceMapHorizontal(const cv::Mat& edge, cv::Mat& distance_map)
+	// computes the horizontal distance to the next (depth) edge pixel left (val[0]) and right (val[1]) of the query point
+	void computeEdgeDistanceMapHorizontal(const cv::Mat& edge, cv::Mat& distance_map)
 	{
 		distance_map.create(edge.rows, edge.cols, CV_32SC2);
 		for (int v=0; v<edge.rows; ++v)
@@ -997,7 +1016,7 @@ private:
 		}
 	}
 
-	void computeDistanceMapVertical(const cv::Mat& edge, cv::Mat& distance_map)
+	void computeEdgeDistanceMapVertical(const cv::Mat& edge, cv::Mat& distance_map)
 	{
 		distance_map.create(edge.rows, edge.cols, CV_32SC2);
 //		for (int u=0; u<edge.cols; ++u)
@@ -1088,7 +1107,7 @@ private:
 		scan_line_length_1 = std::min(scan_line_length_1, free_dist.val[0]-1-MIN_DISTANCE_TO_DEPTH_EDGE);
 		scan_line_length_2 = std::min(scan_line_length_2, free_dist.val[1]-1-MIN_DISTANCE_TO_DEPTH_EDGE);
 
-		if ((scan_line_length_1+scan_line_length_2)<min_line_width)
+		if ((scan_line_length_1+scan_line_length_2+1)<min_line_width)
 			return false;
 		return true;
 	}

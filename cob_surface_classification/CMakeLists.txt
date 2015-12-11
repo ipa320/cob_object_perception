@@ -7,7 +7,7 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
 set(catkin_RUN_PACKAGES # all ROS packages from package.xml (libopencv-dev is system dependency --> sudo apt-get install)
-  pcl_ros
+#  pcl_ros
   roscpp
   cv_bridge
   std_msgs
@@ -40,7 +40,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(OpenCV REQUIRED)	# name identical to FindOpenCV.cmake in cmake_modules
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(VTK REQUIRED)
-# find_package(PCL REQUIRED) # is already done by inclusion of pcl_ros above
+find_package(PCL REQUIRED) # is already done by inclusion of pcl_ros above
 
 find_package(OpenMP REQUIRED)
 if(OPENMP_FOUND)
@@ -131,7 +131,7 @@ DEPENDS
 	OpenMP
 	Boost
 	VTK
-#	PCL
+	PCL
 )
 
 ###########
@@ -147,7 +147,7 @@ include_directories(
 	${OpenMP_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 	${VTK_INCLUDE_DIRS}
-#	${PCL_INCLUDE_DIRS}
+	${PCL_INCLUDE_DIRS}
 )
 
 ## Declares a shared library. Resulting name will be lib<name>.so
@@ -160,6 +160,7 @@ cmake_policy(POP)
 	
 target_link_libraries(cob_3d_curvatureSegmentation
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${PCL_LIBRARIES}
 	${VTK_LIBRARIES}
 )
 
@@ -179,6 +180,7 @@ cmake_policy(POP)
 target_link_libraries(surface_classification
 	cob_3d_curvatureSegmentation
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${PCL_LIBRARIES}
 	${Boost_LIBRARIES}
 )
 
