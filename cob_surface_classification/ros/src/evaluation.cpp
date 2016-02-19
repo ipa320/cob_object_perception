@@ -447,12 +447,11 @@ void Evaluation::computeNormalEstimationError(const pcl::PointCloud<pcl::PointXY
 	number_good_normals = 0;
 	normal_error = 0.;
 	normal_error_deg = 0.;
+	normals->is_dense = true;
 	for (int v=padding; v<gt_point_cloud->height-padding; ++v)
 	{
 		for (int u=padding; u<gt_point_cloud->width-padding; ++u)
 		{
-			const Eigen::Vector3f n = normals->at(u,v).getNormalVector3fMap();
-			const Eigen::Vector3f gt_n = gt_normals->at(u,v).getNormalVector3fMap();
 			if (pcl_isnan(gt_normals->at(u,v).normal_z)==false)
 			{
 				// gt_normal exists
@@ -461,6 +460,8 @@ void Evaluation::computeNormalEstimationError(const pcl::PointCloud<pcl::PointXY
 				{
 					// normal estimation has also found a normal
 					++number_normals;
+					const Eigen::Vector3f n = normals->at(u,v).getNormalVector3fMap();
+					const Eigen::Vector3f gt_n = gt_normals->at(u,v).getNormalVector3fMap();
 					double d = std::max(-1., std::min(1.,(double)gt_n.dot(n)));
 					normal_error += fabs(1 - d);
 					normal_error_deg += 180./CV_PI*acos(d);
