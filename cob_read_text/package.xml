@@ -1,54 +1,38 @@
-<package>
+<package format="2">
   <name>cob_read_text</name>
   <version>0.1.0</version>
   <description>
 
-Detects and recognizes text in natural images. 
-The system was trained for indoors household environment with Care-O-bot's stereo vision colour cameras.
-Text localisation and OCR occur separately and can be evaluated using precision, recall.
+    Detects and recognizes text in natural images. 
+    The system was trained for indoors household environment with Care-O-bot's stereo vision colour cameras.
+    Text localisation and OCR occur separately and can be evaluated using precision, recall.
 
   </description>
+
   <author>Robert Heinze, Richard Bormann</author>
-  <maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
+  <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+
   <license>LGPL, Fraunhofer IPA</license>
   <url>http://ros.org/wiki/cob_read_text</url>
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>cmake_modules</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>cv_bridge</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>image_transport</build_depend>
-  <build_depend>pcl_ros</build_depend> 
-  <build_depend>geometry_msgs</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>cob_read_text_data</build_depend>
-  <build_depend>cob_tesseract_data</build_depend>
-  <build_depend>image_view</build_depend>
+  <depend>boost</depend>
+  <depend>cmake_modules</depend>
+  <depend>cv_bridge</depend>
+  <depend>eigen</depend>
+  <depend>geometry_msgs</depend>
+  <depend>image_transport</depend>
+  <depend>libpcl-all-dev</depend>
+  <depend>libvtk</depend>
+  <depend>pcl_ros</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
 
-  <build_depend>boost</build_depend>
-  <build_depend>libpcl-all-dev</build_depend>
-  <build_depend>eigen</build_depend>
-  <build_depend>libvtk</build_depend>
-
-  <run_depend>roscpp</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>cv_bridge</run_depend>
-  <run_depend>std_msgs</run_depend>
-  <run_depend>image_transport</run_depend>
-  <run_depend>pcl_ros</run_depend> 
-  <run_depend>geometry_msgs</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>cob_read_text_data</run_depend>
-  <run_depend>cob_tesseract_data</run_depend>
-  <run_depend>image_view</run_depend>
-
-  <run_depend>boost</run_depend>
-  <run_depend>libpcl-all-dev</run_depend>
-  <run_depend>eigen</run_depend>
-  <run_depend>libvtk</run_depend>
+  <!--exec_depend>cob_read_text_data</exec_depend>
+  <exec_depend>cob_tesseract_data</exec_depend-->
+  <exec_depend>image_view</exec_depend>
   
 </package>
 

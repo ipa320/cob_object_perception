@@ -95,7 +95,7 @@ void SceneRecording::saveImage(const cv::Mat& color_image, std::string name)
 void SceneRecording::loadImage(cv::Mat& color_image, std::string name)
 {
 	//specify path
-	std::string image_filename = data_storage_path + "scene_recordings/"  + name + ".png";
+	std::string image_filename = data_storage_path + "scene_recordings/sim/"  + name + ".png";
 
 	// load image
 	std::cout << "Loading image " << image_filename << std::endl;
@@ -118,7 +118,7 @@ void SceneRecording::saveCloud(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr point
 void SceneRecording::loadCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, std::string name)
 {
 	//specify path
-	std::string pcd_filename = data_storage_path + "scene_recordings/"  + name + ".pcd";
+	std::string pcd_filename = data_storage_path + "scene_recordings/sim/"  + name + ".pcd";
 
 	//load pointcloud
 	std::cout << "Loading point cloud " << pcd_filename << std::endl;

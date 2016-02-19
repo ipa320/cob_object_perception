@@ -1,4 +1,4 @@
-<package>
+<package format="2">
   <name>libzxing</name>
   <version>0.1.0</version>
   <description>
@@ -6,24 +6,18 @@
      libzxing (wrapper for zxing)
 
   </description>
+
   <author>Joshua Hampp</author>
-  <maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
+  <maintainer email="josh@ipa.fhg.de">Joshua Hampp</maintainer>
+
   <license>LGPL</license>
   <url>http://ros.org/wiki/libzxing</url>
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>ant</build_depend>
-  <build_depend>scons</build_depend>
-  <build_depend>java</build_depend>
-
-  <run_depend>ant</run_depend>
-  <run_depend>scons</run_depend>
-  <run_depend>java</run_depend>
-
-  <export>
-    <!--cpp cflags="-I${prefix}/common/include" lflags="-Wl,-rpath,${prefix}/common/lib -L${prefix}/common/lib -lzxing -lMagick++ "/-->
-  </export>
+  <depend>ant</depend>
+  <depend>scons</depend>
+  <depend>java</depend>
 
 </package>
 
