@@ -1,153 +1,109 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8.3)
 project(cob_object_categorization)
 
-set(catkin_RUN_PACKAGES 
-	pcl_ros # Should automatically pull in all PCL dependecies
-	roscpp
-	cv_bridge
-	sensor_msgs
-	message_filters
-	image_transport
-	nodelet
-	cob_perception_msgs
-	cob_object_detection_msgs
-	tf
-	actionlib
-	actionlib_msgs
-)
-
-set(catkin_BUILD_PACKAGES 
-	${catkin_RUN_PACKAGES}
-	cmake_modules
-)
-
-
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-## Creates a bunch of environment variables that may be used later in the script
-## e.g. catkin_INCLUDE_DIRS
 
 find_package(catkin REQUIRED COMPONENTS
-	${catkin_BUILD_PACKAGES}
+  actionlib
+  actionlib_msgs
+  cmake_modules
+  cob_object_detection_msgs
+  cob_perception_msgs
+  cv_bridge
+  image_transport
+  message_filters
+  nodelet
+  pcl_ros
+  roscpp
+  sensor_msgs
+  tf
 )
 
+find_package(Eigen REQUIRED)
 find_package(OpenCV REQUIRED)
 #find_package(PCL REQUIRED)
-find_package(Eigen REQUIRED)
 find_package(VTK REQUIRED)
 
-###################################
-## catkin specific configuration ##
-###################################
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## INCLUDE_DIRS: uncomment this if you package contains header files
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-INCLUDE_DIRS
-	common/include
-LIBRARIES
-CATKIN_DEPENDS
-	${catkin_RUN_PACKAGES}
-DEPENDS
-	OpenCV 
-	Eigen
-#	PCL
-	VTK
-)
+catkin_package()
+
 
 ###########
 ## Build ##
 ###########
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-
 include_directories(
-	common/include
-	ros/include
-	${catkin_INCLUDE_DIRS}
-	${OpenCV_INCLUDE_DIRS}
-#	${PCL_INCLUDE_DIRS}
-	${Eigen_INCLUDE_DIRS}
-	${VTK_INCLUDE_DIRS}
+  common/include
+  ros/include
+  ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+#  ${PCL_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
+  ${VTK_INCLUDE_DIRS}
 )
-
 
 set(project_CPP_FILES
-	common/src/AbstractBlobDetector.cpp
-	common/src/BlobFeature.cpp
-	common/src/BlobList.cpp
-	common/src/DetectorCore.cpp
-	common/src/ICP.cpp
-	common/src/JBKUtils.cpp
-	common/src/Math3d.cpp
-	common/src/ObjectClassifier.cpp
-	#common/src/ObjectClassifierMain.cpp
-	ros/src/object_categorization.cpp
-	common/src/OpenCVUtils.cpp
-	common/src/SharedImageJBK.cpp
-	common/src/SharedImageSequence.cpp
-	common/src/ThreeDUtils.cpp
-	common/src/timer.cpp
-	common/src/pcl/rsd.cpp
-	#common/src/pcl/gfpfh.cpp)
+  common/src/AbstractBlobDetector.cpp
+  common/src/BlobFeature.cpp
+  common/src/BlobList.cpp
+  common/src/DetectorCore.cpp
+  common/src/ICP.cpp
+  common/src/JBKUtils.cpp
+  common/src/Math3d.cpp
+  common/src/ObjectClassifier.cpp
+  #common/src/ObjectClassifierMain.cpp
+  ros/src/object_categorization.cpp
+  common/src/OpenCVUtils.cpp
+  common/src/SharedImageJBK.cpp
+  common/src/SharedImageSequence.cpp
+  common/src/ThreeDUtils.cpp
+  common/src/timer.cpp
+  common/src/pcl/rsd.cpp
+  #common/src/pcl/gfpfh.cpp)
 )
 
-## Declare a cpp executable
 add_executable(object_categorization
-	${project_CPP_FILES}
+  ${project_CPP_FILES}
 )
+add_dependencies(object_categorization ${catkin_EXPORTED_TARGETS})
+target_link_libraries(object_categorization
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+#  ${PCL_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  ${VTK_LIBRARIES}
+)
+set_target_properties(object_categorization PROPERTIES COMPILE_FLAGS "-D__LINUX__")
+
 
 add_executable(object_segmentation 
-	ros/src/segmentation_node.cpp
+  ros/src/segmentation_node.cpp
 )
-
-target_link_libraries(object_categorization
-	${catkin_LIBRARIES}
-	${OpenCV_LIBRARIES}
-#	${PCL_LIBRARIES}
-	${Eigen_LIBRARIES}
-	${VTK_LIBRARIES}
-)
-
-target_link_libraries(object_segmentation
-	${catkin_LIBRARIES}
-	${OpenCV_LIBRARIES}
-#	${PCL_LIBRARIES}
-	${Eigen_LIBRARIES}
-)
-
-add_dependencies(object_categorization ${catkin_EXPORTED_TARGETS})
 add_dependencies(object_segmentation ${catkin_EXPORTED_TARGETS})
-
-set_target_properties(object_categorization PROPERTIES COMPILE_FLAGS "-D__LINUX__")
+target_link_libraries(object_segmentation
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+#  ${PCL_LIBRARIES}
+  ${Eigen_LIBRARIES}
+)
 set_target_properties(object_segmentation PROPERTIES COMPILE_FLAGS "-D__LINUX__")
+
 
 #############
 ## Install ##
 #############
-## Mark executables and/or libraries for installation
 install(TARGETS 
-		object_categorization 
-		object_segmentation
-	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    object_categorization 
+    object_segmentation
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY 
-		common/include/${PROJECT_NAME}/
-		common/include/pcl/
-	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-	FILES_MATCHING PATTERN "*.h"
-	PATTERN ".svn" EXCLUDE
+    common/include/${PROJECT_NAME}/
+    common/include/pcl/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
 )
 
 install(DIRECTORY ros/launch
-	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
-	PATTERN ".svn" EXCLUDE
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
 )
-
