@@ -15,8 +15,17 @@ IfvFeatures::~IfvFeatures()
 
 void IfvFeatures::computeImprovedFisherVector(const std::string& image_filename, const double image_resize_factor, const int number_clusters, cv::Mat& fisher_vector_encoding, FeatureType feature_type)
 {
-	// load image
-	cv::Mat original_image = cv::imread(image_filename);
+	cv::Mat original_image;
+	if (feature_type != CNN)
+	{
+		// load image
+		original_image = cv::imread(image_filename);
+	}
+	else
+	{
+		// load pre-computed CNN features directly
+		loadCNNFeatures(image_filename, original_image);
+	}
 	computeImprovedFisherVector(original_image, image_resize_factor, number_clusters, fisher_vector_encoding, feature_type);
 }
 
@@ -44,6 +53,10 @@ void IfvFeatures::computeImprovedFisherVector(const cv::Mat& original_image, con
 		cv::Mat hsv_image;
 		cv::cvtColor(image, hsv_image, CV_BGR2HSV);
 		computeDenseRGBPatches(hsv_image, dense_features);
+	}
+	else if (feature_type == CNN)
+	{
+		dense_features = original_image;
 	}
 	else
 	{
@@ -89,6 +102,10 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 			cv::Mat hsv_image;
 			cv::cvtColor(image, hsv_image, CV_BGR2HSV);
 			computeDenseRGBPatches(hsv_image, features);
+		}
+		else if (feature_type == CNN)
+		{
+			loadCNNFeatures(image_filenames[i], features);
 		}
 		else
 		{
@@ -251,6 +268,20 @@ void IfvFeatures::computeDenseRGBPatches(const cv::Mat& image, cv::Mat& features
 						features.at<float>(sample_index,feature_index) = image.at<cv::Vec3b>(r+dr, c+dc).val[channel];
 		}
 	}
+}
+
+
+void IfvFeatures::loadCNNFeatures(const std::string& image_filename, cv::Mat& cnn_features)
+{
+	size_t start_pos = image_filename.find_last_of("/")+1;
+	std::string filename_short = image_filename.substr(start_pos, (image_filename.find("."))-start_pos);
+	std::string ipa_database_cnn_features = "/home/rmb/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/cnn_ifv/cnn_features/";
+
+	std::string input_filename = ipa_database_cnn_features + filename_short + ".yml";
+	std::cout << "Reading CNN feature file " << input_filename << std::endl;
+	cv::FileStorage fs(input_filename, cv::FileStorage::READ);
+	fs[filename_short] >> cnn_features;
+	fs.release();
 }
 
 

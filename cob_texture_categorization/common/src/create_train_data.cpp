@@ -325,10 +325,11 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 
 void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, const std::string& database_identifier, bool generateGMM, IfvFeatures::FeatureType feature_type)
 {
-	// parameters
-	const int number_gaussian_centers = 256;
+	// todo: parameters
+	const int number_gaussian_centers = 64;		// SIFT, PATCHES: 256         CNN: 64
 	const int feature_samples_per_image = 100;	//500	//1000	//200
-	const int pca_retained_components = 80;		// keep 80 dimensions of the 128 dimensional feature descriptors
+	const int pca_retained_components = 512;		// SIFT: keep 80 dimensions of the 128 dimensional feature descriptors
+
 	std::string label_file;
 	double image_resize_factor = 0.;
 	if (database_identifier.compare("ipa") == 0)
@@ -580,6 +581,7 @@ void create_train_data::load_filenames_gt_attributes(std::string filename, std::
 					image_filename = class_name + "/" + image_filename;
 					image_filenames.push_back(image_filename);
 					data_sample_hierarchy[i][j][k] = image_filenames.size()-1;
+					//std::cout << image_filename << std::endl;
 					// ground truth labels
 					filenames_gt_attributes[image_filename].resize(attribute_number);
 					while (true)
