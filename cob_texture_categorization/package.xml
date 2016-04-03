@@ -1,29 +1,33 @@
 <package format="2">
-	<name>cob_texture_categorization</name>
-	<version>0.1.0</version>
-	<description>
+  <name>cob_texture_categorization</name>
+  <version>0.1.0</version>
 
-		Image processing tool for the categorization of textures.
+  <description>
 
-	</description>
-	<author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann, Daniel Hundsdörfer</author>
-	<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-	<license>LGPL</license>
-	<url>http://ros.org/wiki/cob_texture_categorization</url>
+     Image processing tool for the categorization of textures.
 
-	<buildtool_depend>catkin</buildtool_depend>
+  </description>
 
-	<depend>libopencv-dev</depend>
-	<depend>pcl_ros</depend>
-	<depend>cmake_modules</depend> <!-- needed for tinyxml, boost opencv, or eigen -->
-	<depend>roscpp</depend>
-	<depend>roslib</depend>
-	<depend>cv_bridge</depend>
-	<depend>sensor_msgs</depend>
-	<depend>message_filters</depend>
-	<depend>image_transport</depend>
-	<depend>libpcl-all-dev</depend>
-	<depend>libvlfeat</depend>
-	<depend>cob_surface_classification</depend>
+  <author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann, Daniel Hundsdörfer</author>
+  <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+
+  <license>LGPL</license>
+  <url>http://ros.org/wiki/cob_texture_categorization</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>cmake_modules</build_depend>
+  <build_depend>cob_surface_classification</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>image_transport</build_depend>
+  <build_depend>libopencv-dev</build_depend>
+  <build_depend>libvlfeat</build_depend>
+  <build_depend>message_filters</build_depend>
+  <build_depend>pcl_ros</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+
+  <build_depend>libpcl-all-dev</build_depend>
+  <exec_depend>libpcl-all</exec_depend>
 
 </package>

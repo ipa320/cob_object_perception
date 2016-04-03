@@ -1,32 +1,35 @@
 <package format="2">
-	<name>cob_fiducials</name>
-	<version>0.1.0</version>
+  <name>cob_fiducials</name>
+  <version>0.1.0</version>
 
-		<description>
-			Fiducial recognition. Implementation of different 2D tags like PI-tag from Bergamasco et al. for recognition with a single 2D camera.
-		</description>
-		<author>Jan Fischer</author>
-		<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-		<license>LGPL</license>
-		<url>http://ros.org/wiki/cob_fiducials</url>
-		
-		<buildtool_depend>catkin</buildtool_depend>
-		
-		<depend>libopencv-dev</depend>
-		<depend>cmake_modules</depend>
-		<depend>roscpp</depend>
-		<depend>sensor_msgs</depend>
-		<depend>tf</depend>
-		<depend>image_transport</depend>
-		<depend>cv_bridge</depend>
-		<depend>visualization_msgs</depend>
-		<depend>cob_vision_utils</depend>
-		<depend>cob_object_detection_msgs</depend>
-		<depend>std_srvs</depend>
-		
-		<depend>tinyxml</depend>
-		<depend>boost</depend>
-		<depend>libpcl-all-dev</depend>
+  <description>
+    Fiducial recognition. Implementation of different 2D tags like PI-tag from Bergamasco et al. for recognition with a single 2D camera.
+  </description>
+  
+  <author>Jan Fischer</author>
+  <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+  
+  <license>LGPL</license>
+  <url>http://ros.org/wiki/cob_fiducials</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>boost</depend>
+  <depend>cmake_modules</depend>
+  <depend>cob_object_detection_msgs</depend>
+  <depend>cob_vision_utils</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>libopencv-dev</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>tf</depend>
+  <depend>tinyxml</depend>
+  <depend>visualization_msgs</depend>
+
+  <build_depend>libpcl-all-dev</build_depend>
+  <exec_depend>libpcl-all</exec_depend>
 
 </package>
 

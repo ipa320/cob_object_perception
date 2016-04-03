@@ -1,34 +1,43 @@
 <package format="2">
-	<name>cob_surface_classification</name>
-	<version>0.1.0</version>
-	<description>Image processing tool for the categorization of surface shapes.</description>
-	<author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann, Carolin Eckard</author>
-	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
-	<license>LGPL</license>
-	<url>http://ros.org/wiki/cob_surface_classification</url>
+  <name>cob_surface_classification</name>
+  <version>0.1.0</version>
 
-	<buildtool_depend>catkin</buildtool_depend>
+  <description>
+    Image processing tool for the categorization of surface shapes.
+  </description>
 
-	<depend>libopencv-dev</depend>
-	<depend>pcl_ros</depend>
-	<depend>cmake_modules</depend>
-	<depend>roscpp</depend>
-	<depend>cv_bridge</depend>
-	<depend>message_generation</depend>
-	<depend>std_msgs</depend>
-	<depend>sensor_msgs</depend>
-	<depend>gazebo_msgs</depend>
-	<depend>message_filters</depend>
-	<depend>image_transport</depend>
-	<depend>libpcl-all-dev</depend>
-	<depend>cob_3d_mapping_common</depend>
-	<depend>cob_3d_segmentation</depend>
-	<depend>cob_3d_features</depend>
-	<depend>cob_object_detection_msgs</depend>
-	<depend>libvtk</depend>
-	<depend>boost</depend>
-	<depend>dynamic_reconfigure</depend>
+  <author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann, Carolin Eckard</author>
+  <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
 
-	<exec_depend>message_runtime</exec_depend>
+  <license>LGPL</license>
+  <url>http://ros.org/wiki/cob_surface_classification</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>boost</depend>
+  <depend>cmake_modules</depend>
+  <!--depend>cob_3d_features</depend>
+  <depend>cob_3d_mapping_common</depend>
+  <depend>cob_3d_segmentation</depend-->
+  <depend>cob_object_detection_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>gazebo_msgs</depend>
+  <depend>image_transport</depend>
+  <depend>libopencv-dev</depend>
+  <depend>libvtk</depend>
+  <depend>message_filters</depend>
+  <depend>pcl_ros</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+
+  <build_depend>libpcl-all-dev</build_depend>
+  <exec_depend>libpcl-all</exec_depend>
+
+  <exec_depend>rospy</exec_depend>
 
 </package>

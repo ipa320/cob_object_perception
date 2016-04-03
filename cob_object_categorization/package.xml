@@ -1,35 +1,38 @@
 <package format="2">
-	<name>cob_object_categorization</name>
-	<version>0.1.0</version>
-	<description>
+  <name>cob_object_categorization</name>
+  <version>0.1.0</version>
+  <description>
 
-		Image processing tool for the categorization differnt images objects
+     Image processing tool for the categorization differnt images objects
 
-	</description>
-	<author>Richard Bormann</author>
-	<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-	<license>LGPL</license>
-	<url>http://ros.org/wiki/cob_object_categorization</url>
+  </description>
 
-	<buildtool_depend>catkin</buildtool_depend>
+  <author>Richard Bormann</author>
+  <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
 
-	<depend>pcl_ros</depend>
-	<depend>cmake_modules</depend>
-	<depend>roscpp</depend>
-	<depend>cv_bridge</depend>
-	<depend>sensor_msgs</depend>
-	<depend>message_filters</depend>
-	<depend>image_transport</depend>
-	<depend>nodelet</depend>
-	<depend>cob_perception_msgs</depend>
-	<depend>cob_object_detection_msgs</depend>
-	<depend>tf</depend>
-	<depend>actionlib</depend>
-	<depend>actionlib_msgs</depend>
+  <license>LGPL</license>
+  <url>http://ros.org/wiki/cob_object_categorization</url>
 
-	<depend>libpcl-all-dev</depend>
-	<depend>eigen</depend>
-	<depend>libvtk</depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
+  <depend>cmake_modules</depend>
+  <depend>cob_object_detection_msgs</depend>
+  <depend>cob_perception_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>eigen</depend>
+  <depend>image_transport</depend>
+  <depend>libvtk</depend>
+  <depend>message_filters</depend>
+  <depend>nodelet</depend>
+  <depend>pcl_ros</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>tf</depend>
+
+  <build_depend>libpcl-all-dev</build_depend>
+  <exec_depend>libpcl-all</exec_depend>
 
 </package>
 

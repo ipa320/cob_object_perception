@@ -119,11 +119,11 @@ node_handle_(nh)
 		// database tests
 	//	attributeLearningDatabaseTestHandcrafted();
 	//	attributeLearningDatabaseTestFarhadi();
-	//	attributeLearningDatabaseTestCimpoi();
+		attributeLearningDatabaseTestCimpoi();
 	//	attributeLearningGeneratedDatabaseTestHandcrafted();
 	//	crossValidationVerbalClassDescription();
 
-		attributeLearningDTDDatabaseTest();
+	//	attributeLearningDTDDatabaseTest();
 	}
 }
 
@@ -154,9 +154,9 @@ void TextCategorizationNode::init()
 void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 {
 	// === using the hand crafted attributes
-	const std::string database_identifier = "dtd";		// "ipa", "dtd"	// defines the database to be used
+	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
-	std::string path_database = package_path + "/common/files/texture_database_dtd-r1.0.1/images/";			// path to database			//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
+	std::string path_database = package_path + "/common/files/texture_database/";			// path to database		// "/common/files/texture_database_dtd-r1.0.1/images/"	//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
 	std::string feature_files_path = package_path + "/common/files/data/handcrafted/"; 		// path to save data
 
 	// compute 17 texture attributes on the ipa texture database
@@ -290,17 +290,17 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 
 void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 {
-	// === using the 47 texture attributes of Cimpoi
+	// === using the 47 texture attributes of Cimpoi or 17 of ipa
 	const std::string database_identifier = "ipa";		// "ipa", "dtd"	// defines the database to be used
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
 //	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
-	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_rgb/"; 		// path to save data
+	std::string feature_files_path = package_path + "/common/files/data/cnn_ifv/"; 		// path to save data
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
 
 	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-//	database_data.compute_data_cimpoi(path_database, feature_files_path, database_identifier, 0, true, IfvFeatures::RGB_PATCHES);
+//	database_data.compute_data_cimpoi(path_database, feature_files_path, database_identifier, true, IfvFeatures::CNN);
 //	return;
 
 	// attribute cross-validation
@@ -319,7 +319,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 //	//return;
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
-	setSVMConfigurations(cvp, "attributes_cimpoi2014_rgb");
+	setSVMConfigurations(cvp, "attributes_cnnifv");
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
@@ -650,6 +650,17 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 		for (double nu=0.9; nu>0.1; nu-=0.1)
 			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., nu, 0.));
 
+	}
+	else if (experiment_key.compare("attributes_cnnifv")==0)
+	{
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.4, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.3, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.5, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.4, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.3, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.5, 0.));
+//		for (double nu=0.9; nu>0.09; nu-=0.4)
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., nu, 0.));
 	}
 	else if (experiment_key.compare("classes_handcrafted")==0)
 	{

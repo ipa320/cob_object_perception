@@ -1,35 +1,36 @@
 <package format="2">
-	<name>cob_marker</name>
-	<description>
+  <name>cob_marker</name>
+  <description>
 
-		cob_marker allows to find 6DOF markers of different types, like datamatrix, Qr, natural landmarks, ... 
+     cob_marker allows to find 6DOF markers of different types, like datamatrix, Qr, natural landmarks, ... 
 
-	</description>
-	<author>Joshua Hampp</author>
-	<maintainer email="jsf@ipa.fhg.de">Jan Fischer</maintainer>
-	<version>0.1.0</version>
-	<license>LGPL</license>
-	<url>http://ros.org/wiki/cob_marker</url>
+  </description>
 
-	<buildtool_depend>catkin</buildtool_depend>
+  <author>Joshua Hampp</author>
+  <maintainer email="josh@ipa.fhg.de">Joshua Hampp</maintainer>
 
-	<depend>cmake_modules</depend>
-	<depend>roscpp</depend>
-	<depend>pcl_ros</depend>
-	<depend>nodelet</depend>
-	<depend>cv_bridge</depend>
-	<depend>message_filters</depend>
-	<depend>tf</depend>
-	<depend>tf_conversions</depend>
-	<depend>cob_object_detection_msgs</depend>
-	<depend>visualization_msgs</depend>
-	<depend>actionlib</depend>
-	<depend>image_transport</depend>
-	<depend>libzxing</depend>
+  <version>0.1.0</version>
+  <license>LGPL</license>
+  <url>http://ros.org/wiki/cob_marker</url>
 
-	<depend>libpcl-all-dev</depend>
-	<depend>boost</depend>
-	<depend>libdmtx-dev</depend>
-	<depend>libmagick</depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>actionlib</depend>
+  <depend>boost</depend>
+  <depend>cmake_modules</depend>
+  <depend>cob_object_detection_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>libdmtx-dev</depend>
+  <depend>libmagick</depend>
+  <depend>libpcl-all-dev</depend>
+  <depend>libzxing</depend>
+  <depend>message_filters</depend>
+  <depend>nodelet</depend>
+  <depend>pcl_ros</depend>
+  <depend>roscpp</depend>
+  <depend>tf</depend>
+  <depend>tf_conversions</depend>
+  <depend>visualization_msgs</depend>
 
 </package>
