@@ -326,9 +326,9 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, const std::string& database_identifier, bool generateGMM, IfvFeatures::FeatureType feature_type)
 {
 	// todo: parameters
-	const int number_gaussian_centers = 64;		// SIFT, PATCHES: 256         CNN: 64
+	const int number_gaussian_centers = 256;		// SIFT, PATCHES: 256         CNN: 64
 	const int feature_samples_per_image = 100;	//500	//1000	//200
-	const int pca_retained_components = 512;		// SIFT: keep 80 dimensions of the 128 dimensional feature descriptors
+	const int pca_retained_components = 27;		// RGB: 27	SIFT: keep 80 dimensions of the 128 dimensional feature descriptors		CNN: 512
 
 	std::string label_file;
 	double image_resize_factor = 0.;
