@@ -295,12 +295,12 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
 //	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
-	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_rgb/"; 		// path to save data
+	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_sift/"; 		// path to save data
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
 
 	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data;									// computes feature and label matrices of the provided database
-//	database_data.compute_data_cimpoi(path_database, feature_files_path, database_identifier, true, IfvFeatures::RGB_PATCHES);
+//	database_data.compute_data_cimpoi(path_database, feature_files_path, database_identifier, true, IfvFeatures::DENSE_MULTISCALE_SIFT);
 //	return;
 
 	// attribute cross-validation
@@ -319,15 +319,15 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 //	//return;
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
-	//setSVMConfigurations(cvp, "attributes_cnnifv");
-	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+	setSVMConfigurations(cvp, "attributes_cimpoi2014_sift");
+	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
 	al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
 	//al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
 	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-
+return;
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	cvp.ml_configurations_.clear();
 	setSVMConfigurations(cvp, "classes_farhadi2009");
@@ -644,8 +644,12 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 	{
 //		for (double nu=0.9; nu>0.09; nu-=0.4)
 //			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
-		for (double nu=0.9; nu>0.09; nu-=0.4)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., nu, 0.));
+//		for (double nu=0.9; nu>0.09; nu-=0.4)
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., nu, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.9, 0.));
+		std::vector<double> gamma_values; gamma_values.push_back(0.05); gamma_values.push_back(0.1);  gamma_values.push_back(0.5);
+		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., gamma_values[gamma_index], 0., 1., 0.9, 0.));
 	}
 	else if (experiment_key.compare("attributes_cimpoi2014_rgb")==0)
 	{

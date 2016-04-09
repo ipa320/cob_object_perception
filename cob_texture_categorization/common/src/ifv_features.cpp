@@ -73,7 +73,7 @@ void IfvFeatures::computeImprovedFisherVector(const cv::Mat& original_image, con
 }
 
 
-void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters, FeatureType feature_type, const int pca_retained_components)
+void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image_filenames, const double image_resize_factor, const int feature_samples_per_image, const int number_clusters, FeatureType feature_type, const int pca_retained_components, const std::string path_save_identifier)
 {
 	cv::Mat feature_subset(image_filenames.size()*feature_samples_per_image, getFeatureDimension(feature_type), CV_32FC1);
 	for (size_t i=0; i<image_filenames.size(); ++i)
@@ -122,17 +122,28 @@ void IfvFeatures::constructGenerativeModel(const std::vector<std::string>& image
 			while (true)
 			{
 				int random_feature_index = (int)(((double)rand()/(double)RAND_MAX)*features.rows);
-				if ((drawn_features.find(random_feature_index) == drawn_features.end()) && (sum(features.row(random_feature_index)).val[0] != 0 || attempts>100))
+				if ((drawn_features.find(random_feature_index) == drawn_features.end()) && (sum(features.row(random_feature_index) != 0).val[0] != 0 || attempts>1000))
 				{
 					// feature not yet sampled and not zero
 					drawn_features.insert(random_feature_index);
 					for (int j=0; j<features.cols; ++j)
 						feature_subset.at<float>(i*feature_samples_per_image+sample_index,j) = features.at<float>(random_feature_index, j);
+
+					if (attempts > 1000)
+						std::cout << "Taking 0 feature vector." << std::endl;
 					break;
 				}
 				++attempts;
 			}
 		}
+	}
+	// optionally save the picked feature data
+	if (path_save_identifier.length() > 2)
+	{
+		std::string filename = path_save_identifier + "gmm_feature_data.yml";
+		cv::FileStorage fs(filename, cv::FileStorage::WRITE);
+		fs << "feature_subset" << feature_subset;
+		fs.release();
 	}
 
 	// conduct PCA on data to remove correlation (GMM is only employing diagonal covariance matrices)
@@ -150,6 +161,7 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 {
 	const double contrast_threshold = 0.005;
 	int number_contrast_below_threshold = 0;
+	int number_nan = 0;
 
 	//	std::vector<int> spatial_bin_sizes; // side length of spatial bins in pixels for each scale, order ascendingly!
 //	spatial_bin_sizes.push_back(4);
@@ -239,6 +251,15 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 				for (int j=0; j<scale_features.cols; ++j)
 					scale_features.at<float>(i,j) = 0.f;
 			}
+			else
+			{
+				for (int j=0; j<scale_features.cols; ++j)
+					if (scale_features.at<float>(i,j) != scale_features.at<float>(i,j))
+					{
+						scale_features.at<float>(i,j) = 0.f;
+						++number_nan;
+					}
+			}
 		}
 
 		features.push_back(scale_features);
@@ -246,7 +267,10 @@ void IfvFeatures::computeDenseSIFTMultiscale(const cv::Mat& image, cv::Mat& feat
 		vl_dsift_delete(dsift);
 	}
 
-	std::cout << "Contrast below threshold at " << number_contrast_below_threshold << " out of " << features.rows << " feature descriptors." << std::endl;
+	std::cout << "Contrast below threshold at " << number_contrast_below_threshold << " out of " << features.rows << " feature descriptors.";
+	if (number_nan > 0)
+		std::cout  << "\t----- Corrected " << number_nan << " NaN entries.";
+	std::cout << std::endl;
 }
 
 

@@ -328,7 +328,7 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 	// todo: parameters
 	const int number_gaussian_centers = 256;		// SIFT, PATCHES: 256         CNN: 64
 	const int feature_samples_per_image = 100;	//500	//1000	//200
-	const int pca_retained_components = 27;		// RGB: 27	SIFT: keep 80 dimensions of the 128 dimensional feature descriptors		CNN: 512
+	const int pca_retained_components = 80;		// RGB: 27	SIFT: keep 80 dimensions of the 128 dimensional feature descriptors		CNN: 512
 
 	std::string label_file;
 	double image_resize_factor = 0.;
@@ -363,7 +363,8 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 			image_filenames_full_path[i] = path_database_images + image_filenames[i];
 
 		// compute and store GMM
-		ifv.constructGenerativeModel(image_filenames_full_path, image_resize_factor, feature_samples_per_image, number_gaussian_centers, feature_type, pca_retained_components);
+		std::string path_save_identifier = path_save + database_identifier;
+		ifv.constructGenerativeModel(image_filenames_full_path, image_resize_factor, feature_samples_per_image, number_gaussian_centers, feature_type, pca_retained_components, path_save_identifier);
 		ifv.saveGenerativeModel(gmm_filename);
 	}
 	else
