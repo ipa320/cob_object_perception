@@ -55,7 +55,8 @@ void train_ml::cross_validation(const CrossValidationParams& cross_validation_pa
 			if (use_preselected_set_distribution==true)
 			{
 				// just take the provided training indices for this fold
-				feature_matrix_reference = feature_matrices[fold];
+				if (feature_matrix.empty()) // hack: use feature matrix if provided
+					feature_matrix_reference = feature_matrices[fold];
 				if (feature_matrix_test_data[fold].empty()==true || feature_matrix_test_data[fold].cols!=feature_matrix_reference.cols || label_matrix_test_data[fold].empty()==true || label_matrix_test_data[fold].cols!=label_matrix.cols || feature_matrix_test_data[fold].rows!=label_matrix_test_data[fold].rows)
 					std::cout << "Error: provided pre-computed test data and label matrices are not suitable." << std::endl;
 				train_indices = preselected_train_indices[fold];

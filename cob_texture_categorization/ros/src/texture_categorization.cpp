@@ -118,8 +118,8 @@ node_handle_(nh)
 	{
 		// database tests
 	//	attributeLearningDatabaseTestHandcrafted();
-	//	attributeLearningDatabaseTestFarhadi();
-		attributeLearningDatabaseTestCimpoi();
+		attributeLearningDatabaseTestFarhadi();
+	//	attributeLearningDatabaseTestCimpoi();
 	//	attributeLearningGeneratedDatabaseTestHandcrafted();
 	//	crossValidationVerbalClassDescription();
 
@@ -232,16 +232,17 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
-	////al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
-	al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+//	////al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
+//	al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
+//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	cvp.ml_configurations_.clear();
-	setSVMConfigurations(cvp, "classes_handcrafted");
-//	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	setSVMConfigurations(cvp, "classes_farhadi2009");
+	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 //	ml.cross_validation(cvp.folds_, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
-	ml.cross_validation(cvp, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+//	ml.cross_validation(cvp, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+	ml.cross_validation(cvp, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
 }
 
 
@@ -273,18 +274,20 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
 	al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
-	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-	//al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+//	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+//	//al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	cvp.ml_configurations_.clear();
 	setSVMConfigurations(cvp, "classes_farhadi2009");
 //	//std::cout << "Loading labeled attribute features from file ...\n";
 //	//al.loadTextureDatabaseLabeledAttributeFeatures(data_file_name, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);
+	//al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 //	//std::cout << "Loading labeled attribute features from file finished.\n";
 	train_ml ml;
 	//ml.cross_validation(cvp.folds_, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy);		// use this version if training and test data shall be drawn from the same data matrix
 	ml.cross_validation(cvp, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+	//ml.cross_validation(cvp, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
 }
 
 
@@ -319,15 +322,15 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 //	//return;
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
-	setSVMConfigurations(cvp, "attributes_cimpoi2014_sift");
-	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+	//setSVMConfigurations(cvp, "attributes_cnnifv");
+	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1., 0.9, 0.));
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
 	al.crossValidation(cvp, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, true, computed_attribute_matrices);
 	//al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
-	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
-return;
+	//al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	cvp.ml_configurations_.clear();
 	setSVMConfigurations(cvp, "classes_farhadi2009");
@@ -335,6 +338,7 @@ return;
 	ml.cross_validation(cvp, cv::Mat(), class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
 	//al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 	//ml.cross_validation(cvp, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);	// use this if test data is stored in a different matrix than training data, e.g. because training data comes from the labeled attributes and test data is computed attributes
+	//ml.cross_validation(cvp, base_feature_matrix, class_label_matrix, data_hierarchy);
 }
 
 
@@ -661,12 +665,12 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 	}
 	else if (experiment_key.compare("attributes_cnnifv")==0)
 	{
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.7, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.8, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.9, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.7, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.8, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.9, 0.));
+//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.7, 0.));
+//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.8, 0.));
+//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.5, 0., 1., 0.9, 0.));
 //		for (double nu=0.9; nu>0.09; nu-=0.4)
 //			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., nu, 0.));
 	}
@@ -683,6 +687,26 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 	{
 		std::vector<double> C_values; C_values.push_back(0.01); C_values.push_back(0.05); C_values.push_back(0.1); C_values.push_back(0.5); C_values.push_back(1.0); C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
 		std::vector<double> gamma_values; gamma_values.push_back(0.001); gamma_values.push_back(0.005); gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
+		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
+			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+	}
+	else if (experiment_key.compare("classes_cimpoi2014_sift_basefeatures")==0)
+	{
+		std::vector<double> C_values; C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
+		std::vector<double> gamma_values; gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
+		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
+			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+	}
+	else if (experiment_key.compare("classes_cimpoi2014_rgb_basefeatures")==0)
+	{
+		std::vector<double> C_values; C_values.push_back(1.0); C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
+		std::vector<double> gamma_values; gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
 		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
 			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
