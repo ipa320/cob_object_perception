@@ -454,7 +454,6 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 				{	// SVM
 					svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), ml_params.svm_params_);
 				}
-
 				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
 				{	//	Neural Network
 					cv::Mat layers = cv::Mat(2+ml_params.nn_hidden_layers_.size(), 1, CV_32SC1);
