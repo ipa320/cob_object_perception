@@ -143,7 +143,7 @@ public:
 //#define MEASURE_RUNTIME
 #define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
 #define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
-//#define USE_OMP
+#define USE_OMP
 
 	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const EdgeDetectionConfig& config = EdgeDetectionConfig(), pcl::PointCloud<pcl::Normal>::Ptr& normals = 0)
 	{

@@ -59,8 +59,8 @@
 
 /*switches for execution of processing steps*/
 
-#define DATA_SOURCE					0			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
-#define DATA_NUMBER_FILES			1			// number of input files if loaded from file
+#define DATA_SOURCE					2			// 0=from camera, 1=from camera but only publishing on demand, 2=from file
+#define DATA_NUMBER_FILES			5			// number of input files if loaded from file
 #define RECORD_MODE					false		// save color image and cloud for usage in EVALUATION
 #define COMPUTATION_MODE			true		// computations without record
 #define EVALUATION					false		// computations plus evaluation of current computations
@@ -243,8 +243,9 @@ public:
 	SurfaceClassificationNode(ros::NodeHandle nh)
 	: node_handle_(nh)
 	{
-		visualize_edges_ = true;
-		visualize_normals_ = true;
+		// todo: params
+		visualize_edges_ = false;
+		visualize_normals_ = false;
 
 		runtime_total_ = 0.;
 		runtime_depth_image_ = 0.;

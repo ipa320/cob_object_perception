@@ -16,16 +16,16 @@
 
   <depend>boost</depend>
   <depend>cmake_modules</depend>
-  <!--depend>cob_3d_features</depend>
+  <depend>cob_3d_features</depend>
   <depend>cob_3d_mapping_common</depend>
-  <depend>cob_3d_segmentation</depend-->
+  <depend>cob_3d_segmentation</depend>
   <depend>cob_object_detection_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>gazebo_msgs</depend>
   <depend>image_transport</depend>
   <depend>libopencv-dev</depend>
-  <depend>libvtk</depend>
+  <!--depend>libvtk</depend-->
   <depend>message_filters</depend>
   <depend>pcl_ros</depend>
   <depend>roscpp</depend>
