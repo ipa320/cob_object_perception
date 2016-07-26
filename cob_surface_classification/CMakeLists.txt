@@ -16,7 +16,6 @@ set(catkin_RUN_PACKAGES
   gazebo_msgs
   image_transport
   message_filters
-  #pcl_ros  # not needed anymore
   roscpp
   sensor_msgs
   std_msgs
@@ -34,7 +33,9 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
-find_package(PCL REQUIRED)
+#find_package(PCL REQUIRED)
+find_package(PCL 1.8 EXACT REQUIRED)# PATHS /home/rmb/.pcl-1.8 NO_DEFAULT_PATH)
+link_directories(${PCL_LIBRARY_DIRS})
 
 find_package(OpenMP)
 if(OPENMP_FOUND)
@@ -95,6 +96,7 @@ add_library(cob_3d_curvature_segmentation
 add_dependencies(cob_3d_curvature_segmentation ${catkin_EXPORTED_TARGETS})
 target_link_libraries(cob_3d_curvature_segmentation
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 add_executable(surface_classification

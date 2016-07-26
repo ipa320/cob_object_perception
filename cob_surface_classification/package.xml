@@ -25,9 +25,7 @@
   <depend>gazebo_msgs</depend>
   <depend>image_transport</depend>
   <depend>libopencv-dev</depend>
-  <!--depend>libvtk</depend-->
   <depend>message_filters</depend>
-  <depend>pcl_ros</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>

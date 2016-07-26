@@ -109,16 +109,16 @@
 
 // point cloud
 #include <pcl/point_types.h>
-#include <pcl_ros/point_cloud.h>
+//#include <pcl_ros/point_cloud.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl_conversions/pcl_conversions.h>
+//#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/features/integral_image_normal.h>
 #include <pcl/features/normal_3d_omp.h>
 
-//#include <pcl/features/normal_3d_fast_edge_aware.h>
+#include <pcl/features/normal_3d_fast_edge_aware.h>
 
 
 //internal includes
@@ -305,7 +305,7 @@ public:
 			}
 
 			// do computations
-			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, 0.01f, 45., true, 5, 20, 15);
+			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, 0.01f, 40., true, 5, 20, 15);
 			NormalEstimationConfig normal_estimation_config(NormalEstimationConfig::FAST_EDGE_BASED, 8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 10, 128);
 			ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, 0.00);
 			evaluationComputations(image_vector, pointcloud_vector, exp_config);
@@ -677,19 +677,26 @@ public:
 			if (config.normal_estimation_config.normalEstimationFastEdgeBasedEnabled())
 				normalsEdgeDirect = pcl::PointCloud<pcl::Normal>::Ptr(new pcl::PointCloud<pcl::Normal>);
 			cv::Mat edge;
+			Timer tim;
 			if (config.normal_estimation_config.normal_estimation_method==0 || config.normal_estimation_config.normalEstimationEdgeDetectionEnabled()==true)
 				edge_detection_.computeDepthEdges(cloud, edge, config.edge_detection_config, normalsEdgeDirect);
+			double time_elapsed_ms = tim.getElapsedTimeInMilliSec();
+			std::cout << "FastEdgeAwareNormalEstimation: " << time_elapsed_ms << "ms" << std::endl;
+			cv::Mat temp;
+			//renderEdgesToImage(color_image, edge, temp, true, number_processed_images_, "sc");
 
-//			normalsEdgeDirect->clear();
-//			pcl::EdgeDetectionConfig cfg;
-//			cfg.noise_reduction_mode = (pcl::EdgeDetectionConfig::NoiseReductionMode)config.edge_detection_config.noise_reduction_mode;
-//			cfg.noise_reduction_kernel_size = config.edge_detection_config.noise_reduction_kernel_size;
-//			cfg.depth_step_factor = config.edge_detection_config.depth_step_factor;
-//			cfg.min_detectable_edge_angle = config.edge_detection_config.min_detectable_edge_angle;
-//			cfg.use_adaptive_scan_line = config.edge_detection_config.use_adaptive_scan_line;
-//			cfg.min_scan_line_width = config.edge_detection_config.min_scan_line_width;
-//			cfg.max_scan_line_width = config.edge_detection_config.max_scan_line_width;
-//			cfg.scan_line_width_at_2m = config.edge_detection_config.scan_line_width_at_2m;
+////		//// PCL implementation
+			tim.start();
+			normalsEdgeDirect->clear();
+			pcl::EdgeDetectionConfig cfg;
+			cfg.noise_reduction_mode_ = (pcl::EdgeDetectionConfig::NoiseReductionMode)config.edge_detection_config.noise_reduction_mode;
+			cfg.noise_reduction_kernel_size_ = config.edge_detection_config.noise_reduction_kernel_size;
+			cfg.depth_step_factor_ = config.edge_detection_config.depth_step_factor;
+			cfg.min_detectable_edge_angle_ = config.edge_detection_config.min_detectable_edge_angle;
+			cfg.use_adaptive_scan_line_ = config.edge_detection_config.use_adaptive_scan_line;
+			cfg.min_scan_line_width_ = config.edge_detection_config.min_scan_line_width;
+			cfg.max_scan_line_width_ = config.edge_detection_config.max_scan_line_width;
+			cfg.scan_line_width_at_2m_ = config.edge_detection_config.scan_line_width_at_2m;
 //			pcl::FastEdgeAwareNormalEstimation<pcl::PointXYZRGB, pcl::Normal> feane;
 //			if (config.normal_estimation_config.normal_estimation_method==0 || config.normal_estimation_config.normalEstimationEdgeDetectionEnabled()==true)
 //			{
@@ -697,33 +704,39 @@ public:
 //				feane.setInputCloud(cloud);
 //				feane.compute(*normalsEdgeDirect);
 //			}
-
+			pcl::PointCloud<pcl::Label> elabels;
+			std::vector<pcl::PointIndices> label_indices;
+			pcl::OrganizedEdgeFromPoints<pcl::PointXYZRGB, pcl::Normal, pcl::Label> edge_detection;
+			if (config.normal_estimation_config.normal_estimation_method==0 || config.normal_estimation_config.normalEstimationEdgeDetectionEnabled()==true)
+			{
+				edge_detection.setEdgeDetectionConfig(cfg);
+				edge_detection.setInputCloud(cloud);
+				edge_detection.setReturnLabelIndices(false);
+				edge_detection.setUseFastDepthDiscontinuityMode(true);
+				edge_detection.compute(elabels, label_indices, normalsEdgeDirect);
+			}
+			time_elapsed_ms = tim.getElapsedTimeInMilliSec();
+			std::cout << "FastEdgeAwareNormalEstimation PCL: " << time_elapsed_ms << "ms" << std::endl;
+			// generate edge image
+			edge.create((int)cloud->height, (int)cloud->width, CV_8UC1);
+			for (int v=0; v<elabels.height; ++v)
+				for (int u=0; u<elabels.width; ++u)
+					if (elabels.at(u,v).label == edge_detection.EDGELABEL_OCCLUDING)
+						edge.at<uchar>(v,u) = 254;
+					else if (elabels.at(u,v).label == edge_detection.EDGELABEL_HIGH_CURVATURE)
+						edge.at<uchar>(v,u) = 255;
+					else
+						edge.at<uchar>(v,u) = 0;
+			//renderEdgesToImage(color_image, edge, temp, true, number_processed_images_++, "pcl");
 //return; //todo: remove
+			//// END: PCL implementation
 
 			// visualization on color image
 			bool visualize_normals = visualize_normals_;
 			if (visualize_edges_==true)
 			{
-				cv::Mat color_image_edge = color_image.clone();
-//				cv::line(color_image, cv::Point(320-edge_detection_.getScanLineWidth(),240), cv::Point(320+edge_detection_.getScanLineWidth(),240),CV_RGB(255,0,0), 2);
-//				cv::line(color_image, cv::Point(320,240-edge_detection_.getScanLineWidth()), cv::Point(320,240+edge_detection_.getScanLineWidth()),CV_RGB(255,0,0), 2);
-				if (edge.rows==color_image_edge.rows && edge.cols==color_image_edge.cols)
-				{
-					const cv::Vec3b green = cv::Vec3b(0, 255, 0);
-					const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
-					for (int v=0; v<color_image_edge.rows; ++v)
-						for (int u=0; u<color_image_edge.cols; ++u)
-						{
-							if (edge.at<uchar>(v,u) == 254)
-								color_image_edge.at<cv::Vec3b>(v,u) = blue;
-							if (edge.at<uchar>(v,u) == 255)
-								color_image_edge.at<cv::Vec3b>(v,u) = green;
-						}
-				}
-//				int nr_records = config.normal_estimation_config.vanillapcl_kneighbors;
-//				std::stringstream ss;
-//				ss << "edge_images/" << (nr_records<1000 ? "0" : "") << (nr_records<100 ? "0" : "") << (nr_records<10 ? "0" : "") << nr_records << "edge.png";
-//				cv::imwrite(ss.str(), color_image_edge);
+				cv::Mat color_image_edge;
+				renderEdgesToImage(color_image, edge, color_image_edge);
 
 				//cv::imshow("color image", color_image);
 				cv::imshow("color image with edges", color_image_edge);
@@ -1163,6 +1176,30 @@ private:
 			viewerNormals.spinOnce();
 		}
 		viewerNormals.removePointCloud("cloud");
+	}
+
+	void renderEdgesToImage(const cv::Mat& color_image, const cv::Mat& edges, cv::Mat& color_image_edge, const bool store_image=false, const int file_number=0, const std::string& suffix="")
+	{
+		color_image_edge = color_image.clone();
+		if (edges.rows==color_image_edge.rows && edges.cols==color_image_edge.cols)
+		{
+			const cv::Vec3b green = cv::Vec3b(0, 255, 0);
+			const cv::Vec3b blue = cv::Vec3b(255, 0, 0);
+			for (int v=0; v<color_image_edge.rows; ++v)
+				for (int u=0; u<color_image_edge.cols; ++u)
+				{
+					if (edges.at<uchar>(v,u) == 254)
+						color_image_edge.at<cv::Vec3b>(v,u) = blue;
+					if (edges.at<uchar>(v,u) == 255)
+						color_image_edge.at<cv::Vec3b>(v,u) = green;
+				}
+			if (store_image)
+			{
+				std::stringstream ss;
+				ss << "edge_images/" << (file_number<1000 ? "0" : "") << (file_number<100 ? "0" : "") << (file_number<10 ? "0" : "") << file_number << "_edge_" << suffix << ".png";
+				cv::imwrite(ss.str(), color_image_edge);
+			}
+		}
 	}
 
 	void outputConfig(std::ostream& output_device, const ExperimentConfig& exp_config, const std::string separator="\n",
