@@ -89,9 +89,9 @@
 
 struct EdgeDetectionStatistics
 {
-	double recall;
-	double precision;
-	double number_images;
+	double recall_;
+	double precision_;
+	double number_images_;
 
 	EdgeDetectionStatistics()
 	{
@@ -100,26 +100,26 @@ struct EdgeDetectionStatistics
 
 	void clear()
 	{
-		recall = 0.;
-		precision = 0.;
-		number_images = 0.;
+		recall_ = 0.;
+		precision_ = 0.;
+		number_images_ = 0.;
 	}
 
 	void addStatistics(double recall_val, double precision_val)
 	{
-		recall = (recall*number_images + recall_val)/(number_images+1.);
-		precision = (precision*number_images + precision_val)/(number_images+1.);
-		number_images += 1.;
+		recall_ = (recall_*number_images_ + recall_val)/(number_images_+1.);
+		precision_ = (precision_*number_images_ + precision_val)/(number_images_+1.);
+		number_images_ += 1.;
 	}
 };
 
 struct NormalEstimationStatistics
 {
-	double coverage_gt_normals;		// how many normals are computed w.r.t. the number of ground truth normals
-	double average_angular_error;	// average normal estimation error
-	double average_angular_error_deg;	// average normal estimation error in [deg]
-	double percentage_good_normals;	// ratio of sufficiently accurate normals
-	double number_images;
+	double coverage_gt_normals_;		// how many normals are computed w.r.t. the number of ground truth normals
+	double average_angular_error_;	// average normal estimation error
+	double average_angular_error_deg_;	// average normal estimation error in [deg]
+	double percentage_good_normals_;	// ratio of sufficiently accurate normals
+	double number_images_;
 
 	NormalEstimationStatistics()
 	{
@@ -128,20 +128,20 @@ struct NormalEstimationStatistics
 
 	void clear()
 	{
-		coverage_gt_normals = 0.;
-		average_angular_error = 0.;
-		average_angular_error_deg = 0.;
-		percentage_good_normals = 0.;
-		number_images = 0.;
+		coverage_gt_normals_ = 0.;
+		average_angular_error_ = 0.;
+		average_angular_error_deg_ = 0.;
+		percentage_good_normals_ = 0.;
+		number_images_ = 0.;
 	}
 
 	void addStatistics(double coverage_gt_normals_val, double average_angular_error_val, double average_angular_error_deg_val, double percentage_good_normals_val)
 	{
-		coverage_gt_normals = (coverage_gt_normals*number_images + coverage_gt_normals_val)/(number_images+1.);
-		average_angular_error = (average_angular_error*number_images + average_angular_error_val)/(number_images+1.);
-		average_angular_error_deg = (average_angular_error_deg*number_images + average_angular_error_deg_val)/(number_images+1.);
-		percentage_good_normals = (percentage_good_normals*number_images + percentage_good_normals_val)/(number_images+1.);
-		number_images += 1.;
+		coverage_gt_normals_ = (coverage_gt_normals_*number_images_ + coverage_gt_normals_val)/(number_images_+1.);
+		average_angular_error_ = (average_angular_error_*number_images_ + average_angular_error_val)/(number_images_+1.);
+		average_angular_error_deg_ = (average_angular_error_deg_*number_images_ + average_angular_error_deg_val)/(number_images_+1.);
+		percentage_good_normals_ = (percentage_good_normals_*number_images_ + percentage_good_normals_val)/(number_images_+1.);
+		number_images_ += 1.;
 	}
 };
 

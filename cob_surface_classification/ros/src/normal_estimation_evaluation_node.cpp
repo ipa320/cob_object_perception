@@ -76,10 +76,9 @@
 #define SEG_WITHOUT_EDGES_VIS 		false 	// visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	// visualisation of classification
 
-#define PUBLISH_SEGMENTATION		false	//publish segmented point cloud on topic
+#define PUBLISH_SEGMENTATION		false	// publish segmented point cloud on topic
 
 #define USE_PCL_IMPLEMENTATION		false	// use the PCL implementation of edge detection and normal estimation
-
 
 #include <random>
 
@@ -124,6 +123,7 @@
 #if USE_PCL_IMPLEMENTATION
 	#include <pcl/features/normal_3d_fast_edge_aware.h>
 #endif
+
 
 //internal includes
 #include <cob_surface_classification/edge_detection.h>
@@ -735,6 +735,7 @@ public:
 			renderEdgesToImage(color_image, edge, temp, true, number_processed_images_++, "pcl");
 			//// END: PCL implementation
 #endif
+
 			// visualization on color image
 			bool visualize_normals = visualize_normals_;
 			if (visualize_edges_==true)

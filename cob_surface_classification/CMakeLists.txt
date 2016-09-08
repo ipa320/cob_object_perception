@@ -33,8 +33,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
-#find_package(PCL REQUIRED)
-find_package(PCL 1.8 EXACT REQUIRED)# PATHS /home/rmb/.pcl-1.8 NO_DEFAULT_PATH)
+find_package(PCL REQUIRED)
+#find_package(PCL 1.8 EXACT REQUIRED)# PATHS /home/rmb/.pcl-1.8 NO_DEFAULT_PATH)
 link_directories(${PCL_LIBRARY_DIRS})
 
 find_package(OpenMP)
@@ -90,6 +90,7 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
+### 3d curvature segmentation library
 add_library(cob_3d_curvature_segmentation
   common/src/refine_segmentation.cpp
 )
@@ -99,6 +100,7 @@ target_link_libraries(cob_3d_curvature_segmentation
   ${PCL_LIBRARIES}
 )
 
+### surface classification
 add_executable(surface_classification
   ros/src/surface_classification_node.cpp
   common/src/surface_classification.cpp
@@ -117,10 +119,31 @@ target_link_libraries(surface_classification
   ${PCL_LIBRARIES}
 )
 
+### edge detection and normal estimation testing environment
+add_executable(normal_estimation_evaluation
+  ros/src/normal_estimation_evaluation_node.cpp
+  common/src/surface_classification.cpp
+  ros/src/scene_recording.cpp
+  ros/src/evaluation.cpp
+  ros/src/simple_object_classification.cpp
+)
+target_compile_options(normal_estimation_evaluation PRIVATE -std=c++11 ${OpenMP_FLAGS})
+add_dependencies(normal_estimation_evaluation ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(normal_estimation_evaluation
+  cob_3d_curvature_segmentation
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${OpenMP_LIBS}
+  ${PCL_LIBRARIES}
+)
+
+### simulation scene generator
 add_executable(simulation_scene_generator  common/src/simulation_scene_generator.cpp)
 add_dependencies(simulation_scene_generator ${catkin_EXPORTED_TARGETS})
 target_link_libraries(simulation_scene_generator ${catkin_LIBRARIES})
 
+### simulation scene reset
 add_executable(simulation_scene_reset ros/src/simulation_scene_reset.cpp)
 add_dependencies(simulation_scene_reset ${catkin_EXPORTED_TARGETS})
 target_link_libraries(simulation_scene_reset ${catkin_LIBRARIES})
