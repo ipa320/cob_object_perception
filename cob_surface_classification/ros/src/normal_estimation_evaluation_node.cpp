@@ -80,6 +80,7 @@
 
 #define USE_PCL_IMPLEMENTATION		false	// use the PCL implementation of edge detection and normal estimation
 
+
 #include <random>
 
 // ROS includes
