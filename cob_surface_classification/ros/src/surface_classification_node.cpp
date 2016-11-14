@@ -269,6 +269,15 @@ public:
 
 		if (DATA_SOURCE == 0)
 		{
+
+			// dynamic reconfigure
+			normal_estimation_dynamic_reconfigure_server_.setCallback(boost::bind(&SurfaceClassificationNode::dynamicReconfigureCallback, this, _1, _2));
+
+			// todo: fixed configuration, for testing, remove later
+			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, 0.01f, 40., true, 5, 30, 15);
+			NormalEstimationConfig normal_estimation_config(NormalEstimationConfig::CROSS_PRODUCT_EDGE_AWARE, 8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 10, 128);
+			normal_estimation_configuration_ = ExperimentConfig(edge_detection_config, normal_estimation_config, 0.00);
+
 			// from camera with broadcast
 			it_ = new image_transport::ImageTransport(node_handle_);
 			colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
@@ -277,9 +286,6 @@ public:
 			sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
 			sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
 			sync_input_->registerCallback(boost::bind(&SurfaceClassificationNode::inputCallback, this, _1, _2));
-
-			// dynamic reconfigure
-			normal_estimation_dynamic_reconfigure_server_.setCallback(boost::bind(&SurfaceClassificationNode::dynamicReconfigureCallback, this, _1, _2));
 		}
 		else if (DATA_SOURCE == 1)
 		{
@@ -693,8 +699,9 @@ public:
 			renderEdgesToImage(color_image, edge, temp, true, number_processed_images_, "sc");
 
 			// prepare data for segmentation
-			if (config.normal_estimation_config.normal_estimation_method & NormalEstimationConfig::FAST_EDGE_BASED)
+			if ((config.normal_estimation_config.normal_estimation_method & NormalEstimationConfig::FAST_EDGE_BASED) != 0)
 			{
+				std::cout << "normal_estimation_method:" << config.normal_estimation_config.normal_estimation_method << std::endl;
 				pcl::copyPointCloud(*normalsEdgeDirect, *normals);
 				if (labels->points.size() != normals->size())
 				{
@@ -771,6 +778,7 @@ public:
 			}
 			if (visualize_normals==true && normalsEdgeDirect!=0)
 				displayPointCloud(cloud, normalsEdgeDirect, "fast edge-aware normal estimation");
+
 
 			ST::Graph::Ptr graph(new ST::Graph);
 			if (config.normal_estimation_config.normalEstimationCrossProductEdgeAwareEnabled())
@@ -900,11 +908,13 @@ public:
 				viewer.setBackgroundColor (0.0, 0.0, 0);
 				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(segmented);
 				viewer.addPointCloud<pcl::PointXYZRGB> (segmented,rgb,"seg");
-				viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "seg");
-				viewer.setCameraPosition(0.241869,-0.159695,-2.02751,0.0583976,0.146078,1.59981,-0.0103915,0.998608,-0.0517162);
+				viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "seg");
+				viewer.setCameraPosition(0.241869,-0.159695,-2.02751,0.0583976,0.146078,1.59981,-0.0103915,0.998608,-0.0517162);	// simulation
+				//viewer.setCameraPosition(0.0560888,-0.409663,-2.78278,0.0503032,-0.110018,1.61724,-0.0315182,-0.997196,0.0678684);	// asus
 				viewer.setCameraFieldOfView(0.523599);
 				viewer.setCameraClipDistances(0.1,10.0);
-				//1.38393,5.06129/0.259317,0.17878,1.59225/0.15896,0.0220352,-1.41423/-0.0103915,0.998608,-0.0517162/0.523599/960,540/214,159
+				//sim: 1.38393,5.06129/0.259317,0.17878,1.59225/0.15896,0.0220352,-1.41423/-0.0103915,0.998608,-0.0517162/0.523599/960,540/214,159
+				//asus: 2.57254,7.26938/0.0503032,-0.110018,1.61724/0.0560888,-0.409663,-2.78278/-0.0315182,-0.997196,0.0678684/0.523599/960,540/65,52
 				while (!viewer.wasStopped ())
 				{
 					viewer.spinOnce();
@@ -956,6 +966,17 @@ public:
 				viewerRef.removePointCloud("segRef");
 			}
 
+			// generate index set for clusters
+			std::vector< std::vector<int> > cluster_index_sets;
+			for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
+			{
+				std::vector<int> point_indices(c->size());
+				int i=0;
+				for (ST::Graph::ClusterType::iterator it = c->begin(); it != c->end(); ++it, ++i)
+					point_indices[i] = *it;
+				cluster_index_sets.push_back(point_indices);
+			}
+
 			if (PUBLISH_SEGMENTATION)
 			{
 				cob_surface_classification::SegmentedPointCloud2 msg;
@@ -964,13 +985,10 @@ public:
 //					msg.pointcloud = *pointcloud_msg;
 //				else
 //					msg.pointcloud = cloud_blob;
-				for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
+				for (size_t i=0; i<cluster_index_sets.size(); ++i)
 				{
 					cob_surface_classification::Int32Array point_indices;
-					point_indices.array.resize(c->size());
-					int i=0;
-					for (ST::Graph::ClusterType::iterator it = c->begin(); it != c->end(); ++it, ++i)
-						point_indices.array[i] = *it;
+					point_indices.array = cluster_index_sets[i];
 					msg.clusters.push_back(point_indices);
 				}
 				segmented_pointcloud_pub_.publish(msg);
@@ -1125,7 +1143,7 @@ private:
 
 	// visualization
 	bool visualize_edges_;		// visualization of edges
-	bool visualize_normals_; 	// visualisation of normals
+	bool visualize_normals_; 	// visualization of normals
 
 	//evaluation
 	Evaluation eval_;

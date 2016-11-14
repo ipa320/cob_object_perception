@@ -107,6 +107,7 @@ add_executable(surface_classification
   ros/src/scene_recording.cpp
   ros/src/evaluation.cpp
   ros/src/simple_object_classification.cpp
+  common/src/shot_descriptor.cpp
 )
 target_compile_options(surface_classification PRIVATE -std=c++11 ${OpenMP_FLAGS})
 add_dependencies(surface_classification ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
