@@ -75,7 +75,7 @@ add_library(${PROJECT_NAME}
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
+  ${OpenCV_LIBS}
   ${TinyXML_LIBRARIES}
   ${Boost_LIBRARIES}
 #  ${PCL_LIBRARIES}
@@ -89,7 +89,7 @@ add_dependencies(fiducials ${catkin_EXPORTED_TARGETS})
 target_link_libraries(fiducials
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
+  ${OpenCV_LIBS}
   ${TinyXML_LIBRARIES}
   ${Boost_LIBRARIES}
 #  ${PCL_LIBRARIES}
