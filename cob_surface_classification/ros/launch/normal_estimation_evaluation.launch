@@ -22,7 +22,7 @@
   	<param name = "speckle_range" type="double" value="0.2"/>
   </node-->
 
-  <node ns="surface_classification" name="surface_classification" pkg="cob_surface_classification" type="surface_classification" output="screen"><!-- launch-prefix="gdb -ex run args" -->
+  <node ns="surface_classification" name="normal_estimation_evaluation" pkg="cob_surface_classification" type="normal_estimation_evaluation" output="screen"><!-- launch-prefix="gdb -ex run args" -->
    <!--remap from="pointcloud_in" to="object_segmentation_pass_through/output"/-->
    <!--remap from="pointcloud_in" to="/cob_3d_mapping_filters/point_cloud2_filtered_speckle"/-->
    <!--remap from="pointcloud_in" to="/cam3d/depth/points_xyzrgb"/-->

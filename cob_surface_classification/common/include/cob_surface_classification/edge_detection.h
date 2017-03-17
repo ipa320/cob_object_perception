@@ -140,10 +140,10 @@ public:
 		number_processed_images_ = 0;
 	};
 
-//#define MEASURE_RUNTIME
+#define MEASURE_RUNTIME
 #define MIN_DISTANCE_TO_DEPTH_EDGE 2				// sim: 1	// real: 2
 #define MIN_SCAN_LINE_WIDTH_FRACTION_FROM_MAX 3		// sim: 3
-//#define USE_OMP
+#define USE_OMP
 
 	void computeDepthEdges(PointCloudInConstPtr pointcloud, cv::Mat& edge, const EdgeDetectionConfig& config = EdgeDetectionConfig(), pcl::PointCloud<pcl::Normal>::Ptr& normals = 0)
 	{
@@ -292,6 +292,7 @@ public:
 		//cv::Mat angle_image = cv::Mat::zeros(edge.rows, edge.cols, CV_32FC1);
 
 		// surface discontinuities
+		Timer tim2;
 		const int min_line_width = config.min_scan_line_width;
 		const int max_line_width = config.max_scan_line_width;
 		const int max_v = z_dx.rows - max_line_width - 2;
@@ -305,6 +306,8 @@ public:
 		cv::Mat distance_map_horizontal;
 		if (config.use_adaptive_scan_line == true)
 			computeEdgeDistanceMapHorizontal(edge, distance_map_horizontal);
+		std::cout << "surface1: " << tim2.getElapsedTimeInMilliSec() << "ms" << std::endl;
+		tim2.start();
 #ifdef USE_OMP
 #pragma omp parallel for //num_threads(2)
 #endif
@@ -388,6 +391,9 @@ public:
 				}
 			}
 		}
+		std::cout << "surfaceX: " << tim2.getElapsedTimeInMilliSec() << "ms" << std::endl;
+		tim2.start();
+
 		// y lines
 		y_dy = y_dy.t();
 		z_dy = z_dy.t();
@@ -396,6 +402,8 @@ public:
 		cv::Mat distance_map_vertical;
 		if (config.use_adaptive_scan_line == true)
 			computeEdgeDistanceMapVertical(edge, distance_map_vertical);
+		std::cout << "surface2: " << tim2.getElapsedTimeInMilliSec() << "ms" << std::endl;
+		tim2.start();
 		const int max_uy = z_dy.cols - max_line_width - 2;
 		const int max_vy = z_dy.rows - max_line_width - 2;
 #ifdef USE_OMP
@@ -478,6 +486,9 @@ public:
 				}
 			}
 		}
+		std::cout << "surfaceY: " << tim2.getElapsedTimeInMilliSec() << "ms" << std::endl;
+		tim2.start();
+
 
 /*		// y lines
 		cv::Mat y_dy_integralY, z_dy_integralY;
@@ -578,6 +589,9 @@ public:
 //			for (int u=0; u<z_image.cols; ++u)
 //				if (z_image.at<float>(v,u)==0)
 //					edge.at<uchar>(v,u)=0;
+		std::cout << "surface_refine: " << tim2.getElapsedTimeInMilliSec() << "ms" << std::endl;
+		tim2.start();
+
 
 		if (normals != 0)
 		{
@@ -678,6 +692,8 @@ public:
 				}
 			}
 		}
+		std::cout << "surface_normals: " << tim2.getElapsedTimeInMilliSec() << "ms" << std::endl;
+		tim2.start();
 
 
 #ifdef MEASURE_RUNTIME
@@ -864,7 +880,7 @@ private:
 	 * http://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Approximations_that_depend_on_the_floating_point_representation */
 	float fast_sqrt(float z)
 	{
-	    int val_int = *(int*)&z; /* Same bits, but as an int */
+		int val_int = *(int*)&z; /* Same bits, but as an int */
 	    /*
 	     * To justify the following code, prove that
 	     *
@@ -1084,6 +1100,7 @@ private:
 	}
 
 	// scan_line_length_1 = left or above,  scan_line_length_2 = right or below
+	inline
 	bool adaptScanLine(int& scan_line_length_1, int& scan_line_length_2, const cv::Mat& distance_map, const int u, const int v, const int min_line_width)
 	{
 		const int max_1 = scan_line_length_1;
@@ -1099,6 +1116,7 @@ private:
 	}
 
 	// scan_line_length_1 = left or above,  scan_line_length_2 = right or below
+	inline
 	bool adaptScanLineNormal(int& scan_line_length_1, int& scan_line_length_2, const cv::Mat& distance_map, const int u, const int v, const int min_line_width)
 	{
 		const int max_1 = scan_line_length_1;

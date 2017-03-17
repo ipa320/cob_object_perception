@@ -11,7 +11,7 @@ extern "C"
 	#include <vl/svm.h>
 }
 
-void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filename, const int feature_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier)
+void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filename, const int feature_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy, std::vector<std::string>& image_filenames, const std::string& database_identifier)
 {
 	// load feature vectors and corresponding labels computed on database and class-object-sample hierarchy
 	//const int attribute_number = 17;			// label = attributes
@@ -29,6 +29,7 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filen
 	feature_matrix = cv::Mat();		//create(total_sample_number, feature_number, CV_32FC1);
 	ground_truth_attribute_matrix = cv::Mat();		//.create(total_sample_number, attribute_number, CV_32FC1);
 	class_label_matrix = cv::Mat();		//.create(total_sample_number, 1, CV_32FC1);
+	image_filenames.clear();
 	int sample_index = 0;
 	std::ifstream file(filename.c_str(), std::ios::in);
 	if (file.is_open() == true)
@@ -56,6 +57,8 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filen
 					// filename
 					std::string image_filename;
 					file >> image_filename;
+					image_filename = class_name + "/" + image_filename;
+					image_filenames.push_back(image_filename);
 					// read data
 					while (true)
 					{
@@ -87,6 +90,11 @@ void AttributeLearning::loadTextureDatabaseBaseFeatures(const std::string& filen
 							{
 								for (int l=0; l<attribute_number; ++l)
 									file >> ground_truth_attribute_matrix_row.at<float>(0, l);	// ground truth attribute vector
+							}
+							else if (tag.compare("base_farhadi9688:") == 0)
+							{
+								for (int f=0; f<feature_number; ++f)
+									file >> feature_matrix_row.at<float>(0, f);		// base feature vector
 								break;
 							}
 							else
@@ -446,7 +454,6 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 				{	// SVM
 					svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), ml_params.svm_params_);
 				}
-
 				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
 				{	//	Neural Network
 					cv::Mat layers = cv::Mat(2+ml_params.nn_hidden_layers_.size(), 1, CV_32SC1);
@@ -1042,7 +1049,7 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 		// compute average precision
 		mean_average_precision_total /= (double)attribute_matrix.cols;
 		mean_max_f_score_total /= (double)attribute_matrix.cols;
-		std::cout << "Total:\t\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_total << "\t\t" << 100.*mean_max_f_score_total << std::endl;  output_summary << "Total:\t\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_total << "\t\t" << 100.*mean_max_f_score_total << std::endl;
+		std::cout << "\nTotal:\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_total << "\t\t" << 100.*mean_max_f_score_total << std::endl;  output_summary << "Total:\t\t" << std::fixed << std::setprecision(2) << 100.*mean_average_precision_total << "\t\t" << 100.*mean_max_f_score_total << "\n" << std::endl;
 
 //		double average_precision = computeAveragePrecisionPascal11(recall_vector, precision_vector);
 //		std::cout << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;  output_summary << "Attribute " << attribute_index+1 << ": average_precision =\t" << average_precision << std::endl;
