@@ -4771,7 +4771,7 @@ float DetectText::ocrRead(const cv::Mat& image, std::string& output)
 
 	int result;
 
-	std::string cmd = ros::package::getPath("cob_tesseract") + "/bin/tesseract patch.tiff patch -psm 7 -l deu letters"; // before: psm -8
+	std::string cmd = "/usr/bin/tesseract patch.tiff patch -psm 7 -l deu letters"; // before: psm -8
 	result = system(cmd.c_str());
 
 	assert(!result);

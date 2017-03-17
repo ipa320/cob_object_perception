@@ -23,12 +23,15 @@
   <depend>eigen</depend>
   <depend>geometry_msgs</depend>
   <depend>image_transport</depend>
+  <depend>libleptonica-dev</depend>
   <depend>libpcl-all-dev</depend>
+  <depend>libtesseract</depend>
   <depend>libvtk</depend>
   <depend>pcl_ros</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>tesseract-ocr</depend>
 
   <!--exec_depend>cob_read_text_data</exec_depend>
   <exec_depend>cob_tesseract_data</exec_depend-->
