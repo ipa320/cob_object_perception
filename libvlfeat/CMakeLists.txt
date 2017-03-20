@@ -3,50 +3,35 @@ project(libvlfeat)
 
 find_package(catkin REQUIRED)
 
-message(STATUS "Project source dir: ${PROJECT_SOURCE_DIR}")
-add_custom_target(
-  build_vlfeat ALL
-  COMMAND test -e ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME}/INSTALLED || (cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.tarball && touch ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME}/INSTALLED)
-)
+catkin_destinations() # set-up destination variables
+file(MAKE_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_INCLUDE_DESTINATION})
 
-set(libraries "vl")
-foreach(library ${libraries})
-  add_custom_target(
-    copy_${library} ALL
-    COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
-      COMMENT "Copying ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.so to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}"
-  )
-endforeach()
+include(ExternalProject)
+ExternalProject_Add(EP_${PROJECT_NAME}
+    URL https://github.com/ipa320/thirdparty/raw/master/vlfeat-0.9.19.tar.gz
+    URL_MD5 84a60619b71bfd0667f9826247d1fd00
+
+    CONFIGURE_COMMAND ""
+    SOURCE_DIR ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src
+    BUILD_IN_SOURCE 1
+    BUILD_COMMAND make
+        # copy headers to devel space (catkin does not like headers in source space)
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/vl ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/vl
+        # copy libs, set-up soname chain
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/bin/glnxa64/libvl.so ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
+    INSTALL_COMMAND ""
+)
 
 catkin_package(
-  INCLUDE_DIRS
-    common/include
-  LIBRARIES
-    vl
+    CFG_EXTRAS libvlfeat-extras.cmake # catkin_package does not support artifacts in devel space
+    EXPORTED_TARGETS EP_${PROJECT_NAME}
 )
 
-include_directories(
-  common/include
+install(DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/vl/
+    DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/vl
+    FILES_MATCHING PATTERN "*.h"
 )
 
-foreach(library ${libraries})
-  add_library(${library} SHARED)
-  add_dependencies(${library} copy_${library})
-  add_dependencies(copy_${library} build_vlfeat)
-  set_target_properties(${library} PROPERTIES LINKER_LANGUAGE CXX)
-endforeach()
-set_target_properties(build_vlfeat PROPERTIES LINKER_LANGUAGE CXX)
-
-
-#############
-## Install ##
-#############
-install(TARGETS vl
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-install(DIRECTORY common/include
-  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+install(PROGRAMS ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/libvl.so
+    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
