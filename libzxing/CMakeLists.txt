@@ -3,56 +3,34 @@ project(libzxing)
 
 find_package(catkin REQUIRED)
 
+catkin_destinations() # set-up destination variables
+file(MAKE_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+
+include(ExternalProject)
+ExternalProject_Add(EP_${PROJECT_NAME}
+    URL https://github.com/ipa320/thirdparty/raw/master/zxing-2.1.tar.gz
+    URL_MD5 00048357b97ca779dd91ad35c87e5058
+
+    CONFIGURE_COMMAND cd ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/cpp && scons lib
+    SOURCE_DIR ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src
+    BUILD_COMMAND ""
+        # copy headers to devel space (catkin does not like headers in source space)
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/cpp/build/core/src/zxing ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/zxing
+        # copy libs, set-up soname chain
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/cpp/build/libzxing.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
+    INSTALL_COMMAND ""
+)
 
 catkin_package(
-  INCLUDE_DIRS
-    common/include
-  LIBRARIES
-    zxing
-  DEPENDS
-    scons 
+    CFG_EXTRAS libzxing-extras.cmake # catkin_package does not support artifacts in devel space
+    EXPORTED_TARGETS EP_${PROJECT_NAME}
 )
 
-add_custom_target(
-  build_zxing ALL
-  COMMAND test -e ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME}/INSTALLED || (cmake -E chdir ${PROJECT_SOURCE_DIR} make -f Makefile.tarball && touch ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_SHARE_DESTINATION}/${PROJECT_NAME}/INSTALLED)
+install(DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/zxing/
+    DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/zxing
+    FILES_MATCHING PATTERN "*.h"
 )
 
-set(libraries "zxing")
-foreach(library ${libraries})
-  add_custom_target(
-    copy_${library} ALL
-    COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}
-    COMMENT "Copying ${PROJECT_SOURCE_DIR}/common/lib/lib${library}.a to ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}"
-  )
-#  add_library(${library} STATIC IMPORTED)
-#  # now you can use TARGET as if it were a regular cmake built target in your project
-#  add_dependencies(${library} copy_${library})
-#  add_dependencies(copy_${library} build_${library})
-endforeach()
-
-
-include_directories(
-  common/include
-)
-
-foreach(library ${libraries})
-  add_library(${library} STATIC)
-  add_dependencies(${library} copy_${library})
-  add_dependencies(copy_${library} build_${library})
-  set_target_properties(${library} PROPERTIES LINKER_LANGUAGE CXX)
-endforeach()
-
-
-#############
-## Install ##
-#############
-install(TARGETS zxing
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-install(DIRECTORY common/include/
-  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+install(FILES ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}/libzxing.a
+    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
