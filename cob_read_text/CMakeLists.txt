@@ -46,12 +46,12 @@ target_link_libraries(read_text
   ${OpenCV_LIBRARIES}
 )
 
-## read_text_run_detect
-add_executable(read_text_run_detect
+## run_detect
+add_executable(run_detect
   common/src/run_detection.cpp
 )
-add_dependencies(read_text_run_detect ${catkin_EXPORTED_TARGETS})
-target_link_libraries(read_text_run_detect
+add_dependencies(run_detect ${catkin_EXPORTED_TARGETS})
+target_link_libraries(run_detect
   read_text
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
@@ -67,75 +67,75 @@ target_link_libraries(cob_read_text
   ${catkin_LIBRARIES}
 )
 
-## read_text_read_evaluation 
-add_executable(read_text_read_evaluation 
+## read_evaluation 
+add_executable(read_evaluation 
   ros/src/read_evaluation.cpp
 )
-add_dependencies(read_text_read_evaluation ${catkin_EXPORTED_TARGETS})
-target_link_libraries(read_text_read_evaluation 
+add_dependencies(read_evaluation ${catkin_EXPORTED_TARGETS})
+target_link_libraries(read_evaluation 
   read_text
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
-## read_text_letter_evaluation
-#add_executable(read_text_letter_evaluation
+## letter_evaluation
+#add_executable(letter_evaluation
 #  ros/src/letter_evaluation.cpp
 #)
-#add_dependencies(read_text_letter_evaluation  ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(read_text_letter_evaluation
+#add_dependencies(letter_evaluation  ${catkin_EXPORTED_TARGETS})
+#target_link_libraries(letter_evaluation
 #  ${catkin_LIBRARIES}
 #)
 
-## read_text_labelBox 
-add_executable(read_text_labelBox 
+## labelBox 
+add_executable(labelBox 
   ros/src/labelBox.cpp
 )
-add_dependencies(read_text_labelBox  ${catkin_EXPORTED_TARGETS})
-target_link_libraries(read_text_labelBox
+add_dependencies(labelBox  ${catkin_EXPORTED_TARGETS})
+target_link_libraries(labelBox
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
-## read_text_create_correlation
-add_executable(read_text_create_correlation 
+## create_correlation
+add_executable(create_correlation 
   common/src/createCorrelation.cpp
 )
-add_dependencies(read_text_create_correlation  ${catkin_EXPORTED_TARGETS})
-target_link_libraries(read_text_create_correlation 
+add_dependencies(create_correlation  ${catkin_EXPORTED_TARGETS})
+target_link_libraries(create_correlation 
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
-## read_text_record_kinect_prosilica
-add_executable(read_text_record_kinect_prosilica
+## record_kinect_prosilica
+add_executable(record_kinect_prosilica
   ros/src/recordKinPro.cpp
 )
-add_dependencies(read_text_record_kinect_prosilica  ${catkin_EXPORTED_TARGETS})
-target_link_libraries(read_text_record_kinect_prosilica
+add_dependencies(record_kinect_prosilica  ${catkin_EXPORTED_TARGETS})
+target_link_libraries(record_kinect_prosilica
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
-## read_text_script_for_imglist 
-add_executable(read_text_script_for_imglist 
+## script_for_imglist 
+add_executable(script_for_imglist 
   common/src/convertXML.cpp
 )
-add_dependencies(read_text_script_for_imglist  ${catkin_EXPORTED_TARGETS})
-target_link_libraries(read_text_script_for_imglist 
+add_dependencies(script_for_imglist  ${catkin_EXPORTED_TARGETS})
+target_link_libraries(script_for_imglist 
   ${catkin_LIBRARIES}
 )
 
-## read_text_showPCD
+## showPCD
 ## cmake --help-policy CMP0003
 if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
 endif() #(COMMAND cmake_policy)
-add_executable(read_text_showPCD 
+add_executable(showPCD 
   common/src/showPCD.cpp
 )
-add_dependencies(read_text_showPCD ${catkin_EXPORTED_TARGETS})
-target_link_libraries(read_text_showPCD 
+add_dependencies(showPCD ${catkin_EXPORTED_TARGETS})
+target_link_libraries(showPCD 
   ${catkin_LIBRARIES}
   ${VTK_LIBRARIES}
   ${Boost_LIBRARIES}
@@ -146,15 +146,15 @@ target_link_libraries(read_text_showPCD
 #############
 install(TARGETS 
     read_text
-    read_text_run_detect
+    run_detect
     cob_read_text
-    read_text_read_evaluation
-#    read_text_letter_evaluation
-    read_text_labelBox
-    read_text_create_correlation
-    read_text_record_kinect_prosilica
-    read_text_script_for_imglist
-    read_text_showPCD 
+    read_evaluation
+#    letter_evaluation
+    labelBox
+    create_correlation
+    record_kinect_prosilica
+    script_for_imglist
+    showPCD 
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

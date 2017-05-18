@@ -18,7 +18,7 @@
 	<rosparam command="load" file="$(find cob_read_text)/launch/params.yaml" />
 
 	<node name="cob_read_text" pkg="cob_read_text" type="cob_read_text" output="screen"
-		args="$(find cob_read_text_data)/fonts/new_correlation.txt $(find cob_read_text_data)/dictionary/full-dictionary_ger">
+		args="$(find cob_read_text_data)/fonts/new_correlation.txt $(find cob_read_text_data)/dictionary/full-dictionary_eng">
 		<remap from="text_detect" to="/read_text/text_detect"/>
 		<remap from="image_color" to="/camera/rgb/image_raw"/>
 	</node>

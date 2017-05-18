@@ -5201,7 +5201,7 @@ void DetectText::overlayText(std::vector<cv::RotatedRect>& box, std::vector<std:
 {
 	int textDisplayOffset = 1;
 	// assert(box.size() == text.size());
-	size_t lineWidth = 25;
+	size_t lineWidth = 40;
 	int indent = 50;
 	int count = 0;
 	for (size_t i = 0; i < box.size(); i++)
@@ -5220,16 +5220,16 @@ void DetectText::overlayText(std::vector<cv::RotatedRect>& box, std::vector<std:
 		std::string prefix = "[";
 		prefix = prefix + out.str() + "]";
 		cv::putText(resultImage_, prefix, cv::Point(box[i].center.x + 0.5 * box[i].size.width, box[i].center.y - 0.5 * box[i].size.height),
-				cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
-		cv::putText(resultImage_, prefix, cv::Point(grayImage_.cols, textDisplayOffset * 35), cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
+				cv::FONT_HERSHEY_DUPLEX, 0.5, color, 1);
+		cv::putText(resultImage_, prefix, cv::Point(originalImage_.cols, textDisplayOffset * 10), cv::FONT_HERSHEY_DUPLEX, 0.5, color, 1);
 		while (output.length() > lineWidth)
 		{
-			cv::putText(resultImage_, output.substr(0, lineWidth), cv::Point(grayImage_.cols + indent, textDisplayOffset * 35), cv::FONT_HERSHEY_DUPLEX, 1,
+			cv::putText(resultImage_, output.substr(0, lineWidth), cv::Point(originalImage_.cols + indent, textDisplayOffset * 10), cv::FONT_HERSHEY_DUPLEX, 0.5,
 					color, 1);
 			output = output.substr(lineWidth);
 			textDisplayOffset++;
 		}
-		cv::putText(resultImage_, output, cv::Point(grayImage_.cols + indent, textDisplayOffset * 35), cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
+		cv::putText(resultImage_, output, cv::Point(originalImage_.cols + indent, textDisplayOffset * 10), cv::FONT_HERSHEY_DUPLEX, 0.5, color, 1);
 		textDisplayOffset += 2;
 	}
 }
