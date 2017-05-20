@@ -6,3 +6,11 @@
     uri: 'https://github.com/ipa-rmb/cob_environment_perception.git'
     local-name: cob_environment_perception
     version: indigo_dev
+- git:
+    uri: 'https://github.com/ipa320/cob_common.git'
+    local-name: cob_common
+    version: indigo_dev
+- git:
+    uri: 'https://github.com/ipa320/cob_command_tools.git'
+    local-name: cob_command_tools
+    version: indigo_dev
