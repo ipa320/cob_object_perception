@@ -19,5 +19,5 @@ matrix:
 install:
   - travis_wait 60 git clone https://github.com/ros-industrial/industrial_ci.git .ci_config
 script:
-  - .ci_config/travis.sh
+  - travis_wait 60 .ci_config/travis.sh
 #  - ./travis.sh  # Enable this when you have a package-local script 
