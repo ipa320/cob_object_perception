@@ -5835,7 +5835,7 @@ std::vector<DetectText::BezierRansacResult> DetectText::ransac(std::vector<Lette
 		cv::solve(A, C, X, cv::DECOMP_QR);		//cv::DECOMP_SVD);  // todo: replace svd?
 
 		// draw final curve...
-		cv::vector<cv::Point> finalBezierCurve;
+		std::vector<cv::Point> finalBezierCurve;
 		finalBezierCurve.push_back(cv::Point(X.at<double>(0, 0), X.at<double>(3, 0)));
 		finalBezierCurve.push_back(cv::Point(X.at<double>(1, 0), X.at<double>(4, 0)));
 		finalBezierCurve.push_back(cv::Point(X.at<double>(2, 0), X.at<double>(5, 0)));
