@@ -2,9 +2,10 @@
 
 #include <fstream>
 #include "stdint.h"
+#include <iostream>
+#include <iomanip>
 
-#include "ml.h"
-#include "highgui.h"
+#include <opencv2/opencv.hpp>
 
 extern "C"
 {

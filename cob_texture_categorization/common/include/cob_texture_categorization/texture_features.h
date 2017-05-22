@@ -10,8 +10,7 @@
 
 //#include <cob_texture_categorization/texture_categorization.h>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
 
 struct color_vals
 {

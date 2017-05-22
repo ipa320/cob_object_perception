@@ -13,7 +13,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/pcl_base.h>
 //#include <pcl/filters/conditional_removal.h>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 //#include <visualization_msgs/MarkerArray.h>
 
 

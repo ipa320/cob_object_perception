@@ -7,7 +7,7 @@
 #include "cob_texture_categorization/write_xml.h"
 #include "cob_texture_categorization/color_parameter.h"
 
-#include <highgui.h>
+#include <opencv2/opencv.hpp>
 
 
 #include <iostream>

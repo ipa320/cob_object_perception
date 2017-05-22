@@ -10,8 +10,6 @@
 #include "cob_texture_categorization/texture_features.h"
 #include "cob_texture_categorization/write_xml.h"
 #include "cob_texture_categorization/color_parameter.h"
-#include <cv.h>
-#include <highgui.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>

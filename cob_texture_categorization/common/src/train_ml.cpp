@@ -7,9 +7,7 @@
 #include <fstream>
 #include <map>
 
-#include <cv.h>
-#include "ml.h"
-#include "highgui.h"
+#include <opencv2/opencv.hpp>
 
 #include "cob_texture_categorization/attribute_learning.h"
 

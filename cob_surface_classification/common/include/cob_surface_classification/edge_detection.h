@@ -61,9 +61,7 @@
 #define EDGE_DETECTION_H_
 
 // OpenCV
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 // PCL
 #include <pcl/point_types.h>

@@ -7,10 +7,7 @@
 #define RUNTIME_TEST_SAP 1		// if set to 1 then all unnecessary code, i.e. code not used for SAP, will be removed from the feature extraction
 
 
-#include "opencv/cv.h"
-#include "opencv/cxcore.h"
-#include "opencv/highgui.h"
-#include "opencv/ml.h"
+#include <opencv2/opencv.hpp>
 #include <string>
 #include <iostream>
 #include <sstream>

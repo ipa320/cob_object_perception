@@ -8,8 +8,7 @@
 #ifndef ML_PARAMS_H_
 #define ML_PARAMS_H_
 
-#include <cv.h>
-#include <ml.h>
+#include <opencv2/opencv.hpp>
 #include <vector>
 #include <sstream>
 #include <iostream>

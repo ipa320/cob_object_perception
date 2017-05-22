@@ -93,7 +93,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/timer.hpp>
 
-//#include "opencv/highgui.h"
+#include <opencv2/opencv.hpp>
 
 using namespace message_filters;
 

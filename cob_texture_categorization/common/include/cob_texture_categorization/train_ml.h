@@ -12,7 +12,7 @@
 #include "cob_texture_categorization/create_train_data.h"
 #include "cob_texture_categorization/ml_params.h"
 
-#include <ml.h>
+#include <opencv2/ml/ml.hpp>
 
 #include <set>
 #include <map>

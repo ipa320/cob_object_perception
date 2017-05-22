@@ -75,7 +75,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/features/normal_3d.h>
 
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
 
 
 #define HUE_GREEN 		113/2

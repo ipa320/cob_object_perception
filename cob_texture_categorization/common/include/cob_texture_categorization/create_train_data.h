@@ -12,7 +12,7 @@
 #include <string>
 
 // opencv
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 #include "cob_texture_categorization/ifv_features.h"
 

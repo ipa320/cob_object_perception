@@ -18,6 +18,7 @@
 #include "cob_texture_categorization/attribute_learning.h"
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/ml/ml.hpp>
 
@@ -49,14 +50,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 
-
-
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/highgui/highgui.hpp"
-
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-
-
 
 
 TextCategorizationNode::TextCategorizationNode(ros::NodeHandle nh) :

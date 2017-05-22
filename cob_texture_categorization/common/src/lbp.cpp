@@ -1,16 +1,12 @@
 #include "cob_texture_categorization/lbp.h"
 #include <string>
 
-
 #include <cmath>
 #include <algorithm>
 #include <complex>
 #include <vector>
 
-
-
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 

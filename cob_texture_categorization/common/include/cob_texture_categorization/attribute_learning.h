@@ -11,8 +11,7 @@
 #include "cob_texture_categorization/create_train_data.h"
 #include "cob_texture_categorization/ml_params.h"
 
-#include <cv.h>
-#include <ml.h>
+#include <opencv2/opencv.hpp>
 #include <vector>
 #include <boost/shared_ptr.hpp>
 

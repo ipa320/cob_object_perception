@@ -14,8 +14,7 @@
 #include <limits.h>
 #include <fstream>
 #include <map>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
 #include <sstream>
 #include <algorithm>
 
