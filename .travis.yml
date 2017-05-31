@@ -8,7 +8,7 @@ notifications:
 env:
   global:
     - UPSTREAM_WORKSPACE=file
-    - ROS_PARALLEL_JOBS=-j2
+    - ROS_PARALLEL_JOBS=-j4
   matrix:
     - ROS_DISTRO="indigo" ROS_REPOSITORY_PATH=http://packages.ros.org/ros/ubuntu
     - ROS_DISTRO="jade" ROS_REPOSITORY_PATH=http://packages.ros.org/ros/ubuntu
@@ -20,5 +20,5 @@ matrix:
 install:
   - git clone https://github.com/ros-industrial/industrial_ci.git .ci_config
 script:
-  - travis_wait 60 .ci_config/travis.sh
+  - .ci_config/travis.sh
 #  - ./travis.sh  # Enable this when you have a package-local script 

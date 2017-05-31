@@ -1,4 +1,4 @@
 - git:
-    uri: 'https://github.com/ipa-rmb/cob_environment_perception.git'
+    uri: 'https://github.com/ipa320/cob_environment_perception.git'
     local-name: cob_environment_perception
     version: indigo_dev
