@@ -14,7 +14,7 @@ ExternalProject_Add(EP_${PROJECT_NAME}
     CONFIGURE_COMMAND ""
     SOURCE_DIR ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src
     BUILD_IN_SOURCE 1
-    BUILD_COMMAND make
+    BUILD_COMMAND make MEX=
         # copy headers to devel space (catkin does not like headers in source space)
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/vl ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/vl
         # copy libs, set-up soname chain

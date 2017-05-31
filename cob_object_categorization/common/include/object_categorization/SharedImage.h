@@ -8,8 +8,7 @@
 
 #include <cstdio>
 #include <string>
-#include <cv.h>
-#include <highgui.h>
+#include <opencv2/opencv.hpp>
 #include <map>
 
 #include "object_categorization/JBKUtils.h"

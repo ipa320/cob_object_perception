@@ -1,1 +1,4 @@
-# empty
+- git:
+    uri: 'https://github.com/ipa320/cob_environment_perception.git'
+    local-name: cob_environment_perception
+    version: indigo_dev

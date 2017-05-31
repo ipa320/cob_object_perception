@@ -8,8 +8,7 @@
 #ifndef TEXTURE_GENERATOR_H
 #define TEXTURE_GENERATOR_H
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
 
 #include "cob_texture_categorization/texture_features.h"
 #include "cob_texture_categorization/color_parameter.h"

@@ -78,8 +78,7 @@
 #include <pcl/io/pcd_io.h>
 
 // opencv
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
 
 
 class SceneRecording {

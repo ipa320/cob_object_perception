@@ -93,7 +93,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/timer.hpp>
 
-//#include "opencv/highgui.h"
+#include <opencv2/opencv.hpp>
 
 using namespace message_filters;
 
@@ -571,29 +571,29 @@ public:
         }
 
 	// Publish DetectionArray with marker id's
-	if(publish_tf_){//TODO define extra variable in launchfile
+	if(publish_tf_)
+	{//TODO define extra variable in launchfile
+		cob_object_detection_msgs::DetectionArray container_msg;
+		container_msg.header = detection_array.header;
 
-	       cob_object_detection_msgs::DetectionArray container_msg;
-	       container_msg.header = detection_array.header;
+		for (unsigned int i=0; i<pose_array_size; i++)
+		{
+			cob_object_detection_msgs::Detection detection_msg;
+			detection_msg.id = tags_vec[i].id;
 
-	       for (unsigned int i=0; i<pose_array_size; i++)
-	       {
-		 cob_object_detection_msgs::Detection detection_msg;
-		 detection_msg.id = tags_vec[i].id;
-		 
-		 detection_msg.pose.pose.position.x = vec_vec7d[i][0];
-		 detection_msg.pose.pose.position.y = vec_vec7d[i][1];
-		 detection_msg.pose.pose.position.z = vec_vec7d[i][2];
+			detection_msg.pose.pose.position.x = vec_vec7d[i][0];
+			detection_msg.pose.pose.position.y = vec_vec7d[i][1];
+			detection_msg.pose.pose.position.z = vec_vec7d[i][2];
 
-		 detection_msg.pose.pose.orientation.w = vec_vec7d[i][3];
-		 detection_msg.pose.pose.orientation.x = vec_vec7d[i][4];
-		 detection_msg.pose.pose.orientation.y = vec_vec7d[i][5];
-		 detection_msg.pose.pose.orientation.z = vec_vec7d[i][6];
+			detection_msg.pose.pose.orientation.w = vec_vec7d[i][3];
+			detection_msg.pose.pose.orientation.x = vec_vec7d[i][4];
+			detection_msg.pose.pose.orientation.y = vec_vec7d[i][5];
+			detection_msg.pose.pose.orientation.z = vec_vec7d[i][6];
 
-		 container_msg.detections.push_back(detection_msg);
-	       }
+			container_msg.detections.push_back(detection_msg);
+		}
 
-	       fiducial_publisher_.publish(container_msg);
+		fiducial_publisher_.publish(container_msg);
 	}
 
         // Publish tf
@@ -607,9 +607,11 @@ public:
                 //tf_name << detection_array.detections[i].label;
                 transform.setOrigin(tf::Vector3(vec_vec7d[i][0], vec_vec7d[i][1], vec_vec7d[i][2]));
                 transform.setRotation(tf::Quaternion(vec_vec7d[i][4], vec_vec7d[i][5], vec_vec7d[i][6], vec_vec7d[i][3]));
-		tf_lock_.lock();
-		marker_tf_ = tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, "marker");	//TODO: make parameter
-		tf_lock_.unlock();
+                std::stringstream ss;
+                ss << "marker_" << tags_vec[i].id;
+                tf_lock_.lock();
+                marker_tf_ = tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, ss.str());	//TODO: make parameter
+                tf_lock_.unlock();
             }
         }
 

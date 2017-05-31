@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <string>
 #include <opencv/cv.h>
-#include <opencv/highgui.h>
 #include <map>
 
 #include "object_categorization/JBKUtils.h"

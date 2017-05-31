@@ -11,8 +11,7 @@
 #include "cob_texture_categorization/create_train_data.h"
 #include "cob_texture_categorization/ml_params.h"
 
-#include <cv.h>
-#include <ml.h>
+#include <opencv2/opencv.hpp>
 #include <vector>
 #include <boost/shared_ptr.hpp>
 
@@ -24,7 +23,7 @@ public:
 
 	AttributeLearning() {};
 
-	void loadTextureDatabaseBaseFeatures(const std::string& filename, const int feature_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy, const std::string& database_identifier);
+	void loadTextureDatabaseBaseFeatures(const std::string& filename, const int feature_number, cv::Mat& feature_matrix, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy, std::vector<std::string>& image_filenames, const std::string& database_identifier);
 
 	void loadTextureDatabaseLabeledAttributeFeatures(std::string filename, cv::Mat& ground_truth_attribute_matrix, cv::Mat& class_label_matrix, create_train_data::DataHierarchyType& data_sample_hierarchy);
 

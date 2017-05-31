@@ -4,7 +4,7 @@
 #include "object_categorization/SharedImageJBK.h"
 #include "object_categorization/SharedImageSequence.h"
 
-#include <opencv/ml.h>
+#include <opencv/cv.h>
 
 /// Type definition to hold detection results.
 struct t_DetectionResult

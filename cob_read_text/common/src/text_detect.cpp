@@ -4771,7 +4771,7 @@ float DetectText::ocrRead(const cv::Mat& image, std::string& output)
 
 	int result;
 
-	std::string cmd = ros::package::getPath("cob_tesseract") + "/bin/tesseract patch.tiff patch -psm 7 -l deu letters"; // before: psm -8
+	std::string cmd = "/usr/bin/tesseract patch.tiff patch -psm 7 -l deu letters"; // before: psm -8
 	result = system(cmd.c_str());
 
 	assert(!result);
@@ -5201,7 +5201,7 @@ void DetectText::overlayText(std::vector<cv::RotatedRect>& box, std::vector<std:
 {
 	int textDisplayOffset = 1;
 	// assert(box.size() == text.size());
-	size_t lineWidth = 25;
+	size_t lineWidth = 40;
 	int indent = 50;
 	int count = 0;
 	for (size_t i = 0; i < box.size(); i++)
@@ -5220,16 +5220,16 @@ void DetectText::overlayText(std::vector<cv::RotatedRect>& box, std::vector<std:
 		std::string prefix = "[";
 		prefix = prefix + out.str() + "]";
 		cv::putText(resultImage_, prefix, cv::Point(box[i].center.x + 0.5 * box[i].size.width, box[i].center.y - 0.5 * box[i].size.height),
-				cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
-		cv::putText(resultImage_, prefix, cv::Point(grayImage_.cols, textDisplayOffset * 35), cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
+				cv::FONT_HERSHEY_DUPLEX, 0.5, color, 1);
+		cv::putText(resultImage_, prefix, cv::Point(originalImage_.cols, textDisplayOffset * 10), cv::FONT_HERSHEY_DUPLEX, 0.5, color, 1);
 		while (output.length() > lineWidth)
 		{
-			cv::putText(resultImage_, output.substr(0, lineWidth), cv::Point(grayImage_.cols + indent, textDisplayOffset * 35), cv::FONT_HERSHEY_DUPLEX, 1,
+			cv::putText(resultImage_, output.substr(0, lineWidth), cv::Point(originalImage_.cols + indent, textDisplayOffset * 10), cv::FONT_HERSHEY_DUPLEX, 0.5,
 					color, 1);
 			output = output.substr(lineWidth);
 			textDisplayOffset++;
 		}
-		cv::putText(resultImage_, output, cv::Point(grayImage_.cols + indent, textDisplayOffset * 35), cv::FONT_HERSHEY_DUPLEX, 1, color, 1);
+		cv::putText(resultImage_, output, cv::Point(originalImage_.cols + indent, textDisplayOffset * 10), cv::FONT_HERSHEY_DUPLEX, 0.5, color, 1);
 		textDisplayOffset += 2;
 	}
 }
@@ -5835,7 +5835,7 @@ std::vector<DetectText::BezierRansacResult> DetectText::ransac(std::vector<Lette
 		cv::solve(A, C, X, cv::DECOMP_QR);		//cv::DECOMP_SVD);  // todo: replace svd?
 
 		// draw final curve...
-		cv::vector<cv::Point> finalBezierCurve;
+		std::vector<cv::Point> finalBezierCurve;
 		finalBezierCurve.push_back(cv::Point(X.at<double>(0, 0), X.at<double>(3, 0)));
 		finalBezierCurve.push_back(cv::Point(X.at<double>(1, 0), X.at<double>(4, 0)));
 		finalBezierCurve.push_back(cv::Point(X.at<double>(2, 0), X.at<double>(5, 0)));

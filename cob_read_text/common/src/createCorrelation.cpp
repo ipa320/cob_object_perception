@@ -10,9 +10,7 @@
 #include <ros/package.h>
 
 // OpenCV includes
-#include "opencv2/core/core.hpp"
-#include "cv.h"
-#include "highgui.h"
+#include <opencv2/opencv.hpp>
 
 int main(int argc, char* argv[])
 {

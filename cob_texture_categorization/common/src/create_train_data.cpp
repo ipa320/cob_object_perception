@@ -7,7 +7,7 @@
 #include "cob_texture_categorization/write_xml.h"
 #include "cob_texture_categorization/color_parameter.h"
 
-#include <highgui.h>
+#include <opencv2/opencv.hpp>
 
 
 #include <iostream>
@@ -325,10 +325,11 @@ void create_train_data::compute_data_handcrafted(std::string path_database_image
 
 void create_train_data::compute_data_cimpoi(std::string path_database_images, std::string path_save, const std::string& database_identifier, bool generateGMM, IfvFeatures::FeatureType feature_type)
 {
-	// parameters
-	const int number_gaussian_centers = 256;
+	// todo: parameters
+	const int number_gaussian_centers = 256;		// SIFT, PATCHES: 256         CNN: 64
 	const int feature_samples_per_image = 100;	//500	//1000	//200
-	const int pca_retained_components = 80;		// keep 80 dimensions of the 128 dimensional feature descriptors
+	const int pca_retained_components = 80;		// RGB: 27	SIFT: keep 80 dimensions of the 128 dimensional feature descriptors		CNN: 512
+
 	std::string label_file;
 	double image_resize_factor = 0.;
 	if (database_identifier.compare("ipa") == 0)
@@ -362,7 +363,8 @@ void create_train_data::compute_data_cimpoi(std::string path_database_images, st
 			image_filenames_full_path[i] = path_database_images + image_filenames[i];
 
 		// compute and store GMM
-		ifv.constructGenerativeModel(image_filenames_full_path, image_resize_factor, feature_samples_per_image, number_gaussian_centers, feature_type, pca_retained_components);
+		std::string path_save_identifier = path_save + database_identifier;
+		ifv.constructGenerativeModel(image_filenames_full_path, image_resize_factor, feature_samples_per_image, number_gaussian_centers, feature_type, pca_retained_components, path_save_identifier);
 		ifv.saveGenerativeModel(gmm_filename);
 	}
 	else
@@ -580,6 +582,7 @@ void create_train_data::load_filenames_gt_attributes(std::string filename, std::
 					image_filename = class_name + "/" + image_filename;
 					image_filenames.push_back(image_filename);
 					data_sample_hierarchy[i][j][k] = image_filenames.size()-1;
+					//std::cout << image_filename << std::endl;
 					// ground truth labels
 					filenames_gt_attributes[image_filename].resize(attribute_number);
 					while (true)

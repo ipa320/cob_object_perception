@@ -66,17 +66,17 @@
 #define EVALUATION					false		// computations plus evaluation of current computations
 
 //steps in computation/evaluation_online mode:
-#define SEG 						true 	// segmentation + refinement
+#define SEG 						false 	// segmentation + refinement
 #define SEG_WITHOUT_EDGES 			false 	// segmentation without considering edge image (wie Steffen)
 #define SEG_REFINE					false 	// segmentation refinement according to curvatures (outdated)
 #define CLASSIFY 					false	// classification
 #define SIMPLE_OBJECT_CLASSIFICATION false	// simple object classification and localization (for symmetric simple objects made of one cluster)
 
-#define SEG_VIS 					true 	// visualisation of segmentation
+#define SEG_VIS 					false 	// visualisation of segmentation
 #define SEG_WITHOUT_EDGES_VIS 		false 	// visualisation of segmentation without edge image
 #define CLASS_VIS 					false 	// visualisation of classification
 
-#define PUBLISH_SEGMENTATION		false	//publish segmented point cloud on topic
+#define PUBLISH_SEGMENTATION		false	// publish segmented point cloud on topic
 
 #define USE_PCL_IMPLEMENTATION		false	// use the PCL implementation of edge detection and normal estimation
 
@@ -123,6 +123,7 @@
 #if USE_PCL_IMPLEMENTATION
 	#include <pcl/features/normal_3d_fast_edge_aware.h>
 #endif
+
 
 //internal includes
 #include <cob_surface_classification/edge_detection.h>
@@ -268,15 +269,6 @@ public:
 
 		if (DATA_SOURCE == 0)
 		{
-
-			// dynamic reconfigure
-			normal_estimation_dynamic_reconfigure_server_.setCallback(boost::bind(&SurfaceClassificationNode::dynamicReconfigureCallback, this, _1, _2));
-
-			// todo: fixed configuration, for testing, remove later
-			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, 0.01f, 40., true, 5, 30, 15);
-			NormalEstimationConfig normal_estimation_config(NormalEstimationConfig::CROSS_PRODUCT_EDGE_AWARE, 8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 10, 128);
-			normal_estimation_configuration_ = ExperimentConfig(edge_detection_config, normal_estimation_config, 0.00);
-
 			// from camera with broadcast
 			it_ = new image_transport::ImageTransport(node_handle_);
 			colorimage_sub_.subscribe(*it_, "colorimage_in", 1);
@@ -285,6 +277,9 @@ public:
 			sync_input_ = new message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> >(30);
 			sync_input_->connectInput(colorimage_sub_, pointcloud_sub_);
 			sync_input_->registerCallback(boost::bind(&SurfaceClassificationNode::inputCallback, this, _1, _2));
+
+			// dynamic reconfigure
+			normal_estimation_dynamic_reconfigure_server_.setCallback(boost::bind(&SurfaceClassificationNode::dynamicReconfigureCallback, this, _1, _2));
 		}
 		else if (DATA_SOURCE == 1)
 		{
@@ -315,7 +310,7 @@ public:
 
 			// do computations
 			EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig edge_detection_config(EdgeDetection<pcl::PointXYZRGB>::EdgeDetectionConfig::GAUSSIAN, 3, 0.01f, 40., true, 5, 30, 15);
-			NormalEstimationConfig normal_estimation_config(NormalEstimationConfig::CROSS_PRODUCT_EDGE_AWARE, 8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 10, 128);
+			NormalEstimationConfig normal_estimation_config(NormalEstimationConfig::FAST_EDGE_BASED, 8, 2, 2, NormalEstimationConfig::IntegralNormalEstimationMethod::AVERAGE_3D_GRADIENT, 10, 128);
 			ExperimentConfig exp_config(edge_detection_config, normal_estimation_config, 0.00);
 			evaluationComputations(image_vector, pointcloud_vector, exp_config);
 
@@ -681,9 +676,6 @@ public:
 		//record if "e" is pressed while "image"-window is activated
 		if(COMPUTATION_MODE)	// || (EVALUATION_ONLINE_MODE && key == 1048677))
 		{
-			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-			pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
-
 			// compute edges (if necessary) and optionally fast direct normal computation
 			pcl::PointCloud<pcl::Normal>::Ptr normalsEdgeDirect = 0;
 			if (config.normal_estimation_config.normalEstimationFastEdgeBasedEnabled())
@@ -696,21 +688,6 @@ public:
 			std::cout << "FastEdgeAwareNormalEstimation: " << time_elapsed_ms << "ms" << std::endl;
 			cv::Mat temp;
 			renderEdgesToImage(color_image, edge, temp, true, number_processed_images_, "sc");
-
-			// prepare data for segmentation
-			if ((config.normal_estimation_config.normal_estimation_method & NormalEstimationConfig::FAST_EDGE_BASED) != 0)
-			{
-				std::cout << "normal_estimation_method:" << config.normal_estimation_config.normal_estimation_method << std::endl;
-				pcl::copyPointCloud(*normalsEdgeDirect, *normals);
-				if (labels->points.size() != normals->size())
-				{
-					labels->points.resize(normals->size());
-					labels->height = normals->height;
-					labels->width = normals->width;
-					for (pcl::PointCloud<PointLabel>::iterator it=labels->begin(); it != labels->end(); ++it)
-						it->label = I_UNDEF;
-				}
-			}
 
 #if USE_PCL_IMPLEMENTATION
 //		//// PCL implementation
@@ -758,6 +735,7 @@ public:
 			renderEdgesToImage(color_image, edge, temp, true, number_processed_images_++, "pcl");
 			//// END: PCL implementation
 #endif
+
 			// visualization on color image
 			bool visualize_normals = visualize_normals_;
 			if (visualize_edges_==true)
@@ -778,11 +756,12 @@ public:
 			if (visualize_normals==true && normalsEdgeDirect!=0)
 				displayPointCloud(cloud, normalsEdgeDirect, "fast edge-aware normal estimation");
 
-
+			pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+			pcl::PointCloud<PointLabel>::Ptr labels(new pcl::PointCloud<PointLabel>);
 			ST::Graph::Ptr graph(new ST::Graph);
 			if (config.normal_estimation_config.normalEstimationCrossProductEdgeAwareEnabled())
 			{
-				tim.start();
+				//tim.start();
 				one_.setInputCloud(cloud);
 				one_.setPixelSearchRadius(config.normal_estimation_config.cross_pixel_radius,config.normal_estimation_config.cross_pixel_step,config.normal_estimation_config.cross_circle_step);	// 4,2,2	//call before calling computeMaskManually()!!!
 				//one_.computeMaskManually_increasing(cloud->width);
@@ -793,7 +772,7 @@ public:
 				//one_.setSameDirectionThres(0.94);
 				one_.setSkipDistantPointThreshold(8);	//don't consider points in neighborhood with depth distance larger than 8
 				one_.compute(*normals);
-				std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for cross-product normal computation with edges" << std::endl;
+				//std::cout << tim.getElapsedTimeInMilliSec() << "ms\t for cross-product normal computation with edges" << std::endl;
 //				runtime_normal_edge_ += tim.getElapsedTimeInMilliSec();
 //				++number_processed_images_;
 				//std::cout << "runtime_normal_original: " << runtime_normal_original_/(double)number_processed_images_ <<
@@ -907,13 +886,7 @@ public:
 				viewer.setBackgroundColor (0.0, 0.0, 0);
 				pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(segmented);
 				viewer.addPointCloud<pcl::PointXYZRGB> (segmented,rgb,"seg");
-				viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "seg");
-				viewer.setCameraPosition(0.241869,-0.159695,-2.02751,0.0583976,0.146078,1.59981,-0.0103915,0.998608,-0.0517162);	// simulation
-				//viewer.setCameraPosition(0.0560888,-0.409663,-2.78278,0.0503032,-0.110018,1.61724,-0.0315182,-0.997196,0.0678684);	// asus
-				viewer.setCameraFieldOfView(0.523599);
-				viewer.setCameraClipDistances(0.1,10.0);
-				//sim: 1.38393,5.06129/0.259317,0.17878,1.59225/0.15896,0.0220352,-1.41423/-0.0103915,0.998608,-0.0517162/0.523599/960,540/214,159
-				//asus: 2.57254,7.26938/0.0503032,-0.110018,1.61724/0.0560888,-0.409663,-2.78278/-0.0315182,-0.997196,0.0678684/0.523599/960,540/65,52
+				//viewer.setCameraPosition()
 				while (!viewer.wasStopped ())
 				{
 					viewer.spinOnce();
@@ -965,17 +938,6 @@ public:
 				viewerRef.removePointCloud("segRef");
 			}
 
-			// generate index set for clusters
-			std::vector< std::vector<int> > cluster_index_sets;
-			for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
-			{
-				std::vector<int> point_indices(c->size());
-				int i=0;
-				for (ST::Graph::ClusterType::iterator it = c->begin(); it != c->end(); ++it, ++i)
-					point_indices[i] = *it;
-				cluster_index_sets.push_back(point_indices);
-			}
-
 			if (PUBLISH_SEGMENTATION)
 			{
 				cob_surface_classification::SegmentedPointCloud2 msg;
@@ -984,10 +946,13 @@ public:
 //					msg.pointcloud = *pointcloud_msg;
 //				else
 //					msg.pointcloud = cloud_blob;
-				for (size_t i=0; i<cluster_index_sets.size(); ++i)
+				for (ST::Graph::ClusterPtr c = graph->clusters()->begin(); c != graph->clusters()->end(); ++c)
 				{
 					cob_surface_classification::Int32Array point_indices;
-					point_indices.array = cluster_index_sets[i];
+					point_indices.array.resize(c->size());
+					int i=0;
+					for (ST::Graph::ClusterType::iterator it = c->begin(); it != c->end(); ++it, ++i)
+						point_indices.array[i] = *it;
 					msg.clusters.push_back(point_indices);
 				}
 				segmented_pointcloud_pub_.publish(msg);
@@ -1142,7 +1107,7 @@ private:
 
 	// visualization
 	bool visualize_edges_;		// visualization of edges
-	bool visualize_normals_; 	// visualization of normals
+	bool visualize_normals_; 	// visualisation of normals
 
 	//evaluation
 	Evaluation eval_;
