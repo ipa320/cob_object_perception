@@ -21,4 +21,14 @@ Status: [![Build Status](https://travis-ci.org/ipa320/cob_object_perception.svg?
 
 
 ## Installation Prerequisites
-Please also download https://github.com/ipa320/cob_environment_perception.git for this repository to compile.
+Please download all other dependent packages from source using:
+```
+cd /path/to/catkin_workspace/src && git clone https://github.com/ipa320/cob_object_perception.git
+cd /path/to/catkin_workspace/src && wstool init
+cd /path/to/catkin_workspace/src && wstool merge /path/to/catkin_workspace/src/cob_object_perception/.travis.rosinstall
+cd /path/to/catkin_workspace/src && wstool update
+```
+And then install all released dependencies:
+```
+cd /path/to/catkin_workspace && rosdep install --from-path src/ -y -i
+```
