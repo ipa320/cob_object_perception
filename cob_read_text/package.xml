@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <package format="2">
   <name>cob_read_text</name>
   <version>0.1.0</version>
@@ -18,9 +19,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>boost</depend>
-  <depend>cmake_modules</depend>
   <depend>cv_bridge</depend>
-  <depend>eigen</depend>
   <depend>geometry_msgs</depend>
   <depend>image_transport</depend>
   <depend>libleptonica-dev</depend>

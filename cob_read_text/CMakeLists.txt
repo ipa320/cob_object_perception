@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8.3)
 project(cob_read_text)
 
 find_package(catkin REQUIRED COMPONENTS
-  cmake_modules
   cv_bridge
   geometry_msgs
   image_transport
@@ -13,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Boost REQUIRED COMPONENTS thread filesystem system)
-find_package(Eigen REQUIRED)
 find_package(OpenCV REQUIRED)
 #find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
@@ -30,7 +28,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 #  ${PCL_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
   ${VTK_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )

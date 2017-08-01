@@ -15,7 +15,7 @@ set(catkin_RUN_PACKAGES
 #  pcl_conversions
 )
 
-set(catkin_BUILD_PACKAGES 
+set(catkin_BUILD_PACKAGES
   ${catkin_RUN_PACKAGES}
   cmake_modules
 )

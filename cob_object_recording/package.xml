@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <package format="2">
   <name>cob_object_recording</name>
   <version>0.1.0</version>
@@ -15,7 +16,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>cmake_modules</depend>
   <depend>cob_object_detection_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>dynamic_reconfigure</depend>

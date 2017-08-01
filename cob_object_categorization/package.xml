@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <package format="2">
   <name>cob_object_categorization</name>
   <version>0.1.0</version>
@@ -17,11 +18,9 @@
 
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>
-  <depend>cmake_modules</depend>
   <depend>cob_object_detection_msgs</depend>
   <depend>cob_perception_msgs</depend>
   <depend>cv_bridge</depend>
-  <depend>eigen</depend>
   <depend>image_transport</depend>
   <depend>libvtk</depend>
   <depend>message_filters</depend>

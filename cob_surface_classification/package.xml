@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <package format="2">
   <name>cob_surface_classification</name>
   <version>0.1.0</version>
@@ -15,7 +16,6 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>boost</depend>
-  <depend>cmake_modules</depend>
   <depend>cob_3d_features</depend>
   <depend>cob_3d_mapping_common</depend>
   <depend>cob_3d_segmentation</depend>

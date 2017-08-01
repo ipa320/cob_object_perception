@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <package format="2">
   <name>cob_texture_categorization</name>
   <version>0.1.0</version>
@@ -16,18 +17,17 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>cmake_modules</build_depend>
-  <build_depend>cob_surface_classification</build_depend>
-  <build_depend>cv_bridge</build_depend>
-  <build_depend>image_transport</build_depend>
-  <build_depend>libopencv-dev</build_depend>
-  <build_depend>libvlfeat</build_depend>
-  <build_depend>message_filters</build_depend>
-  <build_depend>pcl_ros</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>sensor_msgs</build_depend>
+  <depend>cob_surface_classification</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>libopencv-dev</depend>
+  <depend>libvlfeat</depend>
+  <depend>message_filters</depend>
+  <depend>pcl_ros</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
 
-  <build_depend>libpcl-all-dev</build_depend>
-  <exec_depend>libpcl-all</exec_depend>
+  <!--build_depend>libpcl-all-dev</build_depend>
+  <exec_depend>libpcl-all</exec_depend-->
 
 </package>

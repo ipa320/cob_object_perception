@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8.3)
 project(cob_object_recording)
 
 find_package(catkin REQUIRED COMPONENTS
-  cmake_modules
   cob_object_detection_msgs
   cv_bridge
   dynamic_reconfigure

@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8.3)
 project(cob_texture_categorization)
 
 find_package(catkin REQUIRED COMPONENTS
-  cmake_modules
   cob_surface_classification
   cv_bridge
   image_transport
