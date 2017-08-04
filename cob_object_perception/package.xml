@@ -17,12 +17,12 @@
 
   <exec_depend>cob_fiducials</exec_depend>
   <exec_depend>cob_marker</exec_depend>
-  <exec_depend>cob_object_categorization</exec_depend>
+  <!--exec_depend>cob_object_categorization</exec_depend-->
   <exec_depend>cob_object_detection_fake</exec_depend>
   <exec_depend>cob_object_recording</exec_depend>
   <exec_depend>cob_read_text</exec_depend>
-  <!--exec_depend>cob_surface_classification</exec_depend-->
-  <exec_depend>cob_texture_classification</exec_depend>
+  <exec_depend>cob_surface_classification</exec_depend>
+  <exec_depend>cob_texture_categorization</exec_depend>
   <exec_depend>libvlfeat</exec_depend>
   <exec_depend>libzxing</exec_depend>
 
