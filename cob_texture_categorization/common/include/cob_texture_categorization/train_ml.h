@@ -47,7 +47,11 @@ public:
 //	void run_ml(double val, std::string *path_);
 
 private:
+#if CV_MAJOR_VERSION == 2
 	CvANN_MLP mlp_;
+#else
+	cv::Ptr<cv::ml::ANN_MLP> mlp_;
+#endif
 	std::map<float, float> label_class_mapping_;	// maps the original data label (first) to a class number (second) between 0 and number_classes
 	std::map<float, float> class_label_mapping_;	// maps a class number (first) between 0 and number_classes to the original data label (second)
 };

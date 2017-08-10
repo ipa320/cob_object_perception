@@ -235,8 +235,8 @@ void texture_features::strength_of_primitives(std::vector<int> *idx,std::vector 
 	//	Resize input image
 
 	cv::Mat image_resize, image;
-	resize((*img), image, cv::Size(), 0.5, 0.5, cv::INTER_CUBIC);
-	cvtColor( image, image_resize, CV_BGR2HSV );
+	cv::resize((*img), image, cv::Size(), 0.5, 0.5, cv::INTER_CUBIC);
+	cv::cvtColor( image, image_resize, CV_BGR2HSV );
 
 	//	extract edges
 	//	Edge detection by Canny
@@ -275,7 +275,7 @@ void texture_features::strength_of_primitives(std::vector<int> *idx,std::vector 
 		double std_window=0;
 		cv::Scalar stddev;
 		cv::Scalar mean;
-		cv::Mat window = cvCreateMat(3,3,CV_32FC1);
+		cv::Mat window(3,3,CV_32FC1);
 		for(int i=2;i<(*edge_pixels).rows-2;i++)
 		{
 			for(int j=2;j<(*edge_pixels).cols-2;j++)
@@ -930,8 +930,8 @@ void texture_features::compute_151617(cv::Mat *img,  struct feature_results *res
 		{
 	//		create matrices of equation
 			std::vector< std::vector<double> > circfit_a((*centroid).size());
-			cv::Mat amat=cvCreateMat((*centroid).size(), 3, CV_32FC1);
-			cv::Mat bmat= cvCreateMat((*centroid).size(), 1, CV_32FC1);
+			cv::Mat amat((*centroid).size(), 3, CV_32FC1);
+			cv::Mat bmat((*centroid).size(), 1, CV_32FC1);
 			cv::Mat xmat;
 			for(unsigned int i=0;i<(*centroid).size();i++)
 			{
@@ -1388,8 +1388,7 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	double std_window=0;
 	cv::Scalar stddev;
 	cv::Scalar mean;
-	cv::Mat window;// = cvCreateMat(3,3,CV_32FC1);
-	window = cv::Mat::zeros(3,3, CV_32FC1);
+	cv::Mat window = cv::Mat::zeros(3,3, CV_32FC1);
 	for(int i=2;i<image_resize.rows-2;i++)
 	{
 		for(int j=2;j<image_resize.cols-2;j++)
@@ -2043,8 +2042,8 @@ void texture_features::primitive_size(cv::Mat *img, struct feature_results *resu
 	{
 		// create matrices of equation
 		std::vector< std::vector<double> > circfit_a(centroid.size());
-		cv::Mat amat=cvCreateMat(centroid.size(), 3, CV_32FC1);
-		cv::Mat bmat= cvCreateMat(centroid.size(), 1, CV_32FC1);
+		cv::Mat amat(centroid.size(), 3, CV_32FC1);
+		cv::Mat bmat(centroid.size(), 1, CV_32FC1);
 		cv::Mat xmat;
 		for (unsigned int i=0;i<centroid.size();i++)
 		{
@@ -3332,8 +3331,8 @@ void texture_features::compute_texture_features(const cv::Mat& img, struct featu
 	{
 		// create matrices of equation
 		std::vector< std::vector<double> > circfit_a(centroids.size());
-		cv::Mat amat=cvCreateMat(centroids.size(), 3, CV_32FC1);
-		cv::Mat bmat= cvCreateMat(centroids.size(), 1, CV_32FC1);
+		cv::Mat amat(centroids.size(), 3, CV_32FC1);
+		cv::Mat bmat(centroids.size(), 1, CV_32FC1);
 		cv::Mat xmat;
 		for (unsigned int i=0;i<centroids.size();i++)
 		{
