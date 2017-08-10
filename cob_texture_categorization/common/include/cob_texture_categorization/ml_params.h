@@ -65,7 +65,7 @@ public:
 		svm_params_nu_ = svm_params_nu;
 		svm_params_p_ = svm_params_p;
 #if CV_MAJOR_VERSION == 2
-		svm_params_ = cv::SVMParams(svm_params_svm_type, svm_params_kernel_type, svm_params_degree, svm_params_gamma, svm_params_coef0, svm_params_C, svm_params_nu, svm_params_p, 0, termterm_criteria_);
+		svm_params_ = cv::SVMParams(svm_params_svm_type, svm_params_kernel_type, svm_params_degree, svm_params_gamma, svm_params_coef0, svm_params_C, svm_params_nu, svm_params_p, 0, term_criteria_);
 #endif
 
 		nn_activation_function_ = 0; nn_activation_function_param1_=0; nn_activation_function_param2_=0;
@@ -138,11 +138,7 @@ public:
 
 		ss << "\nCvTermCriteria:"
 				<< "\n\t.type: " << term_criteria_.type
-#if CV_MAJOR_VERSION == 2
-				<< "\n\t.max_iter: " << term_criteria_.max_iter
-#else
 				<< "\n\t.maxCount: " << term_criteria_.maxCount
-#endif
 				<< "\n\t.epsilon: " << term_criteria_.epsilon
 				<< "\n";
 

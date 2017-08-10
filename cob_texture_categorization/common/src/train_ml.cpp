@@ -566,11 +566,11 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 		layers.row(2) = cv::Scalar(number_classes);
 
 		cv::TermCriteria criteria;
+		criteria.maxCount = 400;
 		criteria.epsilon  = 0.0001f;
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-#if CV_MAJOR_VERSION == 2
-		criteria.max_iter = 400;
 
+#if CV_MAJOR_VERSION == 2
 		CvANN_MLP mlp;
 		CvANN_MLP_TrainParams params;
 
@@ -583,7 +583,6 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 #else
-		criteria.maxCount = 400;
 		cv::Ptr<cv::ml::ANN_MLP> mlp = cv::ml::ANN_MLP::create();
 		mlp->setActivationFunction(cv::ml::ANN_MLP::SIGMOID_SYM, 0.4, 1.2);
 		mlp->setLayerSizes(layers);
@@ -719,11 +718,10 @@ void train_ml::train(const cv::Mat& training_data, const cv::Mat& training_label
 	layers.row(2) = cv::Scalar(number_classes);
 
 	cv::TermCriteria criteria;
+	criteria.maxCount = 400;
 	criteria.epsilon  = 0.0001f;
 	criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 #if CV_MAJOR_VERSION == 2
-	criteria.max_iter = 400;
-
 	CvANN_MLP_TrainParams params;
 	params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
 	params.bp_dw_scale     = 0.1f;
@@ -734,8 +732,6 @@ void train_ml::train(const cv::Mat& training_data, const cv::Mat& training_label
 	int iterations = mlp_.train(input, output, cv::Mat(), cv::Mat(), params);
 	std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;//		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 #else
-	criteria.maxCount = 400;
-
 	mlp_->setActivationFunction(cv::ml::ANN_MLP::SIGMOID_SYM, 0.4, 1.2);
 	mlp_->setLayerSizes(layers);
 	mlp_->setTrainMethod(cv::ml::ANN_MLP::BACKPROP, 0.1f, 0.1f);

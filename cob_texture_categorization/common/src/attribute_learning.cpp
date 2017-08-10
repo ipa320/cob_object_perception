@@ -649,17 +649,16 @@ void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attr
 
 		// SVM
 		cv::TermCriteria criteria;
+		criteria.maxCount = 1000000;	// 1000
 		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 #if CV_MAJOR_VERSION == 2
-		criteria.max_iter = 1000000;	// 1000
 		CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 		if (attribute_index == 1 || attribute_index == 2)
 			svm_params.svm_type = CvSVM::NU_SVC;
 		svm_.push_back(boost::shared_ptr<CvSVM>(new CvSVM()));
 		svm_[attribute_index]->train(feature_matrix, training_labels, cv::Mat(), cv::Mat(), svm_params);
 #else
-		criteria.maxCount = 1000000;	// 1000
 		svm_.push_back(cv::ml::SVM::create());
 		svm_[attribute_index]->setType(cv::ml::SVM::NU_SVR);
 		svm_[attribute_index]->setKernel(cv::ml::SVM::RBF);
