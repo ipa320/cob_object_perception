@@ -201,12 +201,31 @@ void train_ml::cross_validation(const CrossValidationParams& cross_validation_pa
 //			int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 //			std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
 
+#if CV_MAJOR_VERSION == 2
 			CvSVM svm;
 			CvANN_MLP mlp;
+#else
+			cv::Ptr<cv::ml::SVM> svm = cv::ml::SVM::create();
+			cv::Ptr<cv::ml::ANN_MLP> mlp = cv::ml::ANN_MLP::create();
+			cv::Ptr<cv::ml::TrainData> train_data_and_labels = cv::ml::TrainData::create(training_data, cv::ml::ROW_SAMPLE, training_labels);
+#endif
 			// SVM
 			if (ml_params.classification_method_ == MLParams::SVM)
 			{
+#if CV_MAJOR_VERSION == 2
 				svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), ml_params.svm_params_);
+#else
+				svm->setType(ml_params.svm_params_svm_type_);
+				svm->setKernel(ml_params.svm_params_kernel_type_);
+				svm->setDegree(ml_params.svm_params_degree_);
+				svm->setGamma(ml_params.svm_params_gamma_);
+				svm->setCoef0(ml_params.svm_params_coef0_);
+				svm->setC(ml_params.svm_params_C_);
+				svm->setNu(ml_params.svm_params_nu_);
+				svm->setP(ml_params.svm_params_p_);
+				svm->setTermCriteria(ml_params.term_criteria_);
+				svm->train(train_data_and_labels);
+#endif
 			}
 			//	Neural Network
 			else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
@@ -221,9 +240,17 @@ void train_ml::cross_validation(const CrossValidationParams& cross_validation_pa
 					layers.row(k+1) = cv::Scalar(ml_params.nn_hidden_layers_[k]);
 				layers.row(ml_params.nn_hidden_layers_.size()+1) = cv::Scalar(number_classes);
 
+#if CV_MAJOR_VERSION == 2
 				mlp.create(layers, ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
 				int iterations = mlp.train(training_data, output, cv::Mat(), cv::Mat(), ml_params.nn_params_);
 				std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+#else
+				mlp->setActivationFunction(ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
+				mlp->setLayerSizes(layers);
+				mlp->setTrainMethod(ml_params.nn_params_train_method_, ml_params.nn_params_bp_dw_scale_, ml_params.nn_params_bp_moment_scale_);
+				mlp->setTermCriteria(ml_params.term_criteria_);
+				mlp->train(train_data_and_labels);
+#endif
 			}
 
 			// === apply ml classifier to predict test set ===
@@ -237,10 +264,20 @@ void train_ml::cross_validation(const CrossValidationParams& cross_validation_pa
 				int predicted_class = 0;
 				int correct_prediction_at_rank = 0;
 				if (ml_params.classification_method_ == MLParams::SVM)
+				{
+#if CV_MAJOR_VERSION == 2
 					predicted_class = svm.predict(sample);
+#else
+					predicted_class = svm->predict(sample);
+#endif
+				}
 				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
 				{
+#if CV_MAJOR_VERSION == 2
 					mlp.predict(sample, response);
+#else
+					mlp->predict(sample, response);
+#endif
 					std::multimap<float, int, std::greater<float> > prediction_order;
 					for (int j = 0; j < number_classes; j++)
 						prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), j));
@@ -528,13 +565,14 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 		layers.row(1) = cv::Scalar(400);	//400
 		layers.row(2) = cv::Scalar(number_classes);
 
-		CvANN_MLP mlp;
-		CvANN_MLP_TrainParams params;
-		CvTermCriteria criteria;
-
-		criteria.max_iter = 400;
+		cv::TermCriteria criteria;
+		criteria.maxCount = 400;
 		criteria.epsilon  = 0.0001f;
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+
+#if CV_MAJOR_VERSION == 2
+		CvANN_MLP mlp;
+		CvANN_MLP_TrainParams params;
 
 		params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
 		params.bp_dw_scale     = 0.1f;
@@ -544,7 +582,14 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 		mlp.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
 		int iterations = mlp.train(input, output, cv::Mat(), cv::Mat(), params);
 		std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
-
+#else
+		cv::Ptr<cv::ml::ANN_MLP> mlp = cv::ml::ANN_MLP::create();
+		mlp->setActivationFunction(cv::ml::ANN_MLP::SIGMOID_SYM, 0.4, 1.2);
+		mlp->setLayerSizes(layers);
+		mlp->setTrainMethod(cv::ml::ANN_MLP::BACKPROP, 0.1f, 0.1f);
+		mlp->setTermCriteria(criteria);
+		mlp->train(input, cv::ml::ROW_SAMPLE, output);
+#endif
 
 		// === apply ml classifier to predict test set ===
 		int t = 0, f = 0;
@@ -555,7 +600,11 @@ void train_ml::cross_validation_with_generated_attributes(int folds, const std::
 			cv::Mat sample = test_data.row(i);
 
 			int correct_prediction_at_rank = 0;
+#if CV_MAJOR_VERSION == 2
 			mlp.predict(sample, response);
+#else
+			mlp->predict(sample, response);
+#endif
 			std::multimap<float, int, std::greater<float> > prediction_order;
 			for (int j = 0; j < number_classes; j++)
 				prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), j));
@@ -668,13 +717,12 @@ void train_ml::train(const cv::Mat& training_data, const cv::Mat& training_label
 	layers.row(1) = cv::Scalar(400);	//400
 	layers.row(2) = cv::Scalar(number_classes);
 
-	CvANN_MLP_TrainParams params;
-	CvTermCriteria criteria;
-
-	criteria.max_iter = 400;
+	cv::TermCriteria criteria;
+	criteria.maxCount = 400;
 	criteria.epsilon  = 0.0001f;
 	criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
-
+#if CV_MAJOR_VERSION == 2
+	CvANN_MLP_TrainParams params;
 	params.train_method    = CvANN_MLP_TrainParams::BACKPROP;
 	params.bp_dw_scale     = 0.1f;
 	params.bp_moment_scale = 0.1f;
@@ -683,6 +731,13 @@ void train_ml::train(const cv::Mat& training_data, const cv::Mat& training_label
 	mlp_.create(layers,CvANN_MLP::SIGMOID_SYM,0.4,1.2);
 	int iterations = mlp_.train(input, output, cv::Mat(), cv::Mat(), params);
 	std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;//		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+#else
+	mlp_->setActivationFunction(cv::ml::ANN_MLP::SIGMOID_SYM, 0.4, 1.2);
+	mlp_->setLayerSizes(layers);
+	mlp_->setTrainMethod(cv::ml::ANN_MLP::BACKPROP, 0.1f, 0.1f);
+	mlp_->setTermCriteria(criteria);
+	mlp_->train(input, cv::ml::ROW_SAMPLE, output);
+#endif
 }
 
 
@@ -703,7 +758,11 @@ void train_ml::predict(const cv::Mat& test_data, const cv::Mat& test_labels, cv:
 		cv::Mat sample = test_data.row(i);
 
 		int correct_prediction_at_rank = 0;
+#if CV_MAJOR_VERSION == 2
 		mlp_.predict(sample, response);
+#else
+		mlp_->predict(sample, response);
+#endif
 		std::multimap<float, int, std::greater<float> > prediction_order;
 		for (int j = 0; j < number_classes; j++)
 			prediction_order.insert(std::pair<float, int>(response.at<float>(0, j), class_label_mapping_[j]));
@@ -769,7 +828,11 @@ void train_ml::save_mlp(std::string path)
 {
 	std::string filename = path + "mlp.yml";
 	std::cout << "Saving MLP to file " << filename << std::endl;
+#if CV_MAJOR_VERSION == 2
 	mlp_.save(filename.c_str(), "mlp");
+#else
+	mlp_->save(filename);
+#endif
 
 	// save mappings
 	filename = path + "mlp.txt";
@@ -792,7 +855,11 @@ void train_ml::save_mlp(std::string path)
 void train_ml::load_mlp(std::string path)
 {
 	std::string filename = path + "mlp.yml";
+#if CV_MAJOR_VERSION == 2
 	mlp_.load(filename.c_str(), "mlp");
+#else
+	mlp_->load(filename);
+#endif
 
 	// load mappings
 	label_class_mapping_.clear();

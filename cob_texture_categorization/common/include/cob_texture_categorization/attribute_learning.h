@@ -68,7 +68,11 @@ private:
 	cv::Mat attribute_display_mat_;
 	int attribute_display_mat_plot_counter_;
 
-	std::vector<boost::shared_ptr<CvSVM> > svm_;
+#if CV_MAJOR_VERSION == 2
+	std::vector<boost::shared_ptr<cv::SVM> > svm_;
+#else
+	std::vector<cv::Ptr<cv::ml::SVM> > svm_;
+#endif
 };
 
 #endif /* ATTRIBUTE_LEARNING_H_ */

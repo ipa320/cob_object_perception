@@ -59,7 +59,7 @@
 
 #include <cob_surface_classification/surface_classification.h>
 
-
+#include <cmath>
 
 
 void SurfaceClassification::testFunction(cv::Mat& color_image, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud, cv::Mat& depth_image)
@@ -188,7 +188,7 @@ void SurfaceClassification::approximateLine(cv::Mat& depth_image,pcl::PointCloud
 
 
 		//don't save points with nan-entries (no data available)
-		if(!isnan(pointcloud->at(xIter[iX],yIter[iY]).x))
+		if(!std::isnan(pointcloud->at(xIter[iX],yIter[iY]).x))
 		{
 
 			if(first)

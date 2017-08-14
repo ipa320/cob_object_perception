@@ -5,7 +5,6 @@ project(cob_object_categorization)
 find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
-  cmake_modules
   cob_object_detection_msgs
   cob_perception_msgs
   cv_bridge
@@ -18,7 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf
 )
 
-find_package(Eigen REQUIRED)
 find_package(OpenCV REQUIRED)
 #find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
@@ -35,7 +33,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 #  ${PCL_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
   ${VTK_INCLUDE_DIRS}
 )
 
@@ -67,7 +64,6 @@ target_link_libraries(object_categorization
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 #  ${PCL_LIBRARIES}
-  ${Eigen_LIBRARIES}
   ${VTK_LIBRARIES}
 )
 set_target_properties(object_categorization PROPERTIES COMPILE_FLAGS "-D__LINUX__")
@@ -81,7 +77,6 @@ target_link_libraries(object_segmentation
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 #  ${PCL_LIBRARIES}
-  ${Eigen_LIBRARIES}
 )
 set_target_properties(object_segmentation PROPERTIES COMPILE_FLAGS "-D__LINUX__")
 

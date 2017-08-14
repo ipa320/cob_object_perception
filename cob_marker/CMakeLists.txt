@@ -7,7 +7,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 find_package(catkin REQUIRED COMPONENTS
   actionlib
-  cmake_modules
   cob_object_detection_msgs
   cv_bridge
   image_transport

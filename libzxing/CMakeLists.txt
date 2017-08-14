@@ -15,7 +15,7 @@ ExternalProject_Add(EP_${PROJECT_NAME}
     SOURCE_DIR ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src
     BUILD_COMMAND ""
         # copy headers to devel space (catkin does not like headers in source space)
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/cpp/build/core/src/zxing ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/zxing
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/cpp/build/core/src/zxing ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/libzxing/zxing
         # copy libs, set-up soname chain
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${PROJECT_NAME}-src/cpp/build/libzxing.a ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_LIB_DESTINATION}
     INSTALL_COMMAND ""
@@ -26,8 +26,8 @@ catkin_package(
     EXPORTED_TARGETS EP_${PROJECT_NAME}
 )
 
-install(DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/zxing/
-    DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/zxing
+install(DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/libzxing/zxing/
+    DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/libzxing/zxing
     FILES_MATCHING PATTERN "*.h"
 )
 

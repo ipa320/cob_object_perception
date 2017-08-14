@@ -65,17 +65,17 @@
  *      Author: rmb-ce
  */
 
-#include "cob_surface_classification/evaluation.h"
-
 #include <iostream>
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types_conversion.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types_conversion.h>
 #include <pcl/features/normal_3d.h>
 
 #include <opencv2/opencv.hpp>
+
+#include "cob_surface_classification/evaluation.h"
 
 
 #define HUE_GREEN 		113/2

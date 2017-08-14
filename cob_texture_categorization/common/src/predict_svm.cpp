@@ -154,9 +154,15 @@ void predict_svm::run_prediction(std::string *path_)
 
 	cv::Mat prediction_results;
 
+#if CV_MAJOR_VERSION == 2
  	CvSVM SVM;
-    SVM.load("/home/rmb-dh/datasetTextur/yamlfiles/svm.yml", "svm");
+    SVM.load("datasetTextur/yamlfiles/svm.yml", "svm");
     SVM.predict(train_data,prediction_results);
+#else
+    cv::Ptr<cv::ml::SVM> svm = cv::ml::SVM::create();
+    svm->load("datasetTextur/yamlfiles/svm.yml");
+    svm->predict(train_data,prediction_results);
+#endif
 //    std::cout<<prediction_results.size();
 //    std::cout<<" Results Predictionnum "<<":  "<<prediction_results<<"Results prediction"<<std::endl;
 //    std::cout<<prediction_results.type()<<"type";

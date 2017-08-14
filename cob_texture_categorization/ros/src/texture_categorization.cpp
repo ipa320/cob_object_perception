@@ -52,6 +52,15 @@
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
+#if CV_MAJOR_VERSION == 2
+	typedef cv::SVM CV_SVM;
+	typedef CvANN_MLP CV_ANN_MLP;
+	typedef CvANN_MLP_TrainParams CV_ANN_MLP_TRAINPARAMS;
+#else
+	typedef cv::ml::SVM CV_SVM;
+	typedef cv::ml::ANN_MLP CV_ANN_MLP;
+	typedef cv::ml::ANN_MLP CV_ANN_MLP_TRAINPARAMS;
+#endif
 
 TextCategorizationNode::TextCategorizationNode(ros::NodeHandle nh) :
 node_handle_(nh)
@@ -222,7 +231,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestHandcrafted()
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
 	//setSVMConfigurations(cvp, "attributes_handcrafted");
-	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
@@ -263,7 +272,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestFarhadi()
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
 	//setSVMConfigurations(cvp, "attributes_farhadi2009");
-	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
@@ -316,7 +325,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 
 	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
 	setSVMConfigurations(cvp, "attributes_cimpoi2014_sift");
-	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
@@ -530,7 +539,7 @@ void TextCategorizationNode::attributeLearningDTDDatabaseTest()
 
 	CrossValidationParams cvp(CrossValidationParams::DTD_SPLITS, 10, 47);
 	setSVMConfigurations(cvp, "attributes_dtd_farhadi");
-	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., 10., 0., 0.));
+	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., 10., 0., 0.));
 
 	al.crossValidationDTD(cvp, path_to_cross_validation_sets, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, image_filenames);
 
@@ -547,23 +556,23 @@ void TextCategorizationNode::setNNConfigurations(CrossValidationParams& cvp, con
 	if (experiment_key.compare("attributes_handcrafted")==0)
 	{
 		for (double param1=0.1; param1<0.91; param1+=0.1)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.00001f, CvANN_MLP_TrainParams::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, 5), CvANN_MLP::SIGMOID_SYM, param1, 1.0));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.00001f, CV_ANN_MLP_TRAINPARAMS::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, 5), CV_ANN_MLP::SIGMOID_SYM, param1, 1.0));
 		for (double param1=0.1; param1<0.91; param1+=0.1)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.00001f, CvANN_MLP_TrainParams::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, 10), CvANN_MLP::SIGMOID_SYM, param1, 1.0));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.00001f, CV_ANN_MLP_TRAINPARAMS::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, 10), CV_ANN_MLP::SIGMOID_SYM, param1, 1.0));
 		for (double param1=0.1; param1<0.91; param1+=0.1)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.00001f, CvANN_MLP_TrainParams::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, 20), CvANN_MLP::SIGMOID_SYM, param1, 1.0));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100, 0.00001f, CV_ANN_MLP_TRAINPARAMS::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, 20), CV_ANN_MLP::SIGMOID_SYM, param1, 1.0));
 	}
 	else if (experiment_key.compare("classes_handcrafted")==0)
 	{
 		for (int hidden_neurons = 100; hidden_neurons<401; hidden_neurons*=2)
 			for (double param1=0.1; param1<0.91; param1+=0.1)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 400, 0.0001f, CvANN_MLP_TrainParams::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, hidden_neurons), CvANN_MLP::SIGMOID_SYM, param1, 1.2));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 400, 0.0001f, CV_ANN_MLP_TRAINPARAMS::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, hidden_neurons), CV_ANN_MLP::SIGMOID_SYM, param1, 1.2));
 	}
 	else if (experiment_key.compare("classes_farhadi2009")==0)
 	{
 		for (int hidden_neurons = 50; hidden_neurons<401; hidden_neurons*=2)
 			for (double param1=0.1; param1<0.91; param1+=0.1)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 400, 0.0001f, CvANN_MLP_TrainParams::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, hidden_neurons), CvANN_MLP::SIGMOID_SYM, param1, 1.2));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::NEURAL_NETWORK, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 400, 0.0001f, CV_ANN_MLP_TRAINPARAMS::BACKPROP, 0.1f, 0.1f, std::vector<int>(1, hidden_neurons), CV_ANN_MLP::SIGMOID_SYM, param1, 1.2));
 	}
 }
 
@@ -573,149 +582,149 @@ void TextCategorizationNode::setSVMConfigurations(CrossValidationParams& cvp, co
 	if (experiment_key.compare("attributes_dtd_handcrafted")==0)
 	{
 //		for (double nu=0.1; nu<0.91; nu+=0.1)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
 //		std::vector<double> values; values.push_back(0.01); values.push_back(0.05); values.push_back(0.1); values.push_back(0.5); values.push_back(1.0);
 //		for (size_t gamma_index=0; gamma_index<values.size(); ++gamma_index)
 //			for (double nu=0.1; nu<0.91; nu+=0.1)
-//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVC, CvSVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
+//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVC, CV_SVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
 
 		std::vector<double> C_values; C_values.push_back(0.001); C_values.push_back(0.005); C_values.push_back(0.01); C_values.push_back(0.05); C_values.push_back(0.1); C_values.push_back(0.5); C_values.push_back(1.0);
 //		std::vector<double> C_values; C_values.push_back(5.); C_values.push_back(10.); C_values.push_back(50.); C_values.push_back(100.);
 //		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 		std::vector<double> gamma_values; gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0); gamma_values.push_back(5.0); gamma_values.push_back(10.0);
 //		std::vector<double> gamma_values; gamma_values.push_back(0.5); gamma_values.push_back(1.0); gamma_values.push_back(5.0); gamma_values.push_back(10.0);
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
 			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("attributes_dtd_farhadi")==0)
 	{
 		std::vector<double> C_values; C_values.push_back(1.0); //C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
 //		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 		std::vector<double> gamma_values; gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0); gamma_values.push_back(5.0); gamma_values.push_back(10.0);
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
 			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("attributes_dtd_cimpoi47")==0)
 	{
 //		for (double nu=0.1; nu<0.91; nu+=0.1)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
 //		std::vector<double> values; values.push_back(0.01); values.push_back(0.05); values.push_back(0.1); values.push_back(0.5); values.push_back(1.0);
 //		for (size_t gamma_index=0; gamma_index<values.size(); ++gamma_index)
 //			for (double nu=0.1; nu<0.91; nu+=0.1)
-//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVC, CvSVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
+//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVC, CV_SVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
 
 		std::vector<double> C_values; C_values.push_back(10.0); C_values.push_back(5.0); C_values.push_back(50.0); C_values.push_back(1.0); C_values.push_back(100.0);
 		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 //		std::vector<double> gamma_values; gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0); gamma_values.push_back(5.0); gamma_values.push_back(10.0);
 //		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
 //			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+//				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("attributes_handcrafted")==0)
 	{
 		for (double nu=0.1; nu<0.91; nu+=0.1)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
 		std::vector<double> values; values.push_back(0.01); values.push_back(0.05); values.push_back(0.1); values.push_back(0.5); values.push_back(1.0);
 		for (size_t gamma_index=0; gamma_index<values.size(); ++gamma_index)
 			for (double nu=0.1; nu<0.91; nu+=0.1)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
 	}
 	else if (experiment_key.compare("attributes_farhadi2009")==0)
 	{
 //		for (double nu=0.4; nu<0.91; nu+=0.1)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
 //		std::vector<double> values; values.push_back(0.01); values.push_back(0.05); //values.push_back(0.1); //values.push_back(0.5); values.push_back(1.0);
 //		for (double nu=0.8; nu<0.91; nu+=0.1)
 //			for (size_t gamma_index=0; gamma_index<values.size(); ++gamma_index)
-//					cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.8, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.9, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., 0.8, 0.));
+//					cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., values[gamma_index], 0., 1., nu, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., 0.8, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.01, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.01, 0., 1., 0.8, 0.));
 	}
 	else if (experiment_key.compare("attributes_cimpoi2014_sift")==0)
 	{
 //		for (double nu=0.9; nu>0.09; nu-=0.4)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
 //		for (double nu=0.9; nu>0.09; nu-=0.4)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., nu, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.9, 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.01, 0., 1., nu, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., 0.9, 0.));
 		std::vector<double> gamma_values; gamma_values.push_back(0.05); gamma_values.push_back(0.1);  gamma_values.push_back(0.5);
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., gamma_values[gamma_index], 0., 1., 0.9, 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., gamma_values[gamma_index], 0., 1., 0.9, 0.));
 	}
 	else if (experiment_key.compare("attributes_cimpoi2014_rgb")==0)
 	{
 //		for (double nu=0.2; nu<0.91; nu+=0.1)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., nu, 0.));
 		for (double nu=0.9; nu>0.1; nu-=0.1)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., nu, 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., nu, 0.));
 
 	}
 	else if (experiment_key.compare("attributes_cnnifv")==0)
 	{
-//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.7, 0.));
-//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.8, 0.));
-//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::LINEAR, 0., 0.1, 0., 1., 0.9, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1., 0.9, 0.));
-		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.5, 0., 1., 0.9, 0.));
+//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., 0.7, 0.));
+//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., 0.8, 0.));
+//		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::LINEAR, 0., 0.1, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.1, 0., 1., 0.9, 0.));
+		cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.5, 0., 1., 0.9, 0.));
 //		for (double nu=0.9; nu>0.09; nu-=0.4)
-//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::NU_SVR, CvSVM::RBF, 0., 0.01, 0., 1., nu, 0.));
+//			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.01, 0., 1., nu, 0.));
 	}
 	else if (experiment_key.compare("classes_handcrafted")==0)
 	{
 		std::vector<double> values; values.push_back(0.01); values.push_back(0.05); values.push_back(0.1); values.push_back(0.5); values.push_back(1.0);
 		for (size_t C_index=0; C_index<values.size(); ++C_index)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., 10*values[C_index], 0., 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., 10*values[C_index], 0., 0.));
 		for (size_t gamma_index=0; gamma_index<values.size(); ++gamma_index)
 			for (size_t C_index=0; C_index<values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., values[gamma_index], 1., 10*values[C_index], 0., 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::RBF, 0., values[gamma_index], 1., 10*values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("classes_farhadi2009")==0)
 	{
 		std::vector<double> C_values; C_values.push_back(0.01); C_values.push_back(0.05); C_values.push_back(0.1); C_values.push_back(0.5); C_values.push_back(1.0); C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
 		std::vector<double> gamma_values; gamma_values.push_back(0.001); gamma_values.push_back(0.005); gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
 		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
 			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("classes_cnn_ifv_basefeatures")==0)
 	{
 		std::vector<double> C_values; C_values.push_back(0.5); C_values.push_back(1.0); C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
 		std::vector<double> gamma_values; gamma_values.push_back(0.001); gamma_values.push_back(0.005); gamma_values.push_back(0.01); gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
 		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
 			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("classes_cimpoi2014_sift_basefeatures")==0)
 	{
 		std::vector<double> C_values; C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
 		std::vector<double> gamma_values; gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
 		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
 			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 	else if (experiment_key.compare("classes_cimpoi2014_rgb_basefeatures")==0)
 	{
 		std::vector<double> C_values; C_values.push_back(1.0); C_values.push_back(5.0); C_values.push_back(10.0); C_values.push_back(50.0); C_values.push_back(100.0);
 		std::vector<double> gamma_values; gamma_values.push_back(0.05); gamma_values.push_back(0.1); gamma_values.push_back(0.5); gamma_values.push_back(1.0);
 		for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
+			cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., C_values[C_index], 0., 0.));
 		for (size_t gamma_index=0; gamma_index<gamma_values.size(); ++gamma_index)
 			for (size_t C_index=0; C_index<C_values.size(); ++C_index)
-				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CvSVM::C_SVC, CvSVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
+				cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::C_SVC, CV_SVM::RBF, 0., gamma_values[gamma_index], 1., C_values[C_index], 0., 0.));
 	}
 }
 

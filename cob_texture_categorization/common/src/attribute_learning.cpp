@@ -449,11 +449,30 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 //				boost.train(training_data, CV_ROW_SAMPLE, training_labels, cv::Mat(), cv::Mat(), var_type, cv::Mat(), boost_params, false);
 //				// End Boosting
 
+#if CV_MAJOR_VERSION == 2
 				CvSVM svm;
 				CvANN_MLP mlp;
+#else
+				cv::Ptr<cv::ml::SVM> svm = cv::ml::SVM::create();
+				cv::Ptr<cv::ml::ANN_MLP> mlp = cv::ml::ANN_MLP::create();
+				cv::Ptr<cv::ml::TrainData> train_data_and_labels = cv::ml::TrainData::create(training_data, cv::ml::ROW_SAMPLE, training_labels);
+#endif
 				if (ml_params.classification_method_ == MLParams::SVM)
 				{	// SVM
+#if CV_MAJOR_VERSION == 2
 					svm.train(training_data, training_labels, cv::Mat(), cv::Mat(), ml_params.svm_params_);
+#else
+					svm->setType(ml_params.svm_params_svm_type_);
+					svm->setKernel(ml_params.svm_params_kernel_type_);
+					svm->setDegree(ml_params.svm_params_degree_);
+					svm->setGamma(ml_params.svm_params_gamma_);
+					svm->setCoef0(ml_params.svm_params_coef0_);
+					svm->setC(ml_params.svm_params_C_);
+					svm->setNu(ml_params.svm_params_nu_);
+					svm->setP(ml_params.svm_params_p_);
+					svm->setTermCriteria(ml_params.term_criteria_);
+					svm->train(train_data_and_labels);
+#endif
 				}
 				else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
 				{	//	Neural Network
@@ -462,10 +481,17 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 					for (size_t k=0; k<ml_params.nn_hidden_layers_.size(); ++k)
 						layers.row(k+1) = cv::Scalar(ml_params.nn_hidden_layers_[k]);
 					layers.row(ml_params.nn_hidden_layers_.size()+1) = cv::Scalar(1);
-
+#if CV_MAJOR_VERSION == 2
 					mlp.create(layers, ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
 					int iterations = mlp.train(training_data, training_labels, cv::Mat(), cv::Mat(), ml_params.nn_params_);
 					std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+#else
+					mlp->setActivationFunction(ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
+					mlp->setLayerSizes(layers);
+					mlp->setTrainMethod(ml_params.nn_params_train_method_, ml_params.nn_params_bp_dw_scale_, ml_params.nn_params_bp_moment_scale_);
+					mlp->setTermCriteria(ml_params.term_criteria_);
+					mlp->train(train_data_and_labels);
+#endif
 				}
 
 				// === apply ml classifier to predict test set ===
@@ -477,9 +503,21 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 					cv::Mat response(1, 1, CV_32FC1);
 					cv::Mat sample = test_data.row(r);
 					if (ml_params.classification_method_ == MLParams::SVM)
+					{
+#if CV_MAJOR_VERSION == 2
 						response.at<float>(0,0) = svm.predict(sample);	// SVM
+#else
+						response.at<float>(0,0) = svm->predict(sample);	// SVM
+#endif
+					}
 					else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+					{
+#if CV_MAJOR_VERSION == 2
 						mlp.predict(sample, response);		// neural network
+#else
+						mlp->predict(sample, response);		// neural network
+#endif
+					}
 					//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 					//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
 
@@ -527,9 +565,21 @@ void AttributeLearning::crossValidation(const CrossValidationParams& cross_valid
 						cv::Mat response(1, 1, attribute_matrix.type());
 						cv::Mat sample = feature_matrix.row(sample_index);
 						if (ml_params.classification_method_ == MLParams::SVM)
+						{
+#if CV_MAJOR_VERSION == 2
 							response.at<float>(0,0) = svm.predict(sample);	// SVM
+#else
+							response.at<float>(0,0) = svm->predict(sample);	// SVM
+#endif
+						}
 						else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+						{
+#if CV_MAJOR_VERSION == 2
 							mlp.predict(sample, response);		// neural network
+#else
+							mlp->predict(sample, response);		// neural network
+#endif
+						}
 						//response.at<float>(0,0) = rtree.predict(sample);		// random tree
 						//response.at<float>(0,0) = sample.at<float>(0, attribute_index) / feature_scaling_factor;		// direct relation: feature=attribute
 						computed_attribute_matrices[fold].at<float>(sample_index, attribute_index) = response.at<float>(0,0)*feature_scaling_factor;
@@ -598,15 +648,32 @@ void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attr
 			training_labels.at<float>(r) = attribute_matrix.at<float>(r, attribute_index); // /feature_scaling_factor;
 
 		// SVM
-		CvTermCriteria criteria;
-		criteria.max_iter = 1000000;	// 1000
+		cv::TermCriteria criteria;
+		criteria.maxCount = 1000000;	// 1000
 		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+#if CV_MAJOR_VERSION == 2
 		CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
 		if (attribute_index == 1 || attribute_index == 2)
 			svm_params.svm_type = CvSVM::NU_SVC;
 		svm_.push_back(boost::shared_ptr<CvSVM>(new CvSVM()));
 		svm_[attribute_index]->train(feature_matrix, training_labels, cv::Mat(), cv::Mat(), svm_params);
+#else
+		svm_.push_back(cv::ml::SVM::create());
+		svm_[attribute_index]->setType(cv::ml::SVM::NU_SVR);
+		svm_[attribute_index]->setKernel(cv::ml::SVM::RBF);
+		svm_[attribute_index]->setDegree(0.0);
+		svm_[attribute_index]->setGamma(0.1);
+		svm_[attribute_index]->setCoef0(0.0);
+		svm_[attribute_index]->setC(1.0);
+		svm_[attribute_index]->setNu(0.4);
+		svm_[attribute_index]->setP(0.0);
+		svm_[attribute_index]->setTermCriteria(criteria);
+		if (attribute_index == 1 || attribute_index == 2)
+			svm_[attribute_index]->setType(cv::ml::SVM::NU_SVC);
+		cv::Ptr<cv::ml::TrainData> train_data_and_labels = cv::ml::TrainData::create(feature_matrix, cv::ml::ROW_SAMPLE, training_labels);
+		svm_[attribute_index]->train(train_data_and_labels);
+#endif
 	}
 }
 
@@ -633,7 +700,11 @@ void AttributeLearning::save_SVMs(std::string path)
 	{
 		std::stringstream ss;
 		ss << path << "attribute_svm_" << i << ".yml";
+#if CV_MAJOR_VERSION == 2
 		svm_[i]->save(ss.str().c_str(), "svm");
+#else
+		svm_[i]->save(ss.str());
+#endif
 	}
 }
 
@@ -647,7 +718,11 @@ void AttributeLearning::load_SVMs(std::string path)
 	{
 		std::stringstream ss;
 		ss << path << "attribute_svm_" << i << ".yml";
+#if CV_MAJOR_VERSION == 2
 		svm_[i]->load(ss.str().c_str(), "svm");
+#else
+		svm_[i]->load(ss.str());
+#endif
 	}
 }
 
@@ -942,16 +1017,35 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 				VlSvm* vlsvm = 0;
 				cv::Mat w;
 				double bias;
+#if CV_MAJOR_VERSION == 2
 				CvSVM svm;
 				CvANN_MLP mlp;
+#else
+				cv::Ptr<cv::ml::SVM> svm = cv::ml::SVM::create();
+				cv::Ptr<cv::ml::ANN_MLP> mlp = cv::ml::ANN_MLP::create();
+				cv::Ptr<cv::ml::TrainData> train_data_and_labels = cv::ml::TrainData::create(feature_matrix_train, cv::ml::ROW_SAMPLE, attribute_matrix_train.col(attribute_index));
+#endif
 				if (ml_params.classification_method_ == MLParams::SVM)
 				{	// SVM
 //					cv::Mat weights(1,2,CV_32FC1);
 //					weights.at<float>(0) = 47/46;
 //					weights.at<float>(1) = 47/1;
 //					CvMat weights_mat = weights;
-//					ml_params.svm_params_.class_weights = &weights_mat;
+//					ml_params.svm_params_class_weights_ = &weights_mat;
+#if CV_MAJOR_VERSION == 2
 					svm.train(feature_matrix_train, attribute_matrix_train.col(attribute_index), cv::Mat(), cv::Mat(), ml_params.svm_params_);
+#else
+					svm->setType(ml_params.svm_params_svm_type_);
+					svm->setKernel(ml_params.svm_params_kernel_type_);
+					svm->setDegree(ml_params.svm_params_degree_);
+					svm->setGamma(ml_params.svm_params_gamma_);
+					svm->setCoef0(ml_params.svm_params_coef0_);
+					svm->setC(ml_params.svm_params_C_);
+					svm->setNu(ml_params.svm_params_nu_);
+					svm->setP(ml_params.svm_params_p_);
+					svm->setTermCriteria(ml_params.term_criteria_);
+					svm->train(train_data_and_labels);
+#endif
 //					cv::Mat x, y;
 //					feature_matrix_train.convertTo(x, CV_64FC1);
 //					attribute_matrix_train.col(attribute_index).convertTo(y, CV_64FC1, 2., -1.);
@@ -981,9 +1075,17 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 						layers.row(k+1) = cv::Scalar(ml_params.nn_hidden_layers_[k]);
 					layers.row(ml_params.nn_hidden_layers_.size()+1) = cv::Scalar(1);
 
+#if CV_MAJOR_VERSION == 2
 					mlp.create(layers, ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
 					int iterations = mlp.train(feature_matrix_train, attribute_matrix_train.col(attribute_index), cv::Mat(), cv::Mat(), ml_params.nn_params_);
 					std::cout << "Neural network training completed after " << iterations << " iterations." << std::endl;		screen_output << "Neural network training completed after " << iterations << " iterations." << std::endl;
+#else
+					mlp->setActivationFunction(ml_params.nn_activation_function_, ml_params.nn_activation_function_param1_, ml_params.nn_activation_function_param2_);
+					mlp->setLayerSizes(layers);
+					mlp->setTrainMethod(ml_params.nn_params_train_method_, ml_params.nn_params_bp_dw_scale_, ml_params.nn_params_bp_moment_scale_);
+					mlp->setTermCriteria(ml_params.term_criteria_);
+					mlp->train(train_data_and_labels);
+#endif
 				}
 
 				// validate classification performance
@@ -995,11 +1097,21 @@ void AttributeLearning::crossValidationDTD(CrossValidationParams& cross_validati
 					cv::Mat sample = feature_matrix_test.row(r);
 					if (ml_params.classification_method_ == MLParams::SVM)
 					{
+#if CV_MAJOR_VERSION == 2
 						response.at<float>(0,0) = -svm.predict(sample, true);	// SVM
 						//response.at<float>(0,0) = (float)(sample.dot(w) + bias);	// vlsvm
+#else
+						response.at<float>(0,0) = -svm->predict(sample, cv::noArray(), cv::ml::StatModel::RAW_OUTPUT);	// SVM
+#endif
 					}
 					else if (ml_params.classification_method_ == MLParams::NEURAL_NETWORK)
+					{
+#if CV_MAJOR_VERSION == 2
 						mlp.predict(sample, response);		// neural network
+#else
+						mlp->predict(sample, response);		// neural network
+#endif
+					}
 
 					// statistics
 					int label = (attribute_matrix_validation.at<float>(r, attribute_index) < 0.5f ? -1 : 1);
