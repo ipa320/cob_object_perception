@@ -557,7 +557,7 @@ public:
 
 #ifdef COMPILE_NODELET
 
-PLUGINLIB_DECLARE_CLASS(cob_3d_Qr, Qr_Node, Segmentation_Node_XYZ<As_Nodelet>, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(Segmentation_Node_XYZ<As_Nodelet>, nodelet::Nodelet);
 
 #else
 

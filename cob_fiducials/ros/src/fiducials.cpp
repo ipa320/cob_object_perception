@@ -1034,7 +1034,7 @@ std::string CobFiducialsNode::color_image_encoding_ = "bgr8";
 //3: The fully-qualified type of the plugin class, in this case, polygon_plugins::Triangle.
 //4: The fully-qualified type of the base class, in this case, polygon_base::RegularPolygon
 // plugin/nodelet namespace, plugin/nodelet name, qualified class name, qualified nodelete class name
-//PLUGINLIB_DECLARE_CLASS(cob_sensor_fusion, cob_sensor_fusion_nodelet, ipa_SensorFusion::CobSensorFusionNode, nodelet::Nodelet);
+//PLUGINLIB_EXPORT_CLASS(ipa_SensorFusion::CobSensorFusionNode, nodelet::Nodelet);
 
 //#######################
 //#### main programm ####
