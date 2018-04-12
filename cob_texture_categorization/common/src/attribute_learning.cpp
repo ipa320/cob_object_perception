@@ -649,13 +649,13 @@ void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attr
 
 		// SVM
 		cv::TermCriteria criteria;
-		criteria.maxCount = 1000000;	// 1000
+		criteria.maxCount = 10000;	// 1000
 		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 #if CV_MAJOR_VERSION == 2
-		CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.1, 0., 1.0, 0.4, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
-		if (attribute_index == 1 || attribute_index == 2)
-			svm_params.svm_type = CvSVM::NU_SVC;
+		CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.5, 0., 1.0, 0.9, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+//		if (attribute_index == 1 || attribute_index == 2)
+//			svm_params.svm_type = CvSVM::NU_SVC;
 		svm_.push_back(boost::shared_ptr<CvSVM>(new CvSVM()));
 		svm_[attribute_index]->train(feature_matrix, training_labels, cv::Mat(), cv::Mat(), svm_params);
 #else
@@ -663,14 +663,14 @@ void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attr
 		svm_[attribute_index]->setType(cv::ml::SVM::NU_SVR);
 		svm_[attribute_index]->setKernel(cv::ml::SVM::RBF);
 		svm_[attribute_index]->setDegree(0.0);
-		svm_[attribute_index]->setGamma(0.1);
+		svm_[attribute_index]->setGamma(0.5);
 		svm_[attribute_index]->setCoef0(0.0);
 		svm_[attribute_index]->setC(1.0);
-		svm_[attribute_index]->setNu(0.4);
+		svm_[attribute_index]->setNu(0.9);
 		svm_[attribute_index]->setP(0.0);
 		svm_[attribute_index]->setTermCriteria(criteria);
-		if (attribute_index == 1 || attribute_index == 2)
-			svm_[attribute_index]->setType(cv::ml::SVM::NU_SVC);
+//		if (attribute_index == 1 || attribute_index == 2)
+//			svm_[attribute_index]->setType(cv::ml::SVM::NU_SVC);
 		cv::Ptr<cv::ml::TrainData> train_data_and_labels = cv::ml::TrainData::create(feature_matrix, cv::ml::ROW_SAMPLE, training_labels);
 		svm_[attribute_index]->train(train_data_and_labels);
 #endif
