@@ -649,24 +649,25 @@ void AttributeLearning::train(const cv::Mat& feature_matrix, const cv::Mat& attr
 
 		// SVM
 		cv::TermCriteria criteria;
-		criteria.maxCount = 10000;	// 1000
-		criteria.epsilon  = FLT_EPSILON; // FLT_EPSILON
+		criteria.maxCount = 100*3760; //cimpoi on dtd	//10000; cimpoi on ipa	// 1000
+		criteria.epsilon  = 0.001; //cimpoi on dtd		//FLT_EPSILON; cimpoi on ipa // FLT_EPSILON
 		criteria.type     = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 #if CV_MAJOR_VERSION == 2
-		CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.5, 0., 1.0, 0.9, 0., 0, criteria);		// RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+		//CvSVMParams svm_params(CvSVM::NU_SVR, CvSVM::RBF, 0., 0.5, 0., 1.0, 0.9, 0., 0, criteria);		// cimpoi on ipa    // RBF, 0.0, 0.1, 0.0, 1.0, 0.4, 0.
+		CvSVMParams svm_params(CvSVM::C_SVC, CvSVM::LINEAR, 0., 0.2, 1., 10.0, 0., 0., 0, criteria);		// cimpoi on dtd
 //		if (attribute_index == 1 || attribute_index == 2)
 //			svm_params.svm_type = CvSVM::NU_SVC;
 		svm_.push_back(boost::shared_ptr<CvSVM>(new CvSVM()));
 		svm_[attribute_index]->train(feature_matrix, training_labels, cv::Mat(), cv::Mat(), svm_params);
 #else
 		svm_.push_back(cv::ml::SVM::create());
-		svm_[attribute_index]->setType(cv::ml::SVM::NU_SVR);
-		svm_[attribute_index]->setKernel(cv::ml::SVM::RBF);
+		svm_[attribute_index]->setType(cv::ml::SVM::NU_SVR);		// cv::ml::SVM::NU_SVR	cimpoi on ipa
+		svm_[attribute_index]->setKernel(cv::ml::SVM::RBF);			// cv::ml::SVM::RBF		cimpoi on ipa
 		svm_[attribute_index]->setDegree(0.0);
-		svm_[attribute_index]->setGamma(0.5);
-		svm_[attribute_index]->setCoef0(0.0);
-		svm_[attribute_index]->setC(1.0);
-		svm_[attribute_index]->setNu(0.9);
+		svm_[attribute_index]->setGamma(0.2);						// 0.5		cimpoi on ipa
+		svm_[attribute_index]->setCoef0(1.0);						// 0.0		cimpoi on ipa
+		svm_[attribute_index]->setC(10.0);							// 1.0		cimpoi on ipa
+		svm_[attribute_index]->setNu(0.0);							// 0.9		cimpoi on ipa
 		svm_[attribute_index]->setP(0.0);
 		svm_[attribute_index]->setTermCriteria(criteria);
 //		if (attribute_index == 1 || attribute_index == 2)

@@ -539,7 +539,12 @@ void TextCategorizationNode::attributeLearningDTDDatabaseTest()
 //	// farhadi
 //	const std::string feature_filename = feature_files_path + database_identifier + "_database.txt";
 //	al.loadTextureDatabaseBaseFeatures(feature_filename, 9688, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
-//	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
+
+//	// train classifier with whole database
+//	al.train(base_feature_matrix, ground_truth_attribute_matrix);
+//	al.save_SVMs(feature_files_path);
+//	return;
 
 	CrossValidationParams cvp(CrossValidationParams::DTD_SPLITS, 10, 47);
 	//setSVMConfigurations(cvp, "attributes_dtd_farhadi");
