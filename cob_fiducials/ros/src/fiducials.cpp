@@ -301,11 +301,13 @@ public:
         ROS_INFO("[fiducials] Subscribing to camera topics");
 
         color_camera_image_sub_.subscribe(*image_transport_0_, "image_color", 1);
+        color_camera_image_sub_.registerCallback(boost::bind(&CobFiducialsNode::colorImageCallback, this, _1));
         color_camera_info_sub_.subscribe(node_handle_, "camera_info", 1);
+        color_camera_info_sub_.registerCallback(boost::bind(&CobFiducialsNode::colorImageInfoCallback, this, _1));
 
-        color_image_sub_sync_ = boost::shared_ptr<message_filters::Synchronizer<ColorImageSyncPolicy> >(new message_filters::Synchronizer<ColorImageSyncPolicy>(ColorImageSyncPolicy(3)));
-        color_image_sub_sync_->connectInput(color_camera_image_sub_, color_camera_info_sub_);
-        color_image_sub_sync_->registerCallback(boost::bind(&CobFiducialsNode::colorImageCallback, this, _1, _2));
+//        color_image_sub_sync_ = boost::shared_ptr<message_filters::Synchronizer<ColorImageSyncPolicy> >(new message_filters::Synchronizer<ColorImageSyncPolicy>(ColorImageSyncPolicy(3)));
+//        color_image_sub_sync_->connectInput(color_camera_image_sub_, color_camera_info_sub_);
+//        color_image_sub_sync_->registerCallback(boost::bind(&CobFiducialsNode::colorImageCallback, this, _1, _2));
 
         sub_counter_++;
         ROS_INFO("[fiducials] %i subscribers on camera topics [OK]", sub_counter_);
@@ -327,34 +329,40 @@ public:
     	ROS_INFO("[fiducials] %i subscribers on camera topics [OK]", sub_counter_);
     }
 
+    void colorImageInfoCallback(const sensor_msgs::CameraInfoConstPtr& color_camera_info)
+    {
+        if (camera_matrix_initialized_ == false)
+        {
+            camera_matrix_ = cv::Mat::zeros(3,3,CV_64FC1);
+            camera_matrix_.at<double>(0,0) = color_camera_info->K[0];
+            camera_matrix_.at<double>(0,2) = color_camera_info->K[2];
+            camera_matrix_.at<double>(1,1) = color_camera_info->K[4];
+            camera_matrix_.at<double>(1,2) = color_camera_info->K[5];
+            camera_matrix_.at<double>(2,2) = 1;
+
+            ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix");
+
+			if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_, log_or_calibrate_sharpness_measurements_) & ipa_Utils::RET_FAILED)
+			{
+				ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
+				return;
+			}
+            camera_matrix_initialized_ = true;
+            ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix succeeded");
+        }
+    }
+
     /// Callback is executed, when shared mode is selected
     /// Left and right is expressed when facing the back of the camera in horizontal orientation.
-    void colorImageCallback(const sensor_msgs::ImageConstPtr& color_camera_data,
-                            const sensor_msgs::CameraInfoConstPtr& color_camera_info)
+    void colorImageCallback(const sensor_msgs::ImageConstPtr& color_camera_data)
     {
+        if (camera_matrix_initialized_ == false)
+    		return;
+
         {
             boost::mutex::scoped_lock lock( mutexQ_ );
 
-            ROS_DEBUG("[fiducials] color image callback");
-
-            if (camera_matrix_initialized_ == false)
-            {
-                camera_matrix_ = cv::Mat::zeros(3,3,CV_64FC1);
-                camera_matrix_.at<double>(0,0) = color_camera_info->K[0];
-                camera_matrix_.at<double>(0,2) = color_camera_info->K[2];
-                camera_matrix_.at<double>(1,1) = color_camera_info->K[4];
-                camera_matrix_.at<double>(1,2) = color_camera_info->K[5];
-                camera_matrix_.at<double>(2,2) = 1;
-
-                ROS_INFO("[fiducials] Initializing fiducial detector with camera matrix");
-		
-				if (tag_detector_->Init(camera_matrix_, model_directory_ + model_filename_, log_or_calibrate_sharpness_measurements_) & ipa_Utils::RET_FAILED)
-				{
-					ROS_ERROR("[fiducials] Initializing fiducial detector with camera matrix [FAILED]");
-					return;
-				}
-                camera_matrix_initialized_ = true;
-            }
+            ROS_INFO("[fiducials] color image callback");
 
             // Receive
             cv_bridge::CvImageConstPtr cv_ptr;
@@ -611,6 +619,7 @@ public:
                 ss << "marker_" << tags_vec[i].id;
                 tf_lock_.lock();
                 marker_tf_ = tf::StampedTransform(transform, ros::Time::now(), detection_array.header.frame_id, ss.str());	//TODO: make parameter
+                tf_broadcaster_.sendTransform(marker_tf_);
                 tf_lock_.unlock();
             }
         }
