@@ -62,6 +62,7 @@ add_dependencies(cob_read_text ${catkin_EXPORTED_TARGETS})
 target_link_libraries(cob_read_text 
   read_text
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 ## read_evaluation 
@@ -73,6 +74,7 @@ target_link_libraries(read_evaluation
   read_text
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 ## letter_evaluation
@@ -92,6 +94,7 @@ add_dependencies(labelBox  ${catkin_EXPORTED_TARGETS})
 target_link_libraries(labelBox
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 ## create_correlation
@@ -102,6 +105,7 @@ add_dependencies(create_correlation  ${catkin_EXPORTED_TARGETS})
 target_link_libraries(create_correlation 
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 ## record_kinect_prosilica
@@ -112,6 +116,7 @@ add_dependencies(record_kinect_prosilica  ${catkin_EXPORTED_TARGETS})
 target_link_libraries(record_kinect_prosilica
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 ## script_for_imglist 
@@ -121,6 +126,7 @@ add_executable(script_for_imglist
 add_dependencies(script_for_imglist  ${catkin_EXPORTED_TARGETS})
 target_link_libraries(script_for_imglist 
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 ## showPCD
