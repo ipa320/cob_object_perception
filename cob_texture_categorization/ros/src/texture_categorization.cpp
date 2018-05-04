@@ -122,11 +122,11 @@ node_handle_(nh)
 		// database tests
 	//	attributeLearningDatabaseTestHandcrafted();
 	//	attributeLearningDatabaseTestFarhadi();
-		attributeLearningDatabaseTestCimpoi();
+	//	attributeLearningDatabaseTestCimpoi();
 	//	attributeLearningGeneratedDatabaseTestHandcrafted();
 	//	crossValidationVerbalClassDescription();
 
-	//	attributeLearningDTDDatabaseTest();
+		attributeLearningDTDDatabaseTest();
 	}
 }
 
@@ -300,7 +300,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	std::string package_path = ros::package::getPath("cob_texture_categorization");
 	std::string path_database = package_path + "/common/files/texture_database/";			// path to database
 //	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
-	std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_sift/"; 		// path to save data
+	std::string feature_files_path = package_path + "/common/files/data/cimpoi2018_sift/"; 		// path to save data
 //	std::string feature_files_path = "/home/rbormann/git/care-o-bot-indigo/src/cob_object_perception/cob_texture_categorization/common/files/data/cimpoi2014_rgb/scale0-05/"; // path to save data
 
 	// compute 17 texture attributes on the ipa texture database
@@ -321,11 +321,13 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 //	// train classifier with whole database
 //	al.train(base_feature_matrix, ground_truth_attribute_matrix);
 //	al.save_SVMs(feature_files_path);
-//	//return;
+//	return;
 
-	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
-	setSVMConfigurations(cvp, "attributes_cimpoi2014_sift");
+//	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_OBJECT_PER_CLASS, 20, 57);
+	CrossValidationParams cvp(CrossValidationParams::LEAVE_OUT_ONE_CLASS, 57, 57);
+//	setSVMConfigurations(cvp, "attributes_cimpoi2014_sift");
 	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.05, 0., 1., 0.9, 0.));
+	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 1000, FLT_EPSILON, CV_SVM::NU_SVR, CV_SVM::RBF, 0., 0.5, 0., 1., 0.9, 0.));
 
 	std::vector< std::vector<int> > preselected_train_indices;
 	std::vector<cv::Mat> attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices;
@@ -333,6 +335,7 @@ void TextCategorizationNode::attributeLearningDatabaseTestCimpoi()
 	//al.crossValidation(cvp, computed_attribute_matrix, ground_truth_attribute_matrix, data_hierarchy, true, class_label_matrix, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, false, computed_attribute_matrices);
 //	al.saveAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
 //	al.loadAttributeCrossValidationData(feature_files_path, preselected_train_indices, attribute_matrix_test_data, class_label_matrix_test_data, computed_attribute_matrices);
+	return;
 
 	// final classification: NN learned with labeled attribute data from the training set and tested with the predicted attributes
 	cvp.ml_configurations_.clear();
@@ -511,13 +514,13 @@ void TextCategorizationNode::attributeLearningDTDDatabaseTest()
 	const std::string path_database_main = package_path + "/common/files/texture_database_dtd-r1.0.1/";
 	const std::string path_database = path_database_main + "images/";			// path to database			//	std::string path_database = "/media/rmb/SAMSUNG/rmb/datasetTextur/texture_database/";		// path to database
 	const std::string path_to_cross_validation_sets = path_database_main + "labels/";
-	const std::string feature_files_path = package_path + "/common/files/data/farhadi2009/"; 		// path to save data
+	const std::string feature_files_path = package_path + "/common/files/data/cimpoi2014_sift_2018/"; 		// path to save data
 
 	// compute 17 texture attributes on the ipa texture database
 	create_train_data database_data(2);
 //	database_data.create_dtd_database_file(path_database, feature_files_path, "dtd_database.txt");		// initial setup of the dtd_database.txt file
 //	database_data.compute_data_handcrafted(path_database, feature_files_path, database_identifier);			// computes feature and label matrices of the provided database
-//	database_data.compute_data_cimpoi(path_database, feature_files_path, database_identifier, false, IfvFeatures::DENSE_MULTISCALE_SIFT);		// computes feature and label matrices of the provided database
+//	database_data.compute_data_cimpoi(path_database, feature_files_path, database_identifier, true, IfvFeatures::DENSE_MULTISCALE_SIFT);		// computes feature and label matrices of the provided database
 //	return;
 
 	// attribute cross-validation
@@ -528,18 +531,24 @@ void TextCategorizationNode::attributeLearningDTDDatabaseTest()
 	AttributeLearning al;
 	std::cout << "Loading base features, attributes and class hierarchy from file ...\n";
 	// handcrafted, cimpoi
-//	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
+	database_data.load_texture_database_features(feature_files_path, base_feature_matrix, ground_truth_attribute_matrix, computed_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
+//// do not use the following 3 lines for cimpoi
 //	scaleNormalizeHandcraftedAttributes(computed_attribute_matrix, computed_attribute_matrix_rescaled);
 //	for (int k=0; k<base_feature_matrix.cols; ++k)
 //		cv::normalize(base_feature_matrix.col(k), base_feature_matrix.col(k), 1., 0., cv::NORM_L2);
-	// farhadi
-	const std::string feature_filename = feature_files_path + database_identifier + "_database.txt";
-	al.loadTextureDatabaseBaseFeatures(feature_filename, 9688, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
+//	// farhadi
+//	const std::string feature_filename = feature_files_path + database_identifier + "_database.txt";
+//	al.loadTextureDatabaseBaseFeatures(feature_filename, 9688, base_feature_matrix, ground_truth_attribute_matrix, class_label_matrix, data_hierarchy, image_filenames, database_identifier);
 	std::cout << "Loading base features, attributes and class hierarchy from file finished.\n";
 
+//	// train classifier with whole database
+//	al.train(base_feature_matrix, ground_truth_attribute_matrix);
+//	al.save_SVMs(feature_files_path);
+//	return;
+
 	CrossValidationParams cvp(CrossValidationParams::DTD_SPLITS, 10, 47);
-	setSVMConfigurations(cvp, "attributes_dtd_farhadi");
-	//cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., 10., 0., 0.));
+	//setSVMConfigurations(cvp, "attributes_dtd_farhadi");
+	cvp.ml_configurations_.push_back(MLParams(MLParams::SVM, CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 100*3760, 0.001, CV_SVM::C_SVC, CV_SVM::LINEAR, 0., 0.2, 1., 10., 0., 0.));
 
 	al.crossValidationDTD(cvp, path_to_cross_validation_sets, base_feature_matrix, ground_truth_attribute_matrix, data_hierarchy, image_filenames);
 
