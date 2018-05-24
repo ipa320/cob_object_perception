@@ -175,6 +175,7 @@ private:
 
     boost::mutex mutexQ_;
     boost::condition_variable condQ_;
+    bool service_call_active_;
 
     t_FiducialType fiducial_type_;
     boost::shared_ptr<ipa_Fiducials::AbstractFiducialModel> tag_detector_;
@@ -189,7 +190,8 @@ public:
     /// Constructor.
     CobFiducialsNode(ros::NodeHandle& nh)
         : sub_counter_(0),
-          endless_counter_(0)
+          endless_counter_(0),
+          service_call_active_(false)
     {
         camera_matrix_initialized_ = false;
         /// Void
@@ -356,7 +358,7 @@ public:
     /// Left and right is expressed when facing the back of the camera in horizontal orientation.
     void colorImageCallback(const sensor_msgs::ImageConstPtr& color_camera_data)
     {
-        if (camera_matrix_initialized_ == false)
+        if (camera_matrix_initialized_ == false || sub_counter_ == 0)
     		return;
 
         {
@@ -396,10 +398,15 @@ public:
             }
 
 //            synchronizer_received_ = true;
-
-            // Notify waiting thread
         }
-        condQ_.notify_one();
+		// Notify waiting thread
+		condQ_.notify_one();
+		if (service_call_active_ == true)
+		{
+			// leave some time for the service call to catch mutexQ_ (otherwise this callback receives the mutex potentially again before the service callback gets it) 
+			ros::Duration(0.2).sleep();
+			service_call_active_ = false;
+		}
     }
 
     bool stopTfServiceCallback(std_srvs::Empty::Request &req,
@@ -422,6 +429,7 @@ public:
 
         // Connect to image topics
         bool result = false;
+        service_call_active_ = true;
 //        synchronizer_received_ = false;
         connectCallback();
 
@@ -436,6 +444,7 @@ public:
             else
             {
                 ROS_WARN("[fiducials] Could not receive image data from ApproximateTime synchronizer");
+                disconnectCallback();
                 return false;
             }
 
@@ -471,7 +480,6 @@ public:
 				{
 					if (detection_array_.detections[i].label == req.object_name.data)
 					{
-						
 						filtered_detection_array.detections.push_back(detection_array_.detections[i]);
 					}
 				}
