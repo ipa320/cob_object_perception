@@ -5,9 +5,9 @@ cob_object_perception
 
 |         | Indigo | Jade | Kinetic |
 |:-------:|:------:|:----:|:-------:|
-| Branch  | [`indigo_dev`](https://github.com/ipa320/cob_object_perception/tree/indigo_dev) | --- | --- |
-| Status  |  supported | not supported |  not supported |
-| Version | [version](http://repositories.ros.org/status_page/ros_indigo_default.html?q=cob_object_perception) | --- | --- |
+| Branch  | [`indigo_dev`](https://github.com/ipa320/cob_object_perception/tree/indigo_dev) | --- | [`indigo_dev`](https://github.com/ipa320/cob_object_perception/tree/indigo_dev) |
+| Status  |  supported | not supported |  supported |
+| Version | [version](http://repositories.ros.org/status_page/ros_indigo_default.html?q=cob_object_perception) | --- | [version](http://repositories.ros.org/status_page/ros_kinetic_default.html?q=cob_object_perception) |
 
 ## Travis - Continuous Integration
 
