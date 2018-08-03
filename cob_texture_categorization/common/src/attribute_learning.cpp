@@ -710,16 +710,17 @@ void AttributeLearning::save_SVMs(std::string path)
 }
 
 
-void AttributeLearning::load_SVMs(std::string path)
+void AttributeLearning::load_SVMs(std::string path, const int attribute_number)
 {
 	svm_.clear();
-	const int attribute_number = 17;
+//	const int attribute_number = 17;
 	svm_.resize(attribute_number);
 	for (size_t i=0; i<svm_.size(); ++i)
 	{
 		std::stringstream ss;
 		ss << path << "attribute_svm_" << i << ".yml";
 #if CV_MAJOR_VERSION == 2
+		svm_[i] = cv::ml::SVM::create();
 		svm_[i]->load(ss.str().c_str(), "svm");
 #else
 		svm_[i]->load(ss.str());
