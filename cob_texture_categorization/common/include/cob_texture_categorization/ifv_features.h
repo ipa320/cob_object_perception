@@ -1,3 +1,5 @@
+#pragma once
+
 extern "C"
 {
 	#include <vl/generic.h>
