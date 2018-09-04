@@ -722,7 +722,7 @@ void AttributeLearning::load_SVMs(std::string path, const int attribute_number)
 #if CV_MAJOR_VERSION == 2
 		svm_[i]->load(ss.str().c_str(), "svm");
 #else
-                svm_[i] = cv::ml::SVM::create();
+		svm_[i] = cv::ml::SVM::create();
 		svm_[i]->load(ss.str());
 #endif
 	}
