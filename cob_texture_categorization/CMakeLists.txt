@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(cob_texture_categorization)
 
+# switch build type
+set(ROS_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Release)
+
 set(catkin_RUN_PACKAGES
 	cob_surface_classification
 	cv_bridge
