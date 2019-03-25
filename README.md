@@ -27,6 +27,7 @@ cd /path/to/catkin_workspace/src && git clone https://github.com/ipa320/cob_obje
 cd /path/to/catkin_workspace/src && wstool init
 cd /path/to/catkin_workspace/src && wstool merge /path/to/catkin_workspace/src/cob_object_perception/.travis.rosinstall
 cd /path/to/catkin_workspace/src && wstool update
+
 ```
 And then install all released dependencies:
 ```

@@ -48,7 +48,7 @@ public:
 	void predict(const cv::Mat& feature_data, cv::Mat& predicted_labels);
 
 	void save_SVMs(std::string path);
-	void load_SVMs(std::string path);
+	void load_SVMs(std::string path, const int attribute_number=17);
 
 	void displayAttributes(const cv::Mat& attribute_matrix, const create_train_data::DataHierarchyType& data_sample_hierarchy, int display_class, bool update=false, bool store_on_disk=false);
 
