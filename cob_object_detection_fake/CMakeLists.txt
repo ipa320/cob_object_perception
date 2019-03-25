@@ -8,7 +8,7 @@ catkin_package()
 #############
 ## Install ##
 #############
-install(PROGRAMS ros/scripts/object_detection_fake
+install(PROGRAMS ros/scripts/object_detection_fake.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
