@@ -723,7 +723,7 @@ void AttributeLearning::load_SVMs(std::string path, const int attribute_number)
 		svm_[i]->load(ss.str().c_str(), "svm");
 #else
 		svm_[i] = cv::ml::SVM::create();
-		svm_[i]->load(ss.str());
+		svm_[i] = cv::Algorithm::load<cv::ml::SVM>(ss.str());
 #endif
 	}
 }
