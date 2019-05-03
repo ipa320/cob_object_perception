@@ -5,7 +5,7 @@ import random
 from cob_object_detection_msgs.srv import *
 from cob_object_detection_msgs.msg import *
 
-from gazebo.srv import *
+from gazebo_msgs.srv import *
 
 from numpy import *
 from numpy.linalg import inv
@@ -15,7 +15,18 @@ import tf
 #roslib.load_manifest('cob_script_server')
 from simple_script_server import *
 
-tf_listener = tf.TransformListener()
+#tf_listener = tf.TransformListener()
+###############''WORKAROUND FOR TRANSFORMLISTENER ISSUE####################
+_tl=None
+_tl_creation_lock=threading.Lock()
+
+def get_transform_listener():
+	global _tl
+	with _tl_creation_lock:
+		if _tl==None:
+			_tl=tf.TransformListener(True, rospy.Duration(40.0))
+		return _tl
+###########################################################################
 
 def handle_detect_object(req):
 	name = req.object_name.data
@@ -52,6 +63,7 @@ def handle_detect_object(req):
 #	print "frame_o_h"
 #	print frame_o_h
 	
+	tf_listener = get_transform_listener()
 	tf_listener.waitForTransform('/head_color_camera_l_link', '/head_axis_link', rospy.Time(0), rospy.Duration(1))
 	(trans_h_l, rot_h_l) = tf_listener.lookupTransform('/head_color_camera_l_link', '/head_axis_link', rospy.Time(0))
 	
